@@ -105,7 +105,7 @@ python run_web.py
    - **Unlimited Capacity**: Scales with disk space
    - **Smart Caching**: LRU cache for frequent access
 
-4. **Dynamic Hopfield Network** (`memory/hopfield_dynamic.py`)
+4. **Dynamic Hopfield Network** (`memory/hopfield.py`)
    - **No Capacity Limits**: Grows indefinitely
    - **Dynamic Arrays**: Auto-expanding storage
    - **Attention-Based**: Uses transformer-style attention
@@ -217,7 +217,7 @@ agent-wip/
 │   └── memory_agent.py          # Main memory agent
 ├── memory/
 │   ├── chromadb_store.py        # ChromaDB backend (NEW)
-│   ├── hopfield_dynamic.py      # Unlimited Hopfield (NEW)
+│   ├── hopfield.py      # Unlimited Hopfield (NEW)
 │   ├── memory_store.py          # Storage orchestration
 │   └── block_manager.py         # Memory block management
 ├── models/
