@@ -16,7 +16,6 @@ import base64
 try:
     import chromadb
     from chromadb.config import Settings
-    from chromadb.api.types import Collection
     CHROMADB_AVAILABLE = True
 except ImportError:
     CHROMADB_AVAILABLE = False
@@ -89,7 +88,7 @@ class ChromaDBStore:
             embedding_function=None
         )
     
-    def store_event(self, event: Event, embedding: np.ndarray, block_id: str) -> bool:
+    def store_event(self, event: Event, embedding: np.ndarray, block_id: Optional[str] = None) -> bool:
         """
         Store an event in the database
         
@@ -106,13 +105,16 @@ class ChromaDBStore:
             metadata = {
                 "event_type": event.event_type.value,
                 "episode_id": event.episode_id,
-                "block_id": block_id,
                 "timestamp": event.timestamp,
                 "created_at": event.created_at.isoformat(),
                 "who": event.five_w1h.who or "",
                 "where": event.five_w1h.where or "",
                 "confidence": float(event.confidence)
             }
+            
+            # Add block_id only if provided (for dynamic clustering)
+            if block_id:
+                metadata["block_id"] = block_id
             
             # Prepare document (5W1H as JSON)
             document = json.dumps({
@@ -451,6 +453,116 @@ class ChromaDBStore:
             logger.error(f"Failed to delete block: {e}")
             return False
     
+    def get_embedding(self, event_id: str) -> Optional[np.ndarray]:
+        """
+        Get embedding for a specific event
+        
+        Args:
+            event_id: Event ID
+            
+        Returns:
+            Embedding vector or None if not found
+        """
+        try:
+            result = self.events_collection.get(
+                ids=[event_id],
+                include=['embeddings']
+            )
+            
+            if result['ids'] and len(result['embeddings']) > 0 and len(result['embeddings'][0]) > 0:
+                return np.array(result['embeddings'][0])
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to get embedding: {e}")
+            return None
+    
+    def update_embedding(self, event_id: str, embedding: np.ndarray) -> bool:
+        """
+        Update embedding for an event
+        
+        Args:
+            event_id: Event ID
+            embedding: New embedding vector
+            
+        Returns:
+            Success status
+        """
+        try:
+            self.events_collection.update(
+                ids=[event_id],
+                embeddings=[embedding.tolist()]
+            )
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to update embedding: {e}")
+            return False
+    
+    def update_event(self, event: Event) -> bool:
+        """
+        Update an event in the database
+        
+        Args:
+            event: Event to update
+            
+        Returns:
+            Success status
+        """
+        try:
+            # Update metadata
+            metadata = {
+                "event_type": event.event_type.value,
+                "episode_id": event.episode_id,
+                "timestamp": event.timestamp,
+                "created_at": event.created_at.isoformat(),
+                "who": event.five_w1h.who or "",
+                "where": event.five_w1h.where or "",
+                "confidence": float(event.confidence),
+                "accessed_count": event.accessed_count,
+                "last_accessed": event.last_accessed.isoformat() if event.last_accessed else None
+            }
+            
+            # Update document
+            document = json.dumps({
+                "who": event.five_w1h.who,
+                "what": event.five_w1h.what,
+                "when": event.five_w1h.when,
+                "where": event.five_w1h.where,
+                "why": event.five_w1h.why,
+                "how": event.five_w1h.how,
+                "full_content": event.full_content,
+                "tags": event.tags,
+                "metadata": event.metadata
+            })
+            
+            # Get existing embedding to include in update
+            existing_embedding = self.get_embedding(event.id)
+            if existing_embedding is not None:
+                self.events_collection.update(
+                    ids=[event.id],
+                    documents=[document],
+                    metadatas=[metadata],
+                    embeddings=[existing_embedding.tolist()]
+                )
+            else:
+                # If no existing embedding, just update metadata
+                # Note: This shouldn't happen in normal flow
+                logger.warning(f"No embedding found for event {event.id}, skipping update")
+            
+            # Update cache
+            self.cache['events'][event.id] = event
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to update event: {e}")
+            return False
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Alias for get_statistics for compatibility"""
+        return self.get_statistics()
+    
     def get_statistics(self) -> Dict[str, Any]:
         """Get database statistics"""
         try:
@@ -661,7 +773,7 @@ class ChromaDBStore:
             # Get sample of recent blocks for cache
             blocks_result = self.blocks_collection.get(
                 limit=100,
-                include=['ids', 'documents', 'metadatas']
+                include=['documents', 'metadatas']
             )
             
             if blocks_result['ids']:

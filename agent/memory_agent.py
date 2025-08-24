@@ -11,9 +11,8 @@ import uuid
 
 from config import get_config
 from models.event import Event, EventType, FiveW1H
-from memory.memory_store import MemoryStore
+from memory.dynamic_memory_store import DynamicMemoryStore
 from llm.llm_interface import LLMInterface
-from llm.salience_model import SalienceModel
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +24,8 @@ class MemoryAgent:
         self.config = config or get_config()
         
         # Core components
-        self.memory_store = MemoryStore(self.config)
+        self.memory_store = DynamicMemoryStore()
         self.llm = LLMInterface(self.config.llm)
-        self.salience_model = SalienceModel(self.llm)
         
         # Episode management
         self.current_episode_id = None
@@ -85,7 +83,7 @@ class MemoryAgent:
             **kwargs
         )
         
-        # Store in memory (salience now computed at block level)
+        # Store in memory (no salience threshold - all memories stored)
         success, message = self.memory_store.store_event(event)
         
         self.operation_count += 1
@@ -126,11 +124,11 @@ class MemoryAgent:
             if why: query["why"] = why
             if how: query["how"] = how
         
-        # Retrieve from memory store
-        results = self.memory_store.retrieve(
+        # Retrieve from memory store using dynamic clustering
+        results = self.memory_store.retrieve_memories(
             query=query,
             k=k,
-            include_raw=include_raw
+            use_clustering=True  # Use dynamic clustering by default
         )
         
         logger.info(f"Recalled {len(results)} memories for query: {query}")
@@ -317,6 +315,39 @@ class MemoryAgent:
                 f"First: {events[0].five_w1h.what[:50]}... "
                 f"Last: {events[-1].five_w1h.what[:50]}..."
             )
+    
+    def get_insights(
+        self,
+        query: str,
+        k: int = 10
+    ) -> Dict[str, Any]:
+        """
+        Get insights about memories using dynamic clustering
+        
+        Args:
+            query: Natural language query
+            k: Number of memories to analyze
+            
+        Returns:
+            Dictionary with insights and patterns
+        """
+        return self.memory_store.get_insights(query, k)
+    
+    def adapt_from_feedback(
+        self,
+        query: Dict[str, str],
+        positive_events: List[str],
+        negative_events: List[str]
+    ):
+        """
+        Adapt embeddings based on user feedback
+        
+        Args:
+            query: The query that was used
+            positive_events: Event IDs marked as relevant
+            negative_events: Event IDs marked as irrelevant
+        """
+        self.memory_store.adapt_from_feedback(query, positive_events, negative_events)
     
     def set_goal(self, goal: str):
         """Set the current goal for salience computation"""

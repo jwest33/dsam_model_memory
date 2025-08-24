@@ -17,7 +17,7 @@ class MemoryConfig:
     
     # Learning parameters
     base_learning_rate: float = 0.3
-    salience_threshold: float = 0.4  # Minimum salience to store in processed memory (40% importance)
+    # No salience threshold - all memories are stored and dynamically clustered
     similarity_threshold: float = 0.85  # Threshold for considering memories as duplicates (85% similar)
     
     # Memory update weights (sum to 1.0 for consistency)
@@ -77,20 +77,20 @@ class LLMConfig:
     max_tokens: int = 150  # Reduced from 500 to encourage brevity
     repetition_penalty: float = 1.2  # Penalize repetitive outputs
     
-    # Salience computation
-    use_llm_salience: bool = True
-    salience_prompt_template: str = """Rate importance (0-1 scale).
-Goal: {goal}
-Observation: {observation}
-Output only a decimal number."""
+    # LLM-based analysis (used for clustering and insights)
+    use_llm_analysis: bool = True
+    analysis_prompt_template: str = """Analyze relevance.
+Context: {context}
+Content: {content}
+Output brief analysis."""
 
 @dataclass
 class AgentConfig:
     """Configuration for the memory agent"""
     
     # Research settings
-    convergence_window: int = 3  # Consecutive low-salience items before stopping
-    min_salience: float = 0.35  # Minimum salience to continue processing (35% importance)
+    convergence_window: int = 3  # Consecutive items with low relevance before stopping
+    # No minimum salience - use dynamic clustering instead
     decay_factor: float = 0.85  # Decay rate for iterative searches
     
     # Episode management
