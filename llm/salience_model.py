@@ -1,7 +1,8 @@
 """
-Salience computation model using LLM with heuristic fallback
+Block-based salience computation using embedding matrix
 
-Determines the importance of memories for storage and retrieval.
+This module is now simplified since salience is computed at the block level
+using the salience matrix approach rather than individual event salience.
 """
 
 import logging
@@ -10,265 +11,127 @@ import numpy as np
 
 from config import get_config
 from llm.llm_interface import LLMInterface
-from models.event import Event
 
 logger = logging.getLogger(__name__)
 
 class SalienceModel:
-    """Model for computing memory salience (importance)"""
+    """
+    Model for computing block-level salience.
+    Individual event salience is now handled by the MemoryBlock's salience matrix.
+    """
     
     def __init__(self, llm_interface: Optional[LLMInterface] = None):
         """Initialize salience model"""
         self.config = get_config()
         self.llm = llm_interface or LLMInterface(self.config.llm)
-        self.use_llm = self.config.llm.use_llm_salience
     
-    def compute_salience(
+    def evaluate_block_importance(
         self,
-        event: Event,
+        block_summary: str,
         goal: Optional[str] = None,
-        existing_memories: Optional[List[Event]] = None
+        context: Optional[str] = None
     ) -> float:
         """
-        Compute salience score for an event
+        Evaluate the importance of a memory block using LLM.
+        This is used for high-level block importance assessment.
         
         Args:
-            event: Event to score
+            block_summary: Summary of the block's contents
             goal: Current goal or context
-            existing_memories: Related existing memories for novelty computation
+            context: Additional context
         
         Returns:
-            Salience score (0-1)
+            Importance score (0-1)
         """
-        # Compute novelty and overlap
-        novelty = self._compute_novelty(event, existing_memories)
-        overlap = self._compute_overlap(event, existing_memories)
-        
-        # Try LLM-based scoring if available
-        if self.use_llm and self.llm.is_available():
-            try:
-                salience = self._llm_salience(
-                    event=event,
-                    goal=goal,
-                    novelty=novelty,
-                    overlap=overlap
-                )
-                
-                # Apply exponential moving average if event has previous salience
-                if event.salience != 0.5:  # Not default
-                    alpha = self.config.memory.salience_ema_alpha
-                    salience = (1 - alpha) * event.salience + alpha * salience
-                
-                return salience
-                
-            except Exception as e:
-                logger.warning(f"LLM salience computation failed: {e}, falling back to heuristic")
-        
-        # Fallback to heuristic
-        return self._heuristic_salience(event, goal, novelty, overlap)
-    
-    def _llm_salience(
-        self,
-        event: Event,
-        goal: Optional[str],
-        novelty: float,
-        overlap: float
-    ) -> float:
-        """Compute salience using LLM"""
-        # Build prompt
-        prompt = self.config.llm.salience_prompt_template.format(
-            goal=goal or "General knowledge acquisition",
-            query=event.five_w1h.why or "Unknown intent",
-            observation=event.five_w1h.what,
-            novelty=novelty,
-            overlap=overlap
-        )
-        
-        # Get LLM response
-        response = self.llm.generate(
-            prompt=prompt,
-            max_tokens=20,
-            temperature=0.3  # Lower temperature for more consistent scoring
-        )
-        
-        # Extract score
-        score = self.llm.extract_number(response, default=0.5)
-        
-        logger.debug(f"LLM salience for '{event.five_w1h.what[:50]}...': {score:.2f}")
-        
-        return score
-    
-    def _heuristic_salience(
-        self,
-        event: Event,
-        goal: Optional[str],
-        novelty: float,
-        overlap: float
-    ) -> float:
-        """Compute salience using heuristics"""
-        # Base factors
-        factors = {
-            'novelty': novelty * 0.4,
-            'low_overlap': (1 - overlap) * 0.3,
-            'length': self._length_factor(event) * 0.2,
-            'keywords': self._keyword_boost(event, goal) * 0.1
-        }
-        
-        # Type-specific boosts
-        if event.event_type.value == "observation":
-            factors['type_boost'] = 0.1  # Observations are generally important
-        elif event.event_type.value == "user_input":
-            factors['type_boost'] = 0.15  # User input is very important
-        else:
-            factors['type_boost'] = 0.05
-        
-        # Confidence factor
-        factors['confidence'] = event.confidence * 0.1
-        
-        # Sum factors
-        salience = sum(factors.values())
-        
-        # Clamp to [0, 1]
-        salience = max(0.0, min(1.0, salience))
-        
-        logger.debug(f"Heuristic salience for '{event.five_w1h.what[:50]}...': {salience:.2f}")
-        
-        return salience
-    
-    def _compute_novelty(
-        self,
-        event: Event,
-        existing_memories: Optional[List[Event]]
-    ) -> float:
-        """Compute novelty score (1 = completely new, 0 = duplicate)"""
-        if not existing_memories:
-            return 1.0
-        
-        # Compare with existing memories
-        max_similarity = 0.0
-        
-        for memory in existing_memories:
-            # Simple text similarity based on 'what' field
-            similarity = self._text_similarity(
-                event.five_w1h.what,
-                memory.five_w1h.what
-            )
-            max_similarity = max(max_similarity, similarity)
-        
-        novelty = 1.0 - max_similarity
-        return novelty
-    
-    def _compute_overlap(
-        self,
-        event: Event,
-        existing_memories: Optional[List[Event]]
-    ) -> float:
-        """Compute overlap with existing memories (semantic redundancy)"""
-        if not existing_memories:
-            return 0.0
-        
-        # Take top-k most similar memories
-        k = min(5, len(existing_memories))
-        
-        similarities = []
-        for memory in existing_memories:
-            sim = self._text_similarity(
-                event.five_w1h.what,
-                memory.five_w1h.what
-            )
-            similarities.append(sim)
-        
-        # Average of top-k similarities
-        top_k_sims = sorted(similarities, reverse=True)[:k]
-        overlap = np.mean(top_k_sims) if top_k_sims else 0.0
-        
-        return overlap
-    
-    def _text_similarity(self, text1: str, text2: str) -> float:
-        """Simple text similarity using word overlap"""
-        if not text1 or not text2:
-            return 0.0
-        
-        # Tokenize
-        words1 = set(text1.lower().split())
-        words2 = set(text2.lower().split())
-        
-        if not words1 or not words2:
-            return 0.0
-        
-        # Jaccard similarity
-        intersection = len(words1 & words2)
-        union = len(words1 | words2)
-        
-        return intersection / union if union > 0 else 0.0
-    
-    def _length_factor(self, event: Event) -> float:
-        """Score based on content length (longer = more information)"""
-        text = event.full_content or event.five_w1h.what
-        length = len(text)
-        
-        # Sigmoid-like scoring
-        if length < 50:
-            return 0.2
-        elif length < 200:
+        if not self.config.llm.use_llm_salience or not self.llm.is_available():
+            # Simple fallback: return neutral importance
             return 0.5
-        elif length < 500:
-            return 0.8
-        else:
-            return 1.0
-    
-    def _keyword_boost(self, event: Event, goal: Optional[str]) -> float:
-        """Boost score if event contains goal-related keywords"""
-        if not goal:
-            return 0.0
         
-        text = event.five_w1h.what.lower()
-        goal_words = set(goal.lower().split())
-        
-        # Check for keyword matches
-        matches = sum(1 for word in goal_words if word in text)
-        
-        if matches == 0:
-            return 0.0
-        elif matches == 1:
-            return 0.5
-        else:
-            return 1.0
-    
-    def batch_compute_salience(
-        self,
-        events: List[Event],
-        goal: Optional[str] = None
-    ) -> List[float]:
-        """Compute salience for multiple events"""
-        saliences = []
-        
-        for i, event in enumerate(events):
-            # Use previous events as context for novelty
-            existing = events[:i] if i > 0 else None
+        try:
+            prompt = f"""Rate the importance of this memory block (0-1 scale).
+Goal: {goal or "General knowledge"}
+Context: {context or "No specific context"}
+Block summary: {block_summary}
+
+Consider: relevance, uniqueness, potential utility.
+Output only a decimal number."""
             
-            salience = self.compute_salience(
-                event=event,
-                goal=goal,
-                existing_memories=existing
+            response = self.llm.generate(
+                prompt=prompt,
+                max_tokens=5,
+                temperature=0.1,
+                repetition_penalty=1.3
             )
-            saliences.append(salience)
-        
-        return saliences
+            
+            score = self.llm.extract_number(response, default=0.5)
+            return max(0.0, min(1.0, score))
+            
+        except Exception as e:
+            logger.debug(f"LLM block evaluation failed: {e}")
+            return 0.5
     
-    def update_salience_ema(
+    def compute_novelty_score(
         self,
-        current: float,
-        new: float,
-        alpha: Optional[float] = None
+        content: str,
+        existing_contents: List[str]
     ) -> float:
-        """Update salience using exponential moving average"""
-        if alpha is None:
-            alpha = self.config.memory.salience_ema_alpha
+        """
+        Compute how novel/unique content is compared to existing content.
+        Used during block formation decisions.
         
-        return (1 - alpha) * current + alpha * new
+        Args:
+            content: New content to evaluate
+            existing_contents: List of existing content strings
+        
+        Returns:
+            Novelty score (0-1, where 1 is completely novel)
+        """
+        if not existing_contents:
+            return 1.0
+        
+        try:
+            from embedding.embedder import TextEmbedder
+            embedder = TextEmbedder()
+            
+            # Get embedding for new content
+            new_embedding = embedder.embed(content)
+            new_norm = np.linalg.norm(new_embedding)
+            
+            if new_norm == 0:
+                return 0.5
+            
+            # Compare with existing content
+            max_similarity = 0.0
+            for existing in existing_contents:
+                existing_embedding = embedder.embed(existing)
+                existing_norm = np.linalg.norm(existing_embedding)
+                
+                if existing_norm > 0:
+                    similarity = np.dot(new_embedding, existing_embedding) / (new_norm * existing_norm)
+                    max_similarity = max(max_similarity, similarity)
+            
+            # Convert similarity to novelty (inverse relationship)
+            novelty = 1.0 - max_similarity
+            return max(0.0, novelty)
+            
+        except Exception as e:
+            logger.debug(f"Novelty computation failed: {e}")
+            # Fallback to simple word overlap
+            new_words = set(content.lower().split())
+            
+            if not new_words:
+                return 0.5
+            
+            max_overlap = 0.0
+            for existing in existing_contents:
+                existing_words = set(existing.lower().split())
+                if existing_words:
+                    overlap = len(new_words & existing_words) / len(new_words | existing_words)
+                    max_overlap = max(max_overlap, overlap)
+            
+            return 1.0 - max_overlap
     
     def __repr__(self) -> str:
         """String representation"""
-        mode = "LLM" if self.use_llm and self.llm.is_available() else "Heuristic"
-        return f"SalienceModel(mode={mode})"
+        llm_status = "available" if self.llm.is_available() else "unavailable"
+        return f"SalienceModel(llm={llm_status})"

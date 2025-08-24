@@ -240,11 +240,10 @@ class FiveW1HEmbedder:
         if event.full_content:
             value = self.text_embedder.embed_text(event.full_content)
         
-        # Weight by salience if available
-        if event.salience != 0.5:  # Not default
-            # Amplify distinctive features for high salience
-            key = key * (0.5 + event.salience)
-            key = key / np.linalg.norm(key)
+        # Normalize key (salience weighting now handled by block salience matrix)
+        key_norm = np.linalg.norm(key)
+        if key_norm > 0:
+            key = key / key_norm
         
         return key, value
     

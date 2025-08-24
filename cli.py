@@ -79,7 +79,7 @@ class MemoryCLI:
         
         if success:
             print(f"✓ Stored memory: {event.id[:8]}")
-            print(f"  Salience: {event.salience:.2f}")
+            # Salience now computed at block level
             print(f"  Episode: {event.episode_id}")
             print(f"  Message: {message}")
         else:
@@ -132,7 +132,7 @@ class MemoryCLI:
             print(f"   Where: {event.five_w1h.where}")
             print(f"   Why: {event.five_w1h.why[:100]}")
             print(f"   How: {event.five_w1h.how}")
-            print(f"   Salience: {event.salience:.2f}, Type: {event.event_type.value}")
+            print(f"   Type: {event.event_type.value}")
             print()
     
     def observe(

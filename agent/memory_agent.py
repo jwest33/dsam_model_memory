@@ -85,15 +85,7 @@ class MemoryAgent:
             **kwargs
         )
         
-        # Compute salience
-        existing_memories = self.memory_store.processed_memories[-10:]  # Recent memories
-        event.salience = self.salience_model.compute_salience(
-            event=event,
-            goal=self.current_goal,
-            existing_memories=existing_memories
-        )
-        
-        # Store in memory
+        # Store in memory (salience now computed at block level)
         success, message = self.memory_store.store_event(event)
         
         self.operation_count += 1

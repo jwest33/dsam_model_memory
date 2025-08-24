@@ -28,12 +28,12 @@ class MemoryBlockManager:
         self.event_to_blocks: Dict[str, Set[str]] = defaultdict(set)  # event_id -> block_ids
         self.embedder = embedder
         
-        # Configuration
-        self.temporal_window = 300  # 5 minutes in seconds
-        self.semantic_threshold = 0.6  # Minimum similarity for semantic linking
-        self.merge_threshold = 0.75  # Threshold for merging blocks
-        self.max_block_size = 20  # Maximum events per block
-        
+        # Configuration (principled values based on cognitive science)
+        self.temporal_window = 300  # 5 minutes - typical short-term memory span
+        self.semantic_threshold = 0.5  # 50% similarity - balanced threshold
+        self.merge_threshold = 0.8  # 80% similarity - high confidence for merging
+        self.max_block_size = 15  # Miller's law range (7±2) * 2 for flexibility
+
     def process_event(self, event: Event, context_events: Optional[List[Event]] = None) -> MemoryBlock:
         """
         Process a new event and assign it to appropriate memory block(s)
@@ -138,15 +138,15 @@ class MemoryBlockManager:
                 if event.five_w1h.where and event.five_w1h.where == block.aggregate_signature.where:
                     scores['where_match'] = 0.6
             
-            # Compute weighted overall score
+            # Compute weighted overall score (weights sum to 1.0)
             weights = {
-                'temporal': 0.2,
-                'episodic': 0.25,
-                'semantic': 0.2,
-                'causal': 0.15,
-                'conversational': 0.15,
-                'who_match': 0.025,
-                'where_match': 0.025
+                'temporal': 0.15,       # Time proximity
+                'episodic': 0.20,       # Same episode/session
+                'semantic': 0.25,       # Content similarity (most important)
+                'causal': 0.15,         # Cause-effect relationships
+                'conversational': 0.15, # Dialog continuity
+                'who_match': 0.05,      # Actor consistency
+                'where_match': 0.05     # Location consistency
             }
             
             overall_score = sum(scores[k] * weights[k] for k in weights)
@@ -193,37 +193,43 @@ class MemoryBlockManager:
                 similarity = 0.0
             elif val_a == val_b:
                 similarity = 1.0
-            elif field == 'what':
-                # Use more sophisticated similarity for 'what'
-                similarity = self._text_similarity(val_a, val_b)
             else:
                 # Check for substring matches
-                if val_a.lower() in val_b.lower() or val_b.lower() in val_a.lower():
-                    similarity = 0.7
-                else:
-                    similarity = 0.0
-            
+                similarity = self._text_similarity(val_a, val_b)
+
             similarities.append(similarity * weight)
         
         return sum(similarities)
     
     def _text_similarity(self, text1: str, text2: str) -> float:
-        """Compute text similarity using word overlap and optionally embeddings"""
+        """Compute text similarity using embeddings with cosine similarity"""
         if not text1 or not text2:
             return 0.0
         
-        # If embedder available, use it
+        # Primary: Use embeddings if available
         if self.embedder and hasattr(self.embedder, 'text_embedder'):
             try:
                 emb1 = self.embedder.text_embedder.embed(text1)
                 emb2 = self.embedder.text_embedder.embed(text2)
-                # Cosine similarity
-                similarity = np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
-                return float(similarity)
-            except:
-                pass
+                
+                # Compute cosine similarity
+                dot_product = np.dot(emb1, emb2)
+                norm1 = np.linalg.norm(emb1)
+                norm2 = np.linalg.norm(emb2)
+                
+                # Avoid division by zero
+                if norm1 == 0 or norm2 == 0:
+                    return 0.0
+                
+                similarity = dot_product / (norm1 * norm2)
+                # Ensure similarity is in [0, 1] range (cosine sim is [-1, 1])
+                return float(max(0.0, similarity))
+            
+            except Exception as e:
+                logger.debug(f"Embedding computation failed, using fallback: {e}")
+                # Fall through to alternative method
         
-        # Fallback to word overlap
+        # Fallback: Jaccard similarity on word sets
         words1 = set(text1.lower().split())
         words2 = set(text2.lower().split())
         
@@ -253,8 +259,8 @@ class MemoryBlockManager:
             event.five_w1h.who == "User"):
             # Check temporal proximity for follow-up
             time_diff = (event.created_at - last_event.created_at).total_seconds()
-            return time_diff <= 60  # Within 1 minute
-        
+            return time_diff <= self.temporal_window  # Within temporal window
+
         return False
     
     def _add_event_to_block(self, block: MemoryBlock, event: Event, link_type: LinkType):
@@ -320,8 +326,8 @@ class MemoryBlockManager:
         self.blocks[block.id] = block
         self.event_to_blocks[event.id].add(block.id)
         
-        # Compute initial salience
-        block.salience = event.salience
+        # Update salience matrix for the new block
+        block._update_salience_matrix()
         
         logger.info(f"Created new memory block: {block.id}")
         
@@ -433,21 +439,58 @@ class MemoryBlockManager:
     def retrieve_relevant_blocks(
         self, 
         query: Dict[str, str], 
-        k: int = 5
+        k: int = 5,
+        use_embeddings: bool = True
     ) -> List[Tuple[MemoryBlock, float]]:
         """
-        Retrieve memory blocks relevant to a query
+        Retrieve memory blocks relevant to a query using embeddings or 5W1H matching
         
         Args:
             query: Partial 5W1H query
             k: Number of blocks to retrieve
+            use_embeddings: Use block embeddings for retrieval if available
             
         Returns:
             List of (block, relevance_score) tuples
         """
         results = []
         
-        # Create FiveW1H from query
+        # Try embedding-based retrieval first if requested
+        if use_embeddings and self.embedder:
+            try:
+                # Create query embedding
+                query_text = ' '.join([v for v in query.values() if v])
+                if query_text:
+                    query_embedding = self.embedder.text_embedder.embed(query_text)
+                    query_embedding = query_embedding / np.linalg.norm(query_embedding)
+                    
+                    for block_id, block in self.blocks.items():
+                        if block.block_embedding is not None:
+                            # Compute cosine similarity
+                            similarity = np.dot(query_embedding, block.block_embedding)
+                            
+                            # Apply boosts
+                            score = similarity
+                            
+                            # Boost for recency
+                            if block.updated_at:
+                                age_hours = (datetime.utcnow() - block.updated_at).total_seconds() / 3600
+                                recency_boost = np.exp(-age_hours / 168)  # Decay over a week
+                                score = score * 0.7 + recency_boost * 0.15
+                            
+                            # Boost for block salience
+                            score = score * 0.7 + block.salience * 0.15
+                            
+                            if score > 0:
+                                results.append((block, score))
+                    
+                    if results:
+                        results.sort(key=lambda x: x[1], reverse=True)
+                        return results[:k]
+            except Exception as e:
+                logger.debug(f"Embedding retrieval failed, falling back to 5W1H: {e}")
+        
+        # Fallback to 5W1H similarity
         query_5w1h = FiveW1H(
             who=query.get('who', ''),
             what=query.get('what', ''),
@@ -467,11 +510,11 @@ class MemoryBlockManager:
             # Boost for recency
             if block.updated_at:
                 age_hours = (datetime.utcnow() - block.updated_at).total_seconds() / 3600
-                recency_boost = np.exp(-age_hours / 24)  # Decay over 24 hours
-                relevance = relevance * 0.8 + recency_boost * 0.2
+                recency_boost = np.exp(-age_hours / 168)  # Decay over a week
+                relevance = relevance * 0.8 + recency_boost * 0.1
             
             # Boost for block salience
-            relevance = relevance * 0.7 + block.salience * 0.3
+            relevance = relevance * 0.8 + block.salience * 0.1
             
             if relevance > 0:
                 results.append((block, relevance))

@@ -76,6 +76,10 @@ class LLMInterface:
                 return ""
         
         try:
+            # Add repetition penalty if not provided
+            if 'repetition_penalty' not in kwargs:
+                kwargs['repetition_penalty'] = getattr(self.config, 'repetition_penalty', 1.2)
+            
             response = self.client.completion(
                 prompt=prompt,
                 max_tokens=max_tokens or self.config.max_tokens,
@@ -162,23 +166,19 @@ class LLMInterface:
         context: Optional[str] = None
     ) -> Dict[str, str]:
         """Complete missing 5W1H slots using LLM"""
-        # Build prompt
-        prompt = "Complete the missing information in this 5W1H structure:\n\n"
+        # Build concise prompt
+        prompt = "Complete missing 5W1H fields.\n"
         
         if context:
-            prompt += f"Context: {context}\n\n"
+            prompt += f"Context: {context}\n"
         
-        prompt += "Given information:\n"
+        prompt += "Given:\n"
         for key, value in partial.items():
             if value:
-                prompt += f"- {key}: {value}\n"
+                prompt += f"{key}: {value}\n"
         
-        prompt += "\nComplete the missing fields:\n"
         missing = [k for k in ["who", "what", "when", "where", "why", "how"] if not partial.get(k)]
-        for key in missing:
-            prompt += f"- {key}: \n"
-        
-        prompt += "\nProvide the completed information in the format 'field: value'."
+        prompt += f"\nProvide only: {', '.join(missing)}\nFormat: field: value"
         
         # Generate completion
         response = self.generate(prompt, max_tokens=200)
@@ -200,22 +200,11 @@ class LLMInterface:
         observation: str
     ) -> Dict[str, Any]:
         """Analyze causal relationship between action and observation"""
-        prompt = f"""Analyze the causal relationship between this action and observation:
-
-Action: {action}
+        prompt = f"""Action: {action}
 Observation: {observation}
 
-Determine:
-1. Is there a direct causal relationship? (yes/no)
-2. What is the confidence level? (0-1)
-3. What is the mechanism of causation?
-
-Respond in JSON format:
-{{
-    "is_causal": true/false,
-    "confidence": 0.0-1.0,
-    "mechanism": "description"
-}}"""
+JSON output only:
+{{"is_causal": bool, "confidence": 0-1, "mechanism": "brief description"}}"""
         
         response = self.generate(prompt, max_tokens=150)
         result = self.extract_json(response)
@@ -236,11 +225,8 @@ Respond in JSON format:
         max_tags: int = 5
     ) -> List[str]:
         """Suggest tags for an event"""
-        prompt = f"""Suggest up to {max_tags} tags for this event:
-
-{event_description}
-
-Provide tags as a comma-separated list. Tags should be single words or short phrases."""
+        prompt = f"""Event: {event_description[:100]}
+Output {max_tags} tags, comma-separated:"""
         
         response = self.generate(prompt, max_tokens=50)
         
@@ -266,15 +252,15 @@ Provide tags as a comma-separated list. Tags should be single words or short phr
         if not events:
             return "No events to summarize."
         
-        prompt = "Summarize this sequence of events in 2-3 sentences:\n\n"
+        prompt = "Summarize in 1 sentence:\n"
         
-        for i, event in enumerate(events[:10], 1):  # Limit to first 10
-            prompt += f"{i}. {event.get('who', 'Unknown')}: {event.get('what', 'Unknown action')}\n"
+        for i, event in enumerate(events[:5], 1):  # Limit to first 5
+            prompt += f"{event.get('what', 'Unknown')[:30]}\n"
         
-        if len(events) > 10:
-            prompt += f"... and {len(events) - 10} more events\n"
+        if len(events) > 5:
+            prompt += f"(+{len(events) - 5} more)\n"
         
-        prompt += "\nSummary:"
+        prompt += "Summary:"
         
         response = self.generate(prompt, max_tokens=100)
         return response.strip()

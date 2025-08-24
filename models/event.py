@@ -84,7 +84,6 @@ class Event:
     episode_id: str = field(default_factory=lambda: f"e{uuid.uuid4().hex[:8]}")
     
     # Memory metadata
-    salience: float = 0.5  # Importance score (0-1)
     confidence: float = 1.0  # Certainty level (0-1)
     tags: List[str] = field(default_factory=list)
     
@@ -111,20 +110,10 @@ class Event:
     
     @property
     def priority_score(self) -> float:
-        """Calculate priority score for eviction (lower = keep, higher = evict)"""
-        # Normalize factors
-        salience_norm = self.salience  # Already 0-1
-        usage_norm = min(1.0, self.accessed_count / 10.0)  # Cap at 10 accesses
-        age_norm = min(1.0, self.age_seconds / (7 * 24 * 3600))  # Normalize to 1 week
-        
-        # Higher score = more likely to evict
-        # We want: low salience, low usage, old age = high score
-        score = (
-            1.2 * (1 - salience_norm) +  # Low salience increases score
-            0.6 * (1 - usage_norm) +      # Low usage increases score
-            0.6 * age_norm                # Old age increases score
-        )
-        return score
+        """Calculate priority score (deprecated - no longer used for eviction)"""
+        # This is kept for backward compatibility but not used
+        # since we no longer have memory limits
+        return 0.5
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization"""
