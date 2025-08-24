@@ -15,14 +15,14 @@ from models.event import Event, FiveW1H
 from memory.chromadb_store import ChromaDBStore
 from memory.dynamic_clustering import DynamicMemoryClustering
 from memory.adaptive_embeddings import AdaptiveEmbeddingSystem
-from memory.hopfield import DynamicHopfieldNetwork
+from memory.hopfield import ModernHopfieldNetwork
 from embedding.embedder import FiveW1HEmbedder
 from config import get_config
 
 logger = logging.getLogger(__name__)
 
 
-class DynamicMemoryStore:
+class MemoryStore:
     """
     Unified memory store with dynamic clustering and adaptive embeddings.
     No static blocks, no arbitrary thresholds.
@@ -43,7 +43,7 @@ class DynamicMemoryStore:
         )
         
         # Hopfield network for associative memory
-        self.hopfield = DynamicHopfieldNetwork()
+        self.hopfield = ModernHopfieldNetwork()
         
         # Embedder for generating embeddings
         self.embedder = FiveW1HEmbedder()
