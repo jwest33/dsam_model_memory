@@ -50,14 +50,14 @@ def index():
 def chat():
     """Handle chat messages"""
     data = request.json
-    user_message = data.get('message', '')
-    
+    user_message = data.get('message', '').strip()
+
     if not user_message:
         return jsonify({'error': 'No message provided'}), 400
-    
+
     try:
-        # Store user input as memory
-        success, msg, event = memory_agent.remember(
+        # 1) Store user input as memory
+        success, msg, user_event = memory_agent.remember(
             who="User",
             what=user_message,
             where="web_chat",
@@ -65,43 +65,59 @@ def chat():
             how="Chat interface",
             event_type="user_input"
         )
-        
-        # Get relevant memories for context
+
+        # 2) Retrieve relevant memories for context
         relevant_memories = memory_agent.recall(
             what=user_message,
             k=5
         )
-        
-        # Build context from memories
-        context = "Relevant memories:\n"
-        for mem, score in relevant_memories:
-            context += f"- [{score:.2f}] {mem.five_w1h.who}: {mem.five_w1h.what[:100]}\n"
-        
-        # Generate LLM response
-        prompt = f"""
 
-You are a helpful AI assistant with access to a memory system.
+        # 3) Build an optional context section
+        context = ""
+        if relevant_memories:
+            context_lines = ["Relevant memories:"]
+            for mem, score in relevant_memories:
+                snippet = mem.five_w1h.what[:100]
+                ellipsis = "..." if len(mem.five_w1h.what) > 100 else ""
+                context_lines.append(f"- [{score:.2f}] {mem.five_w1h.who}: {snippet}{ellipsis}")
+            context = "\n".join(context_lines) + "\n\n"
 
-Context from memory:
-{context}
+        # 4) Compose the prompt and generate an LLM response
+        prompt = (
+            "You are a helpful AI assistant with access to conversation memory. "
+            "Use any relevant memories (if provided) to make your response more context-aware and specific.\n\n"
+            f"{context}"
+            "Current conversation:\n"
+            f"User: {user_message}\n"
+            "Assistant:"
+        )
 
-User: {user_message}
+        llm_response = llm_interface.generate(prompt)
+
+        # Fallback to something graceful if LLM returns empty
+        if not llm_response:
+            llm_response = "I'm having trouble generating a response right now, but I've saved your message. Could you rephrase or provide a bit more detail?"
+
+        # 5) Store the assistant response as memory
+        memory_agent.remember(
+            who="Assistant",
             what=llm_response,
             where="web_chat",
             why=f"Response to: {user_message[:50]}",
             how="LLM generation",
             event_type="action"
         )
-        
+
         return jsonify({
             'response': llm_response,
-            'memories_used': len(relevant_memories)
+            'memories_used': len(relevant_memories) if relevant_memories else 0
         })
-    """
-        
+
     except Exception as e:
-        logger.error(f"Chat error: {e}")
+        # Log and surface the error cleanly
+        app.logger.error(f"Chat error: {e}")
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/memories', methods=['GET'])
 def get_memories():
@@ -122,7 +138,7 @@ def get_memories():
                     'why': event.five_w1h.why,
                     'how': event.five_w1h.how,
                     'type': event.event_type.value,
-                    'salience': event.salience,
+                    'salience': 0.5,  # Now handled by block salience matrix
                     'episode_id': event.episode_id
                 })
         
@@ -144,7 +160,7 @@ def get_memories():
                     'why': event.five_w1h.why,
                     'how': event.five_w1h.how,
                     'type': event.event_type.value,
-                    'salience': event.salience,
+                    'salience': 0.5,  # Now handled by block salience matrix
                     'episode_id': event.episode_id,
                     'block_ids': block_ids,
                     'block_saliences': block_saliences
@@ -200,7 +216,7 @@ def create_memory():
                 'message': msg,
                 'memory': {
                     'id': event.id,
-                    'salience': event.salience
+                    'salience': 0.5  # Now handled by block salience matrix
                 }
             })
         else:
@@ -244,6 +260,53 @@ def delete_memory(memory_id):
         logger.error(f"Delete memory error: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/blocks/<block_id>', methods=['DELETE'])
+def delete_block(block_id):
+    """Delete a memory block"""
+    try:
+        # Check if block exists
+        if not hasattr(memory_agent.memory_store, 'memory_blocks'):
+            return jsonify({'error': 'Memory blocks not initialized'}), 404
+        
+        blocks = memory_agent.memory_store.memory_blocks
+        if block_id not in blocks:
+            return jsonify({'error': 'Block not found'}), 404
+        
+        # Get the block to find its event IDs
+        block = blocks[block_id]
+        event_ids = block.event_ids if hasattr(block, 'event_ids') else []
+        
+        # Remove block from memory_blocks
+        del blocks[block_id]
+        
+        # Remove block references from events in processed memories
+        if hasattr(memory_agent.memory_store, 'processed_memories'):
+            for event_id, event in memory_agent.memory_store.processed_memories.items():
+                if hasattr(event, 'block_ids') and event.block_ids:
+                    event.block_ids = [bid for bid in event.block_ids if bid != block_id]
+                    if hasattr(event, 'block_saliences') and event.block_saliences:
+                        # Remove corresponding salience if it exists
+                        if len(event.block_saliences) > len(event.block_ids):
+                            event.block_saliences = event.block_saliences[:len(event.block_ids)]
+        
+        # Remove block references from raw memories
+        if hasattr(memory_agent.memory_store, 'raw_memories'):
+            for event_id, event in memory_agent.memory_store.raw_memories.items():
+                if hasattr(event, 'block_ids') and event.block_ids:
+                    event.block_ids = [bid for bid in event.block_ids if bid != block_id]
+                    if hasattr(event, 'block_saliences') and event.block_saliences:
+                        if len(event.block_saliences) > len(event.block_ids):
+                            event.block_saliences = event.block_saliences[:len(event.block_ids)]
+        
+        # Save changes
+        memory_agent.save()
+        
+        return jsonify({'success': True, 'message': f'Block {block_id} deleted successfully'})
+        
+    except Exception as e:
+        logger.error(f"Delete block error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/recall', methods=['POST'])
 def recall():
     """Recall memories based on query"""
@@ -267,7 +330,7 @@ def recall():
                 'why': event.five_w1h.why,
                 'how': event.five_w1h.how,
                 'type': event.event_type.value,
-                'salience': event.salience
+                'salience': 0.5  # Now handled by block salience matrix
             })
         
         return jsonify({'memories': memories})

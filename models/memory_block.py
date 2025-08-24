@@ -61,9 +61,18 @@ class MemoryBlock:
     
     # Block metadata
     block_type: str = "general"  # conversation, task, knowledge, etc.
-    salience: float = 0.5        # Block-level salience
     coherence_score: float = 0.0 # How well memories fit together
     tags: List[str] = field(default_factory=list)
+    
+    # Salience matrix system
+    salience_matrix: Optional[np.ndarray] = None  # [n_events x n_events] pairwise saliences
+    event_saliences: Optional[np.ndarray] = None  # [n_events] each event's importance to block
+    block_salience: float = 0.5  # Overall block importance (derived from matrix)
+    
+    # Block embeddings for content-addressable indexing
+    block_embedding: Optional[np.ndarray] = None  # Aggregate embedding of all events
+    event_embeddings: List[np.ndarray] = field(default_factory=list)  # Individual event embeddings
+    embedding_version: int = 0  # Track embedding updates
     
     # Statistics
     access_count: int = 0
@@ -86,8 +95,10 @@ class MemoryBlock:
                 )
                 self.links.append(link)
             
-            # Update aggregate signature
+            # Update aggregate signature and salience matrix
             self._update_aggregate_signature()
+            self._update_salience_matrix()
+            self._update_block_embedding()
             self.updated_at = datetime.utcnow()
     
     def merge_with(self, other: 'MemoryBlock'):
@@ -104,8 +115,10 @@ class MemoryBlock:
             if link_key not in existing_links:
                 self.links.append(link)
         
-        # Update metadata
+        # Update metadata, salience matrix, and embeddings
         self._update_aggregate_signature()
+        self._update_salience_matrix()
+        self._update_block_embedding()
         self.coherence_score = self.compute_coherence()
         self.updated_at = datetime.utcnow()
     
@@ -252,73 +265,227 @@ class MemoryBlock:
         overlaps = []
         
         # Check each field
-        fields = ['who', 'where', 'why', 'how']
+        fields = ['who', 'what', 'where', 'why', 'how']
         for field in fields:
             val_a = getattr(a, field, "")
             val_b = getattr(b, field, "")
             if val_a and val_b:
                 if val_a == val_b:
                     overlaps.append(1.0)
-                elif val_a.lower() in val_b.lower() or val_b.lower() in val_a.lower():
-                    overlaps.append(0.5)
                 else:
-                    overlaps.append(0.0)
-        
-        # Special handling for 'what' - use word overlap
-        what_overlap = self._text_similarity(a.what, b.what)
-        overlaps.append(what_overlap)
-        
+                    overlap = self._text_similarity(a.what, b.what)
+                    overlaps.append(overlap)
+
         return np.mean(overlaps) if overlaps else 0.0
     
     def _text_similarity(self, text1: str, text2: str) -> float:
-        """Simple text similarity using word overlap"""
+        """Compute text similarity using embeddings with cosine similarity"""
         if not text1 or not text2:
             return 0.0
         
-        words1 = set(text1.lower().split())
-        words2 = set(text2.lower().split())
-        
-        if not words1 or not words2:
-            return 0.0
-        
-        intersection = len(words1 & words2)
-        union = len(words1 | words2)
-        
-        return intersection / union if union > 0 else 0.0
+        # Try to use embeddings for semantic similarity
+        try:
+            from embedding.embedder import TextEmbedder
+            import numpy as np
+            
+            embedder = TextEmbedder()
+            emb1 = embedder.embed(text1)
+            emb2 = embedder.embed(text2)
+            
+            # Compute cosine similarity
+            dot_product = np.dot(emb1, emb2)
+            norm1 = np.linalg.norm(emb1)
+            norm2 = np.linalg.norm(emb2)
+            
+            if norm1 == 0 or norm2 == 0:
+                return 0.0
+            
+            similarity = dot_product / (norm1 * norm2)
+            # Ensure similarity is in [0, 1] range
+            return float(max(0.0, similarity))
+            
+        except Exception:
+            # Fallback to Jaccard similarity
+            words1 = set(text1.lower().split())
+            words2 = set(text2.lower().split())
+            
+            if not words1 or not words2:
+                return 0.0
+            
+            intersection = len(words1 & words2)
+            union = len(words1 | words2)
+            
+            return intersection / union if union > 0 else 0.0
     
-    def compute_block_salience(self) -> float:
+    def _update_salience_matrix(self):
         """
-        Compute aggregate salience for the entire block
-        Considers individual event saliences and their relationships
+        Update the salience matrix based on embedding similarities.
+        This replaces individual event salience with a matrix-based approach.
         """
         if not self.events:
-            return 0.0
+            self.salience_matrix = None
+            self.event_saliences = None
+            self.block_salience = 0.0
+            return
         
-        # Weighted average of event saliences
-        event_saliences = [e.salience for e in self.events]
-        avg_salience = np.mean(event_saliences)
+        try:
+            from embedding.embedder import FiveW1HEmbedder
+            embedder = FiveW1HEmbedder()
+            
+            n_events = len(self.events)
+            
+            # Get embeddings for all events
+            embeddings = []
+            for event in self.events:
+                key, _ = embedder.embed_event(event)
+                embeddings.append(key)
+                
+            # Store individual embeddings
+            self.event_embeddings = embeddings
+            embeddings = np.array(embeddings)
+            
+            # Compute pairwise cosine similarities
+            self.salience_matrix = np.zeros((n_events, n_events))
+            
+            for i in range(n_events):
+                for j in range(n_events):
+                    if i == j:
+                        # Self-similarity is 1, but we reduce it to avoid self-importance
+                        self.salience_matrix[i, j] = 0.5
+                    else:
+                        # Compute cosine similarity
+                        dot_product = np.dot(embeddings[i], embeddings[j])
+                        norm_i = np.linalg.norm(embeddings[i])
+                        norm_j = np.linalg.norm(embeddings[j])
+                        
+                        if norm_i > 0 and norm_j > 0:
+                            similarity = dot_product / (norm_i * norm_j)
+                            # Map to [0, 1] and apply temporal decay
+                            time_diff = abs((self.events[i].created_at - self.events[j].created_at).total_seconds())
+                            temporal_weight = np.exp(-time_diff / 3600)  # Decay over hours
+                            self.salience_matrix[i, j] = max(0, similarity) * 0.7 + temporal_weight * 0.3
+                        else:
+                            self.salience_matrix[i, j] = 0.0
+            
+            # Compute event saliences as eigenvector centrality
+            # This captures how "central" each event is to the block
+            eigenvalues, eigenvectors = np.linalg.eig(self.salience_matrix)
+            
+            # Get the dominant eigenvector (largest eigenvalue)
+            idx = np.argmax(np.abs(eigenvalues))
+            dominant_eigenvector = np.abs(eigenvectors[:, idx])
+            
+            # Normalize to [0, 1]
+            if dominant_eigenvector.max() > 0:
+                self.event_saliences = dominant_eigenvector / dominant_eigenvector.max()
+            else:
+                self.event_saliences = np.ones(n_events) * 0.5
+            
+            # Apply type-specific boosts
+            for i, event in enumerate(self.events):
+                if event.event_type.value == "user_input":
+                    self.event_saliences[i] = min(1.0, self.event_saliences[i] * 1.3)
+                elif event.event_type.value == "observation":
+                    self.event_saliences[i] = min(1.0, self.event_saliences[i] * 1.15)
+            
+            # Compute block salience as weighted average
+            # Weight by event saliences and recency
+            weights = []
+            for i, event in enumerate(self.events):
+                age_hours = (datetime.utcnow() - event.created_at).total_seconds() / 3600
+                recency = np.exp(-age_hours / 168)  # Week decay
+                weights.append(self.event_saliences[i] * 0.8 + recency * 0.2)
+            
+            weights = np.array(weights)
+            weights = weights / weights.sum() if weights.sum() > 0 else weights
+            
+            # Block salience with coherence boost
+            base_salience = np.average(self.event_saliences, weights=weights)
+            coherence_boost = self.coherence_score * 0.15
+            
+            # Boost for conversation patterns
+            conversation_boost = 0.0
+            user_events = [e for e in self.events if e.five_w1h.who == "User"]
+            assistant_events = [e for e in self.events if e.five_w1h.who == "Assistant"]
+            if user_events and assistant_events:
+                conversation_boost = 0.1
+            
+            self.block_salience = min(1.0, base_salience + coherence_boost + conversation_boost)
+            
+        except Exception as e:
+            # Fallback: uniform salience
+            n_events = len(self.events)
+            self.salience_matrix = np.ones((n_events, n_events)) * 0.5
+            self.event_saliences = np.ones(n_events) * 0.5
+            self.block_salience = 0.5
+    
+    def get_event_salience(self, event_id: str) -> float:
+        """Get the salience of a specific event within this block"""
+        if not self.event_saliences or event_id not in self.event_ids:
+            return 0.5
         
-        # Boost for coherence
-        coherence_boost = self.coherence_score * 0.2
+        # Find event index
+        for i, event in enumerate(self.events):
+            if event.id == event_id:
+                return float(self.event_saliences[i])
         
-        # Boost for conversation patterns (Q&A pairs)
-        conversation_boost = 0.0
-        user_events = [e for e in self.events if e.five_w1h.who == "User"]
-        assistant_events = [e for e in self.events if e.five_w1h.who == "Assistant"]
-        if user_events and assistant_events:
-            conversation_boost = 0.15
+        return 0.5
+    
+    def _update_block_embedding(self):
+        """
+        Update the block's aggregate embedding for content-addressable indexing.
+        This enables efficient retrieval without separate indexing.
+        """
+        if not self.events:
+            self.block_embedding = None
+            return
         
-        # Boost for causal chains
-        causal_boost = 0.0
-        causal_links = [l for l in self.links if l.link_type == LinkType.CAUSAL]
-        if causal_links:
-            causal_boost = min(0.2, len(causal_links) * 0.05)
-        
-        # Combine factors
-        block_salience = min(1.0, avg_salience + coherence_boost + conversation_boost + causal_boost)
-        
-        self.salience = block_salience
-        return block_salience
+        try:
+            from embedding.embedder import FiveW1HEmbedder
+            embedder = FiveW1HEmbedder()
+            
+            # Use stored embeddings if available, otherwise compute
+            if self.event_embeddings and len(self.event_embeddings) == len(self.events):
+                event_embeddings = self.event_embeddings
+            else:
+                event_embeddings = []
+                for event in self.events:
+                    key, _ = embedder.embed_event(event)
+                    event_embeddings.append(key)
+            
+            # Weight by event saliences from matrix
+            weights = []
+            for i, event in enumerate(self.events):
+                # Use salience from matrix if available
+                if self.event_saliences is not None and i < len(self.event_saliences):
+                    event_salience = self.event_saliences[i]
+                else:
+                    event_salience = 0.5
+                
+                # Weight by salience and recency
+                age_hours = (datetime.utcnow() - event.created_at).total_seconds() / 3600
+                recency_weight = np.exp(-age_hours / 168)  # Decay over a week
+                weight = event_salience * 0.7 + recency_weight * 0.3
+                weights.append(weight)
+            
+            # Normalize weights
+            weights = np.array(weights)
+            weights = weights / weights.sum() if weights.sum() > 0 else weights
+            
+            # Compute weighted average embedding
+            event_embeddings = np.array(event_embeddings)
+            self.block_embedding = np.average(event_embeddings, axis=0, weights=weights)
+            
+            # Normalize the embedding
+            norm = np.linalg.norm(self.block_embedding)
+            if norm > 0:
+                self.block_embedding = self.block_embedding / norm
+            
+            self.embedding_version += 1
+            
+        except Exception as e:
+            # Fallback: simple average if embedder not available
+            self.block_embedding = None
     
     def get_event_graph(self) -> Dict[str, List[Tuple[str, LinkType, float]]]:
         """

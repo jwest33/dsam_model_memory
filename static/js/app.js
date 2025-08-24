@@ -285,8 +285,11 @@ function displayMemoryBlocks() {
             </td>
             <td>${block.link_count}</td>
             <td>
-                <button class="btn btn-sm btn-info" onclick="viewBlock('${block.id}')">
+                <button class="btn btn-sm btn-info" onclick="viewBlock('${block.id}')" title="View Details">
                     <i class="bi bi-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-danger ms-1" onclick="deleteBlock('${block.id}')" title="Delete Block">
+                    <i class="bi bi-trash"></i>
                 </button>
             </td>
         `;
@@ -321,8 +324,11 @@ async function viewBlock(blockId) {
             <div class="row mb-4">
                 <div class="col-md-12">
                     <div class="card border-primary">
-                        <div class="card-header bg-primary text-white">
+                        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                             <h6 class="mb-0">Block Overview</h6>
+                            <button class="btn btn-sm btn-danger" onclick="deleteBlock('${block.id}')">
+                                <i class="bi bi-trash"></i> Delete Block
+                            </button>
                         </div>
                         <div class="card-body">
                             <div class="row">
@@ -565,6 +571,38 @@ function viewMemory(id) {
     
     const modal = new bootstrap.Modal(document.getElementById('memoryDetailModal'));
     modal.show();
+}
+
+async function deleteBlock(blockId) {
+    // Find the block to get more info for confirmation
+    const block = allMemories.blocks ? allMemories.blocks.find(b => b.id === blockId) : null;
+    const blockInfo = block ? `\n\nThis block contains ${block.event_count} events and has ${block.link_count} links.` : '';
+    
+    if (!confirm(`Are you sure you want to delete this memory block?${blockInfo}\n\nThis action cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/blocks/${blockId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            // Close modal if it's open
+            const modal = bootstrap.Modal.getInstance(document.getElementById('memoryBlockModal'));
+            if (modal) {
+                modal.hide();
+            }
+            
+            loadMemories();
+            showAlert('Memory block deleted successfully', 'success');
+        } else {
+            const data = await response.json();
+            showAlert('Failed to delete block: ' + data.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('Error deleting block: ' + error.message, 'danger');
+    }
 }
 
 async function deleteMemory(id) {

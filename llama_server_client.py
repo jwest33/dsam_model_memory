@@ -42,16 +42,20 @@ class LlamaServerClient:
         url = f"{self.base_url}/completions"
         payload = {
             "prompt": prompt,
-            "temperature": kwargs.get("temperature", 0.7),
+            "temperature": kwargs.get("temperature", 0.3),  # Default to lower temperature
             "max_tokens": kwargs.get("max_tokens", 100),
             "stop": kwargs.get("stop", []),
-            "stream": False
+            "stream": False,
+            "repeat_penalty": kwargs.get("repetition_penalty", 1.2)  # Default repetition penalty
         }
         
         # Add any additional parameters
-        for key in ["top_p", "top_k", "repeat_penalty", "presence_penalty", "frequency_penalty"]:
+        for key in ["top_p", "top_k", "repeat_penalty", "repetition_penalty", "presence_penalty", "frequency_penalty"]:
             if key in kwargs:
-                payload[key] = kwargs[key]
+                if key == "repetition_penalty":
+                    payload["repeat_penalty"] = kwargs[key]
+                else:
+                    payload[key] = kwargs[key]
         
         try:
             response = requests.post(url, json=payload, timeout=self.timeout)

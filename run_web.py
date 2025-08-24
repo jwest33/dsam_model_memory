@@ -5,10 +5,20 @@ Quick launcher for the Flask web interface
 
 import sys
 import webbrowser
+import signal
+import atexit
 from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent))
+
+def shutdown_handler():
+    """Save memory state on shutdown"""
+    print("\nSaving memory state before shutdown...")
+    from web_app import memory_agent
+    if memory_agent:
+        memory_agent.save()
+        print("Memory state saved successfully")
 
 def main():
     """Launch the web interface"""
@@ -35,6 +45,11 @@ def main():
     
     # Initialize the system
     initialize_system()
+    
+    # Register shutdown handlers
+    atexit.register(shutdown_handler)
+    signal.signal(signal.SIGINT, lambda s, f: (shutdown_handler(), sys.exit(0)))
+    signal.signal(signal.SIGTERM, lambda s, f: (shutdown_handler(), sys.exit(0)))
     
     # Run the Flask app
     app.run(debug=False, port=5000, host='127.0.0.1')

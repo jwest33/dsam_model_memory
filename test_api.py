@@ -36,7 +36,7 @@ if hasattr(memory_agent.memory_store, 'raw_memories'):
             'why': event.five_w1h.why,
             'how': event.five_w1h.how,
             'type': event.event_type.value,
-            'salience': event.salience,
+            'salience': 0.5,  # Now handled by block salience matrix
             'episode_id': event.episode_id
         })
 
@@ -45,7 +45,7 @@ if hasattr(memory_agent.memory_store, 'processed_memories'):
     for event in memory_agent.memory_store.processed_memories:
         blocks = memory_agent.memory_store.block_manager.get_blocks_for_event(event.id)
         block_ids = [b.id for b in blocks]
-        block_saliences = [b.salience for b in blocks]
+        block_saliences = [b.block_salience for b in blocks]
         
         processed_memories.append({
             'id': event.id,
@@ -56,7 +56,7 @@ if hasattr(memory_agent.memory_store, 'processed_memories'):
             'why': event.five_w1h.why,
             'how': event.five_w1h.how,
             'type': event.event_type.value,
-            'salience': event.salience,
+            'salience': 0.5,  # Now handled by block salience matrix
             'episode_id': event.episode_id,
             'block_ids': block_ids,
             'block_saliences': block_saliences
