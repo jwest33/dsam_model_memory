@@ -1,8 +1,8 @@
-from memory.memory_store import DynamicMemoryStore
+from memory.memory_store import MemoryStore
 from models.event import Event, FiveW1H, EventType
 import traceback
 
-store = DynamicMemoryStore()
+store = MemoryStore()
 event = Event(
     five_w1h=FiveW1H(who='test', what='test', when='now', where='here', why='test', how='test'),
     event_type=EventType.ACTION
