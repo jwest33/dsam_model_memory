@@ -597,6 +597,16 @@ if __name__ == "__main__":
             if manager.start():
                 print("✅ Server started")
                 print(f"URL: {manager._config.base_url}")
+                # Keep the server running if --detach not specified
+                if "--detach" not in sys.argv:
+                    print("\nServer is running. Press Ctrl+C to stop.")
+                    try:
+                        while True:
+                            time.sleep(1)
+                    except KeyboardInterrupt:
+                        print("\n\nShutting down server...")
+                        manager.stop()
+                        print("✅ Server stopped")
             else:
                 print("❌ Failed to start server")
                 sys.exit(1)
@@ -624,11 +634,23 @@ if __name__ == "__main__":
         
         else:
             print(f"Unknown command: {command}")
-            print("Usage: python llm_server.py [start|stop|restart|status]")
+            print("Usage: python llama_server_client.py [start|stop|restart|status]")
+            print("\nCommands:")
+            print("  start         - Start the server (keeps running, Ctrl+C to stop)")
+            print("  start --detach - Start the server in background")
+            print("  stop          - Stop the server")
+            print("  restart       - Restart the server")
+            print("  status        - Check server status")
     
     else:
         print("LLM Server Manager")
-        print("Usage: python llm_server.py [start|stop|restart|status]")
+        print("Usage: python llama_server_client.py [start|stop|restart|status]")
+        print("\nCommands:")
+        print("  start         - Start the server (keeps running, Ctrl+C to stop)")
+        print("  start --detach - Start the server in background")
+        print("  stop          - Stop the server")
+        print("  restart       - Restart the server")
+        print("  status        - Check server status")
         print("\nCurrent status:")
         status = manager.get_status()
         print(f"  {'Running' if status['running'] else 'Stopped'}")
