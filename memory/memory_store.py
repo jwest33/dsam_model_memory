@@ -128,22 +128,23 @@ class MemoryStore:
             memory_block = self.block_manager.process_event(event, context_events)
             
             # Check if we should store in processed memory
-            # Now we consider block-level salience instead of just individual event salience
-            block_salience = memory_block.compute_block_salience()
-            
-            if not skip_salience_check and block_salience < self.config.memory.salience_threshold:
-                return True, f"Stored in raw memory only (block salience {block_salience:.2f} below threshold)"
+            # Use block-level salience from the salience matrix
+            if not skip_salience_check and memory_block.block_salience < self.config.memory.salience_threshold:
+                return True, f"Stored in raw memory only (block salience {memory_block.block_salience:.2f} below threshold)"
             
             # Embed event
             key, value = self.embedder.embed_event(event)
+            
+            # Get event-specific salience from block's salience matrix
+            event_salience = memory_block.get_event_salience(event.id)
             
             # Store in Hopfield network
             metadata = {
                 'event_id': event.id,
                 'episode_id': event.episode_id,
-                'salience': event.salience,
-                'block_id': memory_block.id,  # Add block reference
-                'block_salience': block_salience,
+                'event_salience': event_salience,  # From salience matrix
+                'block_id': memory_block.id,
+                'block_salience': memory_block.block_salience,
                 'priority_score': event.priority_score,
                 'timestamp': event.timestamp
             }
@@ -152,7 +153,7 @@ class MemoryStore:
                 key=key,
                 value=value,
                 metadata=metadata,
-                salience=block_salience  # Use block salience for Hopfield storage
+                salience=memory_block.block_salience  # Use block salience for Hopfield storage
             )
             
             # Store in processed collection
@@ -172,7 +173,7 @@ class MemoryStore:
             if self.config.storage.auto_save and self.operation_count % self.config.storage.save_interval == 0:
                 self.save()
             
-            return True, f"Stored event in block {memory_block.id[:8]} (block salience: {block_salience:.2f}, coherence: {memory_block.coherence_score:.2f})"
+            return True, f"Stored event in block {memory_block.id[:8]} (block salience: {memory_block.block_salience:.2f}, event salience: {event_salience:.2f})"
             
         except Exception as e:
             logger.error(f"Failed to store event: {e}")
@@ -237,8 +238,9 @@ class MemoryStore:
                 # Events in highly relevant blocks get a boost
                 combined_score = block_score * 0.6 + event_score * 0.4
                 
-                # Additional boost for high salience events
-                combined_score = combined_score * 0.8 + event.salience * 0.2
+                # Additional boost based on event's salience within its block
+                event_salience = block.get_event_salience(event.id)
+                combined_score = combined_score * 0.8 + event_salience * 0.2
                 
                 results.append((event, combined_score))
                 seen_events.add(event.id)
@@ -347,7 +349,7 @@ class MemoryStore:
                 metadata = {
                     "event_type": event.event_type.value,
                     "episode_id": event.episode_id,
-                    "salience": event.salience,
+                    "salience": 0.5,  # Now in block salience matrix
                     "timestamp": event.timestamp
                 }
                 
@@ -373,7 +375,7 @@ class MemoryStore:
                 metadata = {
                     "event_type": event.event_type.value,
                     "episode_id": event.episode_id,
-                    "salience": event.salience,
+                    "salience": 0.5,  # Now in block salience matrix
                     "timestamp": event.timestamp
                 }
                 
@@ -488,7 +490,7 @@ class MemoryStore:
         
         # Calculate average salience
         if self.processed_memories:
-            avg_salience = np.mean([e.salience for e in self.processed_memories])
+            avg_salience = np.mean([b.block_salience for b in self.processed_blocks]) if self.processed_blocks else 0.5
             stats['avg_salience'] = float(avg_salience)
         
         # Calculate average block salience
