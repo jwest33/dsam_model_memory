@@ -1,57 +1,51 @@
 """
-Modern Hopfield Network implementation for associative memory
+Dynamic Modern Hopfield Network for associative memory
 
-Uses attention-based retrieval mechanism similar to transformers.
+This implementation removes the arbitrary memory limit and uses dynamic arrays
+that grow as needed, suitable for use with ChromaDB as primary storage.
 """
 
 import numpy as np
-from typing import List, Tuple, Optional, Dict, Any
+from typing import Dict, Any, Optional, List, Tuple
 import logging
-from pathlib import Path
 
 from config import get_config
 
 logger = logging.getLogger(__name__)
 
-class ModernHopfieldNetwork:
+class DynamicHopfieldNetwork:
     """
-    Modern Hopfield Network with attention-based retrieval
+    Dynamic Modern Hopfield Network without arbitrary capacity limits.
     
-    Memory Read: output = softmax(β · q·K^T) @ V
-    where:
-        q: query vector
-        K: key matrix (stored queries)
-        V: value matrix (stored observations)
-        β: inverse temperature (sharpness)
+    Uses growing arrays and efficient operations for scalability.
+    The network can grow indefinitely as memories are added.
     """
     
     def __init__(self, config=None):
-        """Initialize the network"""
+        """Initialize the dynamic Hopfield network"""
         self.config = config or get_config().memory
         
-        # Memory matrices
-        self.keys = None  # K matrix: stored query embeddings
-        self.values = None  # V matrix: stored value embeddings
+        # Core memory storage - starts small and grows as needed
+        self.keys = []  # List of key embeddings
+        self.values = []  # List of value embeddings
         self.metadata = []  # Associated metadata for each memory
         
         # Memory management
         self.memory_count = 0
-        self.max_capacity = self.config.max_memory_slots
         self.embedding_dim = self.config.embedding_dim
         
         # Parameters
         self.beta = self.config.temperature  # Inverse temperature
         self.learning_rate = self.config.base_learning_rate
         
-        # Initialize empty memory
-        self._initialize_memory()
-    
-    def _initialize_memory(self):
-        """Initialize empty memory matrices"""
-        self.keys = np.zeros((self.max_capacity, self.embedding_dim), dtype=np.float32)
-        self.values = np.zeros((self.max_capacity, self.embedding_dim), dtype=np.float32)
-        self.metadata = [None] * self.max_capacity
-        self.memory_count = 0
+        # Index for fast lookup
+        self.memory_index = {}  # memory_id -> array index
+        
+        # Statistics
+        self.access_counts = {}  # Index -> access count
+        self.last_access = {}  # Index -> timestamp
+        
+        logger.info(f"Initialized Dynamic Hopfield Network (no capacity limit)")
     
     def store(
         self,
@@ -76,7 +70,7 @@ class ModernHopfieldNetwork:
         key = self._normalize(key)
         value = self._normalize(value)
         
-        # Check for similar existing memory
+        # Check for similar existing memory if we have any
         if self.memory_count > 0:
             similarities = self._compute_similarities(key, value)
             best_match_idx = np.argmax(similarities)
@@ -87,32 +81,23 @@ class ModernHopfieldNetwork:
                 self._update_memory(best_match_idx, key, value, metadata, salience)
                 return best_match_idx
         
-        # Add new memory
-        if self.memory_count >= self.max_capacity:
-            # Evict least important memory
-            evict_idx = self._select_eviction_candidate()
-            self._add_memory(evict_idx, key, value, metadata)
-            return evict_idx
-        else:
-            # Add to next available slot
-            idx = self.memory_count
-            self._add_memory(idx, key, value, metadata)
-            self.memory_count += 1
-            return idx
+        # Add new memory - no capacity limit!
+        idx = self._add_memory(key, value, metadata)
+        return idx
     
     def retrieve(
         self,
         query: np.ndarray,
         k: int = 5,
-        return_scores: bool = True
-    ) -> List[Tuple[np.ndarray, Optional[Dict], float]]:
+        threshold: float = 0.0
+    ) -> List[Tuple[np.ndarray, Dict[str, Any], float]]:
         """
-        Retrieve top-k memories using attention mechanism
+        Retrieve memories using attention mechanism
         
         Args:
-            query: Query vector (d-dimensional)
-            k: Number of memories to retrieve
-            return_scores: Whether to return attention scores
+            query: Query embedding
+            k: Number of results to return
+            threshold: Minimum similarity threshold
         
         Returns:
             List of (value, metadata, score) tuples
@@ -120,240 +105,254 @@ class ModernHopfieldNetwork:
         if self.memory_count == 0:
             return []
         
-        # Normalize query
         query = self._normalize(query)
         
-        # Compute attention scores: softmax(β · q·K^T)
-        active_keys = self.keys[:self.memory_count]
-        scores = self.beta * np.dot(query, active_keys.T)
+        # Convert lists to arrays for efficient computation
+        K = np.array(self.keys[:self.memory_count])
+        V = np.array(self.values[:self.memory_count])
+        
+        # Compute attention scores: softmax(β * q·K^T)
+        scores = np.dot(K, query) * self.beta
         
         # Apply softmax
         exp_scores = np.exp(scores - np.max(scores))  # Numerical stability
         attention_weights = exp_scores / np.sum(exp_scores)
         
         # Get top-k indices
-        k = min(k, self.memory_count)
         top_k_indices = np.argsort(attention_weights)[-k:][::-1]
         
-        # Retrieve values and metadata
+        # Filter by threshold and prepare results
         results = []
         for idx in top_k_indices:
-            value = self.values[idx].copy()
-            meta = self.metadata[idx].copy() if self.metadata[idx] else None
-            score = float(attention_weights[idx]) if return_scores else 0.0
-            results.append((value, meta, score))
+            score = float(attention_weights[idx])
+            if score >= threshold:
+                value = V[idx]
+                metadata = self.metadata[idx] if idx < len(self.metadata) else {}
+                
+                # Update access statistics
+                self.access_counts[idx] = self.access_counts.get(idx, 0) + 1
+                
+                results.append((value, metadata, score))
         
         return results
     
-    def retrieve_weighted(self, query: np.ndarray) -> np.ndarray:
+    def retrieve_by_metadata(
+        self,
+        filter_fn,
+        k: int = 5
+    ) -> List[Tuple[np.ndarray, Dict[str, Any], int]]:
         """
-        Retrieve weighted combination of all memories
+        Retrieve memories by metadata filter
         
         Args:
-            query: Query vector
+            filter_fn: Function that takes metadata dict and returns bool
+            k: Maximum number of results
         
         Returns:
-            Weighted sum of values
+            List of (value, metadata, index) tuples
         """
-        if self.memory_count == 0:
-            return np.zeros(self.embedding_dim)
-        
-        # Normalize query
-        query = self._normalize(query)
-        
-        # Compute attention: softmax(β · q·K^T)
-        active_keys = self.keys[:self.memory_count]
-        scores = self.beta * np.dot(query, active_keys.T)
-        
-        # Apply softmax
-        exp_scores = np.exp(scores - np.max(scores))
-        attention_weights = exp_scores / np.sum(exp_scores)
-        
-        # Weighted sum: attention @ V
-        active_values = self.values[:self.memory_count]
-        output = np.dot(attention_weights, active_values)
-        
-        return output
+        results = []
+        for i in range(self.memory_count):
+            if i < len(self.metadata) and self.metadata[i]:
+                if filter_fn(self.metadata[i]):
+                    value = self.values[i] if i < len(self.values) else None
+                    if value is not None:
+                        results.append((value, self.metadata[i], i))
+                        if len(results) >= k:
+                            break
+        return results
     
-    def _compute_similarities(self, key: np.ndarray, value: np.ndarray) -> np.ndarray:
-        """Compute combined similarity with existing memories"""
-        if self.memory_count == 0:
-            return np.array([])
+    def get_memory_by_id(self, memory_id: str) -> Optional[Tuple[np.ndarray, np.ndarray, Dict]]:
+        """Get memory by its ID (stored in metadata)"""
+        for i in range(self.memory_count):
+            if i < len(self.metadata) and self.metadata[i]:
+                if self.metadata[i].get('event_id') == memory_id:
+                    return (
+                        self.keys[i] if i < len(self.keys) else None,
+                        self.values[i] if i < len(self.values) else None,
+                        self.metadata[i]
+                    )
+        return None
+    
+    def remove_memory(self, idx: int) -> bool:
+        """
+        Remove a memory at given index
         
-        # Compute key similarities
-        active_keys = self.keys[:self.memory_count]
-        key_sims = np.dot(active_keys, key)
+        Args:
+            idx: Index to remove
         
-        # Compute value similarities
-        active_values = self.values[:self.memory_count]
-        value_sims = np.dot(active_values, value)
+        Returns:
+            Success status
+        """
+        if idx >= self.memory_count:
+            return False
         
-        # Weighted combination
-        combined_sims = (
-            self.config.query_weight * key_sims +
-            self.config.content_weight * value_sims
-        )
+        # Remove from lists (this is O(n) but happens rarely)
+        if idx < len(self.keys):
+            del self.keys[idx]
+        if idx < len(self.values):
+            del self.values[idx]
+        if idx < len(self.metadata):
+            del self.metadata[idx]
         
-        return combined_sims
+        # Update count
+        self.memory_count -= 1
+        
+        # Update indices for all subsequent items
+        for meta_idx in range(idx, len(self.metadata)):
+            if self.metadata[meta_idx] and 'event_id' in self.metadata[meta_idx]:
+                event_id = self.metadata[meta_idx]['event_id']
+                if event_id in self.memory_index:
+                    self.memory_index[event_id] = meta_idx
+        
+        return True
+    
+    def _add_memory(
+        self,
+        key: np.ndarray,
+        value: np.ndarray,
+        metadata: Optional[Dict[str, Any]]
+    ) -> int:
+        """Add a new memory to the network"""
+        # Append to lists
+        self.keys.append(key)
+        self.values.append(value)
+        self.metadata.append(metadata or {})
+        
+        # Update index
+        idx = self.memory_count
+        if metadata and 'event_id' in metadata:
+            self.memory_index[metadata['event_id']] = idx
+        
+        self.memory_count += 1
+        
+        # Log growth periodically
+        if self.memory_count % 1000 == 0:
+            logger.info(f"Hopfield network grown to {self.memory_count} memories")
+        
+        return idx
     
     def _update_memory(
         self,
         idx: int,
         key: np.ndarray,
         value: np.ndarray,
-        metadata: Optional[Dict],
+        metadata: Optional[Dict[str, Any]],
         salience: float
     ):
-        """Update existing memory with exponential moving average"""
-        # Adaptive learning rate based on salience
-        alpha = self.learning_rate * salience
+        """Update existing memory using EMA"""
+        if idx >= len(self.keys) or idx >= len(self.values):
+            return
         
-        # EMA update
-        self.keys[idx] = self._normalize((1 - alpha) * self.keys[idx] + alpha * key)
-        self.values[idx] = self._normalize((1 - alpha) * self.values[idx] + alpha * value)
+        # Compute adaptive learning rate
+        alpha = self.learning_rate * salience * self.config.salience_ema_alpha
         
-        # Update metadata if provided
-        if metadata:
-            if self.metadata[idx]:
-                # Merge metadata
-                self.metadata[idx].update(metadata)
-            else:
-                self.metadata[idx] = metadata.copy()
+        # Update using exponential moving average
+        self.keys[idx] = (1 - alpha) * self.keys[idx] + alpha * key
+        self.values[idx] = (1 - alpha) * self.values[idx] + alpha * value
+        
+        # Renormalize
+        self.keys[idx] = self._normalize(self.keys[idx])
+        self.values[idx] = self._normalize(self.values[idx])
+        
+        # Update metadata
+        if metadata and idx < len(self.metadata):
+            self.metadata[idx].update(metadata)
     
-    def _add_memory(
+    def _compute_similarities(
         self,
-        idx: int,
         key: np.ndarray,
-        value: np.ndarray,
-        metadata: Optional[Dict]
-    ):
-        """Add new memory at specified index"""
-        self.keys[idx] = key
-        self.values[idx] = value
-        self.metadata[idx] = metadata.copy() if metadata else None
-    
-    def _select_eviction_candidate(self) -> int:
-        """Select memory to evict based on priority scoring"""
+        value: np.ndarray
+    ) -> np.ndarray:
+        """Compute combined similarity with existing memories"""
         if self.memory_count == 0:
-            return 0
+            return np.array([])
         
-        # Simple strategy: evict oldest (FIFO)
-        # In a full implementation, would use priority scores from metadata
-        scores = []
+        # Convert to arrays for computation
+        K = np.array(self.keys[:self.memory_count])
+        V = np.array(self.values[:self.memory_count])
         
-        for i in range(self.memory_count):
-            meta = self.metadata[i]
-            if meta and 'priority_score' in meta:
-                scores.append(meta['priority_score'])
-            else:
-                # Default high score (likely to evict)
-                scores.append(float('inf'))
+        # Compute similarities
+        key_similarities = np.dot(K, key)
+        value_similarities = np.dot(V, value)
         
-        # Return index of highest score (most likely to evict)
-        return int(np.argmax(scores))
+        # Weighted combination
+        combined = (self.config.query_weight * key_similarities + 
+                   self.config.content_weight * value_similarities)
+        
+        return combined
     
     def _normalize(self, vector: np.ndarray) -> np.ndarray:
-        """L2 normalize a vector"""
+        """Normalize vector to unit length"""
         norm = np.linalg.norm(vector)
         if norm > 0:
             return vector / norm
         return vector
     
-    def clear(self):
-        """Clear all memories"""
-        self._initialize_memory()
-        logger.info("Cleared all memories from Hopfield network")
-    
-    def save_state(self, path: Path):
-        """Save network state to file"""
-        state = {
-            'keys': self.keys[:self.memory_count],
-            'values': self.values[:self.memory_count],
-            'metadata': self.metadata[:self.memory_count],
-            'memory_count': self.memory_count,
-            'config': {
-                'max_capacity': self.max_capacity,
-                'embedding_dim': self.embedding_dim,
-                'beta': self.beta,
-                'learning_rate': self.learning_rate
-            }
+    def get_statistics(self) -> Dict[str, Any]:
+        """Get network statistics"""
+        return {
+            "memory_count": self.memory_count,
+            "embedding_dim": self.embedding_dim,
+            "beta": self.beta,
+            "total_accesses": sum(self.access_counts.values()),
+            "unique_accessed": len(self.access_counts),
+            "growth_rate": self.memory_count / max(1, len(self.access_counts))  # Memories per access
         }
-        
-        np.savez_compressed(path, **state)
-        logger.info(f"Saved Hopfield network state to {path} ({self.memory_count} memories)")
     
-    def load_state(self, path: Path):
+    def save_state(self, filepath: str):
+        """Save network state to file"""
+        import pickle
+        state = {
+            'keys': self.keys,
+            'values': self.values,
+            'metadata': self.metadata,
+            'memory_count': self.memory_count,
+            'memory_index': self.memory_index,
+            'access_counts': self.access_counts
+        }
+        with open(filepath, 'wb') as f:
+            pickle.dump(state, f)
+        logger.info(f"Saved Hopfield state with {self.memory_count} memories")
+    
+    def load_state(self, filepath: str):
         """Load network state from file"""
-        if not path.exists():
-            logger.warning(f"State file not found: {path}")
+        import pickle
+        from pathlib import Path
+        
+        if not Path(filepath).exists():
+            logger.warning(f"State file not found: {filepath}")
             return
         
         try:
-            state = np.load(path, allow_pickle=True)
+            with open(filepath, 'rb') as f:
+                state = pickle.load(f)
             
-            # Load memories
-            loaded_keys = state['keys']
-            loaded_values = state['values']
-            loaded_metadata = state['metadata'].tolist()
-            loaded_count = int(state['memory_count'])
+            self.keys = state.get('keys', [])
+            self.values = state.get('values', [])
+            self.metadata = state.get('metadata', [])
+            self.memory_count = state.get('memory_count', 0)
+            self.memory_index = state.get('memory_index', {})
+            self.access_counts = state.get('access_counts', {})
             
-            # Validate dimensions
-            if loaded_keys.shape[1] != self.embedding_dim:
-                raise ValueError(f"Dimension mismatch: expected {self.embedding_dim}, got {loaded_keys.shape[1]}")
-            
-            # Load into current network
-            self._initialize_memory()
-            self.memory_count = min(loaded_count, self.max_capacity)
-            
-            self.keys[:self.memory_count] = loaded_keys[:self.memory_count]
-            self.values[:self.memory_count] = loaded_values[:self.memory_count]
-            self.metadata[:self.memory_count] = loaded_metadata[:self.memory_count]
-            
-            logger.info(f"Loaded {self.memory_count} memories from {path}")
-            
+            logger.info(f"Loaded Hopfield state with {self.memory_count} memories")
         except Exception as e:
-            logger.error(f"Failed to load state from {path}: {e}")
-            self._initialize_memory()
+            logger.error(f"Failed to load state: {e}")
     
-    def get_statistics(self) -> Dict[str, Any]:
-        """Get network statistics"""
-        stats = {
-            'memory_count': self.memory_count,
-            'max_capacity': self.max_capacity,
-            'utilization': self.memory_count / self.max_capacity if self.max_capacity > 0 else 0,
-            'embedding_dim': self.embedding_dim,
-            'temperature': self.beta
-        }
-        
-        if self.memory_count > 0:
-            # Compute average key/value norms
-            active_keys = self.keys[:self.memory_count]
-            active_values = self.values[:self.memory_count]
-            
-            stats['avg_key_norm'] = float(np.mean(np.linalg.norm(active_keys, axis=1)))
-            stats['avg_value_norm'] = float(np.mean(np.linalg.norm(active_values, axis=1)))
-            
-            # Compute diversity (average pairwise distance)
-            if self.memory_count > 1:
-                key_similarity_matrix = np.dot(active_keys, active_keys.T)
-                # Exclude diagonal
-                mask = ~np.eye(self.memory_count, dtype=bool)
-                avg_similarity = float(np.mean(key_similarity_matrix[mask]))
-                stats['avg_key_similarity'] = avg_similarity
-                stats['diversity'] = 1.0 - avg_similarity
-            else:
-                stats['avg_key_similarity'] = 0.0
-                stats['diversity'] = 1.0
-        
-        return stats
+    def clear(self):
+        """Clear all memories"""
+        self.keys = []
+        self.values = []
+        self.metadata = []
+        self.memory_count = 0
+        self.memory_index = {}
+        self.access_counts = {}
+        logger.info("Cleared all memories from Hopfield network")
     
     def __len__(self) -> int:
-        """Get number of stored memories"""
+        """Number of memories stored"""
         return self.memory_count
     
     def __repr__(self) -> str:
         """String representation"""
-        return (
-            f"ModernHopfieldNetwork(memories={self.memory_count}/{self.max_capacity}, "
-            f"dim={self.embedding_dim}, β={self.beta})"
-        )
+        return f"DynamicHopfieldNetwork(memories={self.memory_count}, dim={self.embedding_dim})"

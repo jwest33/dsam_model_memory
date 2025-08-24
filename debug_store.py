@@ -1,4 +1,4 @@
-from memory.dynamic_memory_store import DynamicMemoryStore
+from memory.memory_store import DynamicMemoryStore
 from models.event import Event, FiveW1H, EventType
 import traceback
 

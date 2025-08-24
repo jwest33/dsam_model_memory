@@ -1,545 +1,563 @@
 """
-Dual-storage memory system with raw and processed stores
+Dynamic Memory Store with Query-Driven Clustering and Adaptive Embeddings
 
-Combines ChromaDB vector storage with Modern Hopfield Network.
+This module replaces the static block-based storage with dynamic clustering
+and adaptive embeddings that evolve based on usage patterns.
 """
 
-import json
+import numpy as np
+from typing import Dict, List, Tuple, Optional, Any
+from datetime import datetime
 import logging
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Tuple
-from datetime import datetime
-import uuid
 
-import numpy as np
-
+from models.event import Event, FiveW1H
+from memory.chromadb_store import ChromaDBStore
+from memory.dynamic_clustering import DynamicMemoryClustering
+from memory.adaptive_embeddings import AdaptiveEmbeddingSystem
+from memory.hopfield import DynamicHopfieldNetwork
+from embedding.embedder import FiveW1HEmbedder
 from config import get_config
-from models.event import Event, EventType, FiveW1H
-from models.memory_block import MemoryBlock
-from embedding.embedder import FiveW1HEmbedder, TextEmbedder
-from memory.hopfield import ModernHopfieldNetwork
-from memory.block_manager import MemoryBlockManager
 
 logger = logging.getLogger(__name__)
 
-class MemoryStore:
+
+class DynamicMemoryStore:
     """
-    Dual-storage memory system:
-    1. Raw store: All events with timestamps (ChromaDB/JSON)
-    2. Processed store: Deduplicated, salience-filtered (MHN + ChromaDB)
+    Unified memory store with dynamic clustering and adaptive embeddings.
+    No static blocks, no arbitrary thresholds.
     """
     
-    def __init__(self, config=None):
-        """Initialize memory stores"""
-        self.config = config or get_config()
+    def __init__(self):
+        """Initialize the dynamic memory store"""
+        self.config = get_config()
         
-        # Embedding system
-        self.text_embedder = TextEmbedder(self.config.embedding)
-        self.embedder = FiveW1HEmbedder(self.text_embedder)
+        # Core storage (ChromaDB is primary)
+        self.chromadb = ChromaDBStore()
         
-        # Modern Hopfield Network for processed memories
-        self.hopfield = ModernHopfieldNetwork(self.config.memory)
+        # Dynamic systems
+        self.clustering = DynamicMemoryClustering()
+        self.adaptive_embeddings = AdaptiveEmbeddingSystem(
+            learning_rate=0.01,
+            momentum=0.9
+        )
         
-        # Memory Block Manager for content-addressable linking
-        self.block_manager = MemoryBlockManager(self.embedder)
+        # Hopfield network for associative memory
+        self.hopfield = DynamicHopfieldNetwork()
         
-        # Storage backends
-        self.use_chromadb = self.config.storage.use_chromadb
-        self.raw_collection = None
-        self.processed_collection = None
+        # Embedder for generating embeddings
+        self.embedder = FiveW1HEmbedder()
         
-        # Memory tracking
-        self.raw_memories: List[Event] = []
-        self.processed_memories: List[Event] = []
-        self.processed_blocks: List[MemoryBlock] = []  # Memory blocks
-        self.episode_map: Dict[str, List[str]] = {}  # episode_id -> event_ids
+        # Episode tracking
+        self.episode_map = {}  # episode_id -> List[event_id]
+        self.current_clusters = {}  # Cache of recent clusters
         
         # Statistics
-        self.operation_count = 0
-        self.last_save = datetime.utcnow()
+        self.total_events = 0
+        self.total_queries = 0
         
-        # Initialize storage
-        self._initialize_storage()
+        logger.info("Dynamic memory store initialized")
     
-    def _initialize_storage(self):
-        """Initialize storage backends"""
-        # Create state directory
-        self.config.storage.state_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Initialize ChromaDB if available
-        if self.use_chromadb:
-            try:
-                import chromadb
-                from chromadb.config import Settings
-                
-                # Create persistent client
-                self.chroma_client = chromadb.PersistentClient(
-                    path=str(self.config.storage.chromadb_path),
-                    settings=Settings(anonymized_telemetry=False)
-                )
-                
-                # Get or create collections
-                self.raw_collection = self.chroma_client.get_or_create_collection(
-                    name=self.config.storage.raw_collection_name,
-                    metadata={"description": "Raw event memories"}
-                )
-                
-                self.processed_collection = self.chroma_client.get_or_create_collection(
-                    name=self.config.storage.processed_collection_name,
-                    metadata={"description": "Processed and deduplicated memories"}
-                )
-                
-                logger.info("Initialized ChromaDB collections")
-                
-            except ImportError:
-                logger.warning("ChromaDB not available, falling back to JSON storage")
-                self.use_chromadb = False
-            except Exception as e:
-                logger.warning(f"Failed to initialize ChromaDB: {e}, falling back to JSON")
-                self.use_chromadb = False
-        
-        # Load existing memories from disk
-        self._load_from_disk()
-    
-    def store_event(
-        self,
-        event: Event,
-        skip_salience_check: bool = False
-    ) -> Tuple[bool, str]:
+    def store_event(self, event: Event) -> Tuple[bool, str]:
         """
-        Store an event in memory with content-addressable block linking
+        Store an event without any salience threshold.
+        All events are stored and dynamically clustered on retrieval.
         
         Args:
             event: Event to store
-            skip_salience_check: Store regardless of salience threshold
-        
+            
         Returns:
-            (success, message)
+            Tuple of (success, message)
         """
         try:
-            # Always store in raw memory
-            self._store_raw(event)
+            # Generate embedding (use value embedding for storage)
+            key_embedding, value_embedding = self.embedder.embed_event(event)
+            embedding = value_embedding  # Use value embedding for main storage
             
-            # Process event into memory blocks
-            # Get recent events for context (last 10 processed events)
-            context_events = self.processed_memories[-10:] if self.processed_memories else []
-            
-            # Add to memory block (handles linking automatically)
-            memory_block = self.block_manager.process_event(event, context_events)
-            
-            # Check if we should store in processed memory
-            # Use block-level salience from the salience matrix
-            if not skip_salience_check and memory_block.block_salience < self.config.memory.salience_threshold:
-                return True, f"Stored in raw memory only (block salience {memory_block.block_salience:.2f} below threshold)"
-            
-            # Embed event
-            key, value = self.embedder.embed_event(event)
-            
-            # Get event-specific salience from block's salience matrix
-            event_salience = memory_block.get_event_salience(event.id)
-            
-            # Store in Hopfield network
-            metadata = {
-                'event_id': event.id,
-                'episode_id': event.episode_id,
-                'event_salience': event_salience,  # From salience matrix
-                'block_id': memory_block.id,
-                'block_salience': memory_block.block_salience,
-                'priority_score': event.priority_score,
-                'timestamp': event.timestamp
-            }
-            
-            hopfield_idx = self.hopfield.store(
-                key=key,
-                value=value,
-                metadata=metadata,
-                salience=memory_block.block_salience  # Use block salience for Hopfield storage
+            # Check for duplicates based on similarity
+            similar_events = self.chromadb.retrieve_events_by_query(
+                embedding, k=5
             )
             
-            # Store in processed collection
-            self._store_processed(event, key)
+            if similar_events:
+                # Check if this is a duplicate
+                for similar_event, similarity in similar_events:
+                    if similarity > self.config.memory.similarity_threshold:
+                        # Update existing event with EMA instead of creating duplicate
+                        self._update_existing_event(similar_event, event, embedding)
+                        return True, f"Updated existing event {similar_event.id[:8]} via EMA"
             
-            # Track the memory block if new
-            if memory_block not in self.processed_blocks:
-                self.processed_blocks.append(memory_block)
+            # Store in ChromaDB (primary storage)
+            self.chromadb.store_event(event, embedding)
             
-            # Update episode map
+            # Add to Hopfield network (use key_embedding for queries, value_embedding for content)
+            self.hopfield.store(key_embedding, value_embedding, metadata=event.to_dict())
+            
+            # Track episode
             if event.episode_id not in self.episode_map:
                 self.episode_map[event.episode_id] = []
             self.episode_map[event.episode_id].append(event.id)
             
-            # Auto-save if configured
-            self.operation_count += 1
-            if self.config.storage.auto_save and self.operation_count % self.config.storage.save_interval == 0:
-                self.save()
+            # Update statistics
+            self.total_events += 1
             
-            return True, f"Stored event in block {memory_block.id[:8]} (block salience: {memory_block.block_salience:.2f}, event salience: {event_salience:.2f})"
+            # Log growth periodically
+            if self.total_events % 100 == 0:
+                logger.info(f"Memory store size: {self.total_events} events")
+            
+            return True, f"Stored event {event.id[:8]} (total: {self.total_events})"
             
         except Exception as e:
             logger.error(f"Failed to store event: {e}")
             return False, str(e)
     
-    def retrieve(
+    def retrieve_memories(
         self,
         query: Dict[str, str],
-        k: int = 5,
-        include_raw: bool = False,
-        return_blocks: bool = False
+        k: int = 10,
+        use_clustering: bool = True
     ) -> List[Tuple[Event, float]]:
         """
-        Retrieve memories matching a partial 5W1H query using memory blocks
+        Retrieve memories using dynamic clustering and adaptive embeddings.
         
         Args:
-            query: Partial 5W1H query
-            k: Number of results
-            include_raw: Include raw memories in search
-            return_blocks: Return entire memory blocks instead of individual events
-        
+            query: 5W1H query fields
+            k: Number of memories to retrieve
+            use_clustering: Whether to use dynamic clustering
+            
         Returns:
-            List of (event, similarity_score) tuples, or (block, score) if return_blocks=True
+            List of (event, relevance_score) tuples
         """
-        # First, find relevant memory blocks
-        relevant_blocks = self.block_manager.retrieve_relevant_blocks(query, k=k*2)
-        
-        if return_blocks:
-            # Return the blocks themselves
-            for block, score in relevant_blocks[:k]:
-                block.update_access()
-            return relevant_blocks[:k]
-        
-        # Extract events from relevant blocks with block context
-        results = []
-        seen_events = set()
-        
-        for block, block_score in relevant_blocks:
-            # Update block access
-            block.update_access()
+        try:
+            self.total_queries += 1
             
-            # Score each event in the block based on query
-            for event in block.events:
-                if event.id in seen_events:
-                    continue
-                
-                # Compute event-specific score
-                event_score = 0.0
-                
-                # Check how well event matches query
-                for key, value in query.items():
-                    if hasattr(event.five_w1h, key) and value:
-                        event_value = getattr(event.five_w1h, key)
-                        if event_value:
-                            # Simple text matching
-                            if value.lower() in event_value.lower():
-                                event_score += 0.2
-                            elif any(word in event_value.lower() for word in value.lower().split()):
-                                event_score += 0.1
-                
-                # Combine block score with event score
-                # Events in highly relevant blocks get a boost
-                combined_score = block_score * 0.6 + event_score * 0.4
-                
-                # Additional boost based on event's salience within its block
-                event_salience = block.get_event_salience(event.id)
-                combined_score = combined_score * 0.8 + event_salience * 0.2
-                
-                results.append((event, combined_score))
-                seen_events.add(event.id)
-        
-        # Also search in Hopfield network for individual high-salience memories
-        query_embedding = self.embedder.embed_partial_query(query)
-        hopfield_results = self.hopfield.retrieve(query_embedding, k=k)
-        
-        for value, metadata, score in hopfield_results:
-            if metadata and 'event_id' in metadata:
-                event_id = metadata['event_id']
-                if event_id not in seen_events:
-                    event = self._find_event_by_id(event_id)
-                    if event:
-                        event.update_access()
-                        # Check if event is in a block
-                        blocks = self.block_manager.get_blocks_for_event(event_id)
-                        if blocks:
-                            # Boost score if in a relevant block
-                            score = score * 1.2
-                        results.append((event, score))
-                        seen_events.add(event_id)
-        
-        # Search in ChromaDB if available and requested
-        if include_raw and self.use_chromadb:
-            collection = self.raw_collection if include_raw else self.processed_collection
+            # Generate query embedding
+            # Fill in missing fields for partial queries
+            full_query = {
+                'who': query.get('who', ''),
+                'what': query.get('what', ''),
+                'when': query.get('when', ''),
+                'where': query.get('where', ''),
+                'why': query.get('why', ''),
+                'how': query.get('how', '')
+            }
+            query_embedding, _ = self.embedder.embed_five_w1h(FiveW1H(**full_query))
             
-            if collection:
-                try:
-                    query_text = " ".join(f"{k}:{v}" for k, v in query.items() if v)
+            if use_clustering:
+                # Retrieve more candidates for clustering
+                candidates = self.chromadb.retrieve_events_by_query(
+                    query_embedding, k=min(k * 5, 100)
+                )
+                
+                if not candidates:
+                    return []
+                
+                # Extract events
+                events = []
+                for event, _ in candidates:
+                    events.append(event)
+                
+                # Perform dynamic clustering (it generates embeddings internally)
+                clusters = self.clustering.cluster_by_query(
+                    events=events,
+                    query=query
+                )
+                
+                # Process clusters to extract top memories
+                results = []
+                for cluster in clusters:
+                    # Generate embeddings for events in this cluster
+                    cluster_embeddings = []
+                    for event in cluster.events:
+                        _, embedding = self.embedder.embed_event(event)
+                        evolved = self.adaptive_embeddings.get_evolved_embedding(
+                            event.id, embedding
+                        )
+                        cluster_embeddings.append((event.id, evolved))
                     
-                    chroma_results = collection.query(
-                        query_texts=[query_text],
-                        n_results=k
+                    # Create relevance scores based on cluster coherence and relevance
+                    relevance_scores = np.ones(len(cluster.events)) * cluster.relevance
+                    
+                    # Update embeddings based on cluster formation
+                    self.adaptive_embeddings.update_embeddings_from_cluster(
+                        cluster_events=cluster_embeddings,
+                        cluster_centroid=cluster.centroid,
+                        relevance_scores=relevance_scores,
+                        query_context=query
                     )
                     
-                    if chroma_results['ids'] and chroma_results['ids'][0]:
-                        for idx, event_id in enumerate(chroma_results['ids'][0]):
-                            if event_id not in seen_events:
-                                event = self._find_event_by_id(event_id)
-                                if event:
-                                    distance = chroma_results['distances'][0][idx] if chroma_results['distances'] else 0
-                                    similarity = 1.0 / (1.0 + distance)
-                                    event.update_access()
-                                    results.append((event, similarity))
-                                    seen_events.add(event_id)
+                    # Add events from cluster with their relevance
+                    for event in cluster.events:
+                        if len(results) < k:
+                            results.append((event, cluster.relevance))
                 
-                except Exception as e:
-                    logger.warning(f"ChromaDB search failed: {e}")
-        
-        # Sort by score and limit to k
-        results.sort(key=lambda x: x[1], reverse=True)
-        return results[:k]
-    
-    def retrieve_episode(self, episode_id: str) -> List[Event]:
-        """Retrieve all events in an episode"""
-        if episode_id not in self.episode_map:
+                # Sort by relevance
+                results.sort(key=lambda x: x[1], reverse=True)
+                return results[:k]
+                
+            else:
+                # Simple retrieval without clustering
+                candidates = self.chromadb.retrieve_events_by_query(
+                    query_embedding, k=k
+                )
+                
+                results = []
+                for event, similarity in candidates:
+                    # event is already an Event object
+                    results.append((event, similarity))
+                
+                return results
+                
+        except Exception as e:
+            logger.error(f"Failed to retrieve memories: {e}")
             return []
-        
-        events = []
-        for event_id in self.episode_map[episode_id]:
-            event = self._find_event_by_id(event_id)
-            if event:
-                events.append(event)
-        
-        # Sort by timestamp
-        events.sort(key=lambda e: e.created_at)
-        return events
     
-    def get_causal_chain(
+    def get_insights(
         self,
-        event_id: str,
-        max_depth: int = 5
-    ) -> List[Tuple[Event, Event]]:
+        query: str,
+        k: int = 10
+    ) -> Dict[str, Any]:
         """
-        Get causal chain (action -> observation pairs) for an event
+        Get insights about memories using dynamic clustering.
         
+        Args:
+            query: Natural language query
+            k: Number of relevant memories to analyze
+            
         Returns:
-            List of (action, observation) tuples
+            Dictionary with insights
         """
-        event = self._find_event_by_id(event_id)
-        if not event:
-            return []
-        
-        episode_events = self.retrieve_episode(event.episode_id)
-        
-        # Pair actions with observations
-        pairs = []
-        for i in range(len(episode_events) - 1):
-            if (episode_events[i].event_type == EventType.ACTION and
-                episode_events[i+1].event_type == EventType.OBSERVATION):
-                pairs.append((episode_events[i], episode_events[i+1]))
-                if len(pairs) >= max_depth:
-                    break
-        
-        return pairs
-    
-    def _store_raw(self, event: Event):
-        """Store event in raw memory"""
-        self.raw_memories.append(event)
-        
-        if self.use_chromadb and self.raw_collection:
-            try:
-                # Prepare document for ChromaDB
-                document = json.dumps(event.five_w1h.to_dict())
-                metadata = {
-                    "event_type": event.event_type.value,
-                    "episode_id": event.episode_id,
-                    "salience": 0.5,  # Now in block salience matrix
-                    "timestamp": event.timestamp
-                }
-                
-                # Add tags as metadata
-                for i, tag in enumerate(event.tags[:5]):  # Limit tags
-                    metadata[f"tag_{i}"] = tag
-                
-                self.raw_collection.add(
-                    ids=[event.id],
-                    documents=[document],
-                    metadatas=[metadata]
-                )
-            except Exception as e:
-                logger.warning(f"Failed to store in ChromaDB raw collection: {e}")
-    
-    def _store_processed(self, event: Event, embedding: np.ndarray):
-        """Store event in processed memory"""
-        self.processed_memories.append(event)
-        
-        if self.use_chromadb and self.processed_collection:
-            try:
-                document = json.dumps(event.five_w1h.to_dict())
-                metadata = {
-                    "event_type": event.event_type.value,
-                    "episode_id": event.episode_id,
-                    "salience": 0.5,  # Now in block salience matrix
-                    "timestamp": event.timestamp
-                }
-                
-                self.processed_collection.add(
-                    ids=[event.id],
-                    documents=[document],
-                    embeddings=[embedding.tolist()],
-                    metadatas=[metadata]
-                )
-            except Exception as e:
-                logger.warning(f"Failed to store in ChromaDB processed collection: {e}")
-    
-    def _find_event_by_id(self, event_id: str) -> Optional[Event]:
-        """Find event by ID in memory"""
-        # Search processed first (more likely to be accessed)
-        for event in self.processed_memories:
-            if event.id == event_id:
-                return event
-        
-        # Then search raw
-        for event in self.raw_memories:
-            if event.id == event_id:
-                return event
-        
-        return None
-    
-    def save(self):
-        """Save memory state to disk"""
         try:
-            # Save raw memories
-            raw_data = [event.to_dict() for event in self.raw_memories]
-            with open(self.config.storage.raw_memory_path, 'w') as f:
-                json.dump(raw_data, f, indent=2, default=str)
+            # Convert to 5W1H query
+            query_5w1h = self._parse_natural_query(query)
             
-            # Save processed memories
-            processed_data = [event.to_dict() for event in self.processed_memories]
-            with open(self.config.storage.processed_memory_path, 'w') as f:
-                json.dump(processed_data, f, indent=2, default=str)
+            # Retrieve with clustering
+            memories = self.retrieve_memories(query_5w1h, k=k, use_clustering=True)
             
-            # Save Hopfield state
-            self.hopfield.save_state(self.config.storage.hopfield_state_path)
+            if not memories:
+                return {
+                    'query': query,
+                    'insights': 'No relevant memories found',
+                    'clusters': [],
+                    'patterns': []
+                }
             
-            # Save memory blocks
-            blocks_path = self.config.storage.state_dir / "memory_blocks.json"
-            self.block_manager.save_state(str(blocks_path))
+            # Analyze patterns
+            patterns = self._analyze_patterns(memories)
             
-            # Save episode map
-            episode_map_path = self.config.storage.state_dir / "episode_map.json"
-            with open(episode_map_path, 'w') as f:
-                json.dump(self.episode_map, f, indent=2)
+            # Get cluster information
+            cluster_info = []
+            if hasattr(self, 'current_clusters'):
+                for cluster_id, cluster in self.current_clusters.items():
+                    cluster_info.append({
+                        'id': cluster_id,
+                        'size': len(cluster.get('event_indices', [])),
+                        'coherence': cluster.get('coherence_score', 0),
+                        'theme': self._extract_theme(cluster)
+                    })
             
-            # Save embedding cache
-            cache_path = self.config.storage.state_dir / "embedding_cache.json"
-            self.text_embedder.save_cache(cache_path)
-            
-            self.last_save = datetime.utcnow()
-            logger.info(f"Saved memory state: {len(self.raw_memories)} raw, {len(self.processed_memories)} processed, {len(self.block_manager.blocks)} blocks")
+            return {
+                'query': query,
+                'total_memories': len(memories),
+                'clusters': cluster_info,
+                'patterns': patterns,
+                'top_memories': [
+                    {
+                        'what': m[0].five_w1h.what,
+                        'when': m[0].five_w1h.when,
+                        'relevance': float(m[1])
+                    }
+                    for m in memories[:5]
+                ],
+                'embedding_drift': self._calculate_drift_stats()
+            }
             
         except Exception as e:
-            logger.error(f"Failed to save memory state: {e}")
+            logger.error(f"Failed to get insights: {e}")
+            return {'error': str(e)}
     
-    def _load_from_disk(self):
-        """Load memory state from disk"""
+    def adapt_from_feedback(
+        self,
+        query: Dict[str, str],
+        positive_events: List[str],
+        negative_events: List[str]
+    ):
+        """
+        Adapt embeddings based on user feedback.
+        
+        Args:
+            query: The query that was used
+            positive_events: Event IDs marked as relevant
+            negative_events: Event IDs marked as irrelevant
+        """
         try:
-            # Load raw memories
-            if self.config.storage.raw_memory_path.exists():
-                with open(self.config.storage.raw_memory_path, 'r') as f:
-                    raw_data = json.load(f)
-                self.raw_memories = [Event.from_dict(d) for d in raw_data]
-                logger.info(f"Loaded {len(self.raw_memories)} raw memories")
+            # Generate query embedding
+            # Fill in missing fields for partial queries
+            full_query = {
+                'who': query.get('who', ''),
+                'what': query.get('what', ''),
+                'when': query.get('when', ''),
+                'where': query.get('where', ''),
+                'why': query.get('why', ''),
+                'how': query.get('how', '')
+            }
+            query_embedding, _ = self.embedder.embed_five_w1h(FiveW1H(**full_query))
             
-            # Load processed memories
-            if self.config.storage.processed_memory_path.exists():
-                with open(self.config.storage.processed_memory_path, 'r') as f:
-                    processed_data = json.load(f)
-                self.processed_memories = [Event.from_dict(d) for d in processed_data]
-                logger.info(f"Loaded {len(self.processed_memories)} processed memories")
+            # Collect positive examples
+            positive_examples = []
+            for event_id in positive_events:
+                event = self.chromadb.get_event(event_id)
+                if event:
+                    _, embedding = self.embedder.embed_event(event)
+                    positive_examples.append((event_id, embedding))
             
-            # Load Hopfield state
-            self.hopfield.load_state(self.config.storage.hopfield_state_path)
+            # Collect negative examples
+            negative_examples = []
+            for event_id in negative_events:
+                event = self.chromadb.get_event(event_id)
+                if event:
+                    _, embedding = self.embedder.embed_event(event)
+                    negative_examples.append((event_id, embedding))
             
-            # Load memory blocks
-            blocks_path = self.config.storage.state_dir / "memory_blocks.json"
-            all_events = self.raw_memories + self.processed_memories
-            self.block_manager.load_state(str(blocks_path), all_events)
+            # Update embeddings based on feedback
+            self.adaptive_embeddings.adapt_from_feedback(
+                query_embedding=query_embedding,
+                positive_examples=positive_examples,
+                negative_examples=negative_examples
+            )
             
-            # Load episode map
-            episode_map_path = self.config.storage.state_dir / "episode_map.json"
-            if episode_map_path.exists():
-                with open(episode_map_path, 'r') as f:
-                    self.episode_map = json.load(f)
-            
-            # Load embedding cache
-            cache_path = self.config.storage.state_dir / "embedding_cache.json"
-            self.text_embedder.load_cache(cache_path)
+            logger.info(f"Adapted embeddings from feedback: "
+                       f"+{len(positive_examples)}, -{len(negative_examples)}")
             
         except Exception as e:
-            logger.warning(f"Failed to load memory state: {e}")
+            logger.error(f"Failed to adapt from feedback: {e}")
     
-    def get_statistics(self) -> Dict[str, Any]:
-        """Get memory statistics"""
-        stats = {
-            'raw_count': len(self.raw_memories),
-            'processed_count': len(self.processed_memories),
-            'episode_count': len(self.episode_map),
-            'total_events': len(self.raw_memories) + len(self.processed_memories),
-            'hopfield': self.hopfield.get_statistics(),
-            'blocks': self.block_manager.get_statistics(),  # Add block statistics
-            'last_save': self.last_save.isoformat(),
-            'operations_since_save': self.operation_count % self.config.storage.save_interval
+    def _update_existing_event(
+        self,
+        existing: Event,
+        new_event: Event,
+        new_embedding: np.ndarray
+    ):
+        """Update existing event with EMA instead of creating duplicate"""
+        try:
+            # Get existing embedding
+            existing_embedding = self.chromadb.get_embedding(existing.id)
+            
+            if existing_embedding is not None:
+                # Apply gravitational pull between embeddings
+                self.adaptive_embeddings.gravitational_pull(
+                    source_id=new_event.id,
+                    source_embedding=new_embedding,
+                    target_id=existing.id,
+                    target_embedding=existing_embedding,
+                    interaction_type='semantic',
+                    strength=0.2
+                )
+                
+                # Get updated embedding
+                updated_embedding = self.adaptive_embeddings.get_evolved_embedding(
+                    existing.id, existing_embedding
+                )
+                
+                # Update in ChromaDB
+                self.chromadb.update_embedding(existing.id, updated_embedding)
+                
+                # Update access tracking
+                existing.update_access()
+                self.chromadb.update_event(existing)
+                
+        except Exception as e:
+            logger.error(f"Failed to update existing event: {e}")
+    
+    def _parse_natural_query(self, query: str) -> Dict[str, str]:
+        """Parse natural language query into 5W1H structure"""
+        # Simple keyword-based parsing (can be enhanced with NLP)
+        result = {}
+        
+        query_lower = query.lower()
+        
+        # Look for who
+        if 'who' in query_lower or 'user' in query_lower or 'agent' in query_lower:
+            if 'user' in query_lower:
+                result['who'] = 'user'
+            elif 'agent' in query_lower or 'llm' in query_lower:
+                result['who'] = 'agent'
+        
+        # Look for what (most queries have this)
+        result['what'] = query
+        
+        # Look for when
+        if 'when' in query_lower or 'today' in query_lower or 'yesterday' in query_lower:
+            if 'today' in query_lower:
+                result['when'] = datetime.utcnow().isoformat()
+            # Add more temporal parsing as needed
+        
+        # Look for where
+        if 'where' in query_lower or 'location' in query_lower:
+            # Extract location context
+            pass
+        
+        # Look for why
+        if 'why' in query_lower or 'because' in query_lower or 'reason' in query_lower:
+            # Extract causal context
+            pass
+        
+        # Look for how
+        if 'how' in query_lower or 'method' in query_lower or 'using' in query_lower:
+            # Extract method context
+            pass
+        
+        return result
+    
+    def _analyze_patterns(self, memories: List[Tuple[Event, float]]) -> List[Dict]:
+        """Analyze patterns in retrieved memories"""
+        patterns = []
+        
+        if not memories:
+            return patterns
+        
+        # Temporal patterns
+        timestamps = [m[0].created_at for m in memories]
+        if len(timestamps) > 1:
+            time_diffs = [(timestamps[i+1] - timestamps[i]).total_seconds() 
+                         for i in range(len(timestamps)-1)]
+            avg_interval = np.mean(time_diffs) if time_diffs else 0
+            patterns.append({
+                'type': 'temporal',
+                'description': f'Average interval: {avg_interval:.1f} seconds'
+            })
+        
+        # Actor patterns
+        actors = {}
+        for event, _ in memories:
+            actor = event.five_w1h.who
+            actors[actor] = actors.get(actor, 0) + 1
+        
+        if actors:
+            dominant_actor = max(actors, key=actors.get)
+            patterns.append({
+                'type': 'actor',
+                'description': f'Dominant actor: {dominant_actor} ({actors[dominant_actor]} events)'
+            })
+        
+        # Context patterns
+        contexts = {}
+        for event, _ in memories:
+            context = event.five_w1h.where
+            contexts[context] = contexts.get(context, 0) + 1
+        
+        if contexts:
+            dominant_context = max(contexts, key=contexts.get)
+            patterns.append({
+                'type': 'context',
+                'description': f'Dominant context: {dominant_context}'
+            })
+        
+        return patterns
+    
+    def _extract_theme(self, cluster: Dict) -> str:
+        """Extract theme from a cluster"""
+        # Simple theme extraction based on common words
+        if 'events' not in cluster:
+            return "Unknown theme"
+        
+        words = []
+        for event in cluster['events']:
+            words.extend(event.five_w1h.what.lower().split())
+        
+        # Find most common words (excluding stop words)
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for'}
+        word_counts = {}
+        for word in words:
+            if word not in stop_words and len(word) > 2:
+                word_counts[word] = word_counts.get(word, 0) + 1
+        
+        if word_counts:
+            theme_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)[:3]
+            return ' '.join([w[0] for w in theme_words])
+        
+        return "General"
+    
+    def _calculate_drift_stats(self) -> Dict:
+        """Calculate embedding drift statistics"""
+        drift_stats = {
+            'total_evolved': len(self.adaptive_embeddings.embedding_store),
+            'avg_drift': 0.0,
+            'max_drift': 0.0
         }
         
-        # Calculate average salience
-        if self.processed_memories:
-            avg_salience = np.mean([b.block_salience for b in self.processed_blocks]) if self.processed_blocks else 0.5
-            stats['avg_salience'] = float(avg_salience)
-        
-        # Calculate average block salience
-        if self.block_manager.blocks:
-            block_saliences = [b.salience for b in self.block_manager.blocks.values()]
-            stats['avg_block_salience'] = float(np.mean(block_saliences))
+        if self.adaptive_embeddings.embedding_store:
+            drifts = []
+            for event_id in self.adaptive_embeddings.embedding_store:
+                # Get original embedding
+                event = self.chromadb.get_event(event_id)
+                if event:
+                    _, original = self.embedder.embed_event(event)
+                    drift = self.adaptive_embeddings.compute_drift(event_id, original)
+                    drifts.append(drift)
             
-            # Get block coherence distribution
-            coherences = [b.coherence_score for b in self.block_manager.blocks.values()]
-            stats['avg_block_coherence'] = float(np.mean(coherences)) if coherences else 0.0
+            if drifts:
+                drift_stats['avg_drift'] = float(np.mean(drifts))
+                drift_stats['max_drift'] = float(np.max(drifts))
         
-        # Memory usage by type
-        type_counts = {}
-        for event in self.raw_memories:
-            type_counts[event.event_type.value] = type_counts.get(event.event_type.value, 0) + 1
-        stats['event_types'] = type_counts
-        
-        return stats
+        return drift_stats
     
-    def clear(self):
-        """Clear all memories"""
-        self.raw_memories.clear()
-        self.processed_memories.clear()
-        self.episode_map.clear()
-        self.hopfield.clear()
-        
-        if self.use_chromadb:
-            try:
-                # Clear ChromaDB collections
-                if self.raw_collection:
-                    self.chroma_client.delete_collection(self.config.storage.raw_collection_name)
-                if self.processed_collection:
-                    self.chroma_client.delete_collection(self.config.storage.processed_collection_name)
-                
-                # Recreate collections
-                self._initialize_storage()
-            except Exception as e:
-                logger.warning(f"Failed to clear ChromaDB collections: {e}")
-        
-        logger.info("Cleared all memories")
+    def get_statistics(self) -> Dict[str, Any]:
+        """Get memory store statistics"""
+        return {
+            'total_events': self.total_events,
+            'total_queries': self.total_queries,
+            'episodes': len(self.episode_map),
+            'evolved_embeddings': len(self.adaptive_embeddings.embedding_store),
+            'co_occurrence_pairs': len(self.adaptive_embeddings.co_occurrence_matrix),
+            'hopfield_size': self.hopfield.memory_count,
+            'chromadb_stats': self.chromadb.get_stats(),
+            'drift_stats': self._calculate_drift_stats()
+        }
     
-    def __len__(self) -> int:
-        """Total number of memories"""
-        return len(self.raw_memories) + len(self.processed_memories)
+    def save(self):
+        """Alias for save_state for compatibility"""
+        self.save_state()
     
-    def __repr__(self) -> str:
-        """String representation"""
-        return (
-            f"MemoryStore(raw={len(self.raw_memories)}, "
-            f"processed={len(self.processed_memories)}, "
-            f"episodes={len(self.episode_map)})"
-        )
+    def save_state(self):
+        """Save the current state"""
+        try:
+            # Save adaptive embeddings
+            state_dir = self.config.storage.state_dir
+            self.adaptive_embeddings.save_state(
+                str(state_dir / "adaptive_embeddings.json")
+            )
+            
+            # Save episode map
+            import json
+            with open(state_dir / "episode_map.json", 'w') as f:
+                json.dump(self.episode_map, f)
+            
+            # ChromaDB persists automatically
+            
+            logger.info("Saved dynamic memory store state")
+            
+        except Exception as e:
+            logger.error(f"Failed to save state: {e}")
+    
+    def load_state(self):
+        """Load saved state"""
+        try:
+            state_dir = self.config.storage.state_dir
+            
+            # Load adaptive embeddings
+            embeddings_file = state_dir / "adaptive_embeddings.json"
+            if embeddings_file.exists():
+                self.adaptive_embeddings.load_state(str(embeddings_file))
+            
+            # Load episode map
+            episode_file = state_dir / "episode_map.json"
+            if episode_file.exists():
+                import json
+                with open(episode_file, 'r') as f:
+                    self.episode_map = json.load(f)
+            
+            logger.info("Loaded dynamic memory store state")
+            
+        except Exception as e:
+            logger.error(f"Failed to load state: {e}")

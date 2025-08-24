@@ -11,7 +11,7 @@ import uuid
 
 from config import get_config
 from models.event import Event, EventType, FiveW1H
-from memory.dynamic_memory_store import DynamicMemoryStore
+from memory.memory_store import DynamicMemoryStore
 from llm.llm_interface import LLMInterface
 
 logger = logging.getLogger(__name__)
