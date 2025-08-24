@@ -15,8 +15,10 @@ import numpy as np
 
 from config import get_config
 from models.event import Event, EventType, FiveW1H
+from models.memory_block import MemoryBlock
 from embedding.embedder import FiveW1HEmbedder, TextEmbedder
 from memory.hopfield import ModernHopfieldNetwork
+from memory.block_manager import MemoryBlockManager
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +40,9 @@ class MemoryStore:
         # Modern Hopfield Network for processed memories
         self.hopfield = ModernHopfieldNetwork(self.config.memory)
         
+        # Memory Block Manager for content-addressable linking
+        self.block_manager = MemoryBlockManager(self.embedder)
+        
         # Storage backends
         self.use_chromadb = self.config.storage.use_chromadb
         self.raw_collection = None
@@ -46,6 +51,7 @@ class MemoryStore:
         # Memory tracking
         self.raw_memories: List[Event] = []
         self.processed_memories: List[Event] = []
+        self.processed_blocks: List[MemoryBlock] = []  # Memory blocks
         self.episode_map: Dict[str, List[str]] = {}  # episode_id -> event_ids
         
         # Statistics
@@ -101,7 +107,7 @@ class MemoryStore:
         skip_salience_check: bool = False
     ) -> Tuple[bool, str]:
         """
-        Store an event in memory
+        Store an event in memory with content-addressable block linking
         
         Args:
             event: Event to store
@@ -114,9 +120,19 @@ class MemoryStore:
             # Always store in raw memory
             self._store_raw(event)
             
-            # Check salience threshold for processed storage
-            if not skip_salience_check and event.salience < self.config.memory.salience_threshold:
-                return True, f"Stored in raw memory only (salience {event.salience:.2f} below threshold)"
+            # Process event into memory blocks
+            # Get recent events for context (last 10 processed events)
+            context_events = self.processed_memories[-10:] if self.processed_memories else []
+            
+            # Add to memory block (handles linking automatically)
+            memory_block = self.block_manager.process_event(event, context_events)
+            
+            # Check if we should store in processed memory
+            # Now we consider block-level salience instead of just individual event salience
+            block_salience = memory_block.compute_block_salience()
+            
+            if not skip_salience_check and block_salience < self.config.memory.salience_threshold:
+                return True, f"Stored in raw memory only (block salience {block_salience:.2f} below threshold)"
             
             # Embed event
             key, value = self.embedder.embed_event(event)
@@ -126,6 +142,8 @@ class MemoryStore:
                 'event_id': event.id,
                 'episode_id': event.episode_id,
                 'salience': event.salience,
+                'block_id': memory_block.id,  # Add block reference
+                'block_salience': block_salience,
                 'priority_score': event.priority_score,
                 'timestamp': event.timestamp
             }
@@ -134,11 +152,15 @@ class MemoryStore:
                 key=key,
                 value=value,
                 metadata=metadata,
-                salience=event.salience
+                salience=block_salience  # Use block salience for Hopfield storage
             )
             
             # Store in processed collection
             self._store_processed(event, key)
+            
+            # Track the memory block if new
+            if memory_block not in self.processed_blocks:
+                self.processed_blocks.append(memory_block)
             
             # Update episode map
             if event.episode_id not in self.episode_map:
@@ -150,7 +172,7 @@ class MemoryStore:
             if self.config.storage.auto_save and self.operation_count % self.config.storage.save_interval == 0:
                 self.save()
             
-            return True, f"Stored event (salience: {event.salience:.2f}, hopfield_idx: {hopfield_idx})"
+            return True, f"Stored event in block {memory_block.id[:8]} (block salience: {block_salience:.2f}, coherence: {memory_block.coherence_score:.2f})"
             
         except Exception as e:
             logger.error(f"Failed to store event: {e}")
@@ -160,42 +182,92 @@ class MemoryStore:
         self,
         query: Dict[str, str],
         k: int = 5,
-        include_raw: bool = False
+        include_raw: bool = False,
+        return_blocks: bool = False
     ) -> List[Tuple[Event, float]]:
         """
-        Retrieve memories matching a partial 5W1H query
+        Retrieve memories matching a partial 5W1H query using memory blocks
         
         Args:
             query: Partial 5W1H query
             k: Number of results
             include_raw: Include raw memories in search
+            return_blocks: Return entire memory blocks instead of individual events
         
         Returns:
-            List of (event, similarity_score) tuples
+            List of (event, similarity_score) tuples, or (block, score) if return_blocks=True
         """
-        # Embed query
-        query_embedding = self.embedder.embed_partial_query(query)
+        # First, find relevant memory blocks
+        relevant_blocks = self.block_manager.retrieve_relevant_blocks(query, k=k*2)
         
+        if return_blocks:
+            # Return the blocks themselves
+            for block, score in relevant_blocks[:k]:
+                block.update_access()
+            return relevant_blocks[:k]
+        
+        # Extract events from relevant blocks with block context
         results = []
+        seen_events = set()
         
-        # Search in Hopfield network
+        for block, block_score in relevant_blocks:
+            # Update block access
+            block.update_access()
+            
+            # Score each event in the block based on query
+            for event in block.events:
+                if event.id in seen_events:
+                    continue
+                
+                # Compute event-specific score
+                event_score = 0.0
+                
+                # Check how well event matches query
+                for key, value in query.items():
+                    if hasattr(event.five_w1h, key) and value:
+                        event_value = getattr(event.five_w1h, key)
+                        if event_value:
+                            # Simple text matching
+                            if value.lower() in event_value.lower():
+                                event_score += 0.2
+                            elif any(word in event_value.lower() for word in value.lower().split()):
+                                event_score += 0.1
+                
+                # Combine block score with event score
+                # Events in highly relevant blocks get a boost
+                combined_score = block_score * 0.6 + event_score * 0.4
+                
+                # Additional boost for high salience events
+                combined_score = combined_score * 0.8 + event.salience * 0.2
+                
+                results.append((event, combined_score))
+                seen_events.add(event.id)
+        
+        # Also search in Hopfield network for individual high-salience memories
+        query_embedding = self.embedder.embed_partial_query(query)
         hopfield_results = self.hopfield.retrieve(query_embedding, k=k)
         
         for value, metadata, score in hopfield_results:
             if metadata and 'event_id' in metadata:
-                # Find corresponding event
-                event = self._find_event_by_id(metadata['event_id'])
-                if event:
-                    event.update_access()
-                    results.append((event, score))
+                event_id = metadata['event_id']
+                if event_id not in seen_events:
+                    event = self._find_event_by_id(event_id)
+                    if event:
+                        event.update_access()
+                        # Check if event is in a block
+                        blocks = self.block_manager.get_blocks_for_event(event_id)
+                        if blocks:
+                            # Boost score if in a relevant block
+                            score = score * 1.2
+                        results.append((event, score))
+                        seen_events.add(event_id)
         
-        # Search in ChromaDB if available
-        if self.use_chromadb:
+        # Search in ChromaDB if available and requested
+        if include_raw and self.use_chromadb:
             collection = self.raw_collection if include_raw else self.processed_collection
             
             if collection:
                 try:
-                    # Convert query to text for ChromaDB
                     query_text = " ".join(f"{k}:{v}" for k, v in query.items() if v)
                     
                     chroma_results = collection.query(
@@ -205,16 +277,14 @@ class MemoryStore:
                     
                     if chroma_results['ids'] and chroma_results['ids'][0]:
                         for idx, event_id in enumerate(chroma_results['ids'][0]):
-                            event = self._find_event_by_id(event_id)
-                            if event:
-                                # Calculate similarity from distance
-                                distance = chroma_results['distances'][0][idx] if chroma_results['distances'] else 0
-                                similarity = 1.0 / (1.0 + distance)
-                                
-                                # Avoid duplicates
-                                if not any(e.id == event.id for e, _ in results):
+                            if event_id not in seen_events:
+                                event = self._find_event_by_id(event_id)
+                                if event:
+                                    distance = chroma_results['distances'][0][idx] if chroma_results['distances'] else 0
+                                    similarity = 1.0 / (1.0 + distance)
                                     event.update_access()
                                     results.append((event, similarity))
+                                    seen_events.add(event_id)
                 
                 except Exception as e:
                     logger.warning(f"ChromaDB search failed: {e}")
@@ -346,6 +416,10 @@ class MemoryStore:
             # Save Hopfield state
             self.hopfield.save_state(self.config.storage.hopfield_state_path)
             
+            # Save memory blocks
+            blocks_path = self.config.storage.state_dir / "memory_blocks.json"
+            self.block_manager.save_state(str(blocks_path))
+            
             # Save episode map
             episode_map_path = self.config.storage.state_dir / "episode_map.json"
             with open(episode_map_path, 'w') as f:
@@ -356,7 +430,7 @@ class MemoryStore:
             self.text_embedder.save_cache(cache_path)
             
             self.last_save = datetime.utcnow()
-            logger.info(f"Saved memory state: {len(self.raw_memories)} raw, {len(self.processed_memories)} processed")
+            logger.info(f"Saved memory state: {len(self.raw_memories)} raw, {len(self.processed_memories)} processed, {len(self.block_manager.blocks)} blocks")
             
         except Exception as e:
             logger.error(f"Failed to save memory state: {e}")
@@ -381,6 +455,11 @@ class MemoryStore:
             # Load Hopfield state
             self.hopfield.load_state(self.config.storage.hopfield_state_path)
             
+            # Load memory blocks
+            blocks_path = self.config.storage.state_dir / "memory_blocks.json"
+            all_events = self.raw_memories + self.processed_memories
+            self.block_manager.load_state(str(blocks_path), all_events)
+            
             # Load episode map
             episode_map_path = self.config.storage.state_dir / "episode_map.json"
             if episode_map_path.exists():
@@ -402,6 +481,7 @@ class MemoryStore:
             'episode_count': len(self.episode_map),
             'total_events': len(self.raw_memories) + len(self.processed_memories),
             'hopfield': self.hopfield.get_statistics(),
+            'blocks': self.block_manager.get_statistics(),  # Add block statistics
             'last_save': self.last_save.isoformat(),
             'operations_since_save': self.operation_count % self.config.storage.save_interval
         }
@@ -410,6 +490,15 @@ class MemoryStore:
         if self.processed_memories:
             avg_salience = np.mean([e.salience for e in self.processed_memories])
             stats['avg_salience'] = float(avg_salience)
+        
+        # Calculate average block salience
+        if self.block_manager.blocks:
+            block_saliences = [b.salience for b in self.block_manager.blocks.values()]
+            stats['avg_block_salience'] = float(np.mean(block_saliences))
+            
+            # Get block coherence distribution
+            coherences = [b.coherence_score for b in self.block_manager.blocks.values()]
+            stats['avg_block_coherence'] = float(np.mean(coherences)) if coherences else 0.0
         
         # Memory usage by type
         type_counts = {}
