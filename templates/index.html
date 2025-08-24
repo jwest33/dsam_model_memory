@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5W1H Memory Framework - Web Interface</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <i class="bi bi-brain"></i> 5W1H Memory Framework
+            </span>
+            <div class="text-light">
+                <span id="stats-summary"></span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-3">
+        <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat" type="button" role="tab">
+                    <i class="bi bi-chat-dots"></i> Chat Interface
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="memory-tab" data-bs-toggle="tab" data-bs-target="#memory" type="button" role="tab">
+                    <i class="bi bi-database"></i> Memory Store
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="mainTabContent">
+            <!-- Chat Tab -->
+            <div class="tab-pane fade show active" id="chat" role="tabpanel">
+                <div class="row mt-3">
+                    <div class="col-md-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Chat with AI Assistant</h5>
+                            </div>
+                            <div class="card-body chat-container" id="chatContainer">
+                                <div id="chatMessages"></div>
+                            </div>
+                            <div class="card-footer">
+                                <form id="chatForm">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="chatInput" placeholder="Type your message..." required>
+                                        <button class="btn btn-primary" type="submit">
+                                            <i class="bi bi-send"></i> Send
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Recent Memories Used</h6>
+                            </div>
+                            <div class="card-body" id="recentMemories">
+                                <p class="text-muted">Memories used in responses will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Memory Tab -->
+            <div class="tab-pane fade" id="memory" role="tabpanel">
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Create New Memory</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="memoryForm">
+                                    <div class="mb-3">
+                                        <label for="memWho" class="form-label">Who</label>
+                                        <input type="text" class="form-control" id="memWho" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="memWhat" class="form-label">What</label>
+                                        <textarea class="form-control" id="memWhat" rows="3" required></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="memWhere" class="form-label">Where</label>
+                                        <input type="text" class="form-control" id="memWhere">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="memWhy" class="form-label">Why</label>
+                                        <input type="text" class="form-control" id="memWhy">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="memHow" class="form-label">How</label>
+                                        <input type="text" class="form-control" id="memHow">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="memType" class="form-label">Type</label>
+                                        <select class="form-select" id="memType">
+                                            <option value="observation">Observation</option>
+                                            <option value="action">Action</option>
+                                            <option value="user_input">User Input</option>
+                                            <option value="system_event">System Event</option>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="btn btn-success w-100">
+                                        <i class="bi bi-plus-circle"></i> Create Memory
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div class="card mt-3">
+                            <div class="card-header">
+                                <h5 class="mb-0">Search Memories</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="searchForm">
+                                    <div class="mb-3">
+                                        <input type="text" class="form-control" id="searchQuery" placeholder="Search by what...">
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="bi bi-search"></i> Search
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-8">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">Memory Store</h5>
+                                <div>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="loadMemories()">
+                                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <ul class="nav nav-pills mb-3" id="memoryTypeTabs" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active" id="blocks-tab" data-bs-toggle="tab" data-bs-target="#memoryBlocks" type="button">
+                                            Memory Blocks <span class="badge bg-secondary" id="blocksCount">0</span>
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="processed-tab" data-bs-toggle="tab" data-bs-target="#processedMemories" type="button">
+                                            Processed <span class="badge bg-secondary" id="processedCount">0</span>
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="raw-tab" data-bs-toggle="tab" data-bs-target="#rawMemories" type="button">
+                                            Raw <span class="badge bg-secondary" id="rawCount">0</span>
+                                        </button>
+                                    </li>
+                                </ul>
+
+                                <div class="tab-content">
+                                    <div class="tab-pane fade show active" id="memoryBlocks">
+                                        <div class="table-responsive">
+                                            <table class="table table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Block ID</th>
+                                                        <th>Type</th>
+                                                        <th>Events</th>
+                                                        <th>Salience</th>
+                                                        <th>Coherence</th>
+                                                        <th>Links</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="memoryBlocksTable"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <div class="tab-pane fade" id="processedMemories">
+                                        <div class="table-responsive">
+                                            <table class="table table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Who</th>
+                                                        <th>What</th>
+                                                        <th>When</th>
+                                                        <th>Salience</th>
+                                                        <th>Block</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="processedMemoriesTable"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <div class="tab-pane fade" id="rawMemories">
+                                        <div class="table-responsive">
+                                            <table class="table table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Who</th>
+                                                        <th>What</th>
+                                                        <th>When</th>
+                                                        <th>Salience</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="rawMemoriesTable"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Memory Detail Modal -->
+    <div class="modal fade" id="memoryDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Memory Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="memoryDetailContent"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Memory Block Detail Modal -->
+    <div class="modal fade" id="memoryBlockModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-diagram-3"></i> Memory Block Details
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="memoryBlockContent">
+                    <!-- Content will be dynamically inserted here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

@@ -22,3 +22,7 @@ mypy>=1.0.0
 
 # Additional utilities
 python-dotenv>=1.0.0  # For environment variable management
+
+# Web interface dependencies
+flask>=2.3.0
+flask-cors>=4.0.0  # For CORS support if needed
