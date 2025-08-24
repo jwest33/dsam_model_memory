@@ -13,7 +13,7 @@ from config import get_config
 
 logger = logging.getLogger(__name__)
 
-class DynamicHopfieldNetwork:
+class ModernHopfieldNetwork:
     """
     Dynamic Modern Hopfield Network without arbitrary capacity limits.
     
@@ -355,4 +355,4 @@ class DynamicHopfieldNetwork:
     
     def __repr__(self) -> str:
         """String representation"""
-        return f"DynamicHopfieldNetwork(memories={self.memory_count}, dim={self.embedding_dim})"
+        return f"ModernHopfieldNetwork(memories={self.memory_count}, dim={self.embedding_dim})"

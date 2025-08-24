@@ -11,7 +11,7 @@ import uuid
 
 from config import get_config
 from models.event import Event, EventType, FiveW1H
-from memory.memory_store import DynamicMemoryStore
+from memory.memory_store import MemoryStore
 from llm.llm_interface import LLMInterface
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ class MemoryAgent:
         self.config = config or get_config()
         
         # Core components
-        self.memory_store = DynamicMemoryStore()
+        self.memory_store = MemoryStore()
         self.llm = LLMInterface(self.config.llm)
         
         # Episode management
