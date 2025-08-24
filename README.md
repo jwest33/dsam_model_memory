@@ -1,29 +1,66 @@
-# 5W1H Memory Framework with Modern Hopfield Networks
+# Dynamic Memory System for AI Agents
 
-An advanced associative memory system for AI agents that combines the 5W1H framework (Who, What, When, Where, Why, How) with Modern Hopfield Networks and ChromaDB for unlimited, context-aware memory storage and retrieval.
+A memory framework that mirrors human cognition through dynamic clustering, adaptive embeddings, and unlimited capacity. No arbitrary thresholds, no fixed limits - memories organize themselves based on real-world usage patterns.
 
-## 🌟 Key Features
+## Core Philosophy
 
-- **Unlimited Memory Capacity**: No arbitrary limits - scales with available disk space
-- **Block-Centric Salience Matrix**: Context-aware importance scoring using embedding similarities
-- **5W1H Structured Memory**: Every memory organized by Who, What, When, Where, Why, and How
-- **ChromaDB Integration**: Efficient vector database for millions of memories
-- **Modern Hopfield Networks**: Attention-based associative memory retrieval
-- **Automatic Memory Blocks**: Related memories grouped semantically and temporally
-- **Real-time Web Interface**: Interactive memory visualization and management
+Traditional memory systems force artificial constraints: salience thresholds, capacity limits, static relationships. This system removes all arbitrary boundaries, allowing memories to:
 
-## 🚀 Quick Start
+- **Self-organize** through dynamic clustering based on query context
+- **Evolve** via gravitational embedding updates reflecting co-occurrence
+- **Scale infinitely** with ChromaDB backend and no eviction logic
+- **Adapt naturally** to usage patterns without manual tuning
 
-### Prerequisites
+## Key Features
+
+### Dynamic Memory Clustering
+- **No pre-computed blocks** - Memories cluster dynamically based on query context
+- **DBSCAN algorithm** adapts cluster formation to data density
+- **Context-aware weighting** emphasizes different 5W1H dimensions per query
+- **Eigenvector centrality** determines memory importance within clusters
+
+### Adaptive Embeddings
+- **Gravitational updates** - Frequently accessed memories drift closer
+- **Momentum-based learning** prevents oscillation (α=0.01, momentum=0.9)
+- **Dimension-specific attraction** based on interaction types
+- **Co-occurrence tracking** strengthens relationships over time
+
+### Unlimited Capacity
+- **ChromaDB backend** scales to millions of memories
+- **No eviction** - All memories preserved indefinitely
+- **No salience filtering** - Every experience matters
+- **Efficient retrieval** through vector similarity search
+
+### 5W1H Framework
+Every memory encodes the complete context:
+- **Who**: Actor or entity involved
+- **What**: Action or observation
+- **When**: Temporal information
+- **Where**: Location or context
+- **Why**: Intent or purpose
+- **How**: Method or approach
+
+## Installation
 
 ```bash
-# Install dependencies (ChromaDB is required)
+# Clone repository
+git clone https://github.com/yourusername/agent-memory
+cd agent-memory
+
+# Install dependencies
 pip install -r requirements.txt
 
-# For LLM-based salience (optional)
-# Windows: winget install ggml.llamacpp
-# Linux/Mac: Build from https://github.com/ggerganov/llama.cpp
+# For Windows users with CUDA support
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# Install llama.cpp server (optional, for LLM salience)
+# Windows:
+winget install ggml.llamacpp
+# Linux/Mac:
+brew install llama.cpp
 ```
+
+## Quick Start
 
 ### Basic Usage
 
@@ -35,18 +72,28 @@ agent = MemoryAgent()
 
 # Store a memory
 success, message, event = agent.remember(
-    who="User",
-    what="Asked about memory systems",
-    where="GitHub",
-    why="Understanding the project",
-    how="Reading documentation"
+    who="Alice",
+    what="implemented dynamic clustering algorithm",
+    where="memory/dynamic_clustering.py",
+    why="remove arbitrary thresholds",
+    how="DBSCAN with eigenvector centrality"
 )
 
-# Recall memories
-memories = agent.recall(what="memory", k=5)
+# Recall memories with dynamic clustering
+memories = agent.recall(what="clustering", k=5)
+for event, score in memories:
+    print(f"[{score:.3f}] {event.five_w1h.what}")
 
-# Get insights
-insight = agent.get_insight("How does the memory system work?")
+# Provide feedback to adapt embeddings
+agent.adapt_from_feedback(
+    query={"what": "clustering"},
+    positive_events=[memories[0][0].id],  # Most relevant
+    negative_events=[]
+)
+
+# Get insights about memory relationships
+insights = agent.get_insights(topic="clustering")
+print(insights)
 ```
 
 ### Command Line Interface
@@ -55,287 +102,252 @@ insight = agent.get_insight("How does the memory system work?")
 # Initialize system
 python cli.py init
 
-# Run interactive demo
-python cli.py demo
-
 # Store memories
-python cli.py remember --who "AI" --what "Learned about embeddings"
+python cli.py remember --who "User" --what "asked about memory systems" \
+                      --why "understand architecture" --how "questioning"
 
-# Recall memories
-python cli.py recall --what "embeddings" --k 10
+# Recall with dynamic clustering
+python cli.py recall --what "memory" --k 10
 
-# View statistics
+# View system statistics
 python cli.py stats
 
-# Export/Import for backup
-python cli.py export --output backup.json
-python cli.py import --input backup.json
+# Generate sample conversations
+python generate_conversations.py
 ```
 
 ### Web Interface
 
 ```bash
-# Launch web interface (opens browser automatically)
+# Launch web UI (auto-opens browser)
 python run_web.py
 
 # Access at http://localhost:5000
+# Features: Chat interface, memory visualization, block management
 ```
 
-## 🏗️ Architecture
+## Architecture
 
-### Core Components
-
-1. **Event Model** (`models/event.py`)
-   - 5W1H structure for complete context
-   - Episode tracking for conversation continuity
-   - Confidence scores and metadata
-   - No individual salience (managed by blocks)
-
-2. **Memory Blocks** (`models/memory_block.py`)
-   - Groups related memories automatically
-   - **Salience Matrix**: Pairwise embedding similarities
-   - **Eigenvector Centrality**: Determines event importance within block
-   - **Dynamic Updates**: Recomputes as events are added
-   - Block-level embeddings for efficient retrieval
-
-3. **ChromaDB Storage** (`memory/chromadb_store.py`)
-   - **Primary Storage**: No more JSON files!
-   - **Three Collections**: events, blocks, metadata
-   - **Vector Search**: Built-in similarity search
-   - **Unlimited Capacity**: Scales with disk space
-   - **Smart Caching**: LRU cache for frequent access
-
-4. **Dynamic Hopfield Network** (`memory/hopfield_dynamic.py`)
-   - **No Capacity Limits**: Grows indefinitely
-   - **Dynamic Arrays**: Auto-expanding storage
-   - **Attention-Based**: Uses transformer-style attention
-   - **Fast Retrieval**: O(N·d) complexity
-
-### Memory Flow
+### System Components
 
 ```
-User Input → 5W1H Extraction → Event Creation
-    ↓
-Memory Block Assignment (semantic/temporal grouping)
-    ↓
-Salience Matrix Update (embedding-based importance)
-    ↓
-ChromaDB Storage (unlimited capacity)
-    ↓
-Retrieval via Vector Search or Attention
+┌─────────────────────────────────────────────────────────┐
+│                     User Input (5W1H)                    │
+└────────────────────────┬────────────────────────────────┘
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│                    Memory Agent                          │
+│  - Episode management                                    │
+│  - Event creation                                        │
+│  - Query processing                                      │
+└────────────────────────┬────────────────────────────────┘
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│                Dynamic Memory Store                      │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │
+│  │  ChromaDB    │  │   Dynamic    │  │   Adaptive   │ │
+│  │   Storage    │◄─┤  Clustering  │◄─┤  Embeddings  │ │
+│  └──────────────┘  └──────────────┘  └──────────────┘ │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### Salience Matrix System
+### Data Flow
 
-Each memory block maintains:
-- **Salience Matrix**: [n_events × n_events] pairwise similarities
-- **Event Saliences**: Individual importance from eigenvector centrality
-- **Block Salience**: Overall block importance
+1. **Input Processing**: 5W1H structure → Event object with metadata
+2. **Storage**: Direct to ChromaDB, no filtering or thresholds
+3. **Query Time**:
+   - Retrieve candidates via vector similarity
+   - Dynamic clustering with DBSCAN
+   - Eigenvector centrality ranking
+   - Adaptive embedding updates
+4. **Feedback Loop**: User interactions update embeddings gravitationally
 
-Key features:
-- **Context-Aware**: Event importance depends on relationships
-- **Type Boosts**: User input (1.3x), Observations (1.15x)
-- **Temporal Weighting**: Recent events weighted higher
-- **No Individual Salience**: Removed event.salience field
+### Key Algorithms
 
-## 📊 Performance
+#### Dynamic Clustering (DBSCAN)
+```python
+# Pseudocode
+candidates = chromadb.query(embedding, k=100)
+distance_matrix = compute_similarities(candidates)
+clusters = DBSCAN(eps=adaptive, min_samples=2).fit(distance_matrix)
+```
 
-- **0-1K memories**: Instant retrieval (<100ms)
-- **1K-10K memories**: Sub-second retrieval
-- **10K-100K memories**: 1-2 second retrieval
-- **100K-1M memories**: Efficient with ChromaDB indexing
-- **1M+ memories**: Limited only by disk space
+#### Gravitational Embeddings
+```python
+# Pseudocode
+force = (target_embedding - source_embedding) * relevance
+velocity = momentum * velocity + learning_rate * force
+new_embedding = normalize(embedding + velocity)
+```
 
-## 🔧 Configuration
+#### Eigenvector Centrality
+```python
+# Pseudocode
+adjacency = similarity_matrix > threshold
+eigenvalues, eigenvectors = np.linalg.eig(adjacency)
+centrality = eigenvectors[:, 0]  # Principal eigenvector
+```
+
+## Configuration
 
 ### Environment Variables
 
 ```bash
 # Core settings
-STATE_DIR=./state          # Where to store data
-CHROMADB_PATH=./chromadb   # ChromaDB storage location
+STATE_DIR=./state                    # Memory storage location
+USE_CHROMADB=true                   # Enable vector database
+USE_LLM_SALIENCE=false              # Disable LLM scoring (no thresholds anyway)
 
-# LLM settings (optional)
-LLM_SERVER_URL=http://localhost:8000
-USE_LLM_SALIENCE=true      # Use LLM for importance scoring
+# Embedding settings
+EMBEDDING_MODEL=all-MiniLM-L6-v2    # Sentence transformer model
+EMBEDDING_DIM=384                   # Embedding dimensions
 
-# Memory settings (no limits!)
-MHN_EMBEDDING_DIM=384      # Embedding dimensions
-MHN_TEMPERATURE=15.0       # Attention sharpness
+# Clustering parameters
+DBSCAN_EPS=0.3                      # Cluster density threshold
+MIN_CLUSTER_SIZE=2                  # Minimum cluster size
+
+# Adaptive embedding parameters
+LEARNING_RATE=0.01                  # Embedding update rate
+MOMENTUM=0.9                        # Update smoothing factor
 ```
 
-### Key Configuration (`config.py`)
+### Advanced Configuration
 
 ```python
-MemoryConfig:
-  embedding_dim: 384              # Transformer-compatible
-  temperature: 15.0               # Attention sharpness
-  salience_threshold: 0.4         # 40% importance minimum
-  similarity_threshold: 0.85      # 85% for deduplication
-
-StorageConfig:
-  chromadb_path: "./state/chromadb"
-  chromadb_required: true         # Primary storage
-  cache_size: 1000               # In-memory cache
-  auto_backup: true              # JSON exports
-  backup_interval: 100           # Every 100 operations
+# config.py
+@dataclass
+class DynamicMemoryConfig:
+    # Clustering
+    max_clusters: int = 10
+    cluster_merge_threshold: float = 0.7
+    
+    # Embeddings
+    gravity_strength: float = 0.1
+    dimension_weights: Dict[str, float] = field(default_factory=lambda: {
+        'who': 1.0, 'what': 2.0, 'when': 0.5,
+        'where': 0.5, 'why': 1.5, 'how': 1.0
+    })
+    
+    # ChromaDB
+    collection_name: str = "events"
+    persist_directory: str = "./state/chromadb"
 ```
 
-## 📝 Technical Improvements
+## System Statistics
 
-### What's New
+The system tracks comprehensive metrics:
 
-1. **No Memory Limits**
-   - Removed 512 memory cap
-   - No eviction logic
-   - Dynamic array growth
-   - Scales infinitely
-
-2. **Block-Centric Salience**
-   - Eigenvector centrality for importance
-   - Pairwise similarity matrix
-   - Context-aware scoring
-   - No arbitrary thresholds
-
-3. **ChromaDB First**
-   - Primary storage (not optional)
-   - Efficient serialization of numpy arrays
-   - Built-in vector search
-   - Automatic indexing
-
-4. **Improved Embeddings**
-   - Cosine similarity throughout
-   - Proper normalization
-   - Fallback to Jaccard when needed
-   - Role-aware embeddings
-
-## 🗂️ Project Structure
-
-```
-agent-wip/
-├── agent/
-│   └── memory_agent.py          # Main memory agent
-├── memory/
-│   ├── chromadb_store.py        # ChromaDB backend (NEW)
-│   ├── hopfield_dynamic.py      # Unlimited Hopfield (NEW)
-│   ├── memory_store.py          # Storage orchestration
-│   └── block_manager.py         # Memory block management
-├── models/
-│   ├── event.py                 # 5W1H event model
-│   └── memory_block.py          # Block with salience matrix
-├── embedding/
-│   └── embedder.py              # Embedding generation
-├── llm/
-│   ├── llm_interface.py         # LLM integration
-│   └── salience_model.py        # Block importance (simplified)
-├── templates/                   # Web interface
-├── static/                      # Web assets
-├── cli.py                       # Command-line interface
-├── web_app.py                   # Flask application
-└── config.py                    # Configuration
-```
-
-## 🔬 Advanced Features
-
-### Memory Blocks
-- **Automatic Grouping**: Semantic, temporal, causal links
-- **Link Types**: TEMPORAL, CAUSAL, SEMANTIC, EPISODIC, CONVERSATIONAL, REFERENCE
-- **Coherence Score**: How well memories fit together
-- **Chain Tracking**: Action→observation relationships
-
-### Salience Matrix Mathematics
 ```python
-# Pairwise similarity matrix
-for i, j in events:
-    similarity = cosine_sim(embed[i], embed[j])
-    temporal_weight = exp(-time_diff / 3600)
-    matrix[i,j] = similarity * 0.7 + temporal_weight * 0.3
-
-# Eigenvector centrality
-eigenvalues, eigenvectors = np.linalg.eig(matrix)
-centrality = dominant_eigenvector / max(dominant_eigenvector)
+stats = agent.get_statistics()
+# Returns:
+{
+    'total_events': 1543,
+    'total_queries': 89,
+    'episodes': 12,
+    'evolved_embeddings': 743,
+    'average_cluster_size': 4.2,
+    'embedding_drift': 0.15,  # Average cosine distance from original
+    'chromadb_stats': {
+        'events': 1543,
+        'blocks': 0,  # No static blocks in new system
+        'collection_size_mb': 12.4
+    }
+}
 ```
 
-### ChromaDB Operations
-```python
-# Store with embedding
-store.store_event(event, embedding, block_id)
+## Testing
 
-# Update salience matrix
-store.update_block_salience(block_id, matrix, saliences)
+```bash
+# Run demonstration
+python generate_conversations.py
 
-# Efficient retrieval
-results = store.retrieve_events_by_query(query_embedding, k=10)
-blocks = store.retrieve_blocks_by_query(query_embedding, k=5)
+# Test without external dependencies
+USE_CHROMADB=false python cli.py demo
+
+# Test API endpoints
+python test_api.py
+
+# Validate clustering
+python -c "from memory.dynamic_clustering import test_clustering; test_clustering()"
+
+# Check embedding evolution
+python -c "from memory.adaptive_embeddings import visualize_evolution; visualize_evolution()"
 ```
 
-## 🚀 Getting Started
+## Use Cases
 
-1. **Install Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+### Personal AI Assistant
+- Remembers all interactions without forgetting
+- Contexts naturally emerge from usage patterns
+- No manual configuration of importance
 
-2. **Initialize System**
-   ```bash
-   python cli.py init
-   ```
+### Research Tool
+- Stores unlimited research notes and findings
+- Discovers unexpected connections through clustering
+- Embeddings evolve to reflect discovered relationships
 
-3. **Run Demo**
-   ```bash
-   python cli.py demo
-   ```
+### Game AI
+- NPCs with truly persistent memories
+- Dynamic relationship formation
+- Natural forgetting through embedding drift
 
-4. **Launch Web Interface**
-   ```bash
-   python run_web.py
-   ```
+### Knowledge Management
+- Self-organizing information architecture
+- No manual tagging or categorization
+- Emergent topics through clustering
 
-## 🤝 Contributing
+## 🔬 Technical Deep Dive
 
-The system is designed for extensibility:
-- Add memory operations in `memory_agent.py`
-- Extend link types in `memory_block.py`
-- Add retrieval strategies in `chromadb_store.py`
-- Enhance web interface in `templates/`
+### Why No Salience Thresholds?
 
-## 📚 Theory
+Traditional systems use salience scores to determine what to remember. This creates:
+- **Information loss**: Low-salience events might become important later
+- **Arbitrary boundaries**: Who decides 0.3 vs 0.4 salience?
+- **Static evaluation**: Importance changes with context
 
-### Why 5W1H?
-Complete context capture ensures nothing is lost:
-- **Who**: Agency and actors
-- **What**: Core content
-- **When**: Temporal ordering
-- **Where**: Context location
-- **Why**: Intent and causality
-- **How**: Methods and mechanisms
+Our approach: Store everything, let retrieval determine relevance.
 
-### Why Modern Hopfield Networks?
-- Content-addressable memory
-- Robust to partial queries
-- Attention-based like transformers
-- Continuous learning via EMA
-- Interpretable retrieval
+### Why Dynamic Clustering?
 
-### Why Memory Blocks?
-- Groups related memories
-- Context-aware importance
-- Efficient batch operations
-- Natural episode boundaries
-- Reduced redundancy
+Static memory blocks assume fixed relationships. Reality is fluid:
+- **Context-dependent**: "debugging" memories cluster differently when querying about "performance" vs "errors"
+- **Emergent structure**: Patterns arise from usage, not pre-definition
+- **Adaptive boundaries**: Cluster sizes and densities adjust to data
 
-## 📝 License
+### Why Adaptive Embeddings?
 
-MIT License - See LICENSE file for details.
+Static embeddings assume fixed semantic space. Real understanding evolves:
+- **Usage patterns matter**: Frequently co-accessed memories should be similar
+- **Relationships strengthen**: Repeated associations increase attraction
+- **Context shapes meaning**: Same memory means different things in different contexts
 
-## 🙏 Acknowledgments
+## Contributing
 
-- ChromaDB for scalable vector storage
-- Sentence-transformers for embeddings
-- Modern Hopfield Networks research
-- Transformer attention mechanisms
-- Cognitive science principles
+We welcome contributions! Key areas for enhancement:
 
----
+1. **Alternative clustering algorithms**: Hierarchical, spectral, affinity propagation
+2. **Embedding evolution strategies**: Different gravitational models
+3. **Query optimization**: Faster candidate retrieval
+4. **Visualization tools**: Memory landscape mapping
+5. **Integration examples**: LangChain, AutoGPT, etc.
 
-**Note**: This is an active research project exploring advanced memory systems for AI agents. The architecture prioritizes scalability, context-awareness, and semantic understanding over simple key-value storage.
+## Research Foundation
+
+This system builds on several key concepts:
+
+- **Modern Hopfield Networks** (Ramsauer et al., 2021): Attention-based associative memory
+- **DBSCAN** (Ester et al., 1996): Density-based spatial clustering
+- **Eigenvector Centrality** (Bonacich, 1972): Node importance in networks
+- **Momentum SGD** (Polyak, 1964): Accelerated gradient descent
+- **5W1H Framework**: Journalistic approach to complete information
+
+## License
+
+MIT License - See LICENSE file for details
+
+## Acknowledgments
+
+- ChromaDB team for the excellent vector database
+- Sentence Transformers for semantic embeddings
+- The cognitive science community for inspiration
+- Open source contributors worldwide
