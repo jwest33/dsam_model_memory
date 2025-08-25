@@ -1,6 +1,6 @@
 # SAM - Self-Organizing Agentic Memory
 
-An agentic memory framework supporting dynamic clustering, adaptive embeddings, and unlimited capacity. No arbitrary thresholds, no fixed limits - memories organize themselves based on real-world usage patterns.
+An agentic memory framework supporting clustering, adaptive embeddings, and unlimited capacity. No arbitrary thresholds, no fixed limits - memories organize themselves based on real-world usage patterns.
 
 ## Core Philosophy
 

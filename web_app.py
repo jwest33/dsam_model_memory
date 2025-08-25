@@ -1,5 +1,5 @@
 """
-Flask web application for 5W1H Memory Framework
+Flask web application for Self-Organizing Agentic Memory
 Provides chat interface and memory management GUI
 """
 
@@ -84,8 +84,8 @@ def chat():
 
         # 4) Compose the prompt and generate an LLM response
         prompt = (
-            "You are a helpful AI assistant with access to conversation memory. "
-            "Use any relevant memories (if provided) to make your response more context-aware and specific.\n\n"
+            "You are a helpful AI assistant."
+            "Conversation context:\n"
             f"{context}"
             "Current conversation:\n"
             f"User: {user_message}\n"
@@ -160,7 +160,8 @@ def get_memories():
             sample_results = memory_agent.memory_store.retrieve_memories(
                 query=sample_query, 
                 k=10, 
-                use_clustering=True
+                use_clustering=True,
+                update_embeddings=False  # Don't update embeddings during exploration
             )
             
             # Get cluster information from the last clustering operation
@@ -267,9 +268,10 @@ def query_memories():
                 query[field] = data[field]
         
         k = data.get('k', 5)
+        component_mode = data.get('component_mode', None)  # For component-based clustering
         
-        # Perform query with dynamic clustering
-        results = memory_agent.recall(**query, k=k)
+        # Perform query with dynamic clustering (no embedding updates for exploration)
+        results = memory_agent.recall(**query, k=k, update_embeddings=False)
         
         # Format results
         memories = []
@@ -317,6 +319,10 @@ def query_memories():
 def get_memory_cluster(memory_id):
     """Get the dynamic cluster graph for a specific memory"""
     try:
+        # Get query parameters for component-based clustering
+        component_mode = request.args.get('mode', 'default')  # default, single, combination
+        components = request.args.getlist('components')  # e.g., ?components=who&components=what
+        
         # Find the memory
         all_events = memory_agent.memory_store.chromadb.retrieve_all_events()
         target_event = None
@@ -328,14 +334,32 @@ def get_memory_cluster(memory_id):
         if not target_event:
             return jsonify({'error': 'Memory not found'}), 404
         
-        # Use the memory's content as a query to find related memories
-        query = {
-            'who': target_event.five_w1h.who,
-            'what': target_event.five_w1h.what[:50],  # Use partial to avoid being too specific
-        }
+        # Build query based on mode and components
+        if component_mode == 'single' and components:
+            # Focus on specific components
+            query = {}
+            for comp in components:
+                if hasattr(target_event.five_w1h, comp):
+                    value = getattr(target_event.five_w1h, comp)
+                    if value:
+                        query[comp] = value[:50] if comp == 'what' else value
+        elif component_mode == 'combination' and components:
+            # Use combination of specified components
+            query = {}
+            for comp in components:
+                if hasattr(target_event.five_w1h, comp):
+                    value = getattr(target_event.five_w1h, comp)
+                    if value:
+                        query[comp] = value[:50] if comp == 'what' else value
+        else:
+            # Default mode - use main components
+            query = {
+                'who': target_event.five_w1h.who,
+                'what': target_event.five_w1h.what[:50] if target_event.five_w1h.what else '',
+            }
         
-        # Get related memories with clustering
-        results = memory_agent.recall(**query, k=15)
+        # Get related memories with clustering (no embedding updates for exploration)
+        results = memory_agent.recall(**query, k=15, update_embeddings=False)
         
         # Build graph data
         nodes = []
@@ -383,7 +407,9 @@ def get_memory_cluster(memory_id):
             'success': True,
             'nodes': nodes,
             'edges': edges,
-            'query': query
+            'query': query,
+            'mode': component_mode,
+            'components': components if component_mode in ['single', 'combination'] else None
         })
         
     except Exception as e:

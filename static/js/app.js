@@ -21,12 +21,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const memoryTab = document.getElementById('memory-tab');
     if (memoryTab) {
         memoryTab.addEventListener('click', function (e) {
-            // Refresh when clicking on memory tab
-            console.log('Memory tab activated, refreshing memories...');
-            setTimeout(() => {
-                loadMemories(true); // Show loading indicator
-                loadStats();
-            }, 100); // Small delay to ensure tab is shown
+            // Only refresh if user hasn't interacted recently (within 5 seconds)
+            const timeSinceInteraction = Date.now() - (window.lastUserInteraction || 0);
+            if (timeSinceInteraction > 5000) {
+                console.log('Memory tab activated, refreshing memories...');
+                setTimeout(() => {
+                    loadMemories(true); // Show loading indicator
+                    loadStats();
+                }, 100); // Small delay to ensure tab is shown
+            } else {
+                console.log('Memory tab activated, skipping refresh due to recent interaction');
+            }
         });
     }
     
@@ -34,9 +39,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const memoryTabEl = document.querySelector('button[data-bs-target="#memory"]');
     if (memoryTabEl) {
         memoryTabEl.addEventListener('shown.bs.tab', function (event) {
-            console.log('Memory tab shown, refreshing...');
-            loadMemories();
-            loadStats();
+            // Only refresh if user hasn't interacted recently (within 5 seconds)
+            const timeSinceInteraction = Date.now() - (window.lastUserInteraction || 0);
+            if (timeSinceInteraction > 5000) {
+                console.log('Memory tab shown, refreshing...');
+                loadMemories();
+                loadStats();
+            }
         });
     }
     
@@ -195,49 +204,20 @@ function showNodeDetails(nodeId) {
         return;
     }
     
-    // Show the details panel
-    const detailsPanel = document.getElementById('nodeDetails');
+    // Update the node details in the unified panel
     const detailsContent = document.getElementById('nodeDetailsContent');
     
-    detailsPanel.style.display = 'block';
-    
-    // Build the 5W1H details HTML
+    // Build compact 5W1H details
     detailsContent.innerHTML = `
-        <div class="row">
-            <div class="col-12">
-                <dl class="row mb-0">
-                    <dt class="col-sm-2 text-cyan">Who:</dt>
-                    <dd class="col-sm-10">${escapeHtml(memory.who || 'N/A')}</dd>
-                    
-                    <dt class="col-sm-2 text-cyan">What:</dt>
-                    <dd class="col-sm-10">${escapeHtml(memory.what || 'N/A')}</dd>
-                    
-                    <dt class="col-sm-2 text-cyan">When:</dt>
-                    <dd class="col-sm-10">${memory.when ? new Date(memory.when).toLocaleString() : 'N/A'}</dd>
-                    
-                    <dt class="col-sm-2 text-cyan">Where:</dt>
-                    <dd class="col-sm-10">${escapeHtml(memory.where || 'N/A')}</dd>
-                    
-                    <dt class="col-sm-2 text-cyan">Why:</dt>
-                    <dd class="col-sm-10">${escapeHtml(memory.why || 'N/A')}</dd>
-                    
-                    <dt class="col-sm-2 text-cyan">How:</dt>
-                    <dd class="col-sm-10">${escapeHtml(memory.how || 'N/A')}</dd>
-                    
-                    <dt class="col-sm-2 text-cyan">Type:</dt>
-                    <dd class="col-sm-10">
-                        <span class="badge badge-${memory.type?.replace('_', '-')}">${memory.type || 'unknown'}</span>
-                    </dd>
-                    
-                    <dt class="col-sm-2 text-cyan">Episode:</dt>
-                    <dd class="col-sm-10"><small class="text-muted">${memory.episode_id || 'N/A'}</small></dd>
-                </dl>
-            </div>
-        </div>
+        <div class="mb-2"><strong class="text-purple">Who:</strong> ${escapeHtml(memory.who || 'N/A')}</div>
+        <div class="mb-2"><strong class="text-purple">What:</strong> ${escapeHtml(memory.what || 'N/A')}</div>
+        <div class="mb-2"><strong class="text-purple">When:</strong> ${memory.when ? new Date(memory.when).toLocaleString() : 'N/A'}</div>
+        <div class="mb-2"><strong class="text-purple">Where:</strong> ${escapeHtml(memory.where || 'N/A')}</div>
+        <div class="mb-2"><strong class="text-purple">Why:</strong> ${escapeHtml(memory.why || 'N/A')}</div>
+        <div class="mb-2"><strong class="text-purple">How:</strong> ${escapeHtml(memory.how || 'N/A')}</div>
+        <div class="mb-2"><strong class="text-purple">Type:</strong> <span class="badge bg-purple">${memory.type || 'N/A'}</span></div>
+        ${memory.episode_id ? `<div class="mb-2"><strong class="text-purple">Episode:</strong> <small>${memory.episode_id}</small></div>` : ''}
     `;
-    
-    // Scroll to the details
-    detailsPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 // Graph visualization
@@ -254,40 +234,111 @@ async function showMemoryGraph(memoryId) {
     const graphModal = new bootstrap.Modal(document.getElementById('memoryGraphModal'));
     graphModal.show();
     
-    // Show loading
-    document.getElementById('graphInfo').innerHTML = '<i class="spinner-border spinner-border-sm"></i> Loading cluster graph...';
+    // Load the graph with default settings
+    loadClusterGraph(memoryId);
+}
+
+async function loadClusterGraph(memoryId, mode = 'default', components = []) {
+    // Show loading and reset panels
+    document.getElementById('graphInfo').innerHTML = '<i class="spinner-border spinner-border-sm"></i> Loading...';
     document.getElementById('memoryGraph').innerHTML = '';
+    document.getElementById('nodeDetailsContent').innerHTML = '<em class="text-muted">Click a node to view details</em>';
+    document.getElementById('edgeDetails').style.display = 'none';
+    document.getElementById('edgeDivider').style.display = 'none';
     
     try {
-        const response = await fetch(`/api/memory/${memoryId}/cluster`);
+        // Build URL with parameters
+        let url = `/api/memory/${memoryId}/cluster?mode=${mode}`;
+        if (components.length > 0) {
+            components.forEach(comp => {
+                url += `&components=${comp}`;
+            });
+        }
+        
+        const response = await fetch(url);
         const data = await response.json();
         
         if (data.success) {
-            // Display info
+            // Display info with mode details
+            let modeInfo = '';
+            if (data.mode === 'single') {
+                modeInfo = `Single Component (${data.components ? data.components.join(', ') : 'default'})`;
+            } else if (data.mode === 'combination') {
+                modeInfo = `Combination (${data.components ? data.components.join(' + ') : 'default'})`;
+            } else {
+                modeInfo = 'Default Weighted';
+            }
+            
+            // Format query for display
+            let queryDisplay = [];
+            for (const [key, value] of Object.entries(data.query)) {
+                if (value) {
+                    queryDisplay.push(`<span class="text-purple">${key}:</span> "${value.substring(0, 30)}${value.length > 30 ? '...' : ''}"`);
+                }
+            }
+            
             document.getElementById('graphInfo').innerHTML = `
-                <strong>Dynamic Cluster Visualization</strong><br>
-                Query: ${JSON.stringify(data.query)}<br>
-                Found ${data.nodes.length} related memories
+                <div><strong>Mode:</strong> ${modeInfo}</div>
+                <div><strong>Query:</strong> ${queryDisplay.join(', ')}</div>
+                <div><strong>Nodes:</strong> ${data.nodes.length} memories</div>
+                <div><strong>Edges:</strong> ${data.edges.length} connections</div>
             `;
             
-            // Clear previous node details
-            document.getElementById('nodeDetails').style.display = 'none';
+            // Clear previous details
+            document.getElementById('nodeDetailsContent').innerHTML = '<em class="text-muted">Click a node to view details</em>';
+            document.getElementById('edgeDetails').style.display = 'none';
+            document.getElementById('edgeDivider').style.display = 'none';
             
-            // Create the graph
+            // Create the graph with enhanced node sizing
             const container = document.getElementById('memoryGraph');
             
+            // Process nodes to adjust sizes - primary node should be smaller
+            const processedNodes = data.nodes.map(node => {
+                if (node.group === 'target') {
+                    // Reduce primary node size significantly
+                    node.size = 20; // Reduced from 30
+                    node.font = { ...node.font, size: 14, bold: true };
+                    node.borderWidth = 3;
+                    node.shadow = {
+                        enabled: true,
+                        color: 'rgba(255, 16, 240, 0.8)',
+                        size: 15
+                    };
+                } else {
+                    // Scale other nodes based on relevance
+                    node.size = Math.max(12, Math.min(25, node.size));
+                    node.font = { ...node.font, size: 10 };
+                }
+                
+                // Remove title/tooltip - we don't want hover tooltips
+                node.title = undefined;
+                
+                return node;
+            });
+            
             const graphData = {
-                nodes: new vis.DataSet(data.nodes),
+                nodes: new vis.DataSet(processedNodes),
                 edges: new vis.DataSet(data.edges)
             };
             
+            // Enhanced options with better interactivity and visual hierarchy
             const options = {
                 nodes: {
                     shape: 'dot',
-                    size: 25,
+                    scaling: {
+                        min: 10,
+                        max: 30,
+                        label: {
+                            enabled: true,
+                            min: 10,
+                            max: 16
+                        }
+                    },
                     font: {
                         size: 12,
-                        color: '#00ffff'
+                        color: '#00ffff',
+                        strokeWidth: 2,
+                        strokeColor: 'rgba(20, 16, 31, 0.8)'
                     },
                     color: {
                         background: '#ff10f0',
@@ -295,32 +346,63 @@ async function showMemoryGraph(memoryId) {
                         highlight: {
                             background: '#00ffff',
                             border: '#ff10f0'
+                        },
+                        hover: {
+                            background: '#ff40ff',
+                            border: '#40ffff'
                         }
                     },
-                    borderWidth: 2
+                    borderWidth: 2,
+                    borderWidthSelected: 3,
+                    shadow: {
+                        enabled: true,
+                        color: 'rgba(255, 16, 240, 0.5)',
+                        size: 10,
+                        x: 0,
+                        y: 0
+                    },
+                    chosen: {
+                        node: function(values, id, selected, hovering) {
+                            // Only respond to selection, not hovering
+                            if (selected) {
+                                values.borderWidth = 4;
+                                values.shadow = {
+                                    enabled: true,
+                                    color: 'rgba(0, 255, 255, 0.8)',
+                                    size: 20
+                                };
+                            }
+                        },
+                        label: function(values, id, selected, hovering) {
+                            if (selected) {
+                                values.color = '#ffffff';
+                            }
+                        }
+                    }
                 },
                 edges: {
                     font: {
-                        size: 8,  // Smaller font for edge labels
+                        size: 10,
                         align: 'horizontal',
-                        color: 'rgba(0, 255, 255, 0.6)',  // Semi-transparent cyan
-                        strokeWidth: 0,  // No stroke around text
-                        background: 'rgba(20, 16, 31, 0.8)'  // Dark background for readability
+                        color: 'rgba(0, 255, 255, 0.8)',
+                        strokeWidth: 2,
+                        strokeColor: 'rgba(20, 16, 31, 0.9)',
+                        background: 'rgba(20, 16, 31, 0.9)'
                     },
                     arrows: {
                         to: {
                             enabled: true,
-                            scaleFactor: 0.3  // Smaller arrows
+                            scaleFactor: 0.3
                         }
                     },
                     color: {
-                        color: 'rgba(168, 85, 247, 0.5)',  // Semi-transparent purple
+                        color: 'rgba(168, 85, 247, 0.5)',
                         highlight: '#00ffff',
                         opacity: 0.6
                     },
-                    width: 0.5,  // Very thin edges
-                    hoverWidth: 1,  // Still thin on hover
-                    selectionWidth: 1,  // Still thin when selected
+                    width: 0.5,
+                    hoverWidth: 2,
+                    selectionWidth: 2,
                     smooth: {
                         enabled: true,
                         type: 'curvedCW',
@@ -332,25 +414,27 @@ async function showMemoryGraph(memoryId) {
                     },
                     chosen: {
                         edge: function(values, id, selected, hovering) {
-                            if (hovering) {
-                                values.width = 1.5;  // Only slightly thicker on hover
+                            if (selected || hovering) {
+                                values.width = 2;
+                                values.color = '#00ffff';
                             }
                         }
-                    }
+                    },
+                    title: undefined  // No tooltips on edges
                 },
                 physics: {
                     enabled: true,
                     stabilization: {
                         enabled: true,
-                        iterations: 100,
+                        iterations: 150,
                         updateInterval: 50,
                         fit: true
                     },
                     barnesHut: {
                         theta: 0.5,
-                        gravitationalConstant: -8000,
-                        centralGravity: 0.3,
-                        springLength: 150,
+                        gravitationalConstant: -12000,
+                        centralGravity: 0.2,
+                        springLength: 200,
                         springConstant: 0.01,
                         damping: 0.95,
                         avoidOverlap: 1
@@ -364,9 +448,19 @@ async function showMemoryGraph(memoryId) {
                     hierarchical: false
                 },
                 interaction: {
-                    hover: true,
-                    tooltipDelay: 200,
-                    hideEdgesOnDrag: true
+                    hover: false,  // Disable hover tooltips
+                    tooltipDelay: 300000,  // Effectively disable tooltips
+                    hideEdgesOnDrag: true,
+                    navigationButtons: false,  // Disable navigation buttons
+                    keyboard: {
+                        enabled: true,
+                        speed: { x: 10, y: 10, zoom: 0.02 },
+                        bindToWindow: false
+                    },
+                    zoomView: true,
+                    dragView: true,
+                    multiselect: true,
+                    selectable: true
                 }
             };
             
@@ -376,6 +470,27 @@ async function showMemoryGraph(memoryId) {
             network.on("stabilizationIterationsDone", function () {
                 network.setOptions({ physics: { enabled: false } });
                 console.log("Graph stabilized, physics disabled");
+                
+                // Find the primary/target node (first node or node with group='target')
+                const targetNode = nodes.find(n => n.group === 'target');
+                if (targetNode) {
+                    // Focus on the primary node
+                    network.focus(targetNode.id, {
+                        scale: 1.0,
+                        animation: {
+                            duration: 500,
+                            easingFunction: 'easeInOutQuad'
+                        }
+                    });
+                } else {
+                    // Fallback to fit all nodes
+                    network.fit({
+                        animation: {
+                            duration: 500,
+                            easingFunction: 'easeInOutQuad'
+                        }
+                    });
+                }
             });
             
             // Allow manual physics toggle
@@ -388,11 +503,81 @@ async function showMemoryGraph(memoryId) {
             // Store nodes data for details display
             window.currentGraphNodes = data.nodes;
             
-            // Handle node clicks
+            // Enhanced interaction handlers
             network.on("click", function(params) {
+                // Handle node clicks
                 if (params.nodes.length > 0) {
                     const nodeId = params.nodes[0];
                     showNodeDetails(nodeId);
+                    
+                    // Highlight connected nodes
+                    const connectedNodes = network.getConnectedNodes(nodeId);
+                    const allNodes = processedNodes.map(n => n.id);
+                    const updateNodes = [];
+                    
+                    allNodes.forEach(id => {
+                        if (id === nodeId) {
+                            updateNodes.push({ id, color: { background: '#00ffff', border: '#ff10f0' } });
+                        } else if (connectedNodes.includes(id)) {
+                            updateNodes.push({ id, color: { background: '#ff40ff', border: '#00ffff' } });
+                        } else {
+                            updateNodes.push({ id, color: { background: '#ff10f0', border: '#00ffff' } });
+                        }
+                    });
+                    
+                    graphData.nodes.update(updateNodes);
+                }
+                
+                // Handle edge clicks - show relation stats
+                if (params.edges.length > 0 && params.nodes.length === 0) {
+                    const edgeId = params.edges[0];
+                    const edge = graphData.edges.get(edgeId);
+                    
+                    if (edge) {
+                        // Find the nodes connected by this edge
+                        const fromNode = processedNodes.find(n => n.id === edge.from);
+                        const toNode = processedNodes.find(n => n.id === edge.to);
+                        
+                        if (fromNode && toNode) {
+                            // Show edge details section
+                            document.getElementById('edgeDetails').style.display = 'block';
+                            document.getElementById('edgeDivider').style.display = 'block';
+                            
+                            // Display relation stats in the unified panel
+                            document.getElementById('edgeDetailsContent').innerHTML = `
+                                <div class="mb-2"><strong class="text-purple">From:</strong> ${fromNode.label}</div>
+                                <div class="mb-2"><strong class="text-purple">To:</strong> ${toNode.label}</div>
+                                <div class="mb-2"><strong class="text-purple">Score:</strong> ${edge.value ? edge.value.toFixed(3) : 'N/A'}</div>
+                                <div class="mb-2"><strong class="text-purple">Type:</strong> <span class="badge ${edge.dashes ? 'bg-info' : 'bg-success'}">${edge.dashes ? 'Episode Link' : 'Similarity'}</span></div>
+                            `;
+                        }
+                    }
+                }
+            });
+            
+            // Double-click to focus on node
+            network.on("doubleClick", function(params) {
+                if (params.nodes.length > 0) {
+                    network.focus(params.nodes[0], {
+                        scale: 1.5,
+                        animation: {
+                            duration: 1000,
+                            easingFunction: 'easeInOutQuad'
+                        }
+                    });
+                }
+            });
+            
+            // Right-click context menu
+            network.on("oncontext", function(params) {
+                params.event.preventDefault();
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    const node = processedNodes.find(n => n.id === nodeId);
+                    if (node) {
+                        // Could add a context menu here
+                        console.log('Right-clicked on node:', node.label);
+                    }
                 }
             });
         } else {
@@ -402,6 +587,33 @@ async function showMemoryGraph(memoryId) {
         console.error('Error loading graph:', error);
         document.getElementById('graphInfo').innerHTML = `<div class="alert alert-danger">Failed to load cluster graph</div>`;
     }
+}
+
+// Refresh cluster graph with selected components
+function refreshClusterGraph() {
+    if (!currentMemoryId) {
+        alert('No memory selected');
+        return;
+    }
+    
+    const mode = document.getElementById('clusteringMode').value;
+    const components = [];
+    
+    // Get selected components
+    ['who', 'what', 'when', 'where', 'why', 'how'].forEach(comp => {
+        const checkbox = document.getElementById(`comp-${comp}`);
+        if (checkbox && checkbox.checked) {
+            components.push(comp);
+        }
+    });
+    
+    if (mode !== 'default' && components.length === 0) {
+        alert('Please select at least one component for this mode');
+        return;
+    }
+    
+    // Reload graph with new settings
+    loadClusterGraph(currentMemoryId, mode, components);
 }
 
 // Show Create Memory Modal
@@ -745,14 +957,28 @@ async function viewBlock(blockId) {
     modal.show();
 }
 
-function createMemoryRow(memory, includeBlock = false) {
+function createMemoryRow(memory, includeAll = false) {
     const tr = document.createElement('tr');
-    const whatPreview = memory.what.length > 50 ? 
-                        memory.what.substring(0, 50) + '...' : 
-                        memory.what;
     
-    const whenDate = new Date(memory.when);
-    const whenFormatted = whenDate.toLocaleString();
+    // Format previews
+    const whatPreview = memory.what && memory.what.length > 50 ? 
+                        memory.what.substring(0, 50) + '...' : 
+                        (memory.what || 'N/A');
+    
+    const wherePreview = memory.where && memory.where.length > 30 ?
+                         memory.where.substring(0, 30) + '...' :
+                         (memory.where || 'N/A');
+    
+    const whyPreview = memory.why && memory.why.length > 30 ?
+                       memory.why.substring(0, 30) + '...' :
+                       (memory.why || 'N/A');
+    
+    const howPreview = memory.how && memory.how.length > 30 ?
+                       memory.how.substring(0, 30) + '...' :
+                       (memory.how || 'N/A');
+    
+    const whenDate = memory.when ? new Date(memory.when) : null;
+    const whenFormatted = whenDate ? whenDate.toLocaleString() : 'N/A';
     
     // Determine memory type badge color
     const typeClass = {
@@ -762,24 +988,50 @@ function createMemoryRow(memory, includeBlock = false) {
         'system_event': 'badge-system-event'
     }[memory.type] || 'badge-secondary';
     
-    tr.innerHTML = `
-        <td>${escapeHtml(memory.who)}</td>
-        <td>${escapeHtml(whatPreview)}</td>
-        <td><small>${whenFormatted}</small></td>
-        <td>
-            <span class="badge ${typeClass}">
-                ${memory.type || 'unknown'}
-            </span>
-        </td>
-        <td>
-            <button class="btn btn-sm btn-accent" onclick="viewMemory('${memory.id}')">
-                <i class="bi bi-eye"></i>
-            </button>
-            <button class="btn btn-sm btn-danger" onclick="deleteMemory('${memory.id}')">
-                <i class="bi bi-trash"></i>
-            </button>
-        </td>
-    `;
+    // Build row HTML based on whether we're showing all columns
+    if (includeAll) {
+        tr.innerHTML = `
+            <td>${escapeHtml(memory.who || 'N/A')}</td>
+            <td title="${escapeHtml(memory.what || '')}">${escapeHtml(whatPreview)}</td>
+            <td><small>${whenFormatted}</small></td>
+            <td title="${escapeHtml(memory.where || '')}">${escapeHtml(wherePreview)}</td>
+            <td title="${escapeHtml(memory.why || '')}">${escapeHtml(whyPreview)}</td>
+            <td title="${escapeHtml(memory.how || '')}">${escapeHtml(howPreview)}</td>
+            <td>
+                <span class="badge ${typeClass}">
+                    ${memory.type || 'unknown'}
+                </span>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-accent" onclick="viewMemory('${memory.id}')">
+                    <i class="bi bi-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="deleteMemory('${memory.id}')">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        `;
+    } else {
+        // Simplified row for other views
+        tr.innerHTML = `
+            <td>${escapeHtml(memory.who || 'N/A')}</td>
+            <td title="${escapeHtml(memory.what || '')}">${escapeHtml(whatPreview)}</td>
+            <td><small>${whenFormatted}</small></td>
+            <td>
+                <span class="badge ${typeClass}">
+                    ${memory.type || 'unknown'}
+                </span>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-accent" onclick="viewMemory('${memory.id}')">
+                    <i class="bi bi-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="deleteMemory('${memory.id}')">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        `;
+    }
     
     return tr;
 }
@@ -993,36 +1245,17 @@ async function handleSearch(e) {
 }
 
 async function loadStats() {
+    // Stats display removed from navbar - function kept for compatibility
+    // This function now only updates counts
     try {
         const response = await fetch('/api/stats');
         const stats = await response.json();
         
         if (response.ok) {
-            const summary = document.getElementById('stats-summary');
-            // Use correct field names from the API response
-            const totalEvents = stats.total_events || stats.chromadb?.total_events || 0;
-            const clusters = stats.clusters || stats.dynamic_clusters || 0;
-            const episodes = stats.episodes || stats.total_episodes || stats.episode_count || 0;
-            
-            summary.innerHTML = `
-                <i class="bi bi-database"></i> Events: ${totalEvents} | 
-                <i class="bi bi-diagram-3"></i> Clusters: ${clusters} | 
-                <i class="bi bi-collection"></i> Episodes: ${episodes}
-            `;
-            
             updateCounts();
         }
     } catch (error) {
         console.error('Failed to load stats:', error);
-        // Show default values on error
-        const summary = document.getElementById('stats-summary');
-        if (summary) {
-            summary.innerHTML = `
-                <i class="bi bi-database"></i> Events: 0 | 
-                <i class="bi bi-diagram-3"></i> Clusters: 0 | 
-                <i class="bi bi-collection"></i> Episodes: 0
-            `;
-        }
     }
 }
 

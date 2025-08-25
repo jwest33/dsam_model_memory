@@ -115,7 +115,8 @@ class MemoryStore:
         self,
         query: Dict[str, str],
         k: int = 10,
-        use_clustering: bool = True
+        use_clustering: bool = True,
+        update_embeddings: bool = True
     ) -> List[Tuple[Event, float]]:
         """
         Retrieve memories using dynamic clustering and adaptive embeddings.
@@ -178,13 +179,14 @@ class MemoryStore:
                     # Create relevance scores based on cluster coherence and relevance
                     relevance_scores = np.ones(len(cluster.events)) * cluster.relevance
                     
-                    # Update embeddings based on cluster formation
-                    self.adaptive_embeddings.update_embeddings_from_cluster(
-                        cluster_events=cluster_embeddings,
-                        cluster_centroid=cluster.centroid,
-                        relevance_scores=relevance_scores,
-                        query_context=query
-                    )
+                    # Update embeddings based on cluster formation (only if enabled)
+                    if update_embeddings:
+                        self.adaptive_embeddings.update_embeddings_from_cluster(
+                            cluster_events=cluster_embeddings,
+                            cluster_centroid=cluster.centroid,
+                            relevance_scores=relevance_scores,
+                            query_context=query
+                        )
                     
                     # Add events from cluster with their relevance
                     for event in cluster.events:

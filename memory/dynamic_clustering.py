@@ -145,7 +145,8 @@ class DynamicMemoryClustering:
         events: List[Event],
         query: Dict[str, str],
         max_clusters: int = 10,
-        min_cluster_size: int = 2
+        min_cluster_size: int = 2,
+        component_mode: Optional[str] = None
     ) -> List[DynamicCluster]:
         """
         Dynamically cluster events based on the specific query.
@@ -155,6 +156,10 @@ class DynamicMemoryClustering:
             query: 5W1H query dict
             max_clusters: Maximum number of clusters to return
             min_cluster_size: Minimum events per cluster
+            component_mode: Optional mode for component-specific clustering:
+                          'single' - cluster by individual 5W1H components
+                          'combination' - cluster by component combinations
+                          None - default weighted clustering
             
         Returns:
             List of dynamically created clusters
@@ -162,8 +167,13 @@ class DynamicMemoryClustering:
         if not events:
             return []
         
-        # Determine field weights based on query
-        field_weights = self._compute_field_weights(query)
+        # Determine field weights based on query and mode
+        if component_mode == 'single':
+            field_weights = self._compute_single_component_weights(query)
+        elif component_mode == 'combination':
+            field_weights = self._compute_combination_weights(query)
+        else:
+            field_weights = self._compute_field_weights(query)
         
         # Get embeddings weighted by query context
         embeddings = self._get_contextual_embeddings(events, field_weights)
@@ -282,6 +292,51 @@ class DynamicMemoryClustering:
         total = sum(weights.values())
         if total > 0:
             weights = {k: v/total for k, v in weights.items()}
+        
+        return weights
+    
+    def _compute_single_component_weights(self, query: Dict[str, str]) -> Dict[str, float]:
+        """
+        Compute weights focusing on individual 5W1H components.
+        Each queried field gets maximum weight independently.
+        """
+        weights = {}
+        query_fields = [k for k, v in query.items() if v and k in ['who', 'what', 'when', 'where', 'why', 'how']]
+        
+        # Give dominant weight to each queried field
+        for field in ['who', 'what', 'when', 'where', 'why', 'how']:
+            if field in query_fields:
+                weights[field] = 0.8  # Dominant weight
+            else:
+                weights[field] = 0.04  # Minimal weight for non-queried
+        
+        # Normalize
+        total = sum(weights.values())
+        if total > 0:
+            weights = {k: v/total for k, v in weights.items()}
+        
+        return weights
+    
+    def _compute_combination_weights(self, query: Dict[str, str]) -> Dict[str, float]:
+        """
+        Compute weights for component combinations.
+        Creates balanced weights for specified field combinations.
+        """
+        weights = {}
+        query_fields = [k for k, v in query.items() if v and k in ['who', 'what', 'when', 'where', 'why', 'how']]
+        
+        if not query_fields:
+            # Default equal weights
+            for field in ['who', 'what', 'when', 'where', 'why', 'how']:
+                weights[field] = 1.0 / 6
+        else:
+            # Equal weight distribution among queried fields
+            weight_per_field = 1.0 / len(query_fields)
+            for field in ['who', 'what', 'when', 'where', 'why', 'how']:
+                if field in query_fields:
+                    weights[field] = weight_per_field
+                else:
+                    weights[field] = 0.0
         
         return weights
     
@@ -535,6 +590,84 @@ class DynamicMemoryClustering:
             clusters.append(cluster)
         
         return clusters
+    
+    def cluster_by_components(
+        self,
+        events: List[Event],
+        components: List[str],
+        values: Optional[Dict[str, str]] = None,
+        max_clusters: int = 10
+    ) -> Dict[str, List[DynamicCluster]]:
+        """
+        Create clusters based on specific 5W1H components or their combinations.
+        
+        Args:
+            events: Events to cluster
+            components: List of 5W1H components to cluster by (e.g., ['who'], ['what', 'where'])
+            values: Optional specific values to filter by
+            max_clusters: Maximum clusters per component/combination
+            
+        Returns:
+            Dictionary mapping component combinations to their clusters
+        """
+        result = {}
+        
+        # Filter events if specific values provided
+        filtered_events = events
+        if values:
+            filtered_events = [
+                e for e in events
+                if all(
+                    getattr(e.five_w1h, comp, None) == val 
+                    for comp, val in values.items()
+                    if comp in components
+                )
+            ]
+        
+        # Single component clustering
+        if len(components) == 1:
+            component = components[0]
+            
+            # Group events by component value
+            component_groups = defaultdict(list)
+            for event in filtered_events:
+                value = getattr(event.five_w1h, component, None)
+                if value:
+                    component_groups[value].append(event)
+            
+            # Create clusters for each unique value
+            clusters = []
+            for value, group_events in component_groups.items():
+                if len(group_events) >= 2:  # Minimum cluster size
+                    query = {component: value}
+                    sub_clusters = self.cluster_by_query(
+                        group_events, query, max_clusters=1, component_mode='single'
+                    )
+                    if sub_clusters:
+                        clusters.extend(sub_clusters)
+            
+            result[component] = clusters[:max_clusters]
+        
+        # Multiple component clustering (combinations)
+        else:
+            # Create composite key from components
+            composite_key = '+'.join(sorted(components))
+            
+            # Build query from specified components
+            query = {}
+            for comp in components:
+                if values and comp in values:
+                    query[comp] = values[comp]
+                else:
+                    query[comp] = ''  # Will match any value
+            
+            clusters = self.cluster_by_query(
+                filtered_events, query, max_clusters=max_clusters, component_mode='combination'
+            )
+            
+            result[composite_key] = clusters
+        
+        return result
     
     def _create_temporal_cluster(self, events: List[Event]) -> DynamicCluster:
         """Create a cluster from temporally related events"""

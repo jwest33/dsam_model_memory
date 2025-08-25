@@ -1,4 +1,4 @@
-"""Event models for 5W1H memory framework"""
+"""Event models for Self-Organizing Agentic Memory"""
 
 from .event import Event, EventType, FiveW1H
 
