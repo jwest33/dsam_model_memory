@@ -29,9 +29,9 @@ class TextEmbedder:
         if self.config.use_transformer:
             try:
                 from sentence_transformers import SentenceTransformer
-                self.model = SentenceTransformer(self.config.model_name)
+                self.model = SentenceTransformer(self.config.embedding_model_name)
                 self.embedding_dim = self.model.get_sentence_embedding_dimension()
-                logger.info(f"Loaded transformer model: {self.config.model_name}")
+                logger.info(f"Loaded transformer model: {self.config.embedding_model_name}")
             except ImportError:
                 logger.warning("sentence-transformers not available, falling back to hash embeddings")
                 self.config.use_transformer = False
@@ -49,7 +49,7 @@ class TextEmbedder:
             return self.cache[text].copy()
         
         if self.config.use_transformer and self.model:
-            embedding = self.model.encode(text, convert_to_numpy=True)
+            embedding = self.model.encode(text, convert_to_numpy=True, show_progress_bar=False)
         else:
             embedding = self._hash_embed(text)
         
@@ -75,7 +75,7 @@ class TextEmbedder:
             
             # Batch encode uncached texts
             if uncached_texts:
-                new_embeddings = self.model.encode(uncached_texts, convert_to_numpy=True)
+                new_embeddings = self.model.encode(uncached_texts, convert_to_numpy=True, show_progress_bar=False)
                 for idx, text, emb in zip(uncached_indices, uncached_texts, new_embeddings):
                     embeddings[idx] = emb
                     if self.config.cache_embeddings:
@@ -171,7 +171,11 @@ class FiveW1HEmbedder:
     
     def __init__(self, text_embedder: Optional[TextEmbedder] = None):
         """Initialize with text embedder"""
-        self.text_embedder = text_embedder or TextEmbedder()
+        if text_embedder is None:
+            from embedding.singleton_embedder import get_text_embedder
+            self.text_embedder = get_text_embedder()
+        else:
+            self.text_embedder = text_embedder
         self.config = get_config().embedding
         
         # Expand role vectors to match embedding dimension

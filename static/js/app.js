@@ -1,6 +1,7 @@
 // Main application JavaScript
 
 let allMemories = { raw: [], processed: [], blocks: [] };
+let currentMemoryId = null;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -9,8 +10,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Set up event listeners
     document.getElementById('chatForm').addEventListener('submit', handleChatSubmit);
-    document.getElementById('memoryForm').addEventListener('submit', handleMemoryCreate);
-    document.getElementById('searchForm').addEventListener('submit', handleSearch);
+    if (document.getElementById('createMemoryForm')) {
+        document.getElementById('createMemoryForm').addEventListener('submit', handleMemoryCreate);
+    }
+    if (document.getElementById('searchForm')) {
+        document.getElementById('searchForm').addEventListener('submit', handleSearch);
+    }
     
     // Add tab change listener to refresh memories when memory tab is selected
     const memoryTab = document.getElementById('memory-tab');
@@ -91,10 +96,7 @@ async function handleChatSubmit(e) {
             // Add AI response to chat
             addChatMessage(data.response, 'assistant');
             
-            // Update memories used indicator
-            if (data.memories_used > 0) {
-                updateRecentMemories(data.memories_used);
-            }
+            // No longer showing memories used indicator
             
             // Refresh memories in the background since new ones were created
             setTimeout(() => {
@@ -171,13 +173,272 @@ function removeTypingIndicator(id) {
     }
 }
 
-function updateRecentMemories(count) {
-    const recentDiv = document.getElementById('recentMemories');
-    recentDiv.innerHTML = `
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i> Used ${count} memories in this response
+// currentMemoryId already declared at the top of the file
+
+// Function to show node details in the graph modal
+function showNodeDetails(nodeId) {
+    console.log('Showing details for node:', nodeId);
+    
+    // Find the node in the current graph data
+    const node = window.currentGraphNodes ? window.currentGraphNodes.find(n => n.id === nodeId) : null;
+    
+    if (!node) {
+        console.error('Node not found:', nodeId);
+        return;
+    }
+    
+    // Find the full memory data
+    const memory = [...allMemories.raw, ...allMemories.processed].find(m => m.id === nodeId);
+    
+    if (!memory) {
+        console.error('Memory data not found for node:', nodeId);
+        return;
+    }
+    
+    // Show the details panel
+    const detailsPanel = document.getElementById('nodeDetails');
+    const detailsContent = document.getElementById('nodeDetailsContent');
+    
+    detailsPanel.style.display = 'block';
+    
+    // Build the 5W1H details HTML
+    detailsContent.innerHTML = `
+        <div class="row">
+            <div class="col-12">
+                <dl class="row mb-0">
+                    <dt class="col-sm-2 text-cyan">Who:</dt>
+                    <dd class="col-sm-10">${escapeHtml(memory.who || 'N/A')}</dd>
+                    
+                    <dt class="col-sm-2 text-cyan">What:</dt>
+                    <dd class="col-sm-10">${escapeHtml(memory.what || 'N/A')}</dd>
+                    
+                    <dt class="col-sm-2 text-cyan">When:</dt>
+                    <dd class="col-sm-10">${memory.when ? new Date(memory.when).toLocaleString() : 'N/A'}</dd>
+                    
+                    <dt class="col-sm-2 text-cyan">Where:</dt>
+                    <dd class="col-sm-10">${escapeHtml(memory.where || 'N/A')}</dd>
+                    
+                    <dt class="col-sm-2 text-cyan">Why:</dt>
+                    <dd class="col-sm-10">${escapeHtml(memory.why || 'N/A')}</dd>
+                    
+                    <dt class="col-sm-2 text-cyan">How:</dt>
+                    <dd class="col-sm-10">${escapeHtml(memory.how || 'N/A')}</dd>
+                    
+                    <dt class="col-sm-2 text-cyan">Type:</dt>
+                    <dd class="col-sm-10">
+                        <span class="badge badge-${memory.type?.replace('_', '-')}">${memory.type || 'unknown'}</span>
+                    </dd>
+                    
+                    <dt class="col-sm-2 text-cyan">Episode:</dt>
+                    <dd class="col-sm-10"><small class="text-muted">${memory.episode_id || 'N/A'}</small></dd>
+                </dl>
+            </div>
         </div>
     `;
+    
+    // Scroll to the details
+    detailsPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// Graph visualization
+async function showMemoryGraph(memoryId) {
+    console.log('showMemoryGraph called with memoryId:', memoryId);
+    if (!memoryId) {
+        console.error('No memory ID provided to showMemoryGraph');
+        alert('Please select a memory first');
+        return;
+    }
+    currentMemoryId = memoryId;
+    
+    // Show the graph modal
+    const graphModal = new bootstrap.Modal(document.getElementById('memoryGraphModal'));
+    graphModal.show();
+    
+    // Show loading
+    document.getElementById('graphInfo').innerHTML = '<i class="spinner-border spinner-border-sm"></i> Loading cluster graph...';
+    document.getElementById('memoryGraph').innerHTML = '';
+    
+    try {
+        const response = await fetch(`/api/memory/${memoryId}/cluster`);
+        const data = await response.json();
+        
+        if (data.success) {
+            // Display info
+            document.getElementById('graphInfo').innerHTML = `
+                <strong>Dynamic Cluster Visualization</strong><br>
+                Query: ${JSON.stringify(data.query)}<br>
+                Found ${data.nodes.length} related memories
+            `;
+            
+            // Clear previous node details
+            document.getElementById('nodeDetails').style.display = 'none';
+            
+            // Create the graph
+            const container = document.getElementById('memoryGraph');
+            
+            const graphData = {
+                nodes: new vis.DataSet(data.nodes),
+                edges: new vis.DataSet(data.edges)
+            };
+            
+            const options = {
+                nodes: {
+                    shape: 'dot',
+                    size: 25,
+                    font: {
+                        size: 12,
+                        color: '#00ffff'
+                    },
+                    color: {
+                        background: '#ff10f0',
+                        border: '#00ffff',
+                        highlight: {
+                            background: '#00ffff',
+                            border: '#ff10f0'
+                        }
+                    },
+                    borderWidth: 2
+                },
+                edges: {
+                    font: {
+                        size: 10,
+                        align: 'middle',
+                        color: '#00ffff'
+                    },
+                    arrows: {
+                        to: {
+                            enabled: true,
+                            scaleFactor: 0.5
+                        }
+                    },
+                    color: {
+                        color: '#a855f7',
+                        highlight: '#00ffff'
+                    },
+                    width: 1,  // Set default edge width
+                    hoverWidth: 2,  // Slightly thicker on hover
+                    selectionWidth: 2,  // Slightly thicker when selected
+                    smooth: {
+                        type: 'continuous',
+                        roundness: 0.5
+                    }
+                },
+                physics: {
+                    enabled: true,
+                    stabilization: {
+                        enabled: true,
+                        iterations: 100,
+                        updateInterval: 50,
+                        fit: true
+                    },
+                    barnesHut: {
+                        theta: 0.5,
+                        gravitationalConstant: -8000,
+                        centralGravity: 0.3,
+                        springLength: 150,
+                        springConstant: 0.01,
+                        damping: 0.95,
+                        avoidOverlap: 1
+                    },
+                    maxVelocity: 50,
+                    minVelocity: 0.1,
+                    solver: 'barnesHut'
+                },
+                layout: {
+                    improvedLayout: true,
+                    hierarchical: false
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 200,
+                    hideEdgesOnDrag: true
+                }
+            };
+            
+            const network = new vis.Network(container, graphData, options);
+            
+            // Stop physics after stabilization to prevent continuous movement
+            network.on("stabilizationIterationsDone", function () {
+                network.setOptions({ physics: { enabled: false } });
+                console.log("Graph stabilized, physics disabled");
+            });
+            
+            // Allow manual physics toggle
+            window.toggleGraphPhysics = function() {
+                const currentPhysics = network.physics.options.enabled;
+                network.setOptions({ physics: { enabled: !currentPhysics } });
+                console.log("Physics toggled to:", !currentPhysics);
+            };
+            
+            // Store nodes data for details display
+            window.currentGraphNodes = data.nodes;
+            
+            // Handle node clicks
+            network.on("click", function(params) {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    showNodeDetails(nodeId);
+                }
+            });
+        } else {
+            document.getElementById('graphInfo').innerHTML = `<div class="alert alert-danger">Error: ${data.error}</div>`;
+        }
+    } catch (error) {
+        console.error('Error loading graph:', error);
+        document.getElementById('graphInfo').innerHTML = `<div class="alert alert-danger">Failed to load cluster graph</div>`;
+    }
+}
+
+// Show Create Memory Modal
+function showCreateMemoryModal() {
+    const modal = new bootstrap.Modal(document.getElementById('createMemoryModal'));
+    modal.show();
+}
+
+// Create memory from modal
+async function createMemory() {
+    const memory = {
+        who: document.getElementById('modalWho').value,
+        what: document.getElementById('modalWhat').value,
+        where: document.getElementById('modalWhere').value || 'web_interface',
+        why: document.getElementById('modalWhy').value || 'Manual entry',
+        how: document.getElementById('modalHow').value || 'Direct input',
+        type: document.getElementById('modalType').value
+    };
+    
+    try {
+        const response = await fetch('/api/memories', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(memory)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Close modal
+            bootstrap.Modal.getInstance(document.getElementById('createMemoryModal')).hide();
+            // Clear form
+            document.getElementById('createMemoryForm').reset();
+            // Reload memories
+            loadMemories();
+            // Show success
+            showNotification('Memory created successfully', 'success');
+        } else {
+            showNotification(data.message || 'Failed to create memory', 'error');
+        }
+    } catch (error) {
+        console.error('Error creating memory:', error);
+        showNotification('Error creating memory', 'error');
+    }
+}
+
+// Show notification
+function showNotification(message, type = 'info') {
+    // Simple notification - could be enhanced with toast or other UI
+    console.log(`[${type}] ${message}`);
 }
 
 // Memory management functionality
@@ -233,10 +494,10 @@ function displayMemories() {
     
     if (allMemories.processed && Array.isArray(allMemories.processed)) {
         allMemories.processed.forEach(memory => {
-            processedTable.appendChild(createMemoryRow(memory, true));  // Include block info
+            processedTable.appendChild(createMemoryRow(memory, false));  // No block info in new system
         });
     } else {
-        processedTable.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No processed memories</td></tr>';
+        processedTable.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No processed memories</td></tr>';
     }
     
     // Display raw memories
@@ -478,30 +739,25 @@ function createMemoryRow(memory, includeBlock = false) {
     const whenDate = new Date(memory.when);
     const whenFormatted = whenDate.toLocaleString();
     
-    let blockInfo = '';
-    if (includeBlock && memory.block_ids && memory.block_ids.length > 0) {
-        const blockSalience = memory.block_saliences && memory.block_saliences[0] ? 
-                             memory.block_saliences[0].toFixed(2) : 'N/A';
-        blockInfo = `<td>
-            <small>${memory.block_ids[0].substring(0, 8)}...</small>
-            <span class="badge bg-info ms-1">${blockSalience}</span>
-        </td>`;
-    } else if (includeBlock) {
-        blockInfo = '<td>-</td>';
-    }
+    // Determine memory type badge color
+    const typeClass = {
+        'observation': 'badge-observation',
+        'action': 'badge-action',
+        'user_input': 'badge-user-input',
+        'system_event': 'badge-system-event'
+    }[memory.type] || 'badge-secondary';
     
     tr.innerHTML = `
         <td>${escapeHtml(memory.who)}</td>
         <td>${escapeHtml(whatPreview)}</td>
         <td><small>${whenFormatted}</small></td>
         <td>
-            <span class="badge ${memory.salience >= 0.7 ? 'bg-success' : memory.salience >= 0.3 ? 'bg-warning' : 'bg-secondary'}">
-                ${memory.salience.toFixed(2)}
+            <span class="badge ${typeClass}">
+                ${memory.type || 'unknown'}
             </span>
         </td>
-        ${blockInfo}
         <td>
-            <button class="btn btn-sm btn-info" onclick="viewMemory('${memory.id}')">
+            <button class="btn btn-sm btn-accent" onclick="viewMemory('${memory.id}')">
                 <i class="bi bi-eye"></i>
             </button>
             <button class="btn btn-sm btn-danger" onclick="deleteMemory('${memory.id}')">
@@ -514,9 +770,17 @@ function createMemoryRow(memory, includeBlock = false) {
 }
 
 function viewMemory(id) {
+    console.log('Viewing memory with ID:', id);
     const memory = [...allMemories.raw, ...allMemories.processed].find(m => m.id === id);
     
-    if (!memory) return;
+    if (!memory) {
+        console.error('Memory not found with ID:', id);
+        return;
+    }
+    
+    // Set the current memory ID for graph display
+    currentMemoryId = id;
+    console.log('Set currentMemoryId to:', currentMemoryId);
     
     const content = document.getElementById('memoryDetailContent');
     content.innerHTML = `
@@ -550,14 +814,14 @@ function viewMemory(id) {
                     <dd class="col-sm-8"><small>${memory.id}</small></dd>
                     
                     <dt class="col-sm-4">Type:</dt>
-                    <dd class="col-sm-8"><span class="badge bg-primary">${memory.type}</span></dd>
+                    <dd class="col-sm-8"><span class="badge badge-${memory.type?.replace('_', '-')}">${memory.type || 'unknown'}</span></dd>
                     
-                    <dt class="col-sm-4">Salience:</dt>
+                    <dt class="col-sm-4">Confidence:</dt>
                     <dd class="col-sm-8">
                         <div class="progress">
-                            <div class="progress-bar ${memory.salience >= 0.7 ? 'bg-success' : memory.salience >= 0.3 ? 'bg-warning' : 'bg-danger'}" 
-                                 style="width: ${memory.salience * 100}%">
-                                ${memory.salience.toFixed(2)}
+                            <div class="progress-bar bg-info" 
+                                 style="width: ${(memory.confidence || 1) * 100}%">
+                                ${((memory.confidence || 1) * 100).toFixed(0)}%
                             </div>
                         </div>
                     </dd>
@@ -720,16 +984,30 @@ async function loadStats() {
         
         if (response.ok) {
             const summary = document.getElementById('stats-summary');
+            // Use correct field names from the API response
+            const totalEvents = stats.total_events || stats.chromadb?.total_events || 0;
+            const clusters = stats.clusters || stats.dynamic_clusters || 0;
+            const episodes = stats.episodes || stats.total_episodes || stats.episode_count || 0;
+            
             summary.innerHTML = `
-                <i class="bi bi-database"></i> Raw: ${stats.raw_count} | 
-                Processed: ${stats.processed_count} | 
-                Episodes: ${stats.episode_count}
+                <i class="bi bi-database"></i> Events: ${totalEvents} | 
+                <i class="bi bi-diagram-3"></i> Clusters: ${clusters} | 
+                <i class="bi bi-collection"></i> Episodes: ${episodes}
             `;
             
             updateCounts();
         }
     } catch (error) {
         console.error('Failed to load stats:', error);
+        // Show default values on error
+        const summary = document.getElementById('stats-summary');
+        if (summary) {
+            summary.innerHTML = `
+                <i class="bi bi-database"></i> Events: 0 | 
+                <i class="bi bi-diagram-3"></i> Clusters: 0 | 
+                <i class="bi bi-collection"></i> Episodes: 0
+            `;
+        }
     }
 }
 
@@ -770,3 +1048,9 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+// Make functions globally available for onclick handlers
+window.loadMemories = loadMemories;
+window.showCreateMemoryModal = showCreateMemoryModal;
+window.createMemory = createMemory;
+window.showMemoryGraph = showMemoryGraph;
