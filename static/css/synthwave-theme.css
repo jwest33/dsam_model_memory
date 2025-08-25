@@ -342,7 +342,8 @@ body {
 
 /* Graph Visualization */
 #memoryGraph {
-    height: 400px;
+    height: 600px;
+    min-height: 500px;
     border: 1px solid var(--synth-cyan);
     border-radius: 8px;
     background: linear-gradient(135deg, var(--synth-dark-bg) 0%, var(--synth-card-bg) 100%);
