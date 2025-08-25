@@ -176,8 +176,18 @@ class MemoryStore:
                         )
                         cluster_embeddings.append((event.id, evolved))
                     
-                    # Create relevance scores based on cluster coherence and relevance
-                    relevance_scores = np.ones(len(cluster.events)) * cluster.relevance
+                    # Get individual importance scores for events in the cluster
+                    importance_scores = cluster.get_importance_scores()
+                    
+                    # Combine cluster relevance with individual importance
+                    # Each event gets a unique score based on its importance within the cluster
+                    relevance_scores = []
+                    for i, score in enumerate(importance_scores):
+                        # Weight individual importance (0.3) with cluster relevance (0.7)
+                        combined_score = 0.7 * cluster.relevance + 0.3 * score
+                        relevance_scores.append(combined_score)
+                    
+                    relevance_scores = np.array(relevance_scores)
                     
                     # Update embeddings based on cluster formation (only if enabled)
                     if update_embeddings:
@@ -188,10 +198,10 @@ class MemoryStore:
                             query_context=query
                         )
                     
-                    # Add events from cluster with their relevance
-                    for event in cluster.events:
+                    # Add events from cluster with their individual relevance scores
+                    for i, event in enumerate(cluster.events):
                         if len(results) < k:
-                            results.append((event, cluster.relevance))
+                            results.append((event, float(relevance_scores[i])))
                 
                 # Sort by relevance
                 results.sort(key=lambda x: x[1], reverse=True)
