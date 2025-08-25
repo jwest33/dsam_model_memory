@@ -23,7 +23,7 @@ def shutdown_handler():
 def main():
     """Launch the web interface"""
     print("=" * 50)
-    print("5W1H Memory Framework - Web Interface")
+    print("Self-Organizing Agentic Memory - Web Interface")
     print("=" * 50)
     print("\nStarting Flask server...")
     print("The web interface will open in your browser.")

@@ -101,7 +101,8 @@ class MemoryAgent:
         why: Optional[str] = None,
         how: Optional[str] = None,
         k: int = 5,
-        include_raw: bool = False
+        include_raw: bool = False,
+        update_embeddings: bool = True
     ) -> List[Tuple[Event, float]]:
         """
         Recall memories matching a query
@@ -128,7 +129,8 @@ class MemoryAgent:
         results = self.memory_store.retrieve_memories(
             query=query,
             k=k,
-            use_clustering=True  # Use dynamic clustering by default
+            use_clustering=True,  # Use dynamic clustering by default
+            update_embeddings=update_embeddings  # Control embedding updates
         )
         
         logger.info(f"Recalled {len(results)} memories for query: {query}")

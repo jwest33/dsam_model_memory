@@ -44,56 +44,70 @@ body {
     text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
 }
 
-.stats-display {
-    color: var(--synth-text);
-    padding: 0.5rem 1rem;
-    background: var(--synth-gradient-subtle);
-    border-radius: 20px;
-    border: 1px solid rgba(0, 255, 255, 0.2);
-}
-
 /* Main Tabs */
 .nav-tabs {
-    border-bottom: 2px solid var(--synth-border);
-    background: transparent;
+    border: none;
+    background: var(--synth-surface);
+    margin: 0;
     padding: 0;
 }
 
 .nav-tabs .nav-link {
     color: var(--synth-text-muted);
-    background: var(--synth-surface);
-    border: 1px solid var(--synth-border);
-    border-radius: 12px 12px 0 0;
-    padding: 0.75rem 2rem;
-    margin-right: 0.5rem;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 0 !important;
+    padding: 1rem 2rem;
+    margin: 0;
     font-weight: 600;
     text-transform: uppercase;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     letter-spacing: 1px;
     transition: all 0.3s ease;
+    position: relative;
 }
 
 .nav-tabs .nav-link i {
     margin-right: 0.5rem;
     color: var(--synth-pink);
+    transition: color 0.3s ease;
 }
 
 .nav-tabs .nav-link:hover {
     color: var(--synth-cyan);
-    background: var(--synth-gradient-subtle);
-    border-color: var(--synth-cyan);
-    transform: translateY(-2px);
+    background: rgba(0, 255, 255, 0.05);
+    border-bottom-color: var(--synth-pink);
+    transform: none;
 }
 
 .nav-tabs .nav-link.active {
     color: var(--synth-cyan);
     background: var(--synth-card-bg);
-    border-color: var(--synth-cyan) var(--synth-cyan) var(--synth-card-bg);
-    border-bottom-color: transparent;
+    border: none;
+    border-bottom: 3px solid var(--synth-cyan) !important;
+    box-shadow: 0 2px 10px rgba(0, 255, 255, 0.3);
 }
 
 .nav-tabs .nav-link.active i {
     color: var(--synth-cyan);
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+}
+
+.nav-tabs .nav-link.active::after {
+    content: '';
+    position: absolute;
+    bottom: -3px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--synth-cyan), transparent);
+    animation: glow 2s ease-in-out infinite;
+}
+
+@keyframes glow {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
 }
 
 /* Tab Content */
@@ -139,7 +153,7 @@ body {
 
 /* Chat Container Specific */
 .chat-container {
-    max-width: 1200px;
+    max-width: 100%;
     margin: 0 auto;
 }
 
@@ -191,7 +205,7 @@ body {
 
 /* Memory Container */
 .memory-container {
-    max-width: 1400px;
+    max-width: 100%;
     margin: 0 auto;
 }
 
@@ -290,6 +304,20 @@ body {
     color: var(--synth-cyan);
     font-weight: 600;
     border-color: var(--synth-border);
+    white-space: nowrap;
+}
+
+.table-dark td {
+    min-width: 100px;
+}
+
+.table-dark td:nth-child(2) { /* What column */
+    min-width: 200px;
+}
+
+.table-dark td:last-child { /* Actions column */
+    min-width: 120px;
+    white-space: nowrap;
 }
 
 .table-hover tbody tr:hover {
@@ -368,10 +396,45 @@ body {
 }
 
 #nodeDetailsContent {
-    max-height: 200px;
     overflow-y: auto;
-    padding: 1rem;
-    background: var(--synth-card-bg);
+    padding: 0.5rem;
+    background: transparent;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Ensure proper text wrapping for long content */
+#nodeDetailsContent div {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+}
+
+/* Graph info panel styling */
+#graphInfoPanel {
+    display: flex;
+    flex-direction: column;
+}
+
+#graphSummary {
+    flex-shrink: 0;
+}
+
+#nodeDetails {
+    flex-grow: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+#nodeDetails h6 {
+    flex-shrink: 0;
+}
+
+#nodeDetailsContent {
+    flex-grow: 1;
+    overflow-y: auto;
+    min-height: 0;
 }
 
 /* Text colors */
@@ -405,4 +468,244 @@ body {
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+/* Memory Section Additions */
+.memory-container {
+    max-width: 100%;
+}
+
+.search-section {
+    padding-bottom: 1rem;
+}
+
+.memory-display-section {
+    background: rgba(20, 16, 31, 0.3);
+    border: 1px solid var(--synth-border);
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+/* Sortable Table Headers */
+.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.3s ease;
+}
+
+.sortable:hover {
+    color: var(--synth-cyan);
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.sortable .sort-icon {
+    font-size: 0.8em;
+    margin-left: 5px;
+    opacity: 0.6;
+    transition: all 0.3s ease;
+}
+
+.sortable:hover .sort-icon {
+    opacity: 1;
+}
+
+.sort-icon.text-cyan {
+    opacity: 1;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.8);
+}
+
+/* Pagination Controls */
+.pagination {
+    --bs-pagination-bg: var(--synth-surface);
+    --bs-pagination-border-color: var(--synth-border);
+    --bs-pagination-color: var(--synth-text);
+    --bs-pagination-hover-bg: rgba(255, 16, 240, 0.2);
+    --bs-pagination-hover-border-color: var(--synth-pink);
+    --bs-pagination-hover-color: var(--synth-cyan);
+    --bs-pagination-active-bg: var(--synth-gradient-primary);
+    --bs-pagination-active-border-color: var(--synth-cyan);
+    --bs-pagination-active-color: var(--synth-dark-bg);
+    --bs-pagination-disabled-bg: var(--synth-surface);
+    --bs-pagination-disabled-border-color: var(--synth-border);
+    --bs-pagination-disabled-color: var(--synth-text-muted);
+}
+
+.page-link {
+    background: var(--synth-surface);
+    border: 1px solid var(--synth-border);
+    color: var(--synth-text);
+    transition: all 0.3s ease;
+}
+
+.page-link:hover {
+    background: rgba(255, 16, 240, 0.2);
+    border-color: var(--synth-pink);
+    color: var(--synth-cyan);
+    box-shadow: 0 0 10px rgba(255, 16, 240, 0.3);
+}
+
+.page-item.active .page-link {
+    background: linear-gradient(135deg, var(--synth-cyan) 0%, var(--synth-pink) 100%);
+    border-color: var(--synth-cyan);
+    color: var(--synth-dark-bg);
+    font-weight: 600;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+}
+
+.page-item.disabled .page-link {
+    background: var(--synth-surface);
+    border-color: var(--synth-border);
+    color: var(--synth-text-muted);
+    opacity: 0.5;
+}
+
+/* Container Responsive Styles - Wider defaults */
+.container-xl {
+    max-width: 1600px;
+}
+
+@media (min-width: 1400px) {
+    .container-xl {
+        max-width: 1540px;
+    }
+}
+
+@media (min-width: 1200px) and (max-width: 1399px) {
+    .container-xl {
+        max-width: 1340px;
+    }
+}
+
+@media (min-width: 992px) and (max-width: 1199px) {
+    .container-xl {
+        max-width: 1140px;
+    }
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+    .container-xl {
+        max-width: 960px;
+    }
+}
+
+@media (min-width: 576px) and (max-width: 767px) {
+    .container-xl {
+        max-width: 720px;
+    }
+}
+
+/* Vis.js Navigation Controls Override - Synthwave Theme */
+.vis-navigation .vis-button {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 6px !important;
+    position: relative !important;
+    overflow: visible !important;
+}
+
+.vis-button.vis-up,
+.vis-button.vis-down,
+.vis-button.vis-left,
+.vis-button.vis-right,
+.vis-button.vis-zoomIn,
+.vis-button.vis-zoomOut,
+.vis-button.vis-zoomExtends {
+    background-color: rgba(20, 16, 31, 0.9) !important;
+    background-image: none !important;
+    border: 2px solid var(--synth-pink) !important;
+    box-shadow: 0 2px 10px rgba(255, 16, 240, 0.3) !important;
+    position: relative !important;
+}
+
+.vis-navigation .vis-button:hover {
+    background-color: rgba(255, 16, 240, 0.3) !important;
+    border-color: var(--synth-cyan) !important;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.6) !important;
+}
+
+/* Add custom icons */
+.vis-button.vis-up::after,
+.vis-button.vis-down::after,
+.vis-button.vis-left::after,
+.vis-button.vis-right::after,
+.vis-button.vis-zoomIn::after,
+.vis-button.vis-zoomOut::after,
+.vis-button.vis-zoomExtends::after {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    color: var(--synth-cyan) !important;
+    font-size: 18px !important;
+    font-weight: bold !important;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.8) !important;
+    font-family: Arial, sans-serif !important;
+}
+
+.vis-button.vis-up::after { content: "↑" !important; }
+.vis-button.vis-down::after { content: "↓" !important; }
+.vis-button.vis-left::after { content: "←" !important; }
+.vis-button.vis-right::after { content: "→" !important; }
+.vis-button.vis-zoomIn::after { content: "+" !important; font-size: 22px !important; }
+.vis-button.vis-zoomOut::after { content: "−" !important; font-size: 22px !important; }
+.vis-button.vis-zoomExtends::after { content: "⊡" !important; }
+
+/* Fix btn-outline-purple with stronger specificity */
+#memoryGraphModal .btn-check + .btn-outline-purple,
+#memoryGraphModal .btn-outline-purple {
+    color: var(--synth-cyan) !important;
+    background: rgba(255, 16, 240, 0.2) !important;
+    border: 2px solid var(--synth-pink) !important;
+    font-weight: 600 !important;
+    text-shadow: 0 0 8px rgba(0, 255, 255, 0.5) !important;
+}
+
+#memoryGraphModal .btn-outline-purple:hover {
+    color: var(--synth-cyan) !important;
+    background: rgba(255, 16, 240, 0.4) !important;
+    border-color: var(--synth-cyan) !important;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.5) !important;
+}
+
+#memoryGraphModal .btn-check:checked + .btn-outline-purple {
+    color: var(--synth-dark-bg) !important;
+    background: linear-gradient(135deg, var(--synth-cyan) 0%, var(--synth-pink) 100%) !important;
+    border-color: var(--synth-cyan) !important;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.8) !important;
+    font-weight: 700 !important;
+}
+
+/* Fix Refresh button in graph modal - override any dark styling */
+#memoryGraphModal .btn-cyan {
+    color: var(--synth-dark-bg) !important;
+    background: linear-gradient(135deg, var(--synth-cyan) 0%, #00aaff 100%) !important;
+    border: 2px solid var(--synth-cyan) !important;
+    font-weight: 600 !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+}
+
+#memoryGraphModal .btn-cyan:hover {
+    color: var(--synth-cyan) !important;
+    background: rgba(0, 255, 255, 0.2) !important;
+    border-color: var(--synth-cyan) !important;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.6) !important;
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.8) !important;
+}
+
+/* Fix vis-navigation positioning */
+.vis-navigation {
+    position: absolute !important;
+    left: 10px !important;
+    bottom: 10px !important;
+    padding: 5px !important;
+    background: rgba(20, 16, 31, 0.8) !important;
+    border-radius: 10px !important;
+    border: 1px solid var(--synth-border) !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Ensure proper spacing between navigation buttons */
+.vis-navigation .vis-button {
+    margin: 2px !important;
+    display: inline-block !important;
 }
