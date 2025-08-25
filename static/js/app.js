@@ -301,26 +301,41 @@ async function showMemoryGraph(memoryId) {
                 },
                 edges: {
                     font: {
-                        size: 10,
-                        align: 'middle',
-                        color: '#00ffff'
+                        size: 8,  // Smaller font for edge labels
+                        align: 'horizontal',
+                        color: 'rgba(0, 255, 255, 0.6)',  // Semi-transparent cyan
+                        strokeWidth: 0,  // No stroke around text
+                        background: 'rgba(20, 16, 31, 0.8)'  // Dark background for readability
                     },
                     arrows: {
                         to: {
                             enabled: true,
-                            scaleFactor: 0.5
+                            scaleFactor: 0.3  // Smaller arrows
                         }
                     },
                     color: {
-                        color: '#a855f7',
-                        highlight: '#00ffff'
+                        color: 'rgba(168, 85, 247, 0.5)',  // Semi-transparent purple
+                        highlight: '#00ffff',
+                        opacity: 0.6
                     },
-                    width: 1,  // Set default edge width
-                    hoverWidth: 2,  // Slightly thicker on hover
-                    selectionWidth: 2,  // Slightly thicker when selected
+                    width: 0.5,  // Very thin edges
+                    hoverWidth: 1,  // Still thin on hover
+                    selectionWidth: 1,  // Still thin when selected
                     smooth: {
-                        type: 'continuous',
-                        roundness: 0.5
+                        enabled: true,
+                        type: 'curvedCW',
+                        roundness: 0.2
+                    },
+                    scaling: {
+                        min: 0.5,
+                        max: 2
+                    },
+                    chosen: {
+                        edge: function(values, id, selected, hovering) {
+                            if (hovering) {
+                                values.width = 1.5;  // Only slightly thicker on hover
+                            }
+                        }
                     }
                 },
                 physics: {
