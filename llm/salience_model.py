@@ -90,11 +90,11 @@ Output only a decimal number."""
             return 1.0
         
         try:
-            from embedding.embedder import TextEmbedder
-            embedder = TextEmbedder()
+            from embedding.singleton_embedder import get_text_embedder
+            embedder = get_text_embedder()
             
             # Get embedding for new content
-            new_embedding = embedder.embed(content)
+            new_embedding = embedder.embed_text(content)
             new_norm = np.linalg.norm(new_embedding)
             
             if new_norm == 0:
@@ -103,7 +103,7 @@ Output only a decimal number."""
             # Compare with existing content
             max_similarity = 0.0
             for existing in existing_contents:
-                existing_embedding = embedder.embed(existing)
+                existing_embedding = embedder.embed_text(existing)
                 existing_norm = np.linalg.norm(existing_embedding)
                 
                 if existing_norm > 0:

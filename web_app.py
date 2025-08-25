@@ -125,10 +125,12 @@ def get_memories():
     try:
         stats = memory_agent.get_statistics()
         
-        # Get raw memories
+        # Get all memories from ChromaDB
         raw_memories = []
-        if hasattr(memory_agent.memory_store, 'raw_memories'):
-            for event in memory_agent.memory_store.raw_memories:
+        try:
+            # Retrieve all events from ChromaDB
+            all_events = memory_agent.memory_store.chromadb.retrieve_all_events()
+            for event in all_events:
                 raw_memories.append({
                     'id': event.id,
                     'who': event.five_w1h.who,
@@ -138,54 +140,46 @@ def get_memories():
                     'why': event.five_w1h.why,
                     'how': event.five_w1h.how,
                     'type': event.event_type.value,
-                    'salience': 0.5,  # Now handled by block salience matrix
-                    'episode_id': event.episode_id
-                })
-        
-        # Get processed memories with block info
-        processed_memories = []
-        if hasattr(memory_agent.memory_store, 'processed_memories'):
-            for event in memory_agent.memory_store.processed_memories:
-                # Find which blocks contain this event
-                blocks = memory_agent.memory_store.block_manager.get_blocks_for_event(event.id)
-                block_ids = [b.id for b in blocks]
-                block_saliences = [b.salience for b in blocks]
-                
-                processed_memories.append({
-                    'id': event.id,
-                    'who': event.five_w1h.who,
-                    'what': event.five_w1h.what,
-                    'when': event.five_w1h.when,
-                    'where': event.five_w1h.where,
-                    'why': event.five_w1h.why,
-                    'how': event.five_w1h.how,
-                    'type': event.event_type.value,
-                    'salience': 0.5,  # Now handled by block salience matrix
+                    'salience': None,  # No individual salience in dynamic system
                     'episode_id': event.episode_id,
-                    'block_ids': block_ids,
-                    'block_saliences': block_saliences
+                    'confidence': event.confidence
                 })
+        except Exception as e:
+            logger.warning(f"Could not retrieve events: {e}")
         
-        # Get memory blocks
+        # In the new dynamic system, show different useful views
+        # Recent memories - last 10 events
+        all_memories = raw_memories.copy()
+        recent_memories = sorted(all_memories, key=lambda x: x.get('when', ''), reverse=True)[:10]
+        
+        # Get a sample of dynamic clusters by doing a test query
         memory_blocks = []
-        if hasattr(memory_agent.memory_store, 'block_manager'):
-            for block_id, block in memory_agent.memory_store.block_manager.blocks.items():
-                memory_blocks.append({
-                    'id': block.id,
-                    'type': block.block_type,
-                    'event_count': len(block.events),
-                    'event_ids': list(block.event_ids),
-                    'salience': block.salience,
-                    'coherence': block.coherence_score,
-                    'link_count': len(block.links),
-                    'aggregate_signature': block.aggregate_signature.to_dict() if block.aggregate_signature else None,
-                    'created_at': block.created_at.isoformat() if block.created_at else None,
-                    'updated_at': block.updated_at.isoformat() if block.updated_at else None
-                })
+        try:
+            # Perform a sample clustering to show how memories group
+            sample_query = {"what": ""}  # Empty query to get general clusters
+            sample_results = memory_agent.memory_store.retrieve_memories(
+                query=sample_query, 
+                k=10, 
+                use_clustering=True
+            )
+            
+            # Get cluster information from the last clustering operation
+            if hasattr(memory_agent.memory_store, 'current_clusters'):
+                for cluster_id, cluster in memory_agent.memory_store.current_clusters.items():
+                    memory_blocks.append({
+                        'id': cluster_id,
+                        'type': 'dynamic',
+                        'event_count': len(cluster.events) if hasattr(cluster, 'events') else 0,
+                        'coherence': cluster.coherence if hasattr(cluster, 'coherence') else 0,
+                        'relevance': cluster.relevance if hasattr(cluster, 'relevance') else 0,
+                        'created_at': datetime.utcnow().isoformat()
+                    })
+        except Exception as e:
+            logger.debug(f"Could not generate sample clusters: {e}")
         
         return jsonify({
-            'raw': raw_memories,
-            'processed': processed_memories,
+            'raw': all_memories,  # All memories
+            'processed': recent_memories,  # Recent memories (last 10)
             'blocks': memory_blocks,
             'stats': stats
         })
@@ -258,6 +252,142 @@ def delete_memory(memory_id):
         
     except Exception as e:
         logger.error(f"Delete memory error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/query', methods=['POST'])
+def query_memories():
+    """Query memories with dynamic clustering"""
+    data = request.json
+    
+    try:
+        # Extract query parameters
+        query = {}
+        for field in ['who', 'what', 'when', 'where', 'why', 'how']:
+            if field in data and data[field]:
+                query[field] = data[field]
+        
+        k = data.get('k', 5)
+        
+        # Perform query with dynamic clustering
+        results = memory_agent.recall(**query, k=k)
+        
+        # Format results
+        memories = []
+        for event, score in results:
+            memories.append({
+                'id': event.id,
+                'who': event.five_w1h.who,
+                'what': event.five_w1h.what,
+                'when': event.five_w1h.when,
+                'where': event.five_w1h.where,
+                'why': event.five_w1h.why,
+                'how': event.five_w1h.how,
+                'type': event.event_type.value,
+                'relevance': score,
+                'episode_id': event.episode_id
+            })
+        
+        # Get cluster info if available
+        clusters = []
+        if hasattr(memory_agent.memory_store, 'current_clusters'):
+            for cluster_id, cluster in memory_agent.memory_store.current_clusters.items():
+                clusters.append({
+                    'id': cluster_id,
+                    'coherence': getattr(cluster, 'coherence', 0),
+                    'relevance': getattr(cluster, 'relevance', 0),
+                    'size': len(getattr(cluster, 'events', []))
+                })
+        
+        return jsonify({
+            'success': True,
+            'query': query,
+            'results': memories,
+            'clusters': clusters,
+            'total': len(memories)
+        })
+        
+    except Exception as e:
+        logger.error(f"Query failed: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/memory/<memory_id>/cluster', methods=['GET'])
+def get_memory_cluster(memory_id):
+    """Get the dynamic cluster graph for a specific memory"""
+    try:
+        # Find the memory
+        all_events = memory_agent.memory_store.chromadb.retrieve_all_events()
+        target_event = None
+        for event in all_events:
+            if event.id == memory_id:
+                target_event = event
+                break
+        
+        if not target_event:
+            return jsonify({'error': 'Memory not found'}), 404
+        
+        # Use the memory's content as a query to find related memories
+        query = {
+            'who': target_event.five_w1h.who,
+            'what': target_event.five_w1h.what[:50],  # Use partial to avoid being too specific
+        }
+        
+        # Get related memories with clustering
+        results = memory_agent.recall(**query, k=15)
+        
+        # Build graph data
+        nodes = []
+        edges = []
+        
+        # Add the target memory as the central node
+        nodes.append({
+            'id': target_event.id,
+            'label': f"{target_event.five_w1h.who}: {target_event.five_w1h.what[:30]}...",
+            'group': 'target',
+            'size': 30
+        })
+        
+        # Add related memories as nodes
+        for event, score in results:
+            if event.id != target_event.id:
+                nodes.append({
+                    'id': event.id,
+                    'label': f"{event.five_w1h.who}: {event.five_w1h.what[:30]}...",
+                    'group': event.episode_id,  # Group by episode
+                    'size': 20 * score  # Size based on relevance
+                })
+                
+                # Add edge from target to related memory
+                edges.append({
+                    'from': target_event.id,
+                    'to': event.id,
+                    'value': score,
+                    'label': f"{score:.2f}"
+                })
+        
+        # Find connections between related memories
+        for i, (event1, score1) in enumerate(results):
+            for j, (event2, score2) in enumerate(results):
+                if i < j and event1.episode_id == event2.episode_id:
+                    # Same episode - add a connection
+                    edges.append({
+                        'from': event1.id,
+                        'to': event2.id,
+                        'value': 0.3,
+                        'dashes': True  # Dashed line for episode connection
+                    })
+        
+        return jsonify({
+            'success': True,
+            'nodes': nodes,
+            'edges': edges,
+            'query': query
+        })
+        
+    except Exception as e:
+        logger.error(f"Failed to get memory cluster: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/blocks/<block_id>', methods=['DELETE'])

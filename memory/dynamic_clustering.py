@@ -16,6 +16,7 @@ from collections import defaultdict
 
 from models.event import Event, FiveW1H
 from embedding.embedder import FiveW1HEmbedder
+from embedding.singleton_embedder import get_five_w1h_embedder, get_text_embedder
 
 logger = logging.getLogger(__name__)
 
@@ -86,11 +87,10 @@ class DynamicCluster:
     def _text_similarity(self, text1: str, text2: str) -> float:
         """Compute text similarity using embeddings"""
         try:
-            from embedding.embedder import TextEmbedder
-            embedder = TextEmbedder()
+            embedder = get_text_embedder()
             
-            emb1 = embedder.embed(text1)
-            emb2 = embedder.embed(text2)
+            emb1 = embedder.embed_text(text1)
+            emb2 = embedder.embed_text(text2)
             
             dot_product = np.dot(emb1, emb2)
             norm1 = np.linalg.norm(emb1)
@@ -136,7 +136,7 @@ class DynamicMemoryClustering:
     
     def __init__(self, embedder: Optional[FiveW1HEmbedder] = None):
         """Initialize the dynamic clustering system"""
-        self.embedder = embedder or FiveW1HEmbedder()
+        self.embedder = embedder or get_five_w1h_embedder()
         self.clustering_cache = {}  # Cache recent clustering results
         self.cache_ttl = 60  # Cache for 60 seconds
         
@@ -316,9 +316,8 @@ class DynamicMemoryClustering:
             value = getattr(event.five_w1h, field, '')
             if value:
                 try:
-                    from embedding.embedder import TextEmbedder
-                    embedder = TextEmbedder()
-                    field_embeddings[field] = embedder.embed(value)
+                    embedder = get_text_embedder()
+                    field_embeddings[field] = embedder.embed_text(value)
                 except:
                     # Fallback to hash embedding
                     field_embeddings[field] = self._hash_embedding(value)
@@ -407,9 +406,8 @@ class DynamicMemoryClustering:
             return 0.5
         
         try:
-            from embedding.embedder import TextEmbedder
-            embedder = TextEmbedder()
-            query_embedding = embedder.embed(query_text)
+            embedder = get_text_embedder()
+            query_embedding = embedder.embed_text(query_text)
             
             # Normalize
             norm = np.linalg.norm(query_embedding)

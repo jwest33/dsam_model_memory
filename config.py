@@ -53,7 +53,7 @@ class EmbeddingConfig:
     """Configuration for embedding generation"""
     
     # Model settings
-    model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
     use_transformer: bool = True
     cache_embeddings: bool = True
     
