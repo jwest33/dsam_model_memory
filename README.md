@@ -1,63 +1,52 @@
-# SAM - Self-Organizing Agentic Memory
+# [SAM] Self-Organizing Agentic Memory
 
-An agentic memory framework supporting clustering, adaptive embeddings, and unlimited capacity. No arbitrary thresholds, no fixed limits - memories organize themselves based on real-world usage patterns.
+A memory system for AI agents featuring unlimited storage capacity, and query-driven self-organizing clustering via adaptive embeddings.
 
-## Core Philosophy
+## Overview
 
-Traditional memory systems force artificial constraints: salience thresholds, capacity limits, static relationships. This system removes all arbitrary boundaries, allowing memories to:
-
-- **Self-organize** through dynamic clustering based on query context
-- **Evolve** via gravitational embedding updates reflecting co-occurrence
-- **Scale infinitely** with ChromaDB backend and no eviction logic
-- **Adapt naturally** to usage patterns without manual tuning
+This system implements a memory architecture for AI agents that eliminates traditional constraints such as fixed capacity limits and salience thresholds. Memory organization occurs dynamically at query time through context-aware clustering, while embeddings evolve based on usage patterns.
 
 ## Key Features
 
 ### Dynamic Memory Clustering
-- **No pre-computed blocks** - Memories cluster dynamically based on query context
-- **DBSCAN algorithm** adapts cluster formation to data density
-- **Context-aware weighting** emphasizes different 5W1H dimensions per query
-- **Eigenvector centrality** determines memory importance within clusters
+- Query-driven clustering using DBSCAN algorithm
+- Context-aware field weighting based on query parameters
+- Eigenvector centrality for determining memory importance
+- No pre-computed memory blocks
 
 ### Adaptive Embeddings
-- **Gravitational updates** - Frequently accessed memories drift closer
-- **Momentum-based learning** prevents oscillation (α=0.01, momentum=0.9)
-- **Dimension-specific attraction** based on interaction types
-- **Co-occurrence tracking** strengthens relationships over time
+- Gravitational updates between frequently co-accessed memories
+- Momentum-based learning (α=0.01, momentum=0.9)
+- Dimension-specific evolution tracking
+- Co-occurrence-based relationship strengthening
 
-### Unlimited Capacity
-- **ChromaDB backend** scales to millions of memories
-- **No eviction** - All memories preserved indefinitely
-- **No salience filtering** - Every experience matters
-- **Efficient retrieval** through vector similarity search
+### Storage Architecture
+- ChromaDB backend for scalable vector storage
+- No memory eviction or capacity limits
+- All memories stored without salience filtering
+- Efficient similarity-based retrieval
 
 ### 5W1H Framework
-Every memory encodes the complete context:
-- **Who**: Actor or entity involved
-- **What**: Action or observation
-- **When**: Temporal information
-- **Where**: Location or context
-- **Why**: Intent or purpose
-- **How**: Method or approach
+Complete context encoding for each memory:
+- Who: Entity or actor
+- What: Action or observation
+- When: Temporal information
+- Where: Location or context
+- Why: Purpose or intent
+- How: Method or approach
 
 ## Installation
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/agent-memory
-cd agent-memory
+git clone <repository-url>
+cd agent-wip
 
 # Install dependencies
 pip install -r requirements.txt
 
 # For Windows users with CUDA support
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-
-# Install llama.cpp server (optional, for LLM salience)
-# Windows:
-winget install ggml.llamacpp
-# Linux/Mac:
-brew install llama.cpp
 ```
 
 ## Quick Start
@@ -274,62 +263,60 @@ python -c "from memory.dynamic_clustering import test_clustering; test_clusterin
 python -c "from memory.adaptive_embeddings import visualize_evolution; visualize_evolution()"
 ```
 
-## Use Cases
+## Applications
 
 ### Personal AI Assistant
-- Remembers all interactions without forgetting
-- Contexts naturally emerge from usage patterns
-- No manual configuration of importance
+- Persistent memory of all interactions
+- Context emergence from usage patterns
+- Automatic importance determination
 
 ### Research Tool
-- Stores unlimited research notes and findings
-- Discovers unexpected connections through clustering
-- Embeddings evolve to reflect discovered relationships
+- Unlimited storage for research data
+- Connection discovery through clustering
+- Relationship evolution through embedding adaptation
 
 ### Game AI
-- NPCs with truly persistent memories
+- Persistent NPC memory systems
 - Dynamic relationship formation
-- Natural forgetting through embedding drift
+- Natural memory drift over time
 
 ### Knowledge Management
-- Self-organizing information architecture
-- No manual tagging or categorization
-- Emergent topics through clustering
+- Self-organizing information structure
+- Automatic categorization through clustering
+- Topic emergence from usage patterns
 
-## Technical Deep Dive
+## Technical Architecture
 
-### Why No Salience Thresholds?
+### Storage Without Thresholds
 
-Traditional systems use salience scores to determine what to remember. This creates:
-- **Information loss**: Low-salience events might become important later
-- **Arbitrary boundaries**: Who decides 0.3 vs 0.4 salience?
-- **Static evaluation**: Importance changes with context
+The system stores all memories without salience filtering:
+- Information that appears unimportant may become relevant in future contexts
+- Importance determination occurs at retrieval time based on query context
+- No arbitrary threshold values required
 
-Our approach: Store everything, let retrieval determine relevance.
+### Dynamic Clustering Approach
 
-### Why Dynamic Clustering?
+Clustering occurs at query time rather than using pre-computed blocks:
+- Context-dependent grouping based on query parameters
+- Emergent structure from data patterns
+- Adaptive cluster boundaries based on data density
 
-Static memory blocks assume fixed relationships. Reality is fluid:
-- **Context-dependent**: "debugging" memories cluster differently when querying about "performance" vs "errors"
-- **Emergent structure**: Patterns arise from usage, not pre-definition
-- **Adaptive boundaries**: Cluster sizes and densities adjust to data
+### Evolving Embeddings
 
-### Why Adaptive Embeddings?
+Embeddings adapt based on usage patterns:
+- Co-accessed memories gravitate together in embedding space
+- Relationship strength increases with repeated associations
+- Context-specific meaning evolution
 
-Static embeddings assume fixed semantic space. Real understanding evolves:
-- **Usage patterns matter**: Frequently co-accessed memories should be similar
-- **Relationships strengthen**: Repeated associations increase attraction
-- **Context shapes meaning**: Same memory means different things in different contexts
+## Development
 
-## Contributing
+Potential areas for enhancement:
 
-We welcome contributions! Key areas for enhancement:
-
-1. **Alternative clustering algorithms**: Hierarchical, spectral, affinity propagation
-2. **Embedding evolution strategies**: Different gravitational models
-3. **Query optimization**: Faster candidate retrieval
-4. **Visualization tools**: Memory landscape mapping
-5. **Integration examples**: LangChain, AutoGPT, etc.
+1. Alternative clustering algorithms (hierarchical, spectral, affinity propagation)
+2. Additional embedding evolution strategies
+3. Query optimization for faster retrieval
+4. Enhanced visualization tools
+5. Integration with existing frameworks
 
 ## Research Foundation
 
@@ -345,8 +332,9 @@ This system builds on several key concepts:
 
 MIT License - See LICENSE file for details
 
-## Special Acknowledgments
+## Dependencies
 
-- ChromaDB
-- Qwen model family
-- all-MiniLM-L6 model
+- ChromaDB for vector storage
+- Sentence Transformers for embeddings
+- NumPy for numerical operations
+- Streamlit for web interface
