@@ -84,10 +84,12 @@ def chat():
 
         # 4) Compose the prompt and generate an LLM response
         prompt = (
-            "You are a helpful AI assistant."
-            "Conversation context:\n"
+            "You are a helpful AI assistant with access to conversation history.\n"
+            "Use the relevant memories below to inform your answer.\n"
+            "Answer ONLY the user's current question directly and concisely.\n"
+            "Do not explain your reasoning or include unrelated information.\n\n"
             f"{context}"
-            "Current conversation:\n"
+            "Current question:\n"
             f"User: {user_message}\n"
             "Assistant:"
         )
@@ -225,31 +227,31 @@ def create_memory():
 def delete_memory(memory_id):
     """Delete a memory"""
     try:
-        # Find and remove from raw memories
-        if hasattr(memory_agent.memory_store, 'raw_memories'):
-            memory_agent.memory_store.raw_memories = [
-                m for m in memory_agent.memory_store.raw_memories 
-                if m.id != memory_id
-            ]
+        # Delete from ChromaDB
+        success = memory_agent.memory_store.chromadb.delete_event(memory_id)
         
-        # Find and remove from processed memories
-        if hasattr(memory_agent.memory_store, 'processed_memories'):
-            memory_agent.memory_store.processed_memories = [
-                m for m in memory_agent.memory_store.processed_memories 
-                if m.id != memory_id
-            ]
-        
-        # Remove from Hopfield network if present
-        if hasattr(memory_agent.memory_store.hopfield, 'memories'):
-            memory_agent.memory_store.hopfield.memories = {
-                k: v for k, v in memory_agent.memory_store.hopfield.memories.items()
-                if k != memory_id
-            }
-        
-        # Save changes
-        memory_agent.save()
-        
-        return jsonify({'success': True, 'message': 'Memory deleted'})
+        if success:
+            # Also remove from Hopfield network if present
+            if hasattr(memory_agent.memory_store, 'hopfield') and hasattr(memory_agent.memory_store.hopfield, 'memories'):
+                if memory_id in memory_agent.memory_store.hopfield.memories:
+                    del memory_agent.memory_store.hopfield.memories[memory_id]
+            
+            # Remove from adaptive embeddings tracking if present
+            if hasattr(memory_agent.memory_store, 'adaptive_embeddings'):
+                # Remove from embeddings dict
+                if hasattr(memory_agent.memory_store.adaptive_embeddings, 'embeddings'):
+                    if memory_id in memory_agent.memory_store.adaptive_embeddings.embeddings:
+                        del memory_agent.memory_store.adaptive_embeddings.embeddings[memory_id]
+                # Remove from co-occurrence tracking
+                if hasattr(memory_agent.memory_store.adaptive_embeddings, 'co_occurrences'):
+                    memory_agent.memory_store.adaptive_embeddings.co_occurrences.pop(memory_id, None)
+                    # Also remove references in other events' co-occurrences
+                    for event_co in memory_agent.memory_store.adaptive_embeddings.co_occurrences.values():
+                        event_co.pop(memory_id, None)
+            
+            return jsonify({'success': True, 'message': 'Memory deleted successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to delete memory'}), 400
         
     except Exception as e:
         logger.error(f"Delete memory error: {e}")
@@ -395,12 +397,15 @@ def get_memory_cluster(memory_id):
         for i, (event1, score1) in enumerate(results):
             for j, (event2, score2) in enumerate(results):
                 if i < j and event1.episode_id == event2.episode_id:
-                    # Same episode - add a connection
+                    # Same episode - add a connection with averaged score
+                    # Use the average of both memory scores for the edge weight
+                    edge_score = (score1 + score2) / 2.0
                     edges.append({
                         'from': event1.id,
                         'to': event2.id,
-                        'value': 0.3,
-                        'dashes': True  # Dashed line for episode connection
+                        'value': edge_score,
+                        'dashes': True,  # Dashed line for episode connection
+                        'title': f"Episode Link - Score: {edge_score:.3f}"
                     })
         
         return jsonify({
