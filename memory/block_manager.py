@@ -209,8 +209,8 @@ class MemoryBlockManager:
         # Primary: Use embeddings if available
         if self.embedder and hasattr(self.embedder, 'text_embedder'):
             try:
-                emb1 = self.embedder.text_embedder.embed(text1)
-                emb2 = self.embedder.text_embedder.embed(text2)
+                emb1 = self.embedder.text_embedder.embed_text(text1)
+                emb2 = self.embedder.text_embedder.embed_text(text2)
                 
                 # Compute cosine similarity
                 dot_product = np.dot(emb1, emb2)
@@ -461,7 +461,7 @@ class MemoryBlockManager:
                 # Create query embedding
                 query_text = ' '.join([v for v in query.values() if v])
                 if query_text:
-                    query_embedding = self.embedder.text_embedder.embed(query_text)
+                    query_embedding = self.embedder.text_embedder.embed_text(query_text)
                     query_embedding = query_embedding / np.linalg.norm(query_embedding)
                     
                     for block_id, block in self.blocks.items():

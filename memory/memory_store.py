@@ -16,7 +16,7 @@ from memory.chromadb_store import ChromaDBStore
 from memory.dynamic_clustering import DynamicMemoryClustering
 from memory.adaptive_embeddings import AdaptiveEmbeddingSystem
 from memory.hopfield import ModernHopfieldNetwork
-from embedding.embedder import FiveW1HEmbedder
+from embedding.singleton_embedder import get_five_w1h_embedder
 from config import get_config
 
 logger = logging.getLogger(__name__)
@@ -45,8 +45,8 @@ class MemoryStore:
         # Hopfield network for associative memory
         self.hopfield = ModernHopfieldNetwork()
         
-        # Embedder for generating embeddings
-        self.embedder = FiveW1HEmbedder()
+        # Embedder for generating embeddings (singleton to avoid repeated model loading)
+        self.embedder = get_five_w1h_embedder()
         
         # Episode tracking
         self.episode_map = {}  # episode_id -> List[event_id]

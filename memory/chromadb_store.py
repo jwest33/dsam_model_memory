@@ -13,6 +13,8 @@ from datetime import datetime
 import pickle
 import base64
 
+from models.event import Event, FiveW1H, EventType
+
 try:
     import chromadb
     from chromadb.config import Settings
@@ -563,12 +565,66 @@ class ChromaDBStore:
         """Alias for get_statistics for compatibility"""
         return self.get_statistics()
     
+    def retrieve_all_events(self) -> List[Event]:
+        """
+        Retrieve all events from the database
+        
+        Returns:
+            List of all Event objects
+        """
+        try:
+            # Get all events from ChromaDB
+            results = self.events_collection.get(
+                include=['documents', 'metadatas']
+            )
+            
+            events = []
+            for i, doc in enumerate(results['documents']):
+                # Parse the JSON document
+                data = json.loads(doc)
+                metadata = results['metadatas'][i]
+                
+                # Reconstruct Event object
+                event = Event(
+                    id=results['ids'][i],
+                    five_w1h=FiveW1H(
+                        who=data.get('who', ''),
+                        what=data.get('what', ''),
+                        when=data.get('when', ''),
+                        where=data.get('where', ''),
+                        why=data.get('why', ''),
+                        how=data.get('how', '')
+                    ),
+                    event_type=EventType(metadata.get('event_type', 'observation')),
+                    episode_id=metadata.get('episode_id', ''),
+                    confidence=metadata.get('confidence', 1.0),
+                    full_content=data.get('full_content', '')
+                )
+                
+                # Timestamp is a computed property, don't try to set it
+                
+                events.append(event)
+            
+            return events
+            
+        except Exception as e:
+            logger.error(f"Failed to retrieve all events: {e}")
+            return []
+    
     def get_statistics(self) -> Dict[str, Any]:
         """Get database statistics"""
         try:
+            # ChromaDB doesn't have a count() method, use get() with limit
+            events_result = self.events_collection.get(limit=1)
+            blocks_result = self.blocks_collection.get(limit=1)
+            
+            # Get actual counts by retrieving all IDs (lightweight operation)
+            all_events = self.events_collection.get(include=[])  # Only get IDs
+            all_blocks = self.blocks_collection.get(include=[])
+            
             return {
-                "total_events": self.events_collection.count(),
-                "total_blocks": self.blocks_collection.count(),
+                "total_events": len(all_events['ids']),
+                "total_blocks": len(all_blocks['ids']),
                 "episodes": len(self.cache['episode_map']),
                 "cache_size": {
                     "events": len(self.cache['events']),

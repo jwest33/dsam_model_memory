@@ -285,12 +285,12 @@ class MemoryBlock:
         
         # Try to use embeddings for semantic similarity
         try:
-            from embedding.embedder import TextEmbedder
+            from embedding.singleton_embedder import get_text_embedder
             import numpy as np
             
-            embedder = TextEmbedder()
-            emb1 = embedder.embed(text1)
-            emb2 = embedder.embed(text2)
+            embedder = get_text_embedder()
+            emb1 = embedder.embed_text(text1)
+            emb2 = embedder.embed_text(text2)
             
             # Compute cosine similarity
             dot_product = np.dot(emb1, emb2)
@@ -329,8 +329,8 @@ class MemoryBlock:
             return
         
         try:
-            from embedding.embedder import FiveW1HEmbedder
-            embedder = FiveW1HEmbedder()
+            from embedding.singleton_embedder import get_five_w1h_embedder
+            embedder = get_five_w1h_embedder()
             
             n_events = len(self.events)
             
@@ -441,8 +441,8 @@ class MemoryBlock:
             return
         
         try:
-            from embedding.embedder import FiveW1HEmbedder
-            embedder = FiveW1HEmbedder()
+            from embedding.singleton_embedder import get_five_w1h_embedder
+            embedder = get_five_w1h_embedder()
             
             # Use stored embeddings if available, otherwise compute
             if self.event_embeddings and len(self.event_embeddings) == len(self.events):

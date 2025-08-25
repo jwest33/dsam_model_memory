@@ -1,6 +1,6 @@
-# Dynamic Memory System for AI Agents
+# SAM - Self-Organizing Agentic Memory
 
-A memory framework that mirrors human cognition through dynamic clustering, adaptive embeddings, and unlimited capacity. No arbitrary thresholds, no fixed limits - memories organize themselves based on real-world usage patterns.
+An agentic memory framework supporting dynamic clustering, adaptive embeddings, and unlimited capacity. No arbitrary thresholds, no fixed limits - memories organize themselves based on real-world usage patterns.
 
 ## Core Philosophy
 
@@ -296,7 +296,7 @@ python -c "from memory.adaptive_embeddings import visualize_evolution; visualize
 - No manual tagging or categorization
 - Emergent topics through clustering
 
-## 🔬 Technical Deep Dive
+## Technical Deep Dive
 
 ### Why No Salience Thresholds?
 
@@ -345,9 +345,8 @@ This system builds on several key concepts:
 
 MIT License - See LICENSE file for details
 
-## Acknowledgments
+## Special Acknowledgments
 
-- ChromaDB team for the excellent vector database
-- Sentence Transformers for semantic embeddings
-- The cognitive science community for inspiration
-- Open source contributors worldwide
+- ChromaDB
+- Qwen model family
+- all-MiniLM-L6 model
