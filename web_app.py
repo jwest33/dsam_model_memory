@@ -364,7 +364,7 @@ def get_memory_cluster(memory_id):
                     'from': target_event.id,
                     'to': event.id,
                     'value': score,
-                    'label': f"{score:.2f}"
+                    'title': f"Relevance: {score:.2f}"  # Show on hover instead of always visible
                 })
         
         # Find connections between related memories
