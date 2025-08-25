@@ -3,152 +3,144 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>5W1H Memory Framework - Web Interface</title>
+    <title>Self-Organizing Agentic Memory - Web Interface</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
-    <!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"> -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/synthwave-theme.css') }}">
     <!-- Vis.js for graph visualization -->
     <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 </head>
 <body>
     <nav class="navbar navbar-dark">
-        <div class="container-fluid">
+        <div class="container-xl">
             <span class="navbar-brand mb-0 h1">
-                <i class="bi bi-brain"></i> 5W1H Memory Framework
+                <i class="bi bi-brain"></i> [SAM] Self-Organizing Agentic Memory
             </span>
-            <div class="stats-display">
-                <span id="stats-summary">Loading stats...</span>
-            </div>
         </div>
     </nav>
 
-    <div class="container-fluid mt-3">
-        <ul class="nav nav-tabs" id="mainTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat" type="button" role="tab">
-                    <i class="bi bi-chat-dots"></i> Chat Interface
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="memory-tab" data-bs-toggle="tab" data-bs-target="#memory" type="button" role="tab">
-                    <i class="bi bi-database"></i> Memory Store
-                </button>
-            </li>
-        </ul>
-
-        <div class="tab-content" id="mainTabContent">
-            <!-- Chat Tab -->
-            <div class="tab-pane fade show active" id="chat" role="tabpanel">
-                <div class="chat-container mt-4">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0">Chat with AI Assistant</h5>
-                        </div>
-                        <div class="card-body chat-window" id="chatContainer">
-                            <div id="chatMessages"></div>
-                        </div>
-                        <div class="card-footer">
-                            <form id="chatForm">
-                                <div class="input-group">
-                                    <input type="text" class="form-control" id="chatInput" placeholder="Type your message..." required>
-                                    <button class="btn btn-primary" type="submit">
-                                        <i class="bi bi-send"></i> Send
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
+    <div class="container-xl mt-4">
+        <div class="card main-card">
+            <div class="card-header p-0">
+                <ul class="nav nav-tabs nav-fill" id="mainTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active rounded-0" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat" type="button" role="tab">
+                            <i class="bi bi-chat-dots"></i> Chat Interface
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link rounded-0" id="memory-tab" data-bs-toggle="tab" data-bs-target="#memory" type="button" role="tab">
+                            <i class="bi bi-database"></i> Memory Store
+                        </button>
+                    </li>
+                </ul>
             </div>
-
-            <!-- Memory Tab -->
-            <div class="tab-pane fade" id="memory" role="tabpanel">
-                <div class="memory-container mt-4">
-                    <!-- Search Bar at Top -->
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-10">
-                                    <input type="text" class="form-control search-box" id="memorySearch" placeholder="Search memories...">
-                                </div>
-                                <div class="col-md-2">
-                                    <button class="btn btn-accent w-100" onclick="showCreateMemoryModal()">
-                                        <i class="bi bi-plus-circle"></i> New Memory
-                                    </button>
-                                </div>
+            <div class="card-body">
+                <div class="tab-content" id="mainTabContent">
+                    <!-- Chat Tab -->
+                    <div class="tab-pane fade show active" id="chat" role="tabpanel">
+                        <div class="chat-container">
+                            <div class="chat-header mb-3">
+                                <h5 class="mb-0 text-cyan">Chat with AI Assistant</h5>
+                            </div>
+                            <div class="chat-window" id="chatContainer">
+                                <div id="chatMessages"></div>
+                            </div>
+                            <div class="chat-input-area mt-3">
+                                <form id="chatForm">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="chatInput" placeholder="Type your message..." required>
+                                        <button class="btn btn-primary" type="submit">
+                                            <i class="bi bi-send"></i> Send
+                                        </button>
+                                    </div>
+                                </form>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Memory Tab -->
+                    <div class="tab-pane fade" id="memory" role="tabpanel">
+                        <div class="memory-container">
+                            <!-- Search Bar at Top -->
+                            <div class="search-section mb-3">
+                                <div class="row">
+                                    <div class="col-md-10">
+                                        <input type="text" class="form-control search-box" id="memorySearch" placeholder="Search memories...">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button class="btn btn-accent w-100" onclick="showCreateMemoryModal()">
+                                            <i class="bi bi-plus-circle"></i> New Memory
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                     
-                    <!-- Memory Store Display -->
-                    <div class="card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">Memory Store</h5>
-                            <div>
-                                <button class="btn btn-sm btn-outline-accent" onclick="loadMemories()">
-                                    <i class="bi bi-arrow-clockwise"></i> Refresh
-                                </button>
+                            <!-- Memory Store Display -->
+                            <div class="memory-display-section">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="mb-0 text-cyan">Memory Store</h5>
+                                    <div>
+                                        <button class="btn btn-sm btn-outline-accent" onclick="loadMemories()">
+                                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                                        </button>
+                                    </div>
+                                </div>
+                            <!-- Memory Table with Pagination -->
+                            <div class="table-responsive">
+                                <table class="table table-dark table-hover" id="memoryTable">
+                                    <thead>
+                                        <tr>
+                                            <th class="sortable" data-field="who" onclick="sortTable('who')">
+                                                Who <i class="bi bi-arrow-down-up sort-icon"></i>
+                                            </th>
+                                            <th class="sortable" data-field="what" onclick="sortTable('what')">
+                                                What <i class="bi bi-arrow-down-up sort-icon"></i>
+                                            </th>
+                                            <th class="sortable" data-field="when" onclick="sortTable('when')">
+                                                When <i class="bi bi-arrow-down-up sort-icon"></i>
+                                            </th>
+                                            <th class="sortable" data-field="where" onclick="sortTable('where')">
+                                                Where <i class="bi bi-arrow-down-up sort-icon"></i>
+                                            </th>
+                                            <th class="sortable" data-field="why" onclick="sortTable('why')">
+                                                Why <i class="bi bi-arrow-down-up sort-icon"></i>
+                                            </th>
+                                            <th class="sortable" data-field="how" onclick="sortTable('how')">
+                                                How <i class="bi bi-arrow-down-up sort-icon"></i>
+                                            </th>
+                                            <th class="sortable" data-field="type" onclick="sortTable('type')">
+                                                Type <i class="bi bi-arrow-down-up sort-icon"></i>
+                                            </th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="memoryTableBody"></tbody>
+                                </table>
                             </div>
-                        </div>
-                        <div class="card-body">
-                            <ul class="nav nav-pills mb-3" id="memoryTypeTabs" role="tablist">
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link active" id="processed-tab" data-bs-toggle="tab" data-bs-target="#processedMemories" type="button">
-                                        Recent <span class="badge" id="processedCount">0</span>
-                                    </button>
-                                </li>
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="raw-tab" data-bs-toggle="tab" data-bs-target="#rawMemories" type="button">
-                                        All Memories <span class="badge" id="rawCount">0</span>
-                                    </button>
-                                </li>
-                            </ul>
-
-                            <div class="tab-content">
-                                <div class="tab-pane fade show active" id="processedMemories">
-                                    <div class="table-responsive">
-                                        <table class="table table-dark table-hover">
-                                            <thead>
-                                                <tr>
-                                                    <th>Who</th>
-                                                    <th>What</th>
-                                                    <th>When</th>
-                                                    <th>Type</th>
-                                                    <th>Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="processedMemoriesTable"></tbody>
-                                        </table>
-                                    </div>
+                            
+                            <!-- Pagination Controls -->
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <div class="text-muted">
+                                    Showing <span id="showingStart">0</span>-<span id="showingEnd">0</span> of <span id="totalMemories">0</span> memories
                                 </div>
-                                <div class="tab-pane fade" id="rawMemories">
-                                    <div class="table-responsive">
-                                        <table class="table table-dark table-hover">
-                                            <thead>
-                                                <tr>
-                                                    <th>Who</th>
-                                                    <th>What</th>
-                                                    <th>When</th>
-                                                    <th>Type</th>
-                                                    <th>Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="rawMemoriesTable"></tbody>
-                                        </table>
-                                    </div>
-                                </div>
+                                <nav>
+                                    <ul class="pagination mb-0" id="paginationControls">
+                                        <!-- Pagination buttons will be inserted here -->
+                                    </ul>
+                                </nav>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
+                </div> <!-- End tab-content -->
+            </div> <!-- End card-body -->
+        </div> <!-- End main-card -->
+    </div> <!-- End container -->
 
     <!-- Create Memory Modal -->
     <div class="modal fade" id="createMemoryModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Create New Memory</h5>
@@ -199,7 +191,7 @@
 
     <!-- Memory Detail Modal -->
     <div class="modal fade" id="memoryDetailModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Memory Details</h5>
@@ -218,7 +210,7 @@
 
     <!-- Memory Graph Modal -->
     <div class="modal fade" id="memoryGraphModal" tabindex="-1">
-        <div class="modal-dialog modal-xl">
+        <div class="modal-dialog modal-fullscreen-lg-down" style="max-width: 95vw; width: 95vw;">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
@@ -227,15 +219,82 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div id="graphInfo" class="alert alert-dark mb-3"></div>
-                    <div id="memoryGraph"></div>
-                    <div id="nodeDetails" class="mt-3" style="display: none;">
-                        <div class="card">
-                            <div class="card-header">
-                                <h6 class="mb-0">Selected Node Details</h6>
+                    <!-- Component selection controls -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label text-cyan">Clustering Mode:</label>
+                            <select id="clusteringMode" class="form-select bg-dark text-light border-purple">
+                                <option value="default">Default (Weighted)</option>
+                                <option value="single">Single Component Focus</option>
+                                <option value="combination">Component Combination</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-2">
+                                <label class="form-label text-cyan">5W1H Components:</label>
                             </div>
-                            <div class="card-body" id="nodeDetailsContent">
-                                <!-- Node details will be inserted here -->
+                            <div class="btn-group w-100" role="group">
+                                <input type="checkbox" class="btn-check" id="comp-who" value="who" autocomplete="off">
+                                <label class="btn btn-outline-purple" for="comp-who">Who</label>
+                                
+                                <input type="checkbox" class="btn-check" id="comp-what" value="what" autocomplete="off" checked>
+                                <label class="btn btn-outline-purple" for="comp-what">What</label>
+                                
+                                <input type="checkbox" class="btn-check" id="comp-when" value="when" autocomplete="off">
+                                <label class="btn btn-outline-purple" for="comp-when">When</label>
+                                
+                                <input type="checkbox" class="btn-check" id="comp-where" value="where" autocomplete="off">
+                                <label class="btn btn-outline-purple" for="comp-where">Where</label>
+                                
+                                <input type="checkbox" class="btn-check" id="comp-why" value="why" autocomplete="off">
+                                <label class="btn btn-outline-purple" for="comp-why">Why</label>
+                                
+                                <input type="checkbox" class="btn-check" id="comp-how" value="how" autocomplete="off">
+                                <label class="btn btn-outline-purple" for="comp-how">How</label>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="mb-2">
+                                <label class="form-label text-cyan">Action:</label>
+                            </div>
+                            <button class="btn btn-cyan w-100" onclick="refreshClusterGraph()">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Combined info panel -->
+                    <div class="row">
+                        <div class="col-lg-9">
+                            <div id="memoryGraph" style="height: 75vh;"></div>
+                        </div>
+                        <div class="col-lg-3">
+                            <div id="graphInfoPanel" class="card bg-dark border-purple" style="height: 75vh; overflow-y: auto;">
+                                <div class="card-body h-100 d-flex flex-column">
+                                    <!-- Graph summary -->
+                                    <div id="graphSummary" class="mb-3">
+                                        <h6 class="text-cyan mb-2">Cluster Overview</h6>
+                                        <div id="graphInfo" class="text-light small"></div>
+                                    </div>
+                                    
+                                    <hr class="border-purple">
+                                    
+                                    <!-- Selected node details -->
+                                    <div id="nodeDetails" class="flex-grow-1 overflow-auto">
+                                        <h6 class="text-cyan mb-2">Selected Node</h6>
+                                        <div id="nodeDetailsContent" class="text-light small">
+                                            <em class="text-muted">Click a node to view details</em>
+                                        </div>
+                                    </div>
+                                    
+                                    <hr class="border-purple mt-auto" id="edgeDivider" style="display: none;">
+                                    
+                                    <!-- Edge relation stats -->
+                                    <div id="edgeDetails" style="display: none;">
+                                        <h6 class="text-cyan mb-2">Edge Statistics</h6>
+                                        <div id="edgeDetailsContent" class="text-light small"></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -269,5 +328,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/memory-pagination.js') }}"></script>
 </body>
 </html>

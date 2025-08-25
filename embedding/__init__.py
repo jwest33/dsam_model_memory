@@ -1,4 +1,4 @@
-"""Embedding system for 5W1H memory framework"""
+"""Embedding system for Self-Organizing Agentic Memory"""
 
 from .embedder import TextEmbedder, FiveW1HEmbedder
 
