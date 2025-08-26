@@ -45,9 +45,9 @@ class MemoryCLI:
         
         # Show statistics
         stats = self.agent.get_statistics()
-        print(f"  Raw memories: {stats['raw_count']}")
-        print(f"  Processed memories: {stats['processed_count']}")
-        print(f"  Episodes: {stats['episode_count']}")
+        print(f"  Total events: {stats.get('total_events', 0)}")
+        print(f"  Total episodes: {stats.get('total_episodes', 0)}")
+        print(f"  Cached embeddings: {stats.get('cached_embeddings', 0)}")
     
     def remember(
         self,
@@ -191,27 +191,21 @@ class MemoryCLI:
         
         print("Memory System Statistics:")
         print("-" * 40)
-        print(f"Raw memories: {stats['raw_count']}")
-        print(f"Processed memories: {stats['processed_count']}")
-        print(f"Total episodes: {stats['episode_count']}")
+        print(f"Total events: {stats.get('total_events', 0)}")
+        print(f"Total queries: {stats.get('total_queries', 0)}")
+        print(f"Total episodes: {stats.get('total_episodes', 0)}")
+        print(f"Events with residuals: {stats.get('events_with_residuals', 0)}")
+        print(f"Cached embeddings: {stats.get('cached_embeddings', 0)}")
         print(f"Current episode: {stats.get('current_episode', 'None')}")
         print(f"Current goal: {stats.get('current_goal', 'None')}")
-        print(f"Operations: {stats['operation_count']}")
-        print(f"LLM available: {stats['llm_available']}")
+        print(f"Operations: {stats.get('operation_count', 0)}")
+        print(f"LLM available: {stats.get('llm_available', False)}")
         
-        print(f"\nHopfield Network:")
-        hopfield = stats['hopfield']
-        print(f"  Memories: {hopfield['memory_count']}/{hopfield['max_capacity']}")
-        print(f"  Utilization: {hopfield['utilization']:.1%}")
-        print(f"  Diversity: {hopfield.get('diversity', 0):.2f}")
-        print(f"  Temperature: {hopfield['temperature']}")
-        
-        if 'event_types' in stats:
-            print(f"\nEvent Types:")
-            for event_type, count in stats['event_types'].items():
-                print(f"  {event_type}: {count}")
-        
-        print(f"\nLast save: {stats['last_save']}")
+        if 'average_residual_norm' in stats:
+            print(f"\nResidual Norms:")
+            norms = stats['average_residual_norm']
+            print(f"  Euclidean: {norms.get('euclidean', 0):.4f}")
+            print(f"  Hyperbolic: {norms.get('hyperbolic', 0):.4f}")
     
     def clear(self, confirm: bool = False):
         """Clear all memories"""

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Quick launcher for the Flask web interface
+Quick launcher for the Enhanced Dual-Space Web Interface
 """
 
 import sys
@@ -15,16 +15,31 @@ sys.path.append(str(Path(__file__).parent))
 def shutdown_handler():
     """Save memory state on shutdown"""
     print("\nSaving memory state before shutdown...")
-    from web_app import memory_agent
+    try:
+        # Try to import from enhanced version first
+        from web_app_enhanced import memory_agent
+    except ImportError:
+        from web_app import memory_agent
+    
     if memory_agent:
         memory_agent.save()
         print("Memory state saved successfully")
 
 def main():
-    """Launch the web interface"""
-    print("=" * 50)
-    print("Self-Organizing Agentic Memory - Web Interface")
-    print("=" * 50)
+    """Launch the enhanced web interface"""
+    print("=" * 60)
+    print("Dual-Space Memory System - Enhanced Web Interface v2.0")
+    print("=" * 60)
+    
+    # Try to use enhanced version if available
+    try:
+        from web_app_enhanced import app, initialize_system
+        print("\n✅ Loading enhanced dual-space interface...")
+        print("   Features: Space indicators, residual tracking, analytics")
+    except ImportError:
+        print("\n⚠️  Enhanced interface not available, using standard...")
+        from web_app import app, initialize_system
+    
     print("\nStarting Flask server...")
     print("The web interface will open in your browser.")
     print("Press Ctrl+C to stop the server.\n")
@@ -39,9 +54,6 @@ def main():
     browser_thread = threading.Thread(target=open_browser)
     browser_thread.daemon = True
     browser_thread.start()
-    
-    # Import and run the Flask app
-    from web_app import app, initialize_system
     
     # Initialize the system
     initialize_system()
