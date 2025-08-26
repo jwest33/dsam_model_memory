@@ -12,7 +12,7 @@ class MemoryConfig:
     """Configuration for Modern Hopfield Network memory"""
     
     # Memory settings (no arbitrary limits!)
-    embedding_dim: int = 384
+    embedding_dim: int = 768  # Base embedding dimension
     temperature: float = 15.0  # Beta parameter for attention sharpness
     
     # Learning parameters
@@ -26,6 +26,50 @@ class MemoryConfig:
     
     # EMA smoothing
     salience_ema_alpha: float = 0.1  # For exponential moving average
+
+@dataclass
+class DualSpaceConfig:
+    """Configuration for dual-space encoding system"""
+    
+    # Dimension settings (overrides MemoryConfig.embedding_dim)
+    euclidean_dim: int = 768  # Dimension for Euclidean space (from sentence transformer)
+    hyperbolic_dim: int = 64  # Dimension for hyperbolic space (projected)
+    
+    # Learning parameters
+    learning_rate: float = 0.01
+    momentum: float = 0.9
+    
+    # Residual bounds (will be made scale-aware)
+    euclidean_bound: float = 0.35  # Max residual norm relative to anchor
+    hyperbolic_bound: float = 0.75  # Max residual norm in hyperbolic space
+    use_relative_bounds: bool = True  # Use relative bounds instead of fixed
+    
+    # Hyperbolic stability parameters
+    max_norm: float = 0.999  # Maximum norm in Poincaré ball (1 - epsilon)
+    epsilon: float = 1e-5  # Small value for numerical stability
+    
+    # Decay and adaptation
+    decay_factor: float = 0.995
+    min_residual_norm: float = 1e-6  # Minimum residual norm before zeroing
+    
+    # HDBSCAN parameters (exposed for UI control)
+    hdbscan_min_cluster_size: int = 5
+    hdbscan_min_samples: int = 3
+    
+    # Drift hygiene
+    field_adaptation_limits: dict = None  # Per-field adaptation limits
+    enable_forgetting: bool = True  # Allow zeroing residuals
+    
+    def __post_init__(self):
+        if self.field_adaptation_limits is None:
+            self.field_adaptation_limits = {
+                'who': 0.2,  # Limit adaptation on 'who' field
+                'when': 0.3,  # Limit adaptation on 'when' field  
+                'what': 0.5,  # Allow more adaptation on content
+                'where': 0.4,
+                'why': 0.5,
+                'how': 0.5
+            }
 
 @dataclass
 class StorageConfig:
@@ -58,7 +102,7 @@ class EmbeddingConfig:
     cache_embeddings: bool = True
     
     # Fallback to hash-based embeddings if transformer unavailable
-    hash_dim: int = 384
+    hash_dim: int = 768
     
     # Role embeddings for 5W1H
     add_role_embeddings: bool = True
@@ -102,6 +146,7 @@ class Config:
     """Main configuration container"""
     
     memory: MemoryConfig
+    dual_space: DualSpaceConfig
     storage: StorageConfig
     embedding: EmbeddingConfig
     llm: LLMConfig
@@ -112,6 +157,7 @@ class Config:
         """Create configuration from environment variables"""
         config = cls(
             memory=MemoryConfig(),
+            dual_space=DualSpaceConfig(),
             storage=StorageConfig(),
             embedding=EmbeddingConfig(),
             llm=LLMConfig(),

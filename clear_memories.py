@@ -28,7 +28,7 @@ def clear_memories():
             print(f"Found {len(results['ids'])} events to delete")
             # Delete all events
             store.events_collection.delete(ids=results['ids'])
-            print("✅ Events cleared")
+            print("Events cleared")
         else:
             print("No events to clear")
         
@@ -37,7 +37,7 @@ def clear_memories():
         if results['ids']:
             print(f"Found {len(results['ids'])} blocks to delete")
             store.blocks_collection.delete(ids=results['ids'])
-            print("✅ Blocks cleared")
+            print("Blocks cleared")
         else:
             print("No blocks to clear")
             
@@ -46,14 +46,14 @@ def clear_memories():
         if results['ids']:
             print(f"Found {len(results['ids'])} metadata entries to delete")
             store.metadata_collection.delete(ids=results['ids'])
-            print("✅ Metadata cleared")
+            print("Metadata cleared")
         else:
             print("No metadata to clear")
             
-        print("\n✅ All collections cleared successfully!")
+        print("\nAll collections cleared successfully!")
         
     except Exception as e:
-        print(f"❌ Error clearing collections: {e}")
+        print(f"Error clearing collections: {e}")
 
 if __name__ == "__main__":
     response = input("Are you sure you want to clear all memories? (yes/no): ")

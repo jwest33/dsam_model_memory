@@ -12,10 +12,14 @@ from typing import List, Dict, Optional
 from datetime import datetime
 import os
 import sys
+import warnings
 
 # Set offline mode to avoid HuggingFace rate limits
 os.environ['HF_HUB_OFFLINE'] = '1'
 os.environ['TRANSFORMERS_OFFLINE'] = '1'
+
+# Suppress sklearn deprecation warnings
+warnings.filterwarnings('ignore', category=FutureWarning, module='sklearn')
 
 from llm.llm_interface import LLMInterface
 from config import get_config
@@ -109,7 +113,7 @@ User message:"""
             
             print(f"Assistant: {assistant_response[:200]}{'...' if len(assistant_response) > 200 else ''}")
             if memories_used > 0:
-                print(f"  📚 Used {memories_used} memories")
+                print(f"Used {memories_used} memories")
             
             # Update context for next exchange
             context = f"Previous exchange:\nUser: {user_message}\nAssistant: {assistant_response[:100]}"
@@ -156,7 +160,7 @@ User message:"""
         ]
         
         for msg in concrete_test_messages:
-            print(f"\n🔍 Query: {msg}")
+            print(f"\n  Query: {msg}")
             result = self.send_chat_message(msg)
             print(f"Response preview: {result.get('response', '')[:150]}...")
             print(f"Memories used: {result.get('memories_used', 0)}")
@@ -170,7 +174,7 @@ User message:"""
         ]
         
         for msg in abstract_test_messages:
-            print(f"\n🔍 Query: {msg}")
+            print(f"\n  Query: {msg}")
             result = self.send_chat_message(msg)
             print(f"Response preview: {result.get('response', '')[:150]}...")
             print(f"Memories used: {result.get('memories_used', 0)}")
@@ -214,13 +218,13 @@ User message:"""
         
         # Generate conversations for each cluster
         for cluster in clusters:
-            print(f"\n📁 Creating cluster: {cluster['theme']}")
+            print(f"\nCreating cluster: {cluster['theme']}")
             for topic in cluster['topics']:
                 self.generate_conversation(topic, num_exchanges=2, style_sequence=["normal", "technical"])
                 time.sleep(0.5)
         
         # Test cross-cluster queries
-        print("\n🔬 Testing cluster-aware retrieval...")
+        print("\nTesting cluster-aware retrieval...")
         test_queries = [
             ("How do I deploy a web application?", "Should connect Web Dev + DevOps"),
             ("What's the relationship between frontend and data visualization?", "Should connect Web Dev + Data Science"),
@@ -228,7 +232,7 @@ User message:"""
         ]
         
         for query, expected in test_queries:
-            print(f"\n🔍 Query: {query}")
+            print(f"\n  Query: {query}")
             print(f"   Expected: {expected}")
             result = self.send_chat_message(query)
             print(f"   Response preview: {result.get('response', '')[:150]}...")
@@ -261,7 +265,7 @@ User message:"""
         ]
         
         for iteration in range(3):
-            print(f"\n📈 Adaptation iteration {iteration + 1}/3")
+            print(f"\n  Adaptation iteration {iteration + 1}/3")
             for query in adaptation_queries:
                 print(f"  Query: {query[:50]}...")
                 result = self.send_chat_message(query)
@@ -270,16 +274,16 @@ User message:"""
         # Test if memories have gravitated together
         print("\n3. Testing adapted retrieval...")
         test_query = "Tell me about advanced Python function techniques"
-        print(f"🔍 Final query: {test_query}")
+        print(f"  Final query: {test_query}")
         result = self.send_chat_message(test_query)
         print(f"Response preview: {result.get('response', '')[:200]}...")
         print(f"Memories used: {result.get('memories_used', 0)}")
     
     def run_comprehensive_test(self):
         """Run all tests in sequence"""
-        print("\n" + "🚀"*30)
+        print("\n" + "="*30)
         print("STARTING COMPREHENSIVE TEST SUITE")
-        print("🚀"*30)
+        print("="*30)
         
         # Basic conversations
         print("\n[TEST 1/4] Basic Conversations")
@@ -335,18 +339,18 @@ def main():
     try:
         response = requests.get("http://localhost:5000/api/stats", timeout=5)
         if not response.ok:
-            print("⚠️  Web application is not responding properly")
+            print("   Web application is not responding properly")
             print("Please ensure the web app is running: python run_web.py")
             return
     except requests.exceptions.ConnectionError:
-        print("❌ Cannot connect to the web application")
+        print("  Cannot connect to the web application")
         print("Please start the web app first: python run_web.py")
         return
     except requests.exceptions.Timeout:
-        print("⚠️  Web application is slow to respond")
+        print("   Web application is slow to respond")
         print("Continuing anyway...")
     
-    print("✅ Web application is running")
+    print("  Web application is running")
     
     # Let user choose test mode
     print("\n" + "="*60)
@@ -402,7 +406,7 @@ def main():
         return
     
     print("\n" + "="*60)
-    print("✅ All tests completed!")
+    print("  All tests completed!")
     print("="*60)
 
 if __name__ == "__main__":
