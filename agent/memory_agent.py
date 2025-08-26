@@ -130,7 +130,7 @@ class MemoryAgent:
             query=query,
             k=k,
             use_clustering=True,  # Use dynamic clustering by default
-            update_embeddings=update_embeddings  # Control embedding updates
+            update_residuals=update_embeddings  # Control residual updates
         )
         
         logger.info(f"Recalled {len(results)} memories for query: {query}")
@@ -393,13 +393,21 @@ class MemoryAgent:
     
     def save(self):
         """Save memory state to disk"""
-        self.memory_store.save()
-        logger.info("Saved memory state")
+        success = self.memory_store.save_state()
+        if success:
+            logger.info("Saved memory state")
+        else:
+            logger.warning("Failed to save memory state")
+        return success
     
     def load(self):
         """Load memory state from disk"""
-        self.memory_store._load_from_disk()
-        logger.info("Loaded memory state")
+        success = self.memory_store.load_state()
+        if success:
+            logger.info("Loaded memory state")
+        else:
+            logger.warning("Failed to load memory state")
+        return success
     
     def clear(self):
         """Clear all memories"""

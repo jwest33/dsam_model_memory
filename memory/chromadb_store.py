@@ -103,14 +103,18 @@ class ChromaDBStore:
             Success status
         """
         try:
-            # Prepare metadata
+            # Prepare metadata - include ALL 5W1H fields
             metadata = {
                 "event_type": event.event_type.value,
                 "episode_id": event.episode_id,
                 "timestamp": event.timestamp,
                 "created_at": event.created_at.isoformat(),
                 "who": event.five_w1h.who or "",
+                "what": event.five_w1h.what or "",
+                "when": event.five_w1h.when or "",
                 "where": event.five_w1h.where or "",
+                "why": event.five_w1h.why or "",
+                "how": event.five_w1h.how or "",
                 "confidence": float(event.confidence)
             }
             

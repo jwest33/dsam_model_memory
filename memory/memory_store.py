@@ -1,8 +1,11 @@
 """
-Dynamic Memory Store with Query-Driven Clustering and Adaptive Embeddings
+Dynamic Memory Store with Dual-Space Encoding and Product Distance Metrics
 
-This module replaces the static block-based storage with dynamic clustering
-and adaptive embeddings that evolve based on usage patterns.
+This module implements the enhanced memory system with:
+- Dual-space encoder (Euclidean + Hyperbolic)
+- Immutable anchors with bounded adaptive residuals
+- Product distance metrics for retrieval
+- HDBSCAN clustering with product similarity
 """
 
 import numpy as np
@@ -10,13 +13,13 @@ from typing import Dict, List, Tuple, Optional, Any
 from datetime import datetime
 import logging
 from pathlib import Path
+import hdbscan
+from sklearn.preprocessing import StandardScaler
 
-from models.event import Event, FiveW1H
+from models.event import Event, FiveW1H, EventType
 from memory.chromadb_store import ChromaDBStore
-from memory.dynamic_clustering import DynamicMemoryClustering
-from memory.adaptive_embeddings import AdaptiveEmbeddingSystem
+from memory.dual_space_encoder import DualSpaceEncoder, HyperbolicOperations, mobius_add
 from memory.hopfield import ModernHopfieldNetwork
-from embedding.singleton_embedder import get_five_w1h_embedder
 from config import get_config
 
 logger = logging.getLogger(__name__)
@@ -24,44 +27,86 @@ logger = logging.getLogger(__name__)
 
 class MemoryStore:
     """
-    Unified memory store with dynamic clustering and adaptive embeddings.
-    No static blocks, no arbitrary thresholds.
+    Unified memory store with dual-space encoding and product distance metrics.
+    Features immutable anchors with bounded adaptive residuals.
     """
     
     def __init__(self):
-        """Initialize the dynamic memory store"""
+        """Initialize the enhanced memory store"""
         self.config = get_config()
         
         # Core storage (ChromaDB is primary)
         self.chromadb = ChromaDBStore()
         
-        # Dynamic systems
-        self.clustering = DynamicMemoryClustering()
-        self.adaptive_embeddings = AdaptiveEmbeddingSystem(
-            learning_rate=0.01,
-            momentum=0.9
+        # Dual-space encoder
+        self.encoder = DualSpaceEncoder(
+            euclidean_dim=768,
+            hyperbolic_dim=64,
+            field_weights={
+                'who': 1.0,
+                'what': 2.0,
+                'when': 0.5,
+                'where': 0.5,
+                'why': 1.5,
+                'how': 1.0
+            }
         )
         
         # Hopfield network for associative memory
         self.hopfield = ModernHopfieldNetwork()
         
-        # Embedder for generating embeddings (singleton to avoid repeated model loading)
-        self.embedder = get_five_w1h_embedder()
+        # Residual storage and momentum tracking
+        self.residuals = {}  # event_id -> {'euclidean': np.array, 'hyperbolic': np.array}
+        self.momentum = {}   # event_id -> {'euclidean': np.array, 'hyperbolic': np.array}
+        
+        # Residual bounds
+        self.max_euclidean_norm = 0.35
+        self.max_hyperbolic_geodesic = 0.75
+        
+        # Learning parameters
+        self.learning_rate = 0.01
+        self.momentum_factor = 0.9
+        self.residual_decay = 0.995  # Decay factor for aging residuals
         
         # Episode tracking
         self.episode_map = {}  # episode_id -> List[event_id]
-        self.current_clusters = {}  # Cache of recent clusters
         
-        # Statistics
-        self.total_events = 0
-        self.total_queries = 0
+        # Cache for recent embeddings
+        self.embedding_cache = {}  # event_id -> embeddings dict
         
-        logger.info("Dynamic memory store initialized")
+        # Statistics - initialize from existing data
+        self._initialize_statistics()
+        
+        logger.info("Enhanced memory store initialized with dual-space encoding")
+    
+    def _initialize_statistics(self):
+        """Initialize statistics from existing ChromaDB data."""
+        try:
+            # Count existing events in ChromaDB
+            from chromadb import Client
+            client = Client()
+            
+            # Try to get the events collection if it exists
+            try:
+                collection = self.chromadb.client.get_collection("events")
+                self.total_events = collection.count()
+            except:
+                self.total_events = 0
+            
+            self.total_queries = 0
+            
+            # Load any saved state
+            state_file = Path("./state/residuals.pkl")
+            if state_file.exists():
+                self.load_state()
+        except:
+            self.total_events = 0
+            self.total_queries = 0
     
     def store_event(self, event: Event) -> Tuple[bool, str]:
         """
-        Store an event without any salience threshold.
-        All events are stored and dynamically clustered on retrieval.
+        Store an event with dual-space encoding.
+        Creates immutable anchors and initializes residuals to zero.
         
         Args:
             event: Event to store
@@ -70,28 +115,45 @@ class MemoryStore:
             Tuple of (success, message)
         """
         try:
-            # Generate embedding (use value embedding for storage)
-            key_embedding, value_embedding = self.embedder.embed_event(event)
-            embedding = value_embedding  # Use value embedding for main storage
+            # Generate dual-space embeddings
+            embeddings = self.encoder.encode(event.five_w1h.to_dict())
             
-            # Check for duplicates based on similarity
-            similar_events = self.chromadb.retrieve_events_by_query(
-                embedding, k=5
-            )
+            # Check for duplicates based on product distance
+            similar_events = self._find_similar_events(embeddings, k=5)
             
             if similar_events:
-                # Check if this is a duplicate
-                for similar_event, similarity in similar_events:
-                    if similarity > self.config.memory.similarity_threshold:
-                        # Update existing event with EMA instead of creating duplicate
-                        self._update_existing_event(similar_event, event, embedding)
-                        return True, f"Updated existing event {similar_event.id[:8]} via EMA"
+                for similar_event, distance in similar_events:
+                    if distance < 0.15:  # Very close in product space
+                        # Update residuals of existing event instead of creating duplicate
+                        self._merge_into_existing(similar_event.id, embeddings)
+                        return True, f"Merged into existing event {similar_event.id[:8]}"
             
-            # Store in ChromaDB (primary storage)
-            self.chromadb.store_event(event, embedding)
+            # Store immutable anchors in ChromaDB
+            # For ChromaDB, concatenate euclidean anchor for vector search
+            chromadb_embedding = embeddings['euclidean_anchor']
+            self.chromadb.store_event(event, chromadb_embedding)
             
-            # Add to Hopfield network (use key_embedding for queries, value_embedding for content)
-            self.hopfield.store(key_embedding, value_embedding, metadata=event.to_dict())
+            # Store full embeddings in cache
+            self.embedding_cache[event.id] = embeddings
+            
+            # Initialize residuals to zero
+            self.residuals[event.id] = {
+                'euclidean': np.zeros_like(embeddings['euclidean_anchor']),
+                'hyperbolic': np.zeros_like(embeddings['hyperbolic_anchor'])
+            }
+            
+            # Initialize momentum to zero
+            self.momentum[event.id] = {
+                'euclidean': np.zeros_like(embeddings['euclidean_anchor']),
+                'hyperbolic': np.zeros_like(embeddings['hyperbolic_anchor'])
+            }
+            
+            # Add to Hopfield network (use euclidean for now)
+            self.hopfield.store(
+                embeddings['euclidean_anchor'],
+                embeddings['euclidean_anchor'],
+                metadata=event.to_dict()
+            )
             
             # Track episode
             if event.episode_id not in self.episode_map:
@@ -105,7 +167,7 @@ class MemoryStore:
             if self.total_events % 100 == 0:
                 logger.info(f"Memory store size: {self.total_events} events")
             
-            return True, f"Stored event {event.id[:8]} (total: {self.total_events})"
+            return True, f"Stored event {event.id[:8]} with dual-space encoding"
             
         except Exception as e:
             logger.error(f"Failed to store event: {e}")
@@ -116,15 +178,16 @@ class MemoryStore:
         query: Dict[str, str],
         k: int = 10,
         use_clustering: bool = True,
-        update_embeddings: bool = True
+        update_residuals: bool = True
     ) -> List[Tuple[Event, float]]:
         """
-        Retrieve memories using dynamic clustering and adaptive embeddings.
+        Retrieve memories using product distance and HDBSCAN clustering.
         
         Args:
             query: 5W1H query fields
             k: Number of memories to retrieve
-            use_clustering: Whether to use dynamic clustering
+            use_clustering: Whether to use HDBSCAN clustering
+            update_residuals: Whether to update residuals based on retrieval
             
         Returns:
             List of (event, relevance_score) tuples
@@ -132,444 +195,437 @@ class MemoryStore:
         try:
             self.total_queries += 1
             
-            # Generate query embedding
-            # Fill in missing fields for partial queries
-            full_query = {
-                'who': query.get('who', ''),
-                'what': query.get('what', ''),
-                'when': query.get('when', ''),
-                'where': query.get('where', ''),
-                'why': query.get('why', ''),
-                'how': query.get('how', '')
-            }
-            query_embedding, _ = self.embedder.embed_five_w1h(FiveW1H(**full_query))
+            # Generate query embeddings
+            query_embeddings = self.encoder.encode(query)
             
-            if use_clustering:
-                # Retrieve more candidates for clustering
-                candidates = self.chromadb.retrieve_events_by_query(
-                    query_embedding, k=min(k * 5, 100)
+            # Compute query-dependent weights
+            lambda_e, lambda_h = self.encoder.compute_query_weights(query)
+            
+            # Initial retrieval from ChromaDB (using Euclidean prefilter)
+            candidates = self.chromadb.retrieve_events_by_query(
+                query_embeddings['euclidean_anchor'],
+                k=min(k * 10, 200)  # Get more candidates for reranking
+            )
+            
+            if not candidates:
+                return []
+            
+            # Rerank using product distance
+            reranked = []
+            for event, _ in candidates:
+                # Get full embeddings for this event
+                if event.id in self.embedding_cache:
+                    event_embeddings = self.embedding_cache[event.id]
+                else:
+                    # Reconstruct if not cached
+                    event_embeddings = self.encoder.encode(event.five_w1h.to_dict())
+                    self.embedding_cache[event.id] = event_embeddings
+                
+                # Add residuals to get effective embeddings
+                event_embeddings = self._get_effective_embeddings(event.id, event_embeddings)
+                
+                # Compute product distance
+                distance = self.encoder.compute_product_distance(
+                    query_embeddings, event_embeddings, lambda_e, lambda_h
                 )
                 
-                if not candidates:
-                    return []
-                
-                # Extract events
-                events = []
-                for event, _ in candidates:
-                    events.append(event)
-                
-                # Perform dynamic clustering (it generates embeddings internally)
-                clusters = self.clustering.cluster_by_query(
-                    events=events,
-                    query=query
+                reranked.append((event, distance))
+            
+            # Sort by distance (lower is better)
+            reranked.sort(key=lambda x: x[1])
+            
+            if use_clustering and len(reranked) > 10:
+                # Apply HDBSCAN clustering
+                clustered_results = self._cluster_and_rank(
+                    reranked[:min(len(reranked), 100)],
+                    query_embeddings,
+                    lambda_e,
+                    lambda_h
                 )
-                
-                # Process clusters to extract top memories
-                results = []
-                for cluster in clusters:
-                    # Generate embeddings for events in this cluster
-                    cluster_embeddings = []
-                    for event in cluster.events:
-                        _, embedding = self.embedder.embed_event(event)
-                        evolved = self.adaptive_embeddings.get_evolved_embedding(
-                            event.id, embedding
-                        )
-                        cluster_embeddings.append((event.id, evolved))
-                    
-                    # Get individual importance scores for events in the cluster
-                    importance_scores = cluster.get_importance_scores()
-                    
-                    # Combine cluster relevance with individual importance
-                    # Each event gets a unique score based on its importance within the cluster
-                    relevance_scores = []
-                    for i, score in enumerate(importance_scores):
-                        # Weight individual importance (0.3) with cluster relevance (0.7)
-                        combined_score = 0.7 * cluster.relevance + 0.3 * score
-                        relevance_scores.append(combined_score)
-                    
-                    relevance_scores = np.array(relevance_scores)
-                    
-                    # Update embeddings based on cluster formation (only if enabled)
-                    if update_embeddings:
-                        self.adaptive_embeddings.update_embeddings_from_cluster(
-                            cluster_events=cluster_embeddings,
-                            cluster_centroid=cluster.centroid,
-                            relevance_scores=relevance_scores,
-                            query_context=query
-                        )
-                    
-                    # Add events from cluster with their individual relevance scores
-                    for i, event in enumerate(cluster.events):
-                        if len(results) < k:
-                            results.append((event, float(relevance_scores[i])))
-                
-                # Sort by relevance
-                results.sort(key=lambda x: x[1], reverse=True)
-                return results[:k]
-                
+                results = clustered_results[:k]
             else:
-                # Simple retrieval without clustering
-                candidates = self.chromadb.retrieve_events_by_query(
-                    query_embedding, k=k
-                )
-                
-                results = []
-                for event, similarity in candidates:
-                    # event is already an Event object
-                    results.append((event, similarity))
-                
-                return results
-                
+                # Convert distance to similarity score
+                results = [(event, 1.0 / (1.0 + dist)) for event, dist in reranked[:k]]
+            
+            # Update residuals based on co-retrieval if enabled
+            if update_residuals and len(results) > 1:
+                self._update_residuals_from_retrieval(results)
+            
+            # Decay old residuals periodically
+            if self.total_queries % 100 == 0:
+                self._decay_residuals()
+            
+            return results
+            
         except Exception as e:
             logger.error(f"Failed to retrieve memories: {e}")
             return []
     
-    def get_insights(
-        self,
-        query: str,
-        k: int = 10
-    ) -> Dict[str, Any]:
-        """
-        Get insights about memories using dynamic clustering.
+    def _get_effective_embeddings(self, event_id: str, base_embeddings: Dict) -> Dict:
+        """Get embeddings with residuals applied."""
+        effective = base_embeddings.copy()
         
-        Args:
-            query: Natural language query
-            k: Number of relevant memories to analyze
-            
-        Returns:
-            Dictionary with insights
+        if event_id in self.residuals:
+            effective['euclidean_residual'] = self.residuals[event_id]['euclidean']
+            effective['hyperbolic_residual'] = self.residuals[event_id]['hyperbolic']
+        else:
+            effective['euclidean_residual'] = np.zeros_like(base_embeddings['euclidean_anchor'])
+            effective['hyperbolic_residual'] = np.zeros_like(base_embeddings['hyperbolic_anchor'])
+        
+        return effective
+    
+    def _cluster_and_rank(
+        self,
+        candidates: List[Tuple[Event, float]],
+        query_embeddings: Dict,
+        lambda_e: float,
+        lambda_h: float
+    ) -> List[Tuple[Event, float]]:
         """
-        try:
-            # Convert to 5W1H query
-            query_5w1h = self._parse_natural_query(query)
+        Apply HDBSCAN clustering and rank by centrality.
+        """
+        if len(candidates) < 3:
+            return [(event, 1.0 / (1.0 + dist)) for event, dist in candidates]
+        
+        # Build feature matrix for clustering (product space)
+        features = []
+        events = []
+        
+        for event, _ in candidates:
+            event_embeddings = self._get_effective_embeddings(
+                event.id,
+                self.embedding_cache.get(event.id, self.encoder.encode(event.five_w1h.to_dict()))
+            )
             
-            # Retrieve with clustering
-            memories = self.retrieve_memories(query_5w1h, k=k, use_clustering=True)
+            # Concatenate weighted Euclidean and Hyperbolic features
+            eu_features = event_embeddings['euclidean_anchor'] + event_embeddings['euclidean_residual']
+            hy_features = event_embeddings['hyperbolic_anchor'] + event_embeddings['hyperbolic_residual']
             
-            if not memories:
-                return {
-                    'query': query,
-                    'insights': 'No relevant memories found',
-                    'clusters': [],
-                    'patterns': []
-                }
+            # Weight and concatenate
+            combined = np.concatenate([
+                eu_features * np.sqrt(lambda_e),
+                hy_features * np.sqrt(lambda_h)
+            ])
+            features.append(combined)
+            events.append(event)
+        
+        features = np.array(features)
+        
+        # Apply HDBSCAN
+        clusterer = hdbscan.HDBSCAN(
+            min_cluster_size=2,
+            min_samples=1,
+            metric='euclidean',
+            cluster_selection_epsilon=0.0,
+            cluster_selection_method='eom'
+        )
+        
+        cluster_labels = clusterer.fit_predict(features)
+        
+        # Compute centrality scores within clusters
+        results = []
+        
+        for cluster_id in set(cluster_labels):
+            if cluster_id == -1:  # Noise points
+                cluster_events = [events[i] for i, label in enumerate(cluster_labels) if label == cluster_id]
+                # Give noise points lower scores
+                for event in cluster_events:
+                    idx = events.index(event)
+                    dist = candidates[idx][1]
+                    results.append((event, 0.5 / (1.0 + dist)))
+            else:
+                # Get cluster members
+                cluster_indices = [i for i, label in enumerate(cluster_labels) if label == cluster_id]
+                cluster_events = [events[i] for i in cluster_indices]
+                
+                if len(cluster_events) == 1:
+                    # Single member cluster
+                    event = cluster_events[0]
+                    idx = events.index(event)
+                    dist = candidates[idx][1]
+                    results.append((event, 1.0 / (1.0 + dist)))
+                else:
+                    # Compute centrality within cluster
+                    cluster_features = features[cluster_indices]
+                    
+                    # Compute pairwise similarities
+                    similarities = np.zeros((len(cluster_events), len(cluster_events)))
+                    for i in range(len(cluster_events)):
+                        for j in range(len(cluster_events)):
+                            if i != j:
+                                # Cosine similarity in combined space
+                                sim = np.dot(cluster_features[i], cluster_features[j]) / (
+                                    np.linalg.norm(cluster_features[i]) * np.linalg.norm(cluster_features[j]) + 1e-8
+                                )
+                                similarities[i, j] = max(0, sim)
+                    
+                    # Compute eigenvector centrality
+                    if similarities.sum() > 0:
+                        eigenvalues, eigenvectors = np.linalg.eig(similarities)
+                        idx = eigenvalues.argsort()[-1]
+                        centrality = np.abs(eigenvectors[:, idx])
+                        centrality = centrality / centrality.sum()
+                    else:
+                        centrality = np.ones(len(cluster_events)) / len(cluster_events)
+                    
+                    # Combine centrality with distance scores
+                    for i, event in enumerate(cluster_events):
+                        idx = events.index(event)
+                        dist = candidates[idx][1]
+                        base_score = 1.0 / (1.0 + dist)
+                        final_score = base_score * (0.7 + 0.3 * centrality[i])
+                        results.append((event, final_score))
+        
+        # Sort by final score
+        results.sort(key=lambda x: x[1], reverse=True)
+        
+        return results
+    
+    def _update_residuals_from_retrieval(self, results: List[Tuple[Event, float]]):
+        """
+        Update residuals based on co-retrieval patterns.
+        Events retrieved together should gravitate towards each other.
+        """
+        # Only update top results
+        top_results = results[:5]
+        
+        for i, (event_i, score_i) in enumerate(top_results):
+            if event_i.id not in self.embedding_cache:
+                continue
             
-            # Analyze patterns
-            patterns = self._analyze_patterns(memories)
-            
-            # Get cluster information
-            cluster_info = []
-            if hasattr(self, 'current_clusters'):
-                for cluster_id, cluster in self.current_clusters.items():
-                    cluster_info.append({
-                        'id': cluster_id,
-                        'size': len(cluster.get('event_indices', [])),
-                        'coherence': cluster.get('coherence_score', 0),
-                        'theme': self._extract_theme(cluster)
-                    })
-            
-            return {
-                'query': query,
-                'total_memories': len(memories),
-                'clusters': cluster_info,
-                'patterns': patterns,
-                'top_memories': [
-                    {
-                        'what': m[0].five_w1h.what,
-                        'when': m[0].five_w1h.when,
-                        'relevance': float(m[1])
+            for j, (event_j, score_j) in enumerate(top_results):
+                if i >= j or event_j.id not in self.embedding_cache:
+                    continue
+                
+                # Compute relevance based on scores
+                relevance = min(score_i, score_j) * 0.1
+                
+                # Get embeddings
+                embeddings_i = self._get_effective_embeddings(
+                    event_i.id, self.embedding_cache[event_i.id]
+                )
+                embeddings_j = self._get_effective_embeddings(
+                    event_j.id, self.embedding_cache[event_j.id]
+                )
+                
+                # Update residuals for both events
+                if event_i.id not in self.momentum:
+                    self.momentum[event_i.id] = {
+                        'euclidean': np.zeros_like(embeddings_i['euclidean_anchor']),
+                        'hyperbolic': np.zeros_like(embeddings_i['hyperbolic_anchor'])
                     }
-                    for m in memories[:5]
-                ],
-                'embedding_drift': self._calculate_drift_stats()
-            }
-            
-        except Exception as e:
-            logger.error(f"Failed to get insights: {e}")
-            return {'error': str(e)}
-    
-    def adapt_from_feedback(
-        self,
-        query: Dict[str, str],
-        positive_events: List[str],
-        negative_events: List[str]
-    ):
-        """
-        Adapt embeddings based on user feedback.
-        
-        Args:
-            query: The query that was used
-            positive_events: Event IDs marked as relevant
-            negative_events: Event IDs marked as irrelevant
-        """
-        try:
-            # Generate query embedding
-            # Fill in missing fields for partial queries
-            full_query = {
-                'who': query.get('who', ''),
-                'what': query.get('what', ''),
-                'when': query.get('when', ''),
-                'where': query.get('where', ''),
-                'why': query.get('why', ''),
-                'how': query.get('how', '')
-            }
-            query_embedding, _ = self.embedder.embed_five_w1h(FiveW1H(**full_query))
-            
-            # Collect positive examples
-            positive_examples = []
-            for event_id in positive_events:
-                event = self.chromadb.get_event(event_id)
-                if event:
-                    _, embedding = self.embedder.embed_event(event)
-                    positive_examples.append((event_id, embedding))
-            
-            # Collect negative examples
-            negative_examples = []
-            for event_id in negative_events:
-                event = self.chromadb.get_event(event_id)
-                if event:
-                    _, embedding = self.embedder.embed_event(event)
-                    negative_examples.append((event_id, embedding))
-            
-            # Update embeddings based on feedback
-            self.adaptive_embeddings.adapt_from_feedback(
-                query_embedding=query_embedding,
-                positive_examples=positive_examples,
-                negative_examples=negative_examples
-            )
-            
-            logger.info(f"Adapted embeddings from feedback: "
-                       f"+{len(positive_examples)}, -{len(negative_examples)}")
-            
-        except Exception as e:
-            logger.error(f"Failed to adapt from feedback: {e}")
-    
-    def _update_existing_event(
-        self,
-        existing: Event,
-        new_event: Event,
-        new_embedding: np.ndarray
-    ):
-        """Update existing event with EMA instead of creating duplicate"""
-        try:
-            # Get existing embedding
-            existing_embedding = self.chromadb.get_embedding(existing.id)
-            
-            if existing_embedding is not None:
-                # Apply gravitational pull between embeddings
-                self.adaptive_embeddings.gravitational_pull(
-                    source_id=new_event.id,
-                    source_embedding=new_embedding,
-                    target_id=existing.id,
-                    target_embedding=existing_embedding,
-                    interaction_type='semantic',
-                    strength=0.2
+                
+                updated_i = self.encoder.adapt_residuals(
+                    embeddings_i, embeddings_j, relevance,
+                    self.momentum[event_i.id],
+                    self.learning_rate, self.momentum_factor,
+                    self.max_euclidean_norm, self.max_hyperbolic_geodesic
                 )
                 
-                # Get updated embedding
-                updated_embedding = self.adaptive_embeddings.get_evolved_embedding(
-                    existing.id, existing_embedding
+                # Store updated residuals
+                self.residuals[event_i.id] = {
+                    'euclidean': updated_i['euclidean_residual'],
+                    'hyperbolic': updated_i['hyperbolic_residual']
+                }
+    
+    def _decay_residuals(self):
+        """Apply decay to all residuals to prevent unbounded drift."""
+        for event_id in self.residuals:
+            self.residuals[event_id]['euclidean'] *= self.residual_decay
+            self.residuals[event_id]['hyperbolic'] *= self.residual_decay
+            
+            # Also decay momentum
+            if event_id in self.momentum:
+                self.momentum[event_id]['euclidean'] *= self.residual_decay
+                self.momentum[event_id]['hyperbolic'] *= self.residual_decay
+    
+    def _find_similar_events(self, embeddings: Dict, k: int = 5) -> List[Tuple[Event, float]]:
+        """Find similar events using product distance."""
+        # Quick retrieval using Euclidean anchor
+        candidates = self.chromadb.retrieve_events_by_query(
+            embeddings['euclidean_anchor'], k=k * 2
+        )
+        
+        if not candidates:
+            return []
+        
+        # Rerank using product distance
+        results = []
+        for event, _ in candidates:
+            if event.id in self.embedding_cache:
+                event_embeddings = self._get_effective_embeddings(
+                    event.id, self.embedding_cache[event.id]
                 )
-                
-                # Update in ChromaDB
-                self.chromadb.update_embedding(existing.id, updated_embedding)
-                
-                # Update access tracking
-                existing.update_access()
-                self.chromadb.update_event(existing)
-                
-        except Exception as e:
-            logger.error(f"Failed to update existing event: {e}")
+                distance = self.encoder.compute_product_distance(
+                    embeddings, event_embeddings, lambda_e=0.5, lambda_h=0.5
+                )
+                results.append((event, distance))
+        
+        results.sort(key=lambda x: x[1])
+        return results[:k]
     
-    def _parse_natural_query(self, query: str) -> Dict[str, str]:
-        """Parse natural language query into 5W1H structure"""
-        # Simple keyword-based parsing (can be enhanced with NLP)
-        result = {}
+    def _merge_into_existing(self, existing_id: str, new_embeddings: Dict):
+        """Merge a new event into an existing one by updating residuals."""
+        if existing_id not in self.embedding_cache:
+            return
         
-        query_lower = query.lower()
+        # Get current embeddings
+        existing_embeddings = self._get_effective_embeddings(
+            existing_id, self.embedding_cache[existing_id]
+        )
         
-        # Look for who
-        if 'who' in query_lower or 'user' in query_lower or 'agent' in query_lower:
-            if 'user' in query_lower:
-                result['who'] = 'user'
-            elif 'agent' in query_lower or 'llm' in query_lower:
-                result['who'] = 'agent'
+        # Initialize momentum if needed
+        if existing_id not in self.momentum:
+            self.momentum[existing_id] = {
+                'euclidean': np.zeros_like(existing_embeddings['euclidean_anchor']),
+                'hyperbolic': np.zeros_like(existing_embeddings['hyperbolic_anchor'])
+            }
         
-        # Look for what (most queries have this)
-        result['what'] = query
+        # Adapt residuals towards new event
+        updated = self.encoder.adapt_residuals(
+            existing_embeddings, new_embeddings,
+            relevance=0.3,  # Higher relevance for merging
+            momentum=self.momentum[existing_id],
+            learning_rate=self.learning_rate * 2,  # Faster adaptation for merging
+            momentum_factor=self.momentum_factor,
+            max_euclidean_norm=self.max_euclidean_norm,
+            max_hyperbolic_geodesic=self.max_hyperbolic_geodesic
+        )
         
-        # Look for when
-        if 'when' in query_lower or 'today' in query_lower or 'yesterday' in query_lower:
-            if 'today' in query_lower:
-                result['when'] = datetime.utcnow().isoformat()
-            # Add more temporal parsing as needed
-        
-        # Look for where
-        if 'where' in query_lower or 'location' in query_lower:
-            # Extract location context
-            pass
-        
-        # Look for why
-        if 'why' in query_lower or 'because' in query_lower or 'reason' in query_lower:
-            # Extract causal context
-            pass
-        
-        # Look for how
-        if 'how' in query_lower or 'method' in query_lower or 'using' in query_lower:
-            # Extract method context
-            pass
-        
-        return result
-    
-    def _analyze_patterns(self, memories: List[Tuple[Event, float]]) -> List[Dict]:
-        """Analyze patterns in retrieved memories"""
-        patterns = []
-        
-        if not memories:
-            return patterns
-        
-        # Temporal patterns
-        timestamps = [m[0].created_at for m in memories]
-        if len(timestamps) > 1:
-            time_diffs = [(timestamps[i+1] - timestamps[i]).total_seconds() 
-                         for i in range(len(timestamps)-1)]
-            avg_interval = np.mean(time_diffs) if time_diffs else 0
-            patterns.append({
-                'type': 'temporal',
-                'description': f'Average interval: {avg_interval:.1f} seconds'
-            })
-        
-        # Actor patterns
-        actors = {}
-        for event, _ in memories:
-            actor = event.five_w1h.who
-            actors[actor] = actors.get(actor, 0) + 1
-        
-        if actors:
-            dominant_actor = max(actors, key=actors.get)
-            patterns.append({
-                'type': 'actor',
-                'description': f'Dominant actor: {dominant_actor} ({actors[dominant_actor]} events)'
-            })
-        
-        # Context patterns
-        contexts = {}
-        for event, _ in memories:
-            context = event.five_w1h.where
-            contexts[context] = contexts.get(context, 0) + 1
-        
-        if contexts:
-            dominant_context = max(contexts, key=contexts.get)
-            patterns.append({
-                'type': 'context',
-                'description': f'Dominant context: {dominant_context}'
-            })
-        
-        return patterns
-    
-    def _extract_theme(self, cluster: Dict) -> str:
-        """Extract theme from a cluster"""
-        # Simple theme extraction based on common words
-        if 'events' not in cluster:
-            return "Unknown theme"
-        
-        words = []
-        for event in cluster['events']:
-            words.extend(event.five_w1h.what.lower().split())
-        
-        # Find most common words (excluding stop words)
-        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for'}
-        word_counts = {}
-        for word in words:
-            if word not in stop_words and len(word) > 2:
-                word_counts[word] = word_counts.get(word, 0) + 1
-        
-        if word_counts:
-            theme_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)[:3]
-            return ' '.join([w[0] for w in theme_words])
-        
-        return "General"
-    
-    def _calculate_drift_stats(self) -> Dict:
-        """Calculate embedding drift statistics"""
-        drift_stats = {
-            'total_evolved': len(self.adaptive_embeddings.embedding_store),
-            'avg_drift': 0.0,
-            'max_drift': 0.0
-        }
-        
-        if self.adaptive_embeddings.embedding_store:
-            drifts = []
-            for event_id in self.adaptive_embeddings.embedding_store:
-                # Get original embedding
-                event = self.chromadb.get_event(event_id)
-                if event:
-                    _, original = self.embedder.embed_event(event)
-                    drift = self.adaptive_embeddings.compute_drift(event_id, original)
-                    drifts.append(drift)
-            
-            if drifts:
-                drift_stats['avg_drift'] = float(np.mean(drifts))
-                drift_stats['max_drift'] = float(np.max(drifts))
-        
-        return drift_stats
-    
-    def get_statistics(self) -> Dict[str, Any]:
-        """Get memory store statistics"""
-        return {
-            'total_events': self.total_events,
-            'total_queries': self.total_queries,
-            'episodes': len(self.episode_map),
-            'evolved_embeddings': len(self.adaptive_embeddings.embedding_store),
-            'co_occurrence_pairs': len(self.adaptive_embeddings.co_occurrence_matrix),
-            'hopfield_size': self.hopfield.memory_count,
-            'chromadb_stats': self.chromadb.get_stats(),
-            'drift_stats': self._calculate_drift_stats()
+        # Store updated residuals
+        self.residuals[existing_id] = {
+            'euclidean': updated['euclidean_residual'],
+            'hyperbolic': updated['hyperbolic_residual']
         }
     
-    def save(self):
-        """Alias for save_state for compatibility"""
-        self.save_state()
-    
-    def save_state(self):
-        """Save the current state"""
+    def save_state(self, path: Optional[Path] = None) -> bool:
+        """Save the current state of the memory store."""
         try:
-            # Save adaptive embeddings
-            state_dir = self.config.storage.state_dir
-            self.adaptive_embeddings.save_state(
-                str(state_dir / "adaptive_embeddings.json")
-            )
+            import pickle
             
-            # Save episode map
-            import json
-            with open(state_dir / "episode_map.json", 'w') as f:
-                json.dump(self.episode_map, f)
+            state_dir = path or Path("./state")
+            state_dir.mkdir(exist_ok=True)
+            
+            # Save residuals and momentum
+            with open(state_dir / "residuals.pkl", "wb") as f:
+                pickle.dump({
+                    'residuals': self.residuals,
+                    'momentum': self.momentum,
+                    'embedding_cache': self.embedding_cache
+                }, f)
             
             # ChromaDB persists automatically
             
-            logger.info("Saved dynamic memory store state")
+            logger.info(f"Saved memory state to {state_dir}")
+            return True
             
         except Exception as e:
             logger.error(f"Failed to save state: {e}")
+            return False
     
-    def load_state(self):
-        """Load saved state"""
+    def load_state(self, path: Optional[Path] = None) -> bool:
+        """Load a previously saved state."""
         try:
-            state_dir = self.config.storage.state_dir
+            import pickle
             
-            # Load adaptive embeddings
-            embeddings_file = state_dir / "adaptive_embeddings.json"
-            if embeddings_file.exists():
-                self.adaptive_embeddings.load_state(str(embeddings_file))
+            state_dir = path or Path("./state")
             
-            # Load episode map
-            episode_file = state_dir / "episode_map.json"
-            if episode_file.exists():
-                import json
-                with open(episode_file, 'r') as f:
-                    self.episode_map = json.load(f)
+            # Load residuals and momentum
+            residuals_file = state_dir / "residuals.pkl"
+            if residuals_file.exists():
+                with open(residuals_file, "rb") as f:
+                    state = pickle.load(f)
+                    self.residuals = state['residuals']
+                    self.momentum = state['momentum']
+                    self.embedding_cache = state.get('embedding_cache', {})
             
-            logger.info("Loaded dynamic memory store state")
+            # ChromaDB loads automatically from persistent storage
+            
+            logger.info(f"Loaded memory state from {state_dir}")
+            return True
             
         except Exception as e:
             logger.error(f"Failed to load state: {e}")
+            return False
+    
+    def get_statistics(self) -> Dict[str, Any]:
+        """Get statistics about the memory store."""
+        return {
+            'total_events': self.total_events,
+            'total_queries': self.total_queries,
+            'total_episodes': len(self.episode_map),
+            'events_with_residuals': len(self.residuals),
+            'cached_embeddings': len(self.embedding_cache),
+            'average_residual_norm': self._compute_average_residual_norm()
+        }
+    
+    def _compute_average_residual_norm(self) -> Dict[str, float]:
+        """Compute average residual norms."""
+        if not self.residuals:
+            return {'euclidean': 0.0, 'hyperbolic': 0.0}
+        
+        eu_norms = [np.linalg.norm(r['euclidean']) for r in self.residuals.values()]
+        hy_norms = [HyperbolicOperations.geodesic_distance(
+            np.zeros_like(r['hyperbolic']), r['hyperbolic'], self.encoder.c
+        ) for r in self.residuals.values()]
+        
+        return {
+            'euclidean': np.mean(eu_norms) if eu_norms else 0.0,
+            'hyperbolic': np.mean(hy_norms) if hy_norms else 0.0
+        }
+    
+    def clear(self):
+        """Clear all memories and reset state."""
+        # Clear ChromaDB
+        try:
+            # Delete and recreate collections
+            self.chromadb.client.delete_collection("events")
+        except:
+            pass
+        
+        # Reinitialize ChromaDB
+        self.chromadb = ChromaDBStore()
+        
+        # Clear all tracking
+        self.residuals.clear()
+        self.momentum.clear()
+        self.episode_map.clear()
+        self.embedding_cache.clear()
+        self.total_events = 0
+        self.total_queries = 0
+        
+        # Clear Hopfield network
+        self.hopfield = ModernHopfieldNetwork()
+        
+        logger.info("Cleared all memories")
+    
+    def _find_event_by_id(self, event_id: str) -> Optional[Event]:
+        """Find an event by its ID."""
+        try:
+            # Try to get from ChromaDB
+            result = self.chromadb.client.get_collection("events").get(
+                ids=[event_id],
+                include=["metadatas"]
+            )
+            
+            if result and result['metadatas']:
+                metadata = result['metadatas'][0]
+                # Reconstruct Event from metadata
+                event = Event(
+                    id=event_id,
+                    five_w1h=FiveW1H(
+                        who=metadata.get('who', ''),
+                        what=metadata.get('what', ''),
+                        when=metadata.get('when', ''),
+                        where=metadata.get('where', ''),
+                        why=metadata.get('why', ''),
+                        how=metadata.get('how', '')
+                    ),
+                    event_type=EventType(metadata.get('event_type', 'action')),
+                    episode_id=metadata.get('episode_id', '')
+                )
+                return event
+        except Exception as e:
+            logger.error(f"Error finding event {event_id}: {e}")
+        
+        return None

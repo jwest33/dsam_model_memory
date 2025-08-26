@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Frontend</title>
+</head>
+<body>
+    <h1>Test Page</h1>
+    <div id="test-output"></div>
+    
+    <script>
+        console.log('Inline script running');
+        
+        // Test fetch
+        fetch('/api/memories')
+            .then(response => {
+                console.log('Response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Data received:', data);
+                document.getElementById('test-output').innerHTML = 
+                    'Memories loaded: ' + (data.memories ? data.memories.length : 0);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('test-output').innerHTML = 'Error: ' + error;
+            });
+    </script>
+</body>
+</html>
