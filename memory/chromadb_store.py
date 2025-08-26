@@ -103,7 +103,7 @@ class ChromaDBStore:
             Success status
         """
         try:
-            # Prepare metadata - include ALL 5W1H fields
+            # Prepare metadata - include ALL 5W1H fields and provenance
             metadata = {
                 "event_type": event.event_type.value,
                 "episode_id": event.episode_id,
@@ -115,7 +115,15 @@ class ChromaDBStore:
                 "where": event.five_w1h.where or "",
                 "why": event.five_w1h.why or "",
                 "how": event.five_w1h.how or "",
-                "confidence": float(event.confidence)
+                "confidence": float(event.confidence),
+                # Provenance tracking
+                "version": 1,  # Version number for tracking updates
+                "anchor_hash": str(hash(str(embedding.tolist()))),  # Hash of anchor embedding
+                "residual_norm_euclidean": 0.0,  # Will be updated by memory_store
+                "residual_norm_hyperbolic": 0.0,  # Will be updated by memory_store
+                "last_accessed": event.created_at.isoformat(),
+                "access_count": 0,
+                "co_retrieval_partners": ""  # JSON list of event IDs retrieved together
             }
             
             # Add block_id only if provided (for dynamic clustering)
@@ -638,6 +646,125 @@ class ChromaDBStore:
         except Exception as e:
             logger.error(f"Failed to get statistics: {e}")
             return {}
+    
+    def update_provenance(self, event_id: str, provenance_data: Dict) -> bool:
+        """
+        Update provenance information for an event
+        
+        Args:
+            event_id: ID of the event to update
+            provenance_data: Dictionary containing provenance updates:
+                - residual_norm_euclidean: Euclidean residual norm
+                - residual_norm_hyperbolic: Hyperbolic residual norm
+                - last_accessed: ISO timestamp of last access
+                - access_count: Number of times accessed
+                - co_retrieval_partners: List of event IDs retrieved together
+                - lambda_e: Euclidean weight at last retrieval
+                - lambda_h: Hyperbolic weight at last retrieval
+        
+        Returns:
+            Success status
+        """
+        try:
+            # Get current metadata
+            result = self.events_collection.get(
+                ids=[event_id],
+                include=['metadatas']
+            )
+            
+            if not result['ids']:
+                logger.warning(f"Event {event_id} not found for provenance update")
+                return False
+            
+            current_metadata = result['metadatas'][0]
+            
+            # Update provenance fields
+            if 'residual_norm_euclidean' in provenance_data:
+                current_metadata['residual_norm_euclidean'] = float(provenance_data['residual_norm_euclidean'])
+            
+            if 'residual_norm_hyperbolic' in provenance_data:
+                current_metadata['residual_norm_hyperbolic'] = float(provenance_data['residual_norm_hyperbolic'])
+            
+            if 'last_accessed' in provenance_data:
+                current_metadata['last_accessed'] = provenance_data['last_accessed']
+            
+            if 'access_count' in provenance_data:
+                current_metadata['access_count'] = int(provenance_data['access_count'])
+            
+            if 'co_retrieval_partners' in provenance_data:
+                partners = provenance_data['co_retrieval_partners']
+                if isinstance(partners, list):
+                    current_metadata['co_retrieval_partners'] = json.dumps(partners[:10])  # Keep top 10
+            
+            if 'lambda_e' in provenance_data:
+                current_metadata['lambda_e'] = float(provenance_data['lambda_e'])
+            
+            if 'lambda_h' in provenance_data:
+                current_metadata['lambda_h'] = float(provenance_data['lambda_h'])
+            
+            # Increment version
+            current_metadata['version'] = current_metadata.get('version', 1) + 1
+            
+            # Update in database
+            self.events_collection.update(
+                ids=[event_id],
+                metadatas=[current_metadata]
+            )
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to update provenance for {event_id}: {e}")
+            return False
+    
+    def get_provenance(self, event_id: str) -> Optional[Dict]:
+        """
+        Get provenance information for an event
+        
+        Args:
+            event_id: ID of the event
+            
+        Returns:
+            Dictionary with provenance data or None if not found
+        """
+        try:
+            result = self.events_collection.get(
+                ids=[event_id],
+                include=['metadatas']
+            )
+            
+            if not result['ids']:
+                return None
+            
+            metadata = result['metadatas'][0]
+            
+            # Extract provenance fields
+            # Safely parse co_retrieval_partners JSON
+            co_retrieval_str = metadata.get('co_retrieval_partners', '[]')
+            try:
+                co_retrieval_partners = json.loads(co_retrieval_str) if co_retrieval_str else []
+            except (json.JSONDecodeError, TypeError):
+                logger.warning(f"Invalid co_retrieval_partners JSON for {event_id}: {co_retrieval_str}")
+                co_retrieval_partners = []
+            
+            provenance = {
+                'version': metadata.get('version', 1),
+                'anchor_hash': metadata.get('anchor_hash', ''),
+                'residual_norm_euclidean': metadata.get('residual_norm_euclidean', 0.0),
+                'residual_norm_hyperbolic': metadata.get('residual_norm_hyperbolic', 0.0),
+                'last_accessed': metadata.get('last_accessed', ''),
+                'access_count': metadata.get('access_count', 0),
+                'co_retrieval_partners': co_retrieval_partners,
+                'lambda_e': metadata.get('lambda_e', 0.5),
+                'lambda_h': metadata.get('lambda_h', 0.5),
+                'created_at': metadata.get('created_at', '')
+            }
+            
+            return provenance
+            
+        except Exception as e:
+            logger.error(f"Failed to get provenance for {event_id}: {e}")
+            return None
     
     def export_to_json(self, filepath: str):
         """Export database to JSON for backup"""

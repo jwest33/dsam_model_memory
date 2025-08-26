@@ -38,10 +38,10 @@ class MemoryStore:
         # Core storage (ChromaDB is primary)
         self.chromadb = ChromaDBStore()
         
-        # Dual-space encoder
+        # Dual-space encoder with config values
         self.encoder = DualSpaceEncoder(
-            euclidean_dim=768,
-            hyperbolic_dim=64,
+            euclidean_dim=self.config.dual_space.euclidean_dim,
+            hyperbolic_dim=self.config.dual_space.hyperbolic_dim,
             field_weights={
                 'who': 1.0,
                 'what': 2.0,
@@ -49,7 +49,9 @@ class MemoryStore:
                 'where': 0.5,
                 'why': 1.5,
                 'how': 1.0
-            }
+            },
+            max_norm=self.config.dual_space.max_norm,
+            epsilon=self.config.dual_space.epsilon
         )
         
         # Hopfield network for associative memory
@@ -59,14 +61,24 @@ class MemoryStore:
         self.residuals = {}  # event_id -> {'euclidean': np.array, 'hyperbolic': np.array}
         self.momentum = {}   # event_id -> {'euclidean': np.array, 'hyperbolic': np.array}
         
-        # Residual bounds
-        self.max_euclidean_norm = 0.35
-        self.max_hyperbolic_geodesic = 0.75
+        # Residual bounds from config
+        self.max_euclidean_norm = self.config.dual_space.euclidean_bound
+        self.max_hyperbolic_geodesic = self.config.dual_space.hyperbolic_bound
+        self.use_relative_bounds = self.config.dual_space.use_relative_bounds
         
-        # Learning parameters
-        self.learning_rate = 0.01
-        self.momentum_factor = 0.9
-        self.residual_decay = 0.995  # Decay factor for aging residuals
+        # Learning parameters from config
+        self.learning_rate = self.config.dual_space.learning_rate
+        self.momentum_factor = self.config.dual_space.momentum
+        self.residual_decay = self.config.dual_space.decay_factor
+        self.min_residual_norm = self.config.dual_space.min_residual_norm
+        
+        # Field adaptation limits from config
+        self.field_adaptation_limits = self.config.dual_space.field_adaptation_limits
+        self.enable_forgetting = self.config.dual_space.enable_forgetting
+        
+        # HDBSCAN parameters from config
+        self.hdbscan_min_cluster_size = self.config.dual_space.hdbscan_min_cluster_size
+        self.hdbscan_min_samples = self.config.dual_space.hdbscan_min_samples
         
         # Episode tracking
         self.episode_map = {}  # episode_id -> List[event_id]
@@ -311,10 +323,10 @@ class MemoryStore:
         
         features = np.array(features)
         
-        # Apply HDBSCAN
+        # Apply HDBSCAN with config parameters
         clusterer = hdbscan.HDBSCAN(
-            min_cluster_size=2,
-            min_samples=1,
+            min_cluster_size=self.hdbscan_min_cluster_size,
+            min_samples=self.hdbscan_min_samples,
             metric='euclidean',
             cluster_selection_epsilon=0.0,
             cluster_selection_method='eom'
@@ -415,11 +427,17 @@ class MemoryStore:
                         'hyperbolic': np.zeros_like(embeddings_i['hyperbolic_anchor'])
                     }
                 
+                # Apply field-level adaptation limits
+                field_relevance = self._apply_field_limits(
+                    event_i, event_j, relevance
+                )
+                
                 updated_i = self.encoder.adapt_residuals(
-                    embeddings_i, embeddings_j, relevance,
+                    embeddings_i, embeddings_j, field_relevance,
                     self.momentum[event_i.id],
                     self.learning_rate, self.momentum_factor,
-                    self.max_euclidean_norm, self.max_hyperbolic_geodesic
+                    self._get_scale_aware_bound(embeddings_i, 'euclidean'),
+                    self._get_scale_aware_bound(embeddings_i, 'hyperbolic')
                 )
                 
                 # Store updated residuals
@@ -427,6 +445,9 @@ class MemoryStore:
                     'euclidean': updated_i['euclidean_residual'],
                     'hyperbolic': updated_i['hyperbolic_residual']
                 }
+                
+                # Update provenance tracking
+                self._update_provenance(event_i.id, event_j.id, score_i)
     
     def _decay_residuals(self):
         """Apply decay to all residuals to prevent unbounded drift."""
@@ -629,3 +650,160 @@ class MemoryStore:
             logger.error(f"Error finding event {event_id}: {e}")
         
         return None
+    
+    def _get_scale_aware_bound(self, embeddings: Dict, space: str) -> float:
+        """
+        Calculate scale-aware bound based on anchor norm.
+        Uses relative bounds when enabled, otherwise fixed bounds.
+        """
+        if not self.use_relative_bounds:
+            if space == 'euclidean':
+                return self.max_euclidean_norm
+            else:
+                return self.max_hyperbolic_geodesic
+        
+        # Use relative bounds based on anchor norm
+        if space == 'euclidean':
+            anchor_norm = np.linalg.norm(embeddings['euclidean_anchor'])
+            return min(self.max_euclidean_norm, anchor_norm * self.max_euclidean_norm)
+        else:
+            # For hyperbolic space, use geodesic distance from origin
+            origin = np.zeros_like(embeddings['hyperbolic_anchor'])
+            anchor_dist = HyperbolicOperations.geodesic_distance(
+                origin, embeddings['hyperbolic_anchor'], self.encoder.c, self.encoder.max_norm
+            )
+            return min(self.max_hyperbolic_geodesic, anchor_dist * self.max_hyperbolic_geodesic)
+    
+    def _apply_field_limits(self, event_i: Event, event_j: Event, relevance: float) -> float:
+        """
+        Apply field-level adaptation limits based on which fields are dominant.
+        Limits adaptation for sensitive fields like 'who' and 'when'.
+        """
+        if not self.field_adaptation_limits:
+            return relevance
+        
+        # Determine dominant fields based on content
+        dominant_fields = []
+        
+        # Check which fields have significant content  
+        for field in ['who', 'what', 'when', 'where', 'why', 'how']:
+            field_i = getattr(event_i.five_w1h, field, '')
+            field_j = getattr(event_j.five_w1h, field, '')
+            
+            # Both fields must have significant content (more than 3 chars)
+            if field_i and field_j and len(str(field_i)) > 3 and len(str(field_j)) > 3:
+                dominant_fields.append(field)
+        
+        if not dominant_fields:
+            return relevance
+        
+        # Apply minimum limit from dominant fields
+        min_limit = 1.0
+        for field in dominant_fields:
+            if field in self.field_adaptation_limits:
+                min_limit = min(min_limit, self.field_adaptation_limits[field])
+        
+        return relevance * min_limit
+    
+    def forget_residuals(self, event_ids: Optional[List[str]] = None, field: Optional[str] = None):
+        """
+        Zero out residuals for specific events or fields.
+        Implements forgetting for drift hygiene.
+        
+        Args:
+            event_ids: List of event IDs to forget (None = all)
+            field: Specific field to forget (applies to all events)
+        """
+        if not self.enable_forgetting:
+            logger.warning("Forgetting is disabled in configuration")
+            return
+        
+        if event_ids is None:
+            event_ids = list(self.residuals.keys())
+        
+        for event_id in event_ids:
+            if event_id not in self.residuals:
+                continue
+            
+            if field:
+                # Selective field forgetting would require field-specific residuals
+                # For now, reduce residuals proportionally
+                reduction_factor = self.field_adaptation_limits.get(field, 0.5)
+                self.residuals[event_id]['euclidean'] *= reduction_factor
+                self.residuals[event_id]['hyperbolic'] *= reduction_factor
+            else:
+                # Complete forgetting
+                self.residuals[event_id]['euclidean'] = np.zeros_like(
+                    self.residuals[event_id]['euclidean']
+                )
+                self.residuals[event_id]['hyperbolic'] = np.zeros_like(
+                    self.residuals[event_id]['hyperbolic']
+                )
+            
+            # Also reset momentum
+            if event_id in self.momentum:
+                if field:
+                    reduction_factor = self.field_adaptation_limits.get(field, 0.5)
+                    self.momentum[event_id]['euclidean'] *= reduction_factor
+                    self.momentum[event_id]['hyperbolic'] *= reduction_factor
+                else:
+                    self.momentum[event_id]['euclidean'] = np.zeros_like(
+                        self.momentum[event_id]['euclidean']
+                    )
+                    self.momentum[event_id]['hyperbolic'] = np.zeros_like(
+                        self.momentum[event_id]['hyperbolic']
+                    )
+        
+        logger.info(f"Forgot residuals for {len(event_ids)} events")
+    
+    def clean_small_residuals(self):
+        """Remove residuals below minimum norm threshold."""
+        cleaned = 0
+        for event_id in list(self.residuals.keys()):
+            eu_norm = np.linalg.norm(self.residuals[event_id]['euclidean'])
+            hy_norm = np.linalg.norm(self.residuals[event_id]['hyperbolic'])
+            
+            if eu_norm < self.min_residual_norm:
+                self.residuals[event_id]['euclidean'] = np.zeros_like(
+                    self.residuals[event_id]['euclidean']
+                )
+                cleaned += 1
+            
+            if hy_norm < self.min_residual_norm:
+                self.residuals[event_id]['hyperbolic'] = np.zeros_like(
+                    self.residuals[event_id]['hyperbolic']
+                )
+                cleaned += 1
+        
+        if cleaned > 0:
+            logger.info(f"Cleaned {cleaned} small residuals")
+    
+    def _update_provenance(self, event_id: str, partner_id: str, score: float):
+        """Update provenance tracking for an event."""
+        try:
+            # Get current residual norms
+            eu_norm = np.linalg.norm(self.residuals.get(event_id, {}).get('euclidean', 0))
+            hy_norm = np.linalg.norm(self.residuals.get(event_id, {}).get('hyperbolic', 0))
+            
+            # Get current provenance
+            current_provenance = self.chromadb.get_provenance(event_id) or {}
+            
+            # Update co-retrieval partners
+            partners = current_provenance.get('co_retrieval_partners', [])
+            if partner_id not in partners:
+                partners.append(partner_id)
+            
+            # Prepare provenance update
+            provenance_data = {
+                'residual_norm_euclidean': eu_norm,
+                'residual_norm_hyperbolic': hy_norm,
+                'last_accessed': datetime.now().isoformat(),
+                'access_count': current_provenance.get('access_count', 0) + 1,
+                'co_retrieval_partners': partners[-20:],  # Keep last 20 partners
+            }
+            
+            # Update in ChromaDB
+            self.chromadb.update_provenance(event_id, provenance_data)
+            
+        except Exception as e:
+            logger.debug(f"Could not update provenance for {event_id}: {e}")

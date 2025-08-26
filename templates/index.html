@@ -16,8 +16,8 @@
     <nav class="navbar navbar-dark">
         <div class="container-xl">
             <span class="navbar-brand mb-0 h1">
-                <i class="bi bi-brain"></i> Dual-Space Memory System
-                <span class="badge bg-purple ms-2">v2.0</span>
+                <span class="badge bg-purple ms-2">[DSAM]</span>
+                <i class="bi bi-brain"></i> Dual-Space Agentic Memory
             </span>
             <div class="navbar-text">
                 <span class="badge bg-info me-2" id="euclideanBadge">
@@ -304,6 +304,19 @@
                                     <i class="bi bi-arrow-clockwise"></i> Refresh
                                 </button>
                             </div>
+                            <!-- HDBSCAN Parameters -->
+                            <div class="mt-2" id="clusteringParams" style="display: none;">
+                                <div class="row g-1">
+                                    <div class="col-6">
+                                        <label class="form-label text-muted small">Min Size</label>
+                                        <input type="number" class="form-control form-control-sm" id="minClusterSize" value="5" min="2" max="20">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label text-muted small">Min Samples</label>
+                                        <input type="number" class="form-control form-control-sm" id="minSamples" value="3" min="1" max="10">
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
@@ -445,6 +458,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Load enhanced JS directly -->
     <script src="{{ url_for('static', filename='js/test-simple.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/app-enhanced.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

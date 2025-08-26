@@ -205,7 +205,7 @@ class AdaptiveEmbeddingSystem:
         if not successful_retrievals:
             return
         
-        dimension_scores = np.zeros(384)  # Assuming 384-dim embeddings
+        dimension_scores = np.zeros(768)  # Assuming 768-dim embeddings
         
         for retrieval in successful_retrievals:
             query_embedding = retrieval.get('query_embedding')
@@ -289,7 +289,7 @@ class AdaptiveEmbeddingSystem:
         Identify which dimensions are important for a given query.
         """
         # Start with uniform importance
-        importance = np.ones(384) * 0.5
+        importance = np.ones(768) * 0.5
         
         # Boost dimensions based on query fields
         field_weights = query_context.get('field_weights', {})
@@ -302,7 +302,7 @@ class AdaptiveEmbeddingSystem:
             'when': (192, 224),  # 32 dims for temporal
             'where': (224, 256), # 32 dims for location
             'why': (256, 320),   # 64 dims for intent
-            'how': (320, 384)    # 64 dims for method
+            'how': (320, 768)    # 64 dims for method
         }
         
         for field, weight in field_weights.items():
@@ -333,11 +333,11 @@ class AdaptiveEmbeddingSystem:
         """
         Get dimension mask for different interaction types.
         """
-        mask = np.ones(384)
+        mask = np.ones(768)
         
         if interaction_type == 'causal':
             # Causal relationships affect why/how dimensions more
-            mask[256:384] *= 2.0
+            mask[256:768] *= 2.0
         elif interaction_type == 'temporal':
             # Temporal relationships affect when dimensions
             mask[192:224] *= 2.0

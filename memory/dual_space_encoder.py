@@ -15,58 +15,100 @@ logger = logging.getLogger(__name__)
 
 
 class HyperbolicOperations:
-    """Operations in the Poincaré ball model of hyperbolic space."""
+    """Operations in the Poincaré ball model of hyperbolic space with numerical stability."""
     
     @staticmethod
-    def exp_map(x: np.ndarray, v: np.ndarray, c: float = 1.0) -> np.ndarray:
-        """Exponential map from tangent space at x to the Poincaré ball."""
+    def clip_norm(x: np.ndarray, max_norm: float = 0.999, epsilon: float = 1e-5) -> np.ndarray:
+        """Clip vector norm to stay within Poincaré ball."""
+        norm = np.linalg.norm(x)
+        if norm >= max_norm:
+            x = x * (max_norm - epsilon) / (norm + epsilon)
+        return x
+    
+    @staticmethod
+    def safe_sqrt(x: float, epsilon: float = 1e-10) -> float:
+        """Safe square root with epsilon stabilization."""
+        return np.sqrt(np.maximum(x, epsilon))
+    
+    @staticmethod
+    def exp_map(x: np.ndarray, v: np.ndarray, c: float = 1.0, max_norm: float = 0.999) -> np.ndarray:
+        """Exponential map from tangent space at x to the Poincaré ball with stability."""
         v_norm = np.linalg.norm(v)
         if v_norm < 1e-10:
             return x
         
-        lambda_x = 2 / (1 - c * np.dot(x, x))
+        # Clip x to ensure we're within the ball
+        x = HyperbolicOperations.clip_norm(x, max_norm)
         
-        tanh_term = np.tanh(np.sqrt(c) * lambda_x * v_norm / 2)
+        x_dot = c * np.dot(x, x)
+        lambda_x = 2 / (1 - x_dot + 1e-10)  # Add epsilon for stability
+        
+        # Stable tanh computation
+        arg = np.sqrt(c) * lambda_x * v_norm / 2
+        tanh_term = np.tanh(np.minimum(arg, 15.0))  # Prevent overflow in tanh
         direction = v / v_norm
         
-        return mobius_add(x, tanh_term * direction / (np.sqrt(c) * lambda_x), c)
+        result = mobius_add(x, tanh_term * direction / (np.sqrt(c) * lambda_x), c)
+        return HyperbolicOperations.clip_norm(result, max_norm)
     
     @staticmethod
-    def log_map(x: np.ndarray, y: np.ndarray, c: float = 1.0) -> np.ndarray:
-        """Logarithmic map from y to tangent space at x."""
+    def log_map(x: np.ndarray, y: np.ndarray, c: float = 1.0, max_norm: float = 0.999) -> np.ndarray:
+        """Logarithmic map from y to tangent space at x with stability."""
+        # Ensure both points are within the ball
+        x = HyperbolicOperations.clip_norm(x, max_norm)
+        y = HyperbolicOperations.clip_norm(y, max_norm)
+        
         diff = mobius_add(-x, y, c)
         diff_norm = np.linalg.norm(diff)
         
         if diff_norm < 1e-10:
             return np.zeros_like(x)
         
-        lambda_x = 2 / (1 - c * np.dot(x, x))
+        x_dot = c * np.dot(x, x)
+        lambda_x = 2 / (1 - x_dot + 1e-10)  # Add epsilon for stability
         
-        return (2 / (np.sqrt(c) * lambda_x)) * np.arctanh(np.sqrt(c) * diff_norm) * (diff / diff_norm)
+        # Stable arctanh computation
+        arg = np.sqrt(c) * diff_norm
+        arg = np.minimum(arg, 0.999)  # Ensure arctanh argument < 1
+        
+        return (2 / (np.sqrt(c) * lambda_x)) * np.arctanh(arg) * (diff / diff_norm)
     
     @staticmethod
-    def geodesic_distance(x: np.ndarray, y: np.ndarray, c: float = 1.0) -> float:
-        """Geodesic distance in the Poincaré ball."""
+    def geodesic_distance(x: np.ndarray, y: np.ndarray, c: float = 1.0, max_norm: float = 0.999) -> float:
+        """Geodesic distance in the Poincaré ball with stability."""
+        # Ensure both points are within the ball
+        x = HyperbolicOperations.clip_norm(x, max_norm)
+        y = HyperbolicOperations.clip_norm(y, max_norm)
+        
         diff = mobius_add(-x, y, c)
         diff_norm = np.linalg.norm(diff)
         
         if diff_norm < 1e-10:
             return 0.0
         
-        return (2 / np.sqrt(c)) * np.arctanh(np.sqrt(c) * diff_norm)
+        # Stable arctanh computation
+        arg = np.sqrt(c) * diff_norm
+        arg = np.minimum(arg, 0.999)  # Ensure arctanh argument < 1
+        
+        return (2 / np.sqrt(c)) * np.arctanh(arg)
 
 
-def mobius_add(x: np.ndarray, y: np.ndarray, c: float = 1.0) -> np.ndarray:
-    """Möbius addition in the Poincaré ball."""
+def mobius_add(x: np.ndarray, y: np.ndarray, c: float = 1.0, max_norm: float = 0.999) -> np.ndarray:
+    """Möbius addition in the Poincaré ball with numerical stability."""
+    # Clip inputs to ensure they're within the ball
+    x = HyperbolicOperations.clip_norm(x, max_norm)
+    y = HyperbolicOperations.clip_norm(y, max_norm)
+    
     xy = np.dot(x, y)
     x_norm_sq = c * np.dot(x, x)
     y_norm_sq = c * np.dot(y, y)
     
-    denominator = 1 + 2 * c * xy + x_norm_sq * y_norm_sq
+    denominator = 1 + 2 * c * xy + x_norm_sq * y_norm_sq + 1e-10  # Add epsilon
     
     numerator = (1 + 2 * c * xy + y_norm_sq) * x + (1 - x_norm_sq) * y
     
-    return numerator / denominator
+    result = numerator / denominator
+    return HyperbolicOperations.clip_norm(result, max_norm)
 
 
 def gyro_midpoint(points: List[Tuple[float, np.ndarray]], c: float = 1.0) -> np.ndarray:
@@ -95,11 +137,14 @@ class DualSpaceEncoder:
     
     def __init__(self, model_name: str = 'sentence-transformers/all-MiniLM-L6-v2',
                  euclidean_dim: int = 768, hyperbolic_dim: int = 64,
-                 field_weights: Optional[Dict[str, float]] = None):
+                 field_weights: Optional[Dict[str, float]] = None,
+                 max_norm: float = 0.999, epsilon: float = 1e-5):
         self.model = SentenceTransformer(model_name)
         self.base_dim = self.model.get_sentence_embedding_dimension()
         self.euclidean_dim = euclidean_dim
         self.hyperbolic_dim = hyperbolic_dim
+        self.max_norm = max_norm  # Maximum norm in Poincaré ball
+        self.epsilon = epsilon  # Numerical stability epsilon
         
         # Field tokens for prepending
         self.field_tokens = {
@@ -150,13 +195,14 @@ class DualSpaceEncoder:
         
         # Project to hyperbolic space (tangent space then exp map)
         tangent_vec = np.dot(base_embedding, self.hyperbolic_head)
-        # Map from origin to Poincaré ball
+        # Map from origin to Poincaré ball with stability
         tangent_norm = np.linalg.norm(tangent_vec)
         if tangent_norm > 0:
-            # Ensure we stay within the ball (radius 1/sqrt(c))
-            max_norm = 0.9 / np.sqrt(self.c)
-            scale = np.tanh(tangent_norm) * min(1.0, max_norm / tangent_norm)
+            # Ensure we stay within the ball with configured max_norm
+            scale = np.tanh(tangent_norm) * min(1.0, self.max_norm / tangent_norm)
             hyperbolic_vec = scale * tangent_vec / tangent_norm
+            # Apply retraction to ensure we're within bounds
+            hyperbolic_vec = HyperbolicOperations.clip_norm(hyperbolic_vec, self.max_norm, self.epsilon)
         else:
             hyperbolic_vec = np.zeros(self.hyperbolic_dim)
         
@@ -242,8 +288,8 @@ class DualSpaceEncoder:
         # Euclidean distance (1 - cosine similarity)
         euclidean_dist = 1.0 - np.dot(q_eu, m_eu)
         
-        # Hyperbolic distance (geodesic)
-        hyperbolic_dist = HyperbolicOperations.geodesic_distance(q_hy, m_hy, self.c)
+        # Hyperbolic distance (geodesic) with stability
+        hyperbolic_dist = HyperbolicOperations.geodesic_distance(q_hy, m_hy, self.c, self.max_norm)
         
         # Product distance with query-dependent weights
         return lambda_e * euclidean_dist + lambda_h * hyperbolic_dist
@@ -275,19 +321,19 @@ class DualSpaceEncoder:
         if eu_norm > max_euclidean_norm:
             new_eu_residual = new_eu_residual * (max_euclidean_norm / eu_norm)
         
-        # Hyperbolic residual update (in tangent space)
-        tangent_update = HyperbolicOperations.log_map(self_hy, partner_hy, self.c)
+        # Hyperbolic residual update (in tangent space) with stability
+        tangent_update = HyperbolicOperations.log_map(self_hy, partner_hy, self.c, self.max_norm)
         momentum['hyperbolic'] = momentum_factor * momentum.get('hyperbolic', np.zeros_like(tangent_update)) + learning_rate * relevance * tangent_update
         
-        # Apply update via exp map
-        updated_hy = HyperbolicOperations.exp_map(self_hy, momentum['hyperbolic'], self.c)
+        # Apply update via exp map with retraction
+        updated_hy = HyperbolicOperations.exp_map(self_hy, momentum['hyperbolic'], self.c, self.max_norm)
         new_hy_residual = mobius_add(embeddings['hyperbolic_residual'], 
                                      mobius_add(-embeddings['hyperbolic_anchor'], updated_hy, self.c), 
                                      self.c)
         
-        # Clip hyperbolic residual by geodesic distance
+        # Clip hyperbolic residual by geodesic distance with stability
         origin = np.zeros_like(new_hy_residual)
-        geo_dist = HyperbolicOperations.geodesic_distance(origin, new_hy_residual, self.c)
+        geo_dist = HyperbolicOperations.geodesic_distance(origin, new_hy_residual, self.c, self.max_norm)
         if geo_dist > max_hyperbolic_geodesic:
             scale = max_hyperbolic_geodesic / geo_dist
             new_hy_residual = new_hy_residual * scale
