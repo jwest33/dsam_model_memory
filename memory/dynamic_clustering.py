@@ -379,7 +379,7 @@ class DynamicMemoryClustering:
         
         # Weighted average of field embeddings
         if not field_embeddings:
-            return np.zeros(384)  # Default embedding dimension
+            return np.zeros(768)  # Default embedding dimension
         
         weighted_sum = None
         total_weight = 0.0
@@ -480,7 +480,7 @@ class DynamicMemoryClustering:
         except:
             return 0.5
     
-    def _hash_embedding(self, text: str, dim: int = 384) -> np.ndarray:
+    def _hash_embedding(self, text: str, dim: int = 768) -> np.ndarray:
         """Fallback hash-based embedding"""
         import hashlib
         

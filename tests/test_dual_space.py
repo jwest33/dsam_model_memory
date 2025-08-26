@@ -1,5 +1,5 @@
 """
-Test script for the dual-space memory system enhancements.
+Test script for the [DSAM] Dual-Space Agentic Memory enhancements.
 """
 
 import os
@@ -23,7 +23,7 @@ def test_dual_space_memory():
     """Test the enhanced memory system with dual-space encoding."""
     
     print("=" * 60)
-    print("Testing Dual-Space Memory System")
+    print("Testing [DSAM] Dual-Space Agentic Memory")
     print("=" * 60)
     
     # Initialize memory store

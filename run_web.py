@@ -17,9 +17,9 @@ def shutdown_handler():
     print("\nSaving memory state before shutdown...")
     try:
         # Try to import from enhanced version first
-        from web_app_enhanced import memory_agent
-    except ImportError:
         from web_app import memory_agent
+    except ImportError:
+        print("\nError: Enhanced interface not available")
     
     if memory_agent:
         memory_agent.save()
@@ -28,17 +28,16 @@ def shutdown_handler():
 def main():
     """Launch the enhanced web interface"""
     print("=" * 60)
-    print("Dual-Space Memory System - Enhanced Web Interface v2.0")
+    print("[DSAM] Dual-Space Agentic Memory - Enhanced Web Interface v2.0")
     print("=" * 60)
     
     # Try to use enhanced version if available
     try:
-        from web_app_enhanced import app, initialize_system
-        print("\n✅ Loading enhanced dual-space interface...")
+        from web_app import app, initialize_system
+        print("\n  Loading enhanced dual-space interface...")
         print("   Features: Space indicators, residual tracking, analytics")
     except ImportError:
-        print("\n⚠️  Enhanced interface not available, using standard...")
-        from web_app import app, initialize_system
+        print("\nError: Enhanced interface not available")
     
     print("\nStarting Flask server...")
     print("The web interface will open in your browser.")
