@@ -1,39 +1,33 @@
-# [SAM] Self-Organizing Agentic Memory
+# Dual-Space Memory System v2.0
 
-A memory system for AI agents featuring unlimited storage capacity, and query-driven self-organizing clustering via adaptive embeddings.
+An advanced memory system for AI agents featuring dual-space encoding (Euclidean + Hyperbolic), adaptive residual learning, and dynamic visualization.
 
 ## Overview
 
-This system implements a memory architecture for AI agents that eliminates traditional constraints such as fixed capacity limits and salience thresholds. Memory organization occurs dynamically at query time through context-aware clustering, while embeddings evolve based on usage patterns.
+This system implements a sophisticated memory architecture that combines Euclidean space for concrete/lexical similarity with Hyperbolic space for abstract/hierarchical relationships. The system features immutable anchor embeddings with bounded residual adaptation, enabling memories to evolve while maintaining stable representations.
 
-## Key Features
+## Core Architecture
 
-### Dynamic Memory Clustering
-- Query-driven clustering using DBSCAN algorithm
-- Context-aware field weighting based on query parameters
-- Eigenvector centrality for determining memory importance
-- No pre-computed memory blocks
+### Dual-Space Encoding
+- **Euclidean Space** (768-dim): Captures local semantic similarity for concrete information
+- **Hyperbolic Space** (64-dim): Models hierarchical relationships using Poincaré ball geometry
+- **Field-Aware Composition**: Learned gates weight contributions from 5W1H fields
+- **Product Distance Metrics**: Query-dependent weighting between spaces (λ_E + λ_H = 1.0)
 
-### Adaptive Embeddings
-- Gravitational updates between frequently co-accessed memories
-- Momentum-based learning (α=0.01, momentum=0.9)
-- Dimension-specific evolution tracking
-- Co-occurrence-based relationship strengthening
-
-### Storage Architecture
-- ChromaDB backend for scalable vector storage
-- No memory eviction or capacity limits
-- All memories stored without salience filtering
-- Efficient similarity-based retrieval
+### Adaptive Memory System
+- **Immutable Anchors**: Base embeddings never corrupted
+- **Bounded Residuals**: Euclidean ≤ 0.35, Hyperbolic ≤ 0.75
+- **Momentum-Based Updates**: Smooth adaptation with decay factor 0.995
+- **HDBSCAN Clustering**: Superior density-based clustering for varied data distributions
 
 ### 5W1H Framework
 Complete context encoding for each memory:
-- Who: Entity or actor
-- What: Action or observation
-- When: Temporal information
-- Where: Location or context
-- Why: Purpose or intent
-- How: Method or approach
+- **Who**: Entity or actor involved
+- **What**: Action, observation, or content
+- **When**: Temporal information
+- **Where**: Location or context
+- **Why**: Purpose, reasoning, or intent
+- **How**: Method, approach, or process
 
 ## Installation
 
@@ -45,296 +39,224 @@ cd agent-wip
 # Install dependencies
 pip install -r requirements.txt
 
-# For Windows users with CUDA support
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+# For offline mode (recommended)
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
 ```
 
 ## Quick Start
 
-### Basic Usage
-
-```python
-from agent.memory_agent import MemoryAgent
-
-# Initialize the memory system
-agent = MemoryAgent()
-
-# Store a memory
-success, message, event = agent.remember(
-    who="Alice",
-    what="implemented dynamic clustering algorithm",
-    where="memory/dynamic_clustering.py",
-    why="remove arbitrary thresholds",
-    how="DBSCAN with eigenvector centrality"
-)
-
-# Recall memories with dynamic clustering
-memories = agent.recall(what="clustering", k=5)
-for event, score in memories:
-    print(f"[{score:.3f}] {event.five_w1h.what}")
-
-# Provide feedback to adapt embeddings
-agent.adapt_from_feedback(
-    query={"what": "clustering"},
-    positive_events=[memories[0][0].id],  # Most relevant
-    negative_events=[]
-)
-
-# Get insights about memory relationships
-insights = agent.get_insights(topic="clustering")
-print(insights)
-```
-
 ### Command Line Interface
 
 ```bash
-# Initialize system
+# Initialize memory system
 python cli.py init
 
 # Store memories
-python cli.py remember --who "User" --what "asked about memory systems" \
-                      --why "understand architecture" --how "questioning"
+python cli.py remember --who "Alice" --what "implemented search feature" --where "backend" --why "user requirement" --how "elasticsearch integration"
 
-# Recall with dynamic clustering
-python cli.py recall --what "memory" --k 10
+# Recall memories
+python cli.py recall --what "search" --k 10
 
-# View system statistics
+# View statistics
 python cli.py stats
 
-# Generate sample conversations
-python generate_conversations.py
+# Save/Load state
+python cli.py save
+python cli.py load
 ```
 
 ### Web Interface
 
 ```bash
-# Launch web UI (auto-opens browser)
+# Launch enhanced web interface
 python run_web.py
 
 # Access at http://localhost:5000
-# Features: Chat interface, memory visualization, block management
 ```
 
-## Architecture
+### Running Experiments
 
-### System Components
+```bash
+# Run conversation simulations
+python simulate_conversations.py
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                     User Input (5W1H)                    │
-└────────────────────────┬────────────────────────────────┘
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│                    Memory Agent                          │
-│  - Episode management                                    │
-│  - Event creation                                        │
-│  - Query processing                                      │
-└────────────────────────┬────────────────────────────────┘
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│                Dynamic Memory Store                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │
-│  │  ChromaDB    │  │   Dynamic    │  │   Adaptive   │ │
-│  │   Storage    │◄─┤  Clustering  │◄─┤  Embeddings  │ │
-│  └──────────────┘  └──────────────┘  └──────────────┘ │
-└─────────────────────────────────────────────────────────┘
+# Run automated experiments
+python run_experiments.py
+
+# Test chat functionality
+python test_chat.py "Your message here"
 ```
 
-### Data Flow
+## Web Interface Features
 
-1. **Input Processing**: 5W1H structure → Event object with metadata
-2. **Storage**: Direct to ChromaDB, no filtering or thresholds
-3. **Query Time**:
-   - Retrieve candidates via vector similarity
-   - Dynamic clustering with DBSCAN
-   - Eigenvector centrality ranking
-   - Adaptive embedding updates
-4. **Feedback Loop**: User interactions update embeddings gravitationally
+### Chat Interface
+- Real-time space weight visualization (Euclidean vs Hyperbolic)
+- Query type detection (concrete/abstract/balanced)
+- Memory usage indicators
+- Context-aware responses
 
-### Key Algorithms
+### Memory Management
+- Full 5W1H field display
+- Space dominance indicators
+- Residual norm visualization
+- Individual memory graph view
+- Batch operations support
 
-#### Dynamic Clustering (DBSCAN)
-```python
-# Pseudocode
-candidates = chromadb.query(embedding, k=100)
-distance_matrix = compute_similarities(candidates)
-clusters = DBSCAN(eps=adaptive, min_samples=2).fit(distance_matrix)
-```
+### Graph Visualization
+- **Interactive Network Graph**: Powered by vis.js
+- **5W1H Component Selection**: Choose which fields to visualize
+- **Multiple Visualization Modes**:
+  - Dual-space view
+  - Euclidean-only
+  - Hyperbolic-only
+  - Residual magnitude
+- **HDBSCAN Clustering**: Toggle clustering visualization
+- **Individual Memory Focus**: View a memory and its related connections
+- **Graph Statistics**: Nodes, edges, clusters, average degree
 
-#### Gravitational Embeddings
-```python
-# Pseudocode
-force = (target_embedding - source_embedding) * relevance
-velocity = momentum * velocity + learning_rate * force
-new_embedding = normalize(embedding + velocity)
-```
+### Analytics Dashboard
+- Total events and queries metrics
+- Average residual norms by space
+- Residual evolution time series
+- Space usage distribution chart
+- Real-time updates
 
-#### Eigenvector Centrality
-```python
-# Pseudocode
-adjacency = similarity_matrix > threshold
-eigenvalues, eigenvectors = np.linalg.eig(adjacency)
-centrality = eigenvectors[:, 0]  # Principal eigenvector
-```
+## API Endpoints
+
+### Core Endpoints
+- `POST /api/chat`: Send chat messages with space weight calculation
+- `GET /api/memories`: Retrieve all memories with metadata
+- `POST /api/memories`: Create new memory
+- `DELETE /api/memories/<id>`: Delete specific memory
+- `POST /api/graph`: Get memory graph data with optional center node
+- `POST /api/search`: Search memories by query
+- `GET /api/stats`: Get system statistics
+- `GET /api/analytics`: Get analytics data for charts
+
+## System Architecture
+
+### Memory Store (`memory/memory_store.py`)
+- Dual-space encoding integration
+- Residual and momentum tracking
+- HDBSCAN clustering support
+- ChromaDB backend interface
+
+### Dual-Space Encoder (`memory/dual_space_encoder.py`)
+- Sentence transformer for base embeddings
+- Hyperbolic operations (Möbius addition, exp/log maps)
+- Field-aware gating mechanism
+- Query weight computation
+
+### ChromaDB Storage (`memory/chromadb_store.py`)
+- Persistent vector storage
+- Full 5W1H metadata preservation
+- Efficient similarity search
+- Unlimited capacity scaling
+
+## Key Innovations
+
+### Query-Adaptive Retrieval
+- Dynamic space weighting based on query type
+- Concrete queries favor Euclidean space
+- Abstract queries favor Hyperbolic space
+- Balanced queries use both spaces equally
+
+### Residual Adaptation
+- Memories adapt based on co-retrieval patterns
+- Bounded updates prevent representation drift
+- Momentum smoothing for stable learning
+- Automatic decay over time
+
+### Visual Analytics
+- Space usage indicators throughout UI
+- Real-time residual tracking
+- Interactive graph exploration
+- Component-based filtering
 
 ## Configuration
 
-### Environment Variables
-
-```bash
-# Core settings
-STATE_DIR=./state                    # Memory storage location
-USE_CHROMADB=true                   # Enable vector database
-USE_LLM_SALIENCE=false              # Disable LLM scoring (no thresholds anyway)
-
-# Embedding settings
-EMBEDDING_MODEL=all-MiniLM-L6-v2    # Sentence transformer model
-EMBEDDING_DIM=384                   # Embedding dimensions
-
-# Clustering parameters
-DBSCAN_EPS=0.3                      # Cluster density threshold
-MIN_CLUSTER_SIZE=2                  # Minimum cluster size
-
-# Adaptive embedding parameters
-LEARNING_RATE=0.01                  # Embedding update rate
-MOMENTUM=0.9                        # Update smoothing factor
-```
-
-### Advanced Configuration
+Key settings in `config.py`:
 
 ```python
-# config.py
-@dataclass
-class DynamicMemoryConfig:
-    # Clustering
-    max_clusters: int = 10
-    cluster_merge_threshold: float = 0.7
-    
-    # Embeddings
-    gravity_strength: float = 0.1
-    dimension_weights: Dict[str, float] = field(default_factory=lambda: {
-        'who': 1.0, 'what': 2.0, 'when': 0.5,
-        'where': 0.5, 'why': 1.5, 'how': 1.0
-    })
-    
-    # ChromaDB
-    collection_name: str = "events"
-    persist_directory: str = "./state/chromadb"
+MemoryConfig:
+  embedding_dim: 384
+  temperature: 15.0
+  similarity_threshold: 0.85
+
+DualSpaceConfig:
+  euclidean_dim: 768
+  hyperbolic_dim: 64
+  learning_rate: 0.01
+  momentum: 0.9
+  euclidean_bound: 0.35
+  hyperbolic_bound: 0.75
+  decay_factor: 0.995
+
+StorageConfig:
+  chromadb_path: "./state/chromadb"
+  chromadb_required: true
 ```
 
-## System Statistics
+## Performance Characteristics
 
-The system tracks comprehensive metrics:
+- **Graph Visualization**: Optimized for up to 200 nodes
+- **HDBSCAN Clustering**: Best with 20+ memories
+- **Real-time Updates**: Sub-second for < 1000 memories
+- **Residual Bounds**: Euclidean < 0.35, Hyperbolic < 0.75
 
-```python
-stats = agent.get_statistics()
-# Returns:
-{
-    'total_events': 1543,
-    'total_queries': 89,
-    'episodes': 12,
-    'evolved_embeddings': 743,
-    'average_cluster_size': 4.2,
-    'embedding_drift': 0.15,  # Average cosine distance from original
-    'chromadb_stats': {
-        'events': 1543,
-        'blocks': 0,  # No static blocks in new system
-        'collection_size_mb': 12.4
-    }
-}
-```
+## Troubleshooting
 
-## Testing
+### Common Issues
 
+**HuggingFace Rate Limiting**
 ```bash
-# Run demonstration
-python generate_conversations.py
-
-# Test without external dependencies
-USE_CHROMADB=false python cli.py demo
-
-# Test API endpoints
-python test_api.py
-
-# Validate clustering
-python -c "from memory.dynamic_clustering import test_clustering; test_clustering()"
-
-# Check embedding evolution
-python -c "from memory.adaptive_embeddings import visualize_evolution; visualize_evolution()"
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
 ```
 
-## Applications
+**ChromaDB Locked**
+```bash
+# Stop web server before clearing
+python clear_memories.py
+```
 
-### Personal AI Assistant
-- Persistent memory of all interactions
-- Context emergence from usage patterns
-- Automatic importance determination
-
-### Research Tool
-- Unlimited storage for research data
-- Connection discovery through clustering
-- Relationship evolution through embedding adaptation
-
-### Game AI
-- Persistent NPC memory systems
-- Dynamic relationship formation
-- Natural memory drift over time
-
-### Knowledge Management
-- Self-organizing information structure
-- Automatic categorization through clustering
-- Topic emergence from usage patterns
-
-## Technical Architecture
-
-### Storage Without Thresholds
-
-The system stores all memories without salience filtering:
-- Information that appears unimportant may become relevant in future contexts
-- Importance determination occurs at retrieval time based on query context
-- No arbitrary threshold values required
-
-### Dynamic Clustering Approach
-
-Clustering occurs at query time rather than using pre-computed blocks:
-- Context-dependent grouping based on query parameters
-- Emergent structure from data patterns
-- Adaptive cluster boundaries based on data density
-
-### Evolving Embeddings
-
-Embeddings adapt based on usage patterns:
-- Co-accessed memories gravitate together in embedding space
-- Relationship strength increases with repeated associations
-- Context-specific meaning evolution
+**High Residuals**
+- System automatically decays residuals
+- Monitor via Analytics dashboard
+- Consider clearing if consistently > threshold
 
 ## Development
 
-Potential areas for enhancement:
+### Testing
+```bash
+# Basic offline test
+python test_offline.py
 
-1. Alternative clustering algorithms (hierarchical, spectral, affinity propagation)
-2. Additional embedding evolution strategies
-3. Query optimization for faster retrieval
-4. Enhanced visualization tools
-5. Integration with existing frameworks
+# Generate test conversations
+python generate_conversations.py
 
-## Research Foundation
+# Simple functionality test
+python test_simple.py
+```
 
-This system builds on several key concepts:
-
-- **Modern Hopfield Networks** (Ramsauer et al., 2021): Attention-based associative memory
-- **DBSCAN** (Ester et al., 1996): Density-based spatial clustering
-- **Eigenvector Centrality** (Bonacich, 1972): Node importance in networks
-- **Momentum SGD** (Polyak, 1964): Accelerated gradient descent
-- **5W1H Framework**: Journalistic approach to complete information
+### Adding New Features
+1. Extend memory operations in `memory_agent.py`
+2. Add API endpoints in `web_app_enhanced.py`
+3. Update frontend in `static/js/app-enhanced.js`
+4. Document in relevant markdown files
 
 ## License
 
-MIT License - See LICENSE file for details
+[Specify your license here]
 
-## Dependencies
+## Contributing
 
-- ChromaDB for vector storage
-- Sentence Transformers for embeddings
-- NumPy for numerical operations
-- Streamlit for web interface
+[Contribution guidelines if applicable]
+
+## Citation
+
+If you use this system in research, please cite:
+```
+[Citation format if applicable]
+```

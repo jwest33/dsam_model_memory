@@ -1,5 +1,14 @@
 /* Professional Synthwave Dark Theme - Fixed Version */
 
+/* Font Face Definition */
+@font-face {
+    font-family: 'Michroma';
+    src: url('../fonts/Michroma-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
 :root {
     --synth-cyan: #00ffff;
     --synth-pink: #ff10f0;
@@ -19,10 +28,34 @@
 body {
     background: var(--synth-dark-bg);
     color: var(--synth-text);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Michroma', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 0.9rem;  /* Slightly reduced from default 1rem */
     margin: 0;
     padding: 0;
     min-height: 100vh;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6,
+.navbar-brand,
+.btn,
+.badge,
+.modal-title,
+.card-title {
+    font-family: 'Michroma', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    letter-spacing: 0.5px;
+}
+
+/* Slightly reduce heading sizes */
+h1 { font-size: 2rem; }
+h2 { font-size: 1.6rem; }
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1rem; }
+h6 { font-size: 0.9rem; }
+
+.small, small {
+    font-size: 0.8rem;
 }
 
 /* Override Bootstrap Colors */
