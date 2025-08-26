@@ -7,6 +7,7 @@ let graphNetwork = null;
 let residualChart = null;
 let spaceUsageChart = null;
 let clusteringEnabled = true;
+let currentCenterNode = null;  // Track if we're viewing an individual memory
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -56,7 +57,7 @@ function initializeApp() {
     const componentCheckboxes = document.querySelectorAll('#componentSelector input[type="checkbox"]');
     componentCheckboxes.forEach(checkbox => {
         checkbox.addEventListener('change', () => {
-            updateSpaceWeights();
+            // Don't update space weights here - will be done after graph refresh
             if (graphNetwork) {
                 refreshGraph();
             }
@@ -311,10 +312,13 @@ function displayMemories() {
             <td>${spaceIndicator}</td>
             <td>${residualIndicator}</td>
             <td>
-                <button class="btn btn-sm btn-outline-info" onclick="window.viewMemoryDetails('${memory.id}')">
+                <button class="btn btn-sm btn-outline-info" onclick="window.viewMemoryDetails('${memory.id}')" title="View Details">
                     <i class="bi bi-eye"></i>
                 </button>
-                <button class="btn btn-sm btn-outline-danger" onclick="window.deleteMemory('${memory.id}')">
+                <button class="btn btn-sm btn-outline-primary" onclick="window.showMemoryInGraph('${memory.id}')" title="Show in Graph">
+                    <i class="bi bi-diagram-3"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="window.deleteMemory('${memory.id}')" title="Delete">
                     <i class="bi bi-trash"></i>
                 </button>
             </td>
@@ -370,21 +374,32 @@ window.showMemoryGraph = function() {
     }, 300);
 }
 
-async function initializeGraph() {
+async function initializeGraph(centerNodeId = null) {
     try {
+        // Update global center node tracking
+        currentCenterNode = centerNodeId;
+        
         // Get selected components
         const components = getSelectedComponents();
+        
+        const requestBody = {
+            components: components,
+            use_clustering: clusteringEnabled,
+            visualization_mode: document.getElementById('visualizationMode').value
+        };
+        
+        // Add center node if specified
+        if (centerNodeId) {
+            requestBody.center_node = centerNodeId;
+            requestBody.similarity_threshold = 0.4;  // Only show closely related memories
+        }
         
         const response = await fetch('/api/graph', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ 
-                components: components,
-                use_clustering: clusteringEnabled,
-                visualization_mode: document.getElementById('visualizationMode').value
-            })
+            body: JSON.stringify(requestBody)
         });
         
         const data = await response.json();
@@ -394,6 +409,9 @@ async function initializeGraph() {
         
         // Update statistics
         updateGraphStats(data);
+        
+        // Update space weights with actual data
+        updateSpaceWeights(data);
         
     } catch (error) {
         console.error('Error loading graph:', error);
@@ -412,33 +430,82 @@ function createGraphVisualization(data) {
     const container = document.getElementById('memoryGraph');
     
     // Prepare nodes with color coding based on space/cluster
-    const nodes = new vis.DataSet(data.nodes.map(node => ({
-        id: node.id,
-        label: node.label,
-        color: getNodeColor(node),
-        size: 20 + (node.centrality || 0) * 30,
-        title: createNodeTooltip(node),
-        ...node
-    })));
+    const nodes = new vis.DataSet(data.nodes.map(node => {
+        const nodeConfig = {
+            id: node.id,
+            label: node.label,
+            color: getNodeColor(node),
+            size: 10 + (node.centrality || 0) * 15,  // Reduced from 20 + 30
+            title: createNodeTooltip(node),
+            ...node
+        };
+        
+        // Make center node larger and with a border
+        if (node.is_center) {
+            nodeConfig.size = 25;
+            nodeConfig.borderWidth = 4;
+            nodeConfig.borderWidthSelected = 6;
+            nodeConfig.color = {
+                background: getNodeColor(node),
+                border: '#ff0000',
+                highlight: {
+                    background: getNodeColor(node),
+                    border: '#ff0000'
+                }
+            };
+            nodeConfig.shape = 'star';  // Different shape for center
+        }
+        
+        return nodeConfig;
+    }));
     
-    // Prepare edges with thickness based on similarity
-    const edges = new vis.DataSet(data.edges.map(edge => ({
-        from: edge.from,
-        to: edge.to,
-        value: edge.weight,
-        color: {
-            opacity: Math.min(0.8, 0.3 + edge.weight * 0.5)
-        },
-        title: `Similarity: ${edge.weight.toFixed(3)}`
-    })));
+    // Prepare edges with gradient color based on similarity strength
+    const edges = new vis.DataSet(data.edges.map(edge => {
+        let edgeColor;
+        let edgeTitle;
+        
+        // Special coloring for conversation edges
+        if (edge.type === 'conversation') {
+            // Bright cyan-purple for User-Assistant conversation flow
+            edgeColor = {
+                color: '#ff00ff',  // Bright purple for conversation edges
+                opacity: 0.8
+            };
+            edgeTitle = 'Conversation Flow';
+        } else {
+            // Gradient from blue to purple based on weight for similarity edges
+            const weight = edge.weight || 0.5;
+            const r = Math.floor(0 + (255 * weight));  // Red increases with weight
+            const g = Math.floor(100 * (1 - weight));  // Green decreases with weight
+            const b = Math.floor(255);  // Blue stays high
+            
+            edgeColor = {
+                color: `rgb(${r}, ${g}, ${b})`,
+                opacity: Math.min(0.9, 0.4 + edge.weight * 0.5)
+            };
+            edgeTitle = `Similarity: ${edge.weight.toFixed(3)}`;
+        }
+        
+        return {
+            from: edge.from,
+            to: edge.to,
+            value: edge.weight || 0.8,
+            color: edgeColor,
+            title: edgeTitle,
+            width: edge.type === 'conversation' ? 2 : 1  // Make conversation edges thicker
+        };
+    }));
     
     const graphData = { nodes, edges };
+    
+    // Check if we have a center node for special layout
+    const centerNode = data.nodes.find(n => n.is_center);
     
     const options = {
         nodes: {
             shape: 'dot',
             font: {
-                size: 12,
+                size: 10,  // Reduced from 12
                 color: '#ffffff'
             },
             borderWidth: 2,
@@ -448,7 +515,7 @@ function createGraphVisualization(data) {
             smooth: {
                 type: 'continuous'
             },
-            width: 2,
+            width: 1,  // Reduced from 2
             shadow: true
         },
         physics: {
@@ -456,8 +523,12 @@ function createGraphVisualization(data) {
                 iterations: 200
             },
             barnesHut: {
-                gravitationalConstant: -8000,
-                springConstant: 0.04
+                gravitationalConstant: -10000,  // Increased for more spacing
+                centralGravity: 0.2,  // Reduced to allow more spread
+                springConstant: 0.015,  // Further reduced for looser connections
+                springLength: 200,  // Increased spring length for more spacing
+                damping: 0.09,  // Added damping for stability
+                avoidOverlap: 0.7  // Increased to prevent overlap with more spacing
             }
         },
         interaction: {
@@ -465,6 +536,16 @@ function createGraphVisualization(data) {
             tooltipDelay: 200
         }
     };
+    
+    // If center node exists, use hierarchical layout
+    if (centerNode) {
+        options.layout = {
+            improvedLayout: true,
+            hierarchical: {
+                enabled: false  // Disable hierarchical, we'll position manually
+            }
+        };
+    }
     
     // Create network
     graphNetwork = new vis.Network(container, graphData, options);
@@ -482,6 +563,14 @@ function createGraphVisualization(data) {
 function getNodeColor(node) {
     const vizMode = document.getElementById('visualizationMode').value;
     
+    // First, check if it's User or Assistant for special coloring
+    if (node.who === 'User') {
+        return '#00ffff';  // Cyan for User
+    }
+    if (node.who === 'Assistant') {
+        return '#ff00ff';  // Magenta/Purple for Assistant
+    }
+    
     if (vizMode === 'residuals') {
         // Color based on residual magnitude
         const norm = node.residual_norm || 0;
@@ -496,22 +585,19 @@ function getNodeColor(node) {
         return colors[node.cluster_id % colors.length];
     }
     
-    // Color by dominant space
+    // Color by dominant space for other nodes
     if (node.space === 'euclidean') return '#00bcd4';
     if (node.space === 'hyperbolic') return '#ffc107';
     return '#6c757d';
 }
 
 function createNodeTooltip(node) {
-    return `
-        <div style="padding: 5px;">
-            <strong>${node.label}</strong><br>
-            Space: ${node.space || 'balanced'}<br>
-            Cluster: ${node.cluster_id >= 0 ? node.cluster_id : 'none'}<br>
-            Centrality: ${(node.centrality || 0).toFixed(3)}<br>
-            Residual: ${(node.residual_norm || 0).toFixed(3)}
-        </div>
-    `;
+    // Return plain text for vis.js tooltip (no HTML)
+    return `${node.label}
+Space: ${node.space || 'balanced'}
+Cluster: ${node.cluster_id >= 0 ? node.cluster_id : 'none'}
+Centrality: ${(node.centrality || 0).toFixed(3)}
+Residual: ${(node.residual_norm || 0).toFixed(3)}`;
 }
 
 function displayNodeDetails(node) {
@@ -567,19 +653,41 @@ function updateGraphStats(data) {
     document.getElementById('avgDegree').textContent = avgDegree.toFixed(1);
 }
 
-function updateSpaceWeights() {
+function updateSpaceWeights(graphData = null) {
     const components = getSelectedComponents();
     
-    // Calculate weights based on selected components
-    let concreteScore = 0;
-    let abstractScore = 0;
-    
-    if (components.includes('who')) concreteScore += 1.0;
-    if (components.includes('what')) concreteScore += 2.0;
-    if (components.includes('when')) concreteScore += 0.5;
-    if (components.includes('where')) concreteScore += 0.5;
-    if (components.includes('why')) abstractScore += 1.5;
-    if (components.includes('how')) abstractScore += 1.0;
+    // If we have actual graph data, calculate weights based on the nodes
+    if (graphData && graphData.nodes) {
+        let concreteScore = 0;
+        let abstractScore = 0;
+        
+        // Calculate based on actual node content
+        graphData.nodes.forEach(node => {
+            // Count filled fields weighted by their nature
+            if (node.who && components.includes('who')) concreteScore += 1.0;
+            if (node.what && components.includes('what')) concreteScore += 2.0;
+            if (node.when && components.includes('when')) concreteScore += 0.5;
+            if (node.where && components.includes('where')) concreteScore += 0.5;
+            if (node.why && components.includes('why')) abstractScore += 1.5;
+            if (node.how && components.includes('how')) abstractScore += 1.0;
+        });
+        
+        // Average over number of nodes
+        const nodeCount = Math.max(1, graphData.nodes.length);
+        concreteScore = concreteScore / nodeCount;
+        abstractScore = abstractScore / nodeCount;
+    } else {
+        // Fallback to component-based calculation
+        var concreteScore = 0;
+        var abstractScore = 0;
+        
+        if (components.includes('who')) concreteScore += 1.0;
+        if (components.includes('what')) concreteScore += 2.0;
+        if (components.includes('when')) concreteScore += 0.5;
+        if (components.includes('where')) concreteScore += 0.5;
+        if (components.includes('why')) abstractScore += 1.5;
+        if (components.includes('how')) abstractScore += 1.0;
+    }
     
     const total = concreteScore + abstractScore;
     const euclideanPct = total > 0 ? Math.round((concreteScore / total) * 100) : 50;
@@ -599,7 +707,8 @@ function updateSpaceWeights() {
 
 function refreshGraph() {
     if (graphNetwork) {
-        initializeGraph();
+        // Preserve center node if viewing individual memory
+        initializeGraph(currentCenterNode);
     }
 }
 
@@ -904,6 +1013,12 @@ window.viewMemoryDetails = async function(memoryId) {
                             </div>
                         </div>
                     </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-info" onclick="window.showMemoryInGraph('${memoryId}')">
+                            <i class="bi bi-diagram-3"></i> Show in Graph
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -926,6 +1041,44 @@ window.viewMemoryDetails = async function(memoryId) {
     document.getElementById('memoryDetailModal').addEventListener('hidden.bs.modal', function() {
         this.remove();
     });
+}
+
+window.showMemoryInGraph = function(memoryId) {
+    // Close the details modal
+    const detailModal = bootstrap.Modal.getInstance(document.getElementById('memoryDetailModal'));
+    if (detailModal) {
+        detailModal.hide();
+    }
+    
+    // Open the graph modal
+    const graphModal = new bootstrap.Modal(document.getElementById('memoryGraphModal'));
+    graphModal.show();
+    
+    // Initialize graph after modal is shown, with the selected memory as center
+    setTimeout(() => {
+        initializeGraph(memoryId).then(() => {
+            // Focus on the center node
+            if (graphNetwork && memoryId) {
+                // The node should already be centered due to server-side filtering
+                // Additional focus for emphasis
+                graphNetwork.fit({
+                    animation: {
+                        duration: 500,
+                        easingFunction: 'easeInOutQuad'
+                    }
+                });
+                
+                // Select and highlight the center node
+                graphNetwork.selectNodes([memoryId]);
+                
+                // Find and display the node details
+                const node = allMemories.find(m => m.id === memoryId);
+                if (node) {
+                    displayNodeDetails(node);
+                }
+            }
+        });
+    }, 300);
 }
 
 window.performSearch = async function() {

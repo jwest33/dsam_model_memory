@@ -255,17 +255,52 @@ def get_graph():
     components = data.get('components', ['who', 'what', 'when', 'where', 'why', 'how'])
     use_clustering = data.get('use_clustering', True)
     viz_mode = data.get('visualization_mode', 'dual')
+    center_node_id = data.get('center_node', None)  # For individual node view
+    similarity_threshold = data.get('similarity_threshold', 0.3)
     
     try:
-        # Build query from selected components
-        query = {}
-        for comp in components:
-            query[comp] = ""  # Empty values to get all memories
+        # If center_node specified, get related memories
+        if center_node_id:
+            # Get the center node's data
+            try:
+                collection = memory_agent.memory_store.chromadb.client.get_collection("events")
+                center_result = collection.get(
+                    ids=[center_node_id],
+                    include=["metadatas", "embeddings"]
+                )
+                
+                if not center_result['ids']:
+                    return jsonify({'error': 'Center node not found'}), 404
+                
+                center_metadata = center_result['metadatas'][0]
+                
+                # Build query from center node's fields
+                query = {
+                    'what': center_metadata.get('what', ''),
+                    'who': center_metadata.get('who', ''),
+                    'why': center_metadata.get('why', ''),
+                    'how': center_metadata.get('how', '')
+                }
+                
+                # Get more memories for similarity comparison
+                k = 30  
+            except Exception as e:
+                logger.error(f"Error getting center node: {e}")
+                return jsonify({'error': str(e)}), 500
+        else:
+            # Build query from selected components for full graph
+            query = {}
+            for comp in components:
+                query[comp] = ""  # Empty values to get all memories
+            k = 50
         
-        # Retrieve memories with clustering
+        # Build query from selected components
+        query_filtered = {k: v for k, v in query.items() if k in components}
+        
+        # Retrieve memories with clustering  
         results = memory_agent.memory_store.retrieve_memories(
-            query=query,
-            k=50,  # Get more for graph
+            query=query_filtered,
+            k=k,  
             use_clustering=use_clustering,
             update_residuals=False
         )
@@ -273,8 +308,24 @@ def get_graph():
         # Build graph nodes
         nodes = []
         node_map = {}
+        included_ids = set()
+        
+        # If center node specified, ensure it's included
+        if center_node_id:
+            included_ids.add(center_node_id)
         
         for i, (event, score) in enumerate(results):
+            # Filter by similarity threshold if center node specified
+            if center_node_id:
+                # Always include center node
+                if event.id == center_node_id:
+                    pass
+                # Only include nodes above similarity threshold
+                elif score < similarity_threshold:
+                    continue
+            
+            included_ids.add(event.id)
+            
             # Determine dominant space
             concrete_fields = sum([1 for f in ['who', 'what', 'where'] if getattr(event.five_w1h, f)])
             abstract_fields = sum([1 for f in ['why', 'how'] if getattr(event.five_w1h, f)])
@@ -305,22 +356,73 @@ def get_graph():
                 'space': space,
                 'cluster_id': -1,  # Will be set if clustering finds groups
                 'centrality': score,
-                'residual_norm': float(residual_norm)
+                'residual_norm': float(residual_norm),
+                'is_center': event.id == center_node_id  # Mark center node
             }
             nodes.append(node)
             node_map[event.id] = i
         
-        # Build edges based on similarity
+        # Build edges based on embedding similarity
         edges = []
+        edge_threshold = 0.3 if not center_node_id else 0.25  # Lower threshold for focused view
+        
+        # Get embeddings for all nodes to compute proper similarity
+        node_embeddings = {}
+        for node in nodes:
+            if node['id'] in memory_agent.memory_store.embedding_cache:
+                node_embeddings[node['id']] = memory_agent.memory_store.embedding_cache[node['id']]
+        
         for i in range(len(nodes)):
             for j in range(i + 1, len(nodes)):
-                # Compute similarity between nodes
-                similarity = compute_node_similarity(nodes[i], nodes[j], components)
-                if similarity > 0.3:  # Threshold for edge creation
+                # Skip if nodes not in included set
+                if nodes[i]['id'] not in included_ids or nodes[j]['id'] not in included_ids:
+                    continue
+                
+                # Use embedding similarity if available
+                similarity = 0.0
+                if nodes[i]['id'] in node_embeddings and nodes[j]['id'] in node_embeddings:
+                    # Compute product distance using the encoder
+                    emb1 = node_embeddings[nodes[i]['id']]
+                    emb2 = node_embeddings[nodes[j]['id']]
+                    
+                    # Build query from selected components for weight calculation
+                    query = {comp: nodes[i].get(comp, '') for comp in components if nodes[i].get(comp)}
+                    lambda_e, lambda_h = memory_agent.memory_store.encoder.compute_query_weights(query)
+                    
+                    # Compute product distance (convert to similarity)
+                    distance = memory_agent.memory_store.encoder.compute_product_distance(
+                        emb1, emb2, lambda_e, lambda_h
+                    )
+                    similarity = 1.0 / (1.0 + distance)  # Convert distance to similarity
+                else:
+                    # Fallback to simple similarity
+                    similarity = compute_node_similarity(nodes[i], nodes[j], components)
+                
+                if similarity > edge_threshold:  # Threshold for edge creation
                     edges.append({
                         'from': nodes[i]['id'],
                         'to': nodes[j]['id'],
                         'weight': float(similarity)
+                    })
+        
+        # Add temporal edges for conversation flow (User -> Assistant pairs)
+        # Sort nodes by episode and timestamp to find conversation pairs
+        sorted_nodes = sorted(nodes, key=lambda n: (n.get('episode_id', ''), n.get('when', '')))
+        
+        for i in range(len(sorted_nodes) - 1):
+            curr = sorted_nodes[i]
+            next = sorted_nodes[i + 1]
+            
+            # Connect User -> Assistant or Assistant -> User in same episode
+            if curr.get('episode_id') == next.get('episode_id'):
+                if (curr.get('who') == 'User' and next.get('who') == 'Assistant') or \
+                   (curr.get('who') == 'Assistant' and next.get('who') == 'User'):
+                    # Add conversation flow edge with higher weight
+                    edges.append({
+                        'from': curr['id'],
+                        'to': next['id'],
+                        'weight': 0.8,  # Strong connection for conversation flow
+                        'type': 'conversation'
                     })
         
         # Cluster assignment (simplified)
