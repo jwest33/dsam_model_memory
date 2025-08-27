@@ -14,7 +14,7 @@
 </head>
 <body>
     <nav class="navbar navbar-dark">
-        <div class="container-xl">
+        <div class="container-xxl">
             <span class="navbar-brand mb-0 h1">
                 <span class="badge bg-purple ms-2">[DSAM]</span>
                 <i class="bi bi-brain"></i> Dual-Space Agentic Memory
@@ -30,7 +30,7 @@
         </div>
     </nav>
 
-    <div class="container-xl mt-4">
+    <div class="container-xxl mt-4">
         <div class="card main-card">
             <div class="card-header p-0">
                 <ul class="nav nav-tabs nav-fill" id="mainTabs" role="tablist">
@@ -135,17 +135,37 @@
                                     <table class="table table-dark table-hover" id="memoryTable">
                                         <thead>
                                             <tr>
-                                                <th class="sortable" data-field="who" onclick="sortTable('who')">
+                                                <th class="sortable resizable" data-field="who" onclick="sortTable('who')">
                                                     Who <i class="bi bi-arrow-down-up sort-icon"></i>
+                                                    <div class="resize-handle"></div>
                                                 </th>
-                                                <th class="sortable" data-field="what" onclick="sortTable('what')">
+                                                <th class="sortable resizable" data-field="what" onclick="sortTable('what')">
                                                     What <i class="bi bi-arrow-down-up sort-icon"></i>
+                                                    <div class="resize-handle"></div>
                                                 </th>
-                                                <th class="sortable" data-field="when" onclick="sortTable('when')">
+                                                <th class="sortable resizable" data-field="when" onclick="sortTable('when')">
                                                     When <i class="bi bi-arrow-down-up sort-icon"></i>
+                                                    <div class="resize-handle"></div>
                                                 </th>
-                                                <th>Space</th>
-                                                <th>Residual</th>
+                                                <th class="sortable resizable" data-field="where" onclick="sortTable('where')">
+                                                    Where <i class="bi bi-arrow-down-up sort-icon"></i>
+                                                    <div class="resize-handle"></div>
+                                                </th>
+                                                <th class="sortable resizable" data-field="why" onclick="sortTable('why')">
+                                                    Why <i class="bi bi-arrow-down-up sort-icon"></i>
+                                                    <div class="resize-handle"></div>
+                                                </th>
+                                                <th class="sortable resizable" data-field="how" onclick="sortTable('how')">
+                                                    How <i class="bi bi-arrow-down-up sort-icon"></i>
+                                                    <div class="resize-handle"></div>
+                                                </th>
+                                                <th class="sortable resizable" data-field="spaceWeight" onclick="sortTable('spaceWeight')">
+                                                    Space Weight <i class="bi bi-arrow-down-up sort-icon"></i>
+                                                    <div class="resize-handle"></div>
+                                                </th>
+                                                <th class="sortable" data-field="residual_norm" onclick="sortTable('residual_norm')">
+                                                    Residual <i class="bi bi-arrow-down-up sort-icon"></i>
+                                                </th>
                                                 <th>Actions</th>
                                             </tr>
                                         </thead>
@@ -320,6 +340,26 @@
                         </div>
                     </div>
                     
+                    <!-- New Interactive Controls Row -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="relationStrengthSlider" class="form-label text-cyan">
+                                Relation Strength Filter: <span id="relationStrengthValue">0.30</span>
+                            </label>
+                            <input type="range" class="form-range" id="relationStrengthSlider" 
+                                   min="0" max="1" step="0.05" value="0.3">
+                            <small class="text-muted">Hide edges below this similarity threshold</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="gravitySlider" class="form-label text-cyan">
+                                Node Spacing: <span id="gravityValue">-8000</span>
+                            </label>
+                            <input type="range" class="form-range" id="gravitySlider" 
+                                   min="-50000" max="-1000" step="1000" value="-8000">
+                            <small class="text-muted">Adjust how close nodes cluster together (more negative = more spacing)</small>
+                        </div>
+                    </div>
+                    
                     <!-- Graph and Info Panel -->
                     <div class="row">
                         <div class="col-lg-9">
@@ -351,7 +391,6 @@
                                         </div>
                                     </div>
                                     
-                                    <hr class="border-purple">
                                     
                                     <!-- Selected Node Details -->
                                     <div id="nodeDetails" class="flex-grow-1 overflow-auto">
@@ -457,7 +496,6 @@
     <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Load enhanced JS directly -->
-    <script src="{{ url_for('static', filename='js/test-simple.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>
