@@ -3,7 +3,7 @@ Enhanced Flask web application for [DSAM] Dual-Space Agentic Memory
 Provides improved API endpoints for the new frontend
 """
 
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, make_response
 import json
 import sys
 from pathlib import Path
@@ -28,6 +28,8 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = 'dual-space-memory-system-2024'
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 # Global instances
 memory_agent = None
@@ -55,13 +57,11 @@ def initialize_system():
 @app.route('/')
 def index():
     """Main page with enhanced UI"""
-    return render_template('index.html')
-
-@app.route('/test')
-def test():
-    """Test page"""
-    with open('test_frontend.html', 'r') as f:
-        return f.read()
+    response = make_response(render_template('index.html'))
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
@@ -93,14 +93,27 @@ def chat():
             k=5
         )
 
-        # Build context
+        # Build context and track memory details
         context = ""
+        memory_details = []
         if relevant_memories:
             context_lines = ["Relevant memories:"]
             for mem, score in relevant_memories:
                 snippet = mem.five_w1h.what[:100]
                 ellipsis = "..." if len(mem.five_w1h.what) > 100 else ""
                 context_lines.append(f"- [{score:.2f}] {mem.five_w1h.who}: {snippet}{ellipsis}")
+                
+                # Collect memory details for frontend
+                memory_details.append({
+                    'id': mem.id,
+                    'who': mem.five_w1h.who or '',
+                    'what': mem.five_w1h.what or '',
+                    'when': mem.five_w1h.when or '',
+                    'where': mem.five_w1h.where or '',
+                    'why': mem.five_w1h.why or '',
+                    'how': mem.five_w1h.how or '',
+                    'score': float(score)
+                })
             context = "\n".join(context_lines) + "\n\n"
 
         # Generate LLM response
@@ -132,6 +145,7 @@ def chat():
         return jsonify({
             'response': llm_response,
             'memories_used': len(relevant_memories),
+            'memory_details': memory_details,
             'space_weights': {
                 'euclidean': float(lambda_e),
                 'hyperbolic': float(lambda_h)
@@ -268,6 +282,8 @@ def get_graph():
         memory_agent.memory_store.hdbscan_min_samples = min_samples
     
     try:
+        center_metadata = None
+        
         # If center_node specified, get related memories
         if center_node_id:
             # Get the center node's data
@@ -319,20 +335,38 @@ def get_graph():
         node_map = {}
         included_ids = set()
         
-        # If center node specified, ensure it's included
-        if center_node_id:
+        # If center node specified, add it first
+        if center_node_id and center_metadata:
+            # Create a simple object to hold center node data
+            class CenterEvent:
+                def __init__(self, id, metadata):
+                    self.id = id
+                    self.five_w1h = type('FiveW1H', (), {})()
+                    self.five_w1h.who = metadata.get('who', '')
+                    self.five_w1h.what = metadata.get('what', '')
+                    self.five_w1h.when = metadata.get('when', '')
+                    self.five_w1h.where = metadata.get('where', '')
+                    self.five_w1h.why = metadata.get('why', '')
+                    self.five_w1h.how = metadata.get('how', '')
+            
+            center_event = CenterEvent(center_node_id, center_metadata)
+            
+            # Add center node with highest score
+            results_with_center = [(center_event, 1.0)]
+            
+            # Add other results, avoiding duplicates
+            for event, score in results:
+                if event.id != center_node_id:
+                    results_with_center.append((event, score))
+            
+            results = results_with_center
             included_ids.add(center_node_id)
+            
+            logger.info(f"Added center node {center_node_id[:8]}... to results")
         
         for i, (event, score) in enumerate(results):
-            # Filter by similarity threshold if center node specified
-            if center_node_id:
-                # Always include center node
-                if event.id == center_node_id:
-                    pass
-                # Only include nodes above similarity threshold
-                elif score < similarity_threshold:
-                    continue
-            
+            # Don't filter when center node is specified - retrieve_memories already returns relevant nodes
+            # The first 30 results are already the most relevant
             included_ids.add(event.id)
             
             # Determine dominant space
@@ -353,15 +387,22 @@ def get_graph():
                 hy_norm = np.linalg.norm(memory_agent.memory_store.residuals[event.id]['hyperbolic'])
                 residual_norm = (eu_norm + hy_norm) / 2
             
+            # Create label safely
+            what_text = event.five_w1h.what or ""
+            if len(what_text) > 30:
+                label_text = what_text[:30] + "..."
+            else:
+                label_text = what_text
+            
             node = {
                 'id': event.id,
-                'label': f"{event.five_w1h.who}: {event.five_w1h.what[:30]}...",
-                'who': event.five_w1h.who,
-                'what': event.five_w1h.what,
-                'when': event.five_w1h.when,
-                'where': event.five_w1h.where,
-                'why': event.five_w1h.why,
-                'how': event.five_w1h.how,
+                'label': f"{event.five_w1h.who or 'Unknown'}: {label_text}",
+                'who': event.five_w1h.who or '',
+                'what': event.five_w1h.what or '',
+                'when': event.five_w1h.when or '',
+                'where': event.five_w1h.where or '',
+                'why': event.five_w1h.why or '',
+                'how': event.five_w1h.how or '',
                 'space': space,
                 'cluster_id': -1,  # Will be set if clustering finds groups
                 'centrality': score,
@@ -448,10 +489,76 @@ def get_graph():
         cluster_ids = set(node['cluster_id'] for node in nodes)
         cluster_count = len([c for c in cluster_ids if c >= 0])
         
+        # Calculate overall space weights based on the actual graph content
+        total_concrete_score = 0
+        total_abstract_score = 0
+        node_count = 0
+        
+        # Debug: log components being checked
+        logger.debug(f"Components to check: {components}")
+        
+        for node in nodes:
+            # Count nodes that have at least one field
+            has_content = False
+            node_concrete = 0
+            node_abstract = 0
+            
+            # Weight contributions based on which components are selected and non-empty
+            if node.get('who') and node['who'] and 'who' in components:
+                node_concrete += 1.0
+                has_content = True
+            if node.get('what') and node['what'] and 'what' in components:
+                node_concrete += 2.0  # What is most concrete
+                has_content = True
+            if node.get('when') and node['when'] and 'when' in components:
+                node_concrete += 0.5
+                has_content = True
+            if node.get('where') and node['where'] and 'where' in components:
+                node_concrete += 0.5
+                has_content = True
+            if node.get('why') and node['why'] and 'why' in components:
+                node_abstract += 1.5  # Why is most abstract
+                has_content = True
+            if node.get('how') and node['how'] and 'how' in components:
+                node_abstract += 1.0
+                has_content = True
+            
+            total_concrete_score += node_concrete
+            total_abstract_score += node_abstract
+            
+            if has_content:
+                node_count += 1
+        
+        # Calculate average space weights
+        if len(nodes) > 0:
+            # Average across all nodes, not just those with content
+            avg_concrete = total_concrete_score / len(nodes)
+            avg_abstract = total_abstract_score / len(nodes)
+            total = avg_concrete + avg_abstract
+            
+            logger.info(f"Space weight calculation: nodes={len(nodes)}, concrete_total={total_concrete_score:.2f}, abstract_total={total_abstract_score:.2f}")
+            logger.info(f"Averages: concrete={avg_concrete:.3f}, abstract={avg_abstract:.3f}, total={total:.3f}")
+            
+            if total > 0:
+                euclidean_weight = avg_concrete / total
+                hyperbolic_weight = avg_abstract / total
+                space_weights = {
+                    'euclidean': euclidean_weight,
+                    'hyperbolic': hyperbolic_weight
+                }
+                logger.info(f"Final weights: euclidean={euclidean_weight:.3f}, hyperbolic={hyperbolic_weight:.3f}")
+            else:
+                logger.warning("Total score is 0, using default 50/50 weights")
+                space_weights = {'euclidean': 0.5, 'hyperbolic': 0.5}
+        else:
+            logger.warning("No nodes found, using default 50/50 weights")
+            space_weights = {'euclidean': 0.5, 'hyperbolic': 0.5}
+        
         return jsonify({
             'nodes': nodes,
             'edges': edges,
-            'cluster_count': cluster_count
+            'cluster_count': cluster_count,
+            'space_weights': space_weights
         })
         
     except Exception as e:

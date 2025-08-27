@@ -1,0 +1,142 @@
+[
+  {
+    "query_id": 0,
+    "query": "best practices for conditions,\"",
+    "type": "mixed",
+    "expected_space": "balanced",
+    "timestamp": "2025-08-27T06:46:02.592211"
+  },
+  {
+    "query_id": 1,
+    "query": "relationship between keyword",
+    "type": "abstract",
+    "expected_space": "hyperbolic",
+    "timestamp": "2025-08-27T06:46:02.592211"
+  },
+  {
+    "query_id": 2,
+    "query": "example of requirements.txt`.",
+    "type": "concrete",
+    "expected_space": "euclidean",
+    "timestamp": "2025-08-27T06:46:02.592211"
+  },
+  {
+    "query_id": 3,
+    "query": "principles of screen.",
+    "type": "abstract",
+    "expected_space": "hyperbolic",
+    "timestamp": "2025-08-27T06:46:02.592211"
+  },
+  {
+    "query_id": 4,
+    "query": "approach to cache.addall([...]))`.",
+    "type": "mixed",
+    "expected_space": "balanced",
+    "timestamp": "2025-08-27T06:46:02.592211"
+  },
+  {
+    "query_id": 5,
+    "query": "relationship between units,",
+    "type": "abstract",
+    "expected_space": "hyperbolic",
+    "timestamp": "2025-08-27T06:46:02.592211"
+  },
+  {
+    "query_id": 6,
+    "query": "implement thresholds",
+    "type": "concrete",
+    "expected_space": "euclidean",
+    "timestamp": "2025-08-27T06:46:02.592211"
+  },
+  {
+    "query_id": 7,
+    "query": "principles of session",
+    "type": "abstract",
+    "expected_space": "hyperbolic",
+    "timestamp": "2025-08-27T06:46:02.592211"
+  },
+  {
+    "query_id": 8,
+    "query": "approach to checks;",
+    "type": "mixed",
+    "expected_space": "balanced",
+    "timestamp": "2025-08-27T06:46:02.592211"
+  },
+  {
+    "query_id": 9,
+    "query": "approach to decouple",
+    "type": "mixed",
+    "expected_space": "balanced",
+    "timestamp": "2025-08-27T06:46:02.592211"
+  },
+  {
+    "query_id": 10,
+    "query": "code for show",
+    "type": "concrete",
+    "expected_space": "euclidean",
+    "timestamp": "2025-08-27T06:46:02.592211"
+  },
+  {
+    "query_id": 11,
+    "query": "best practices for commits",
+    "type": "mixed",
+    "expected_space": "balanced",
+    "timestamp": "2025-08-27T06:46:02.592211"
+  },
+  {
+    "query_id": 12,
+    "query": "relationship between `limit=50`)",
+    "type": "abstract",
+    "expected_space": "hyperbolic",
+    "timestamp": "2025-08-27T06:46:02.592211"
+  },
+  {
+    "query_id": 13,
+    "query": "example of cases).",
+    "type": "concrete",
+    "expected_space": "euclidean",
+    "timestamp": "2025-08-27T06:46:02.592211"
+  },
+  {
+    "query_id": 14,
+    "query": "principles of `curl`",
+    "type": "abstract",
+    "expected_space": "hyperbolic",
+    "timestamp": "2025-08-27T06:46:02.592211"
+  },
+  {
+    "query_id": 15,
+    "query": "approach to \"policy",
+    "type": "mixed",
+    "expected_space": "balanced",
+    "timestamp": "2025-08-27T06:46:02.592211"
+  },
+  {
+    "query_id": 16,
+    "query": "optimize benchmark.js",
+    "type": "mixed",
+    "expected_space": "balanced",
+    "timestamp": "2025-08-27T06:46:02.592211"
+  },
+  {
+    "query_id": 17,
+    "query": "implement consistently.",
+    "type": "concrete",
+    "expected_space": "euclidean",
+    "timestamp": "2025-08-27T06:46:02.592211"
+  },
+  {
+    "query_id": 18,
+    "query": "best practices for records.",
+    "type": "mixed",
+    "expected_space": "balanced",
+    "timestamp": "2025-08-27T06:46:02.592211"
+  },
+  {
+    "query_id": 19,
+    "query": "optimize devtools'",
+    "type": "mixed",
+    "expected_space": "balanced",
+    "timestamp": "2025-08-27T06:46:02.592211"
+  }
+]

@@ -64,6 +64,40 @@ class LlamaServerClient:
         except Exception as e:
             logger.error(f"Completion request failed: {e}")
             raise
+    
+    def chat_completion(self, prompt: str, system_prompt: str = None, **kwargs) -> Dict[str, Any]:
+        """Generate chat completion using the chat endpoint with proper template handling."""
+        url = f"{self.base_url}/chat/completions"
+        
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        
+        payload = {
+            "messages": messages,
+            "temperature": kwargs.get("temperature", 0.3),
+            "max_tokens": kwargs.get("max_tokens", 100),
+            "stop": kwargs.get("stop", []),
+            "stream": False,
+            "repeat_penalty": kwargs.get("repetition_penalty", 1.2)
+        }
+        
+        # Add any additional parameters
+        for key in ["top_p", "top_k", "repeat_penalty", "repetition_penalty", "presence_penalty", "frequency_penalty"]:
+            if key in kwargs:
+                if key == "repetition_penalty":
+                    payload["repeat_penalty"] = kwargs[key]
+                else:
+                    payload[key] = kwargs[key]
+        
+        try:
+            response = requests.post(url, json=payload, timeout=self.timeout)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f"Chat completion request failed: {e}")
+            raise
 
 
 class LlamaServerModel:
