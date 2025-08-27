@@ -11,6 +11,43 @@
     <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <!-- Chart.js for residual visualization -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Custom styles for dynamic modal height -->
+    <style>
+        /* Make the graph modal use full viewport height */
+        #memoryGraphModal .modal-dialog {
+            height: 100vh;
+            margin: 0;
+            max-width: 100%;
+        }
+        
+        #memoryGraphModal .modal-content {
+            height: 100%;
+            border-radius: 0;
+        }
+        
+        #memoryGraphModal .modal-body {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 60px); /* Account for modal header */
+            padding: 1rem !important;
+            overflow: hidden; /* Prevent expansion */
+        }
+        
+        /* Make the graph container responsive with fixed constraints */
+        #memoryGraph {
+            width: 100%;
+            height: 100%;
+            max-height: calc(100vh - 200px); /* Prevent infinite growth */
+            overflow: hidden; /* No scrollbars on graph */
+        }
+        
+        /* Ensure proper scrolling on the info panel */
+        .graph-info-panel {
+            max-height: 100%;
+            overflow-y: auto;
+        }
+    </style>
 </head>
 <body>
     <nav class="navbar navbar-dark">
@@ -262,7 +299,7 @@
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body p-3">
+                <div class="modal-body">
                     <!-- Enhanced Controls -->
                     <div class="row mb-3">
                         <div class="col-md-6">
@@ -352,21 +389,25 @@
                         </div>
                         <div class="col-md-6">
                             <label for="gravitySlider" class="form-label text-cyan">
-                                Node Spacing: <span id="gravityValue">-8000</span>
+                                Graph Layout
                             </label>
-                            <input type="range" class="form-range" id="gravitySlider" 
-                                   min="-50000" max="-1000" step="1000" value="-8000">
-                            <small class="text-muted">Adjust how close nodes cluster together (more negative = more spacing)</small>
+                            <div class="d-flex align-items-center">
+                                <small class="text-muted me-2">Compact</small>
+                                <input type="range" class="form-range" id="gravitySlider" 
+                                       min="1000" max="50000" step="1000" value="8000">
+                                <small class="text-muted ms-2">Spread Out</small>
+                            </div>
+                            <small class="text-muted d-block mt-1">Adjust spacing between memory nodes</small>
                         </div>
                     </div>
                     
                     <!-- Graph and Info Panel -->
-                    <div class="row">
-                        <div class="col-lg-9">
-                            <div id="memoryGraph" style="height: 75vh; border: 1px solid #6f42c1;"></div>
+                    <div class="row flex-grow-1" style="min-height: 0; max-height: calc(100vh - 250px); overflow: hidden;">
+                        <div class="col-lg-9 d-flex" style="height: 100%;">
+                            <div id="memoryGraph" style="width: 100%; height: 100%; border: 1px solid #6f42c1;"></div>
                         </div>
-                        <div class="col-lg-3">
-                            <div class="card bg-dark border-purple" style="height: 75vh; overflow-y: auto;">
+                        <div class="col-lg-3 d-flex" style="height: 100%;">
+                            <div class="card bg-dark border-purple flex-grow-1 graph-info-panel" style="height: 100%;">
                                 <div class="card-body h-100 d-flex flex-column">
                                     <!-- Graph Statistics -->
                                     <div id="graphStats" class="mb-3">
