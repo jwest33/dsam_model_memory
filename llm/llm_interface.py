@@ -54,6 +54,7 @@ class LLMInterface:
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         stop: Optional[List[str]] = None,
+        use_chat_endpoint: bool = True,
         **kwargs
     ) -> str:
         """
@@ -64,6 +65,7 @@ class LLMInterface:
             max_tokens: Maximum tokens to generate
             temperature: Sampling temperature
             stop: Stop sequences
+            use_chat_endpoint: Use chat completions endpoint (better for instruction models)
             **kwargs: Additional generation parameters
         
         Returns:
@@ -80,17 +82,36 @@ class LLMInterface:
             if 'repetition_penalty' not in kwargs:
                 kwargs['repetition_penalty'] = getattr(self.config, 'repetition_penalty', 1.2)
             
-            response = self.client.completion(
-                prompt=prompt,
-                max_tokens=max_tokens or self.config.max_tokens,
-                temperature=temperature or self.config.temperature,
-                stop=stop or [],
-                **kwargs
-            )
-            
-            # Extract generated text
-            if 'choices' in response and response['choices']:
-                return response['choices'][0].get('text', '')
+            if use_chat_endpoint and hasattr(self.client, 'chat_completion'):
+                # Use chat completion for better handling of instruction-tuned models
+                response = self.client.chat_completion(
+                    prompt=prompt,
+                    max_tokens=max_tokens or self.config.max_tokens,
+                    temperature=temperature or self.config.temperature,
+                    stop=stop or [],
+                    **kwargs
+                )
+                
+                # Extract from chat completion format
+                if 'choices' in response and response['choices']:
+                    choice = response['choices'][0]
+                    if 'message' in choice:
+                        return choice['message'].get('content', '')
+                    elif 'text' in choice:
+                        return choice['text']
+            else:
+                # Fallback to regular completion
+                response = self.client.completion(
+                    prompt=prompt,
+                    max_tokens=max_tokens or self.config.max_tokens,
+                    temperature=temperature or self.config.temperature,
+                    stop=stop or [],
+                    **kwargs
+                )
+                
+                # Extract generated text
+                if 'choices' in response and response['choices']:
+                    return response['choices'][0].get('text', '')
             
             return ""
             
@@ -178,7 +199,7 @@ class LLMInterface:
                 prompt += f"{key}: {value}\n"
         
         missing = [k for k in ["who", "what", "when", "where", "why", "how"] if not partial.get(k)]
-        prompt += f"\nProvide only: {', '.join(missing)}\nFormat: field: value"
+        prompt += f"\nProvide only: {', '.join(missing)}\nFormat: field: value\nBe concise. No explanations."
         
         # Generate completion
         response = self.generate(prompt, max_tokens=200)
