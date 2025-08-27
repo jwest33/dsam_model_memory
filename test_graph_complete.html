@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Graph Modal Test</title>
+</head>
+<body>
+    <h1>Graph Modal Fix Test</h1>
+    <p>Open the browser console and click the button to test the graph modal:</p>
+    
+    <button onclick="testGraphModal()">Test Graph Modal</button>
+    
+    <div id="result"></div>
+    
+    <script>
+    async function testGraphModal() {
+        const resultDiv = document.getElementById('result');
+        resultDiv.innerHTML = '<p>Testing...</p>';
+        
+        try {
+            // Test with a known memory ID
+            const testId = '3c9a37e1-a6b3-4501-a574-bd9d11c4e473';
+            
+            // Make API call
+            const response = await fetch('http://localhost:5000/api/graph', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    components: ['who', 'what', 'when', 'where', 'why', 'how'],
+                    use_clustering: false,
+                    visualization_mode: 'dual',
+                    center_node: testId,
+                    similarity_threshold: 0.2
+                })
+            });
+            
+            const data = await response.json();
+            
+            // Check results
+            const centerNode = data.nodes.find(n => n.id === testId);
+            
+            let html = '<h2>Test Results:</h2>';
+            
+            if (centerNode && centerNode.is_center) {
+                html += '<p style="color: green;">✓ Center node found and properly marked</p>';
+            } else if (centerNode) {
+                html += '<p style="color: orange;">⚠ Center node found but not marked as center</p>';
+            } else {
+                html += '<p style="color: red;">✗ Center node not found in graph</p>';
+            }
+            
+            html += `<p>Total nodes: ${data.nodes.length}</p>`;
+            html += `<p>Total edges: ${data.edges.length}</p>`;
+            html += '<p>First 5 nodes:</p><ul>';
+            
+            data.nodes.slice(0, 5).forEach(node => {
+                html += `<li>${node.who}: ${node.what ? node.what.substring(0, 50) + '...' : 'No description'}</li>`;
+            });
+            
+            html += '</ul>';
+            
+            resultDiv.innerHTML = html;
+            
+            console.log('Full response:', data);
+            
+        } catch (error) {
+            resultDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            console.error('Test failed:', error);
+        }
+    }
+    </script>
+</body>
+</html>

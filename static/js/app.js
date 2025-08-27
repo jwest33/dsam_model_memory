@@ -8,6 +8,12 @@ let residualChart = null;
 let spaceUsageChart = null;
 let clusteringEnabled = true;
 let currentCenterNode = null;  // Track if we're viewing an individual memory
+let relationStrengthThreshold = 0.3;  // Default threshold for edge filtering
+let currentGravity = -8000;  // Default gravity value (negative for repulsion)
+let allGraphData = null;  // Store complete graph data for filtering
+let sortField = null;  // Current sort field
+let sortDirection = null;  // 'asc', 'desc', or null
+let originalMemoryOrder = [];  // Store original order of memories
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -25,6 +31,13 @@ document.addEventListener('DOMContentLoaded', function() {
         setupEventListeners();
     } catch (error) {
         console.error('Error in setupEventListeners:', error);
+    }
+    
+    try {
+        console.log('Setting up column resizing...');
+        setupColumnResizing();
+    } catch (error) {
+        console.error('Error in setupColumnResizing:', error);
     }
     
     try {
@@ -100,6 +113,31 @@ function initializeApp() {
         minSamplesInput.addEventListener('change', refreshGraph);
     }
     
+    // Initialize relation strength slider
+    const relationSlider = document.getElementById('relationStrengthSlider');
+    const relationValue = document.getElementById('relationStrengthValue');
+    if (relationSlider) {
+        relationSlider.addEventListener('input', function(e) {
+            const value = parseFloat(e.target.value);
+            relationValue.textContent = value.toFixed(2);
+            updateEdgeFiltering(value);
+        });
+    }
+    
+    // Initialize gravity slider - now inverted so higher values = more spread out
+    const gravitySlider = document.getElementById('gravitySlider');
+    if (gravitySlider) {
+        gravitySlider.addEventListener('input', function(e) {
+            const sliderValue = parseInt(e.target.value);
+            // Invert the value: slider goes 1000-50000, gravity needs -50000 to -1000
+            // When slider is at 1000 (left/compact), gravity should be -1000 (less repulsion)
+            // When slider is at 50000 (right/spread), gravity should be -50000 (more repulsion)
+            const gravityValue = -sliderValue;
+            currentGravity = gravityValue;
+            updateGraphPhysics(gravityValue);
+        });
+    }
+    
     // Memory form field listeners for space prediction
     const memoryFields = ['memWho', 'memWhat', 'memWhen', 'memWhere', 'memWhy', 'memHow'];
     memoryFields.forEach(fieldId => {
@@ -173,9 +211,10 @@ async function handleChatSubmit(e) {
         // Remove typing indicator
         removeTypingIndicator(typingId);
         
-        // Add assistant response with space usage indicator
+        // Add assistant response with space usage indicator and memory details
         addChatMessage(data.response, 'assistant', {
             memories_used: data.memories_used,
+            memory_details: data.memory_details,
             space_weights: data.space_weights
         });
         
@@ -234,6 +273,10 @@ function addChatMessage(message, sender, metadata = {}) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${sender}-message mb-3`;
     
+    // Generate unique ID for this message
+    const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    messageDiv.id = messageId;
+    
     let spaceIndicator = '';
     if (metadata.space_weights) {
         const euclideanPct = Math.round(metadata.space_weights.euclidean * 100);
@@ -249,23 +292,142 @@ function addChatMessage(message, sender, metadata = {}) {
         `;
     }
     
+    // Add click indicator for assistant messages with memories
+    const clickIndicator = (sender === 'assistant' && metadata.memories_used > 0) 
+        ? `<i class="bi bi-info-circle ms-2" style="cursor: pointer;" title="Click message to see memories used"></i>` 
+        : '';
+    
     messageDiv.innerHTML = `
         <div class="message-header">
             <strong>${sender === 'user' ? 'You' : 'Assistant'}</strong>
             <span class="text-muted ms-2">${new Date().toLocaleTimeString()}</span>
             ${metadata.memories_used ? `<span class="badge bg-dark ms-2">${metadata.memories_used} memories</span>` : ''}
+            ${clickIndicator}
         </div>
-        <div class="message-content">${escapeHtml(message)}</div>
+        <div class="message-content" ${sender === 'assistant' && metadata.memories_used > 0 ? 'style="cursor: pointer;"' : ''}>${escapeHtml(message)}</div>
         ${spaceIndicator}
+        <div class="memory-details-container" style="display: none;"></div>
     `;
+    
+    // Add click handler for assistant messages
+    if (sender === 'assistant' && metadata.memory_details && metadata.memory_details.length > 0) {
+        messageDiv.dataset.memoryDetails = JSON.stringify(metadata.memory_details);
+        
+        const contentDiv = messageDiv.querySelector('.message-content');
+        contentDiv.addEventListener('click', function() {
+            toggleMemoryDetails(messageId);
+        });
+        
+        // Also make the info icon clickable
+        const infoIcon = messageDiv.querySelector('.bi-info-circle');
+        if (infoIcon) {
+            infoIcon.addEventListener('click', function() {
+                toggleMemoryDetails(messageId);
+            });
+        }
+    }
     
     messagesDiv.appendChild(messageDiv);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
+// Function to toggle memory details display
+function toggleMemoryDetails(messageId) {
+    const messageDiv = document.getElementById(messageId);
+    if (!messageDiv) return;
+    
+    const detailsContainer = messageDiv.querySelector('.memory-details-container');
+    const memoryDetails = JSON.parse(messageDiv.dataset.memoryDetails || '[]');
+    
+    if (detailsContainer.style.display === 'none') {
+        // Show memory details
+        let detailsHtml = `
+            <div class="mt-3 p-3 bg-dark rounded">
+                <h6 class="text-cyan mb-3">
+                    <i class="bi bi-database"></i> Retrieved Memories Used for This Response:
+                </h6>
+                <div class="memories-list">
+        `;
+        
+        memoryDetails.forEach((mem, index) => {
+            detailsHtml += `
+                <div class="memory-item mb-3 p-2 border border-secondary rounded">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="row small">
+                                <div class="col-md-6">
+                                    <strong class="text-info">Who:</strong> ${escapeHtml(mem.who || '—')}
+                                </div>
+                                <div class="col-md-6">
+                                    <strong class="text-info">When:</strong> ${escapeHtml(mem.when || '—')}
+                                </div>
+                            </div>
+                            <div class="mt-1">
+                                <strong class="text-info">What:</strong> ${escapeHtml(mem.what || '—')}
+                            </div>
+                            <div class="row small mt-1">
+                                <div class="col-md-4">
+                                    <strong class="text-muted">Where:</strong> ${escapeHtml(mem.where || '—')}
+                                </div>
+                                <div class="col-md-4">
+                                    <strong class="text-muted">Why:</strong> ${escapeHtml(mem.why || '—')}
+                                </div>
+                                <div class="col-md-4">
+                                    <strong class="text-muted">How:</strong> ${escapeHtml(mem.how || '—')}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ms-3">
+                            <span class="badge bg-success">Score: ${mem.score.toFixed(2)}</span>
+                            <button class="btn btn-sm btn-outline-info mt-2" onclick="window.showMemoryInGraph('${mem.id}')">
+                                <i class="bi bi-diagram-3"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        detailsHtml += `
+                </div>
+            </div>
+        `;
+        
+        detailsContainer.innerHTML = detailsHtml;
+        detailsContainer.style.display = 'block';
+        
+        // Update cursor style
+        const contentDiv = messageDiv.querySelector('.message-content');
+        if (contentDiv) contentDiv.style.backgroundColor = 'rgba(0, 188, 212, 0.1)';
+    } else {
+        // Hide memory details
+        detailsContainer.style.display = 'none';
+        
+        // Reset cursor style
+        const contentDiv = messageDiv.querySelector('.message-content');
+        if (contentDiv) contentDiv.style.backgroundColor = '';
+    }
+}
+
 // Memory loading and display
 async function loadMemories() {
     console.log('Loading memories...');
+    
+    // Show loading indicator in table
+    const tbody = document.getElementById('memoryTableBody');
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="9" class="text-center py-4">
+                    <div class="spinner-border text-cyan" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <div class="mt-2 text-muted">Loading memories...</div>
+                </td>
+            </tr>
+        `;
+    }
+    
     try {
         const response = await fetch('/api/memories');
         console.log('Response status:', response.status);
@@ -273,6 +435,8 @@ async function loadMemories() {
         console.log('Data received:', data);
         
         allMemories = data.memories || [];
+        // Store original order for removing sort
+        originalMemoryOrder = [...allMemories];
         console.log('Total memories loaded:', allMemories.length);
         
         // Log first memory structure to debug
@@ -298,6 +462,20 @@ async function loadMemories() {
         
     } catch (error) {
         console.error('Error loading memories:', error);
+        
+        // Show error in table
+        const tbody = document.getElementById('memoryTableBody');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" class="text-center py-4 text-danger">
+                        <i class="bi bi-exclamation-triangle fs-3"></i>
+                        <div class="mt-2">Failed to load memories</div>
+                        <small class="text-muted">${error.message || 'Unknown error'}</small>
+                    </td>
+                </tr>
+            `;
+        }
     }
 }
 
@@ -314,21 +492,32 @@ function displayMemories() {
     pageMemories.forEach(memory => {
         const row = document.createElement('tr');
         
-        // Determine dominant space
-        const spaceIndicator = getSpaceIndicator(memory);
+        // Get residual indicator  
         const residualIndicator = getResidualIndicator(memory);
         
         // Handle potentially empty fields
         const who = memory.who || '';
         const what = memory.what || '';
         const when = memory.when || '';
-        const whatDisplay = what.length > 50 ? what.substring(0, 50) + '...' : what;
+        const where = memory.where || '';
+        const why = memory.why || '';
+        const how = memory.how || '';
+        const whatDisplay = what.length > 40 ? what.substring(0, 40) + '...' : what;
+        const whereDisplay = where.length > 20 ? where.substring(0, 20) + '...' : where;
+        const whyDisplay = why.length > 30 ? why.substring(0, 30) + '...' : why;
+        const howDisplay = how.length > 25 ? how.substring(0, 25) + '...' : how;
+        
+        // Calculate space weight for this memory
+        const memorySpaceWeight = calculateMemorySpaceWeight(memory);
         
         row.innerHTML = `
             <td>${escapeHtml(who)}</td>
-            <td>${escapeHtml(whatDisplay)}</td>
+            <td title="${escapeHtml(what)}">${escapeHtml(whatDisplay)}</td>
             <td>${formatDate(when)}</td>
-            <td>${spaceIndicator}</td>
+            <td>${escapeHtml(whereDisplay)}</td>
+            <td title="${escapeHtml(why)}">${escapeHtml(whyDisplay)}</td>
+            <td title="${escapeHtml(how)}">${escapeHtml(howDisplay)}</td>
+            <td>${memorySpaceWeight}</td>
             <td>${residualIndicator}</td>
             <td>
                 <button class="btn btn-sm btn-outline-info" onclick="window.viewMemoryDetails('${memory.id}')" title="View Details">
@@ -348,6 +537,45 @@ function displayMemories() {
     
     // Update pagination
     updatePagination();
+}
+
+function calculateMemorySpaceWeight(memory) {
+    // Calculate space weight for individual memory
+    let concreteScore = 0;
+    let abstractScore = 0;
+    
+    // Score concrete fields
+    if (memory.who) concreteScore += 1.0;
+    if (memory.what) concreteScore += 2.0;
+    if (memory.when) concreteScore += 0.5;
+    if (memory.where) concreteScore += 0.5;
+    
+    // Score abstract fields
+    if (memory.why) abstractScore += 1.5;
+    if (memory.how) abstractScore += 1.0;
+    
+    const total = concreteScore + abstractScore;
+    if (total === 0) {
+        return `<span class="badge bg-secondary">No data</span>`;
+    }
+    
+    const euclideanPct = Math.round((concreteScore / total) * 100);
+    const hyperbolicPct = Math.round((abstractScore / total) * 100);
+    
+    // Create a mini progress bar
+    return `
+        <div class="d-flex align-items-center">
+            <div class="progress flex-grow-1" style="height: 15px; min-width: 80px;">
+                <div class="progress-bar bg-info" style="width: ${euclideanPct}%" 
+                     title="Euclidean: ${euclideanPct}%"></div>
+                <div class="progress-bar bg-warning" style="width: ${hyperbolicPct}%" 
+                     title="Hyperbolic: ${hyperbolicPct}%"></div>
+            </div>
+            <small class="ms-2 text-muted" style="font-size: 0.7rem;">
+                ${euclideanPct}/${hyperbolicPct}
+            </small>
+        </div>
+    `;
 }
 
 function getSpaceIndicator(memory) {
@@ -384,16 +612,51 @@ function getResidualIndicator(memory) {
 
 // Enhanced memory graph visualization
 window.showMemoryGraph = function() {
-    const modal = new bootstrap.Modal(document.getElementById('memoryGraphModal'));
-    modal.show();
+    // Show loading indicator immediately
+    const graphContainer = document.getElementById('memoryGraph');
+    if (graphContainer) {
+        graphContainer.innerHTML = `
+            <div class="d-flex flex-column justify-content-center align-items-center h-100">
+                <div class="spinner-grow text-purple" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-3 text-muted">Preparing visualization...</div>
+            </div>
+        `;
+    }
     
-    // Initialize graph after modal is shown
-    setTimeout(() => {
-        initializeGraph();
-    }, 300);
+    const modal = new bootstrap.Modal(document.getElementById('memoryGraphModal'));
+    
+    // Add event listener to resize graph when modal is fully shown
+    document.getElementById('memoryGraphModal').addEventListener('shown.bs.modal', function () {
+        // Initialize graph after modal is fully shown
+        initializeGraph().then(() => {
+            // Ensure the network fits properly in the container
+            if (graphNetwork) {
+                graphNetwork.redraw();
+                graphNetwork.fit();
+            }
+        });
+    });
+    
+    modal.show();
 }
 
 async function initializeGraph(centerNodeId = null) {
+    // Show loading indicator in graph container
+    const graphContainer = document.getElementById('memoryGraph');
+    if (graphContainer) {
+        graphContainer.innerHTML = `
+            <div class="d-flex flex-column justify-content-center align-items-center h-100">
+                <div class="spinner-border text-purple" style="width: 3rem; height: 3rem;" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-3 text-cyan">Building memory graph...</div>
+                <small class="text-muted mt-2">Analyzing ${allGraphData ? allGraphData.nodes.length : '...'} memories</small>
+            </div>
+        `;
+    }
+    
     try {
         // Update global center node tracking
         currentCenterNode = centerNodeId;
@@ -413,7 +676,7 @@ async function initializeGraph(centerNodeId = null) {
         // Add center node if specified
         if (centerNodeId) {
             requestBody.center_node = centerNodeId;
-            requestBody.similarity_threshold = 0.4;  // Only show closely related memories
+            requestBody.similarity_threshold = 0.2;  // Lower threshold to show more related memories
         }
         
         const response = await fetch('/api/graph', {
@@ -426,17 +689,39 @@ async function initializeGraph(centerNodeId = null) {
         
         const data = await response.json();
         
-        // Create graph visualization
-        createGraphVisualization(data);
+        // Create graph visualization and wait for stabilization
+        await createGraphVisualization(data);
         
         // Update statistics
         updateGraphStats(data);
         
-        // Update space weights with actual data
-        updateSpaceWeights(data);
+        // Update space weights with actual data from server
+        console.log('Graph data received, space_weights:', data.space_weights);
+        if (data.space_weights) {
+            displaySpaceWeights(data.space_weights);
+        } else {
+            console.warn('No space_weights in response, calculating locally');
+            // Fallback to calculating from data
+            updateSpaceWeights(data);
+        }
         
     } catch (error) {
         console.error('Error loading graph:', error);
+        
+        // Show error in graph container
+        const graphContainer = document.getElementById('memoryGraph');
+        if (graphContainer) {
+            graphContainer.innerHTML = `
+                <div class="d-flex flex-column justify-content-center align-items-center h-100">
+                    <i class="bi bi-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
+                    <div class="mt-3 text-danger">Failed to load graph</div>
+                    <small class="text-muted mt-2">${error.message || 'Unknown error'}</small>
+                    <button class="btn btn-outline-cyan btn-sm mt-3" onclick="refreshGraph()">
+                        <i class="bi bi-arrow-clockwise"></i> Try Again
+                    </button>
+                </div>
+            `;
+        }
     }
 }
 
@@ -451,6 +736,9 @@ function getSelectedComponents() {
 function createGraphVisualization(data) {
     const container = document.getElementById('memoryGraph');
     
+    // Store complete graph data for filtering
+    allGraphData = data;
+    
     // Prepare nodes with color coding based on space/cluster
     const nodes = new vis.DataSet(data.nodes.map(node => {
         const nodeConfig = {
@@ -459,7 +747,18 @@ function createGraphVisualization(data) {
             color: getNodeColor(node),
             size: 10 + (node.centrality || 0) * 15,  // Reduced from 20 + 30
             title: createNodeTooltip(node),
-            ...node
+            // Store node data for later access but don't spread all properties
+            who: node.who,
+            what: node.what,
+            when: node.when,
+            where: node.where,
+            why: node.why,
+            how: node.how,
+            space: node.space,
+            cluster_id: node.cluster_id,
+            centrality: node.centrality,
+            residual_norm: node.residual_norm,
+            is_center: node.is_center
         };
         
         // Make center node larger and with a border
@@ -481,48 +780,106 @@ function createGraphVisualization(data) {
         return nodeConfig;
     }));
     
+    // Check if we have a center node
+    const centerNode = data.nodes.find(n => n.is_center);
+    const centerNodeId = centerNode ? centerNode.id : null;
+    
     // Prepare edges with gradient color based on similarity strength
-    const edges = new vis.DataSet(data.edges.map(edge => {
+    // Create all edges, but mark some as hidden based on threshold
+    const edges = new vis.DataSet(data.edges.map((edge, index) => {
         let edgeColor;
         let edgeTitle;
+        let edgeWidth = 1;
+        let zIndex = 0;  // Default z-index
         
-        // Special coloring for conversation edges
-        if (edge.type === 'conversation') {
-            // Bright cyan-purple for User-Assistant conversation flow
+        // Check if edge is connected to center node
+        const isConnectedToCenter = centerNodeId && (edge.from === centerNodeId || edge.to === centerNodeId);
+        
+        if (isConnectedToCenter) {
+            // Cyan color for edges connected to center node
+            edgeColor = {
+                color: '#00ffff',  // Bright cyan
+                highlight: '#00ffff',
+                hover: '#00ffff',
+                opacity: 0.9
+            };
+            edgeTitle = `Connected to center - Similarity: ${edge.weight.toFixed(3)}`;
+            edgeWidth = 3;  // Thicker edges for center connections
+            zIndex = 1000;  // Higher z-index to appear above other edges
+        } else if (edge.type === 'conversation') {
+            // Bright purple for User-Assistant conversation flow
             edgeColor = {
                 color: '#ff00ff',  // Bright purple for conversation edges
-                opacity: 0.8
+                opacity: 0.6  // Reduced opacity so center edges stand out more
             };
             edgeTitle = 'Conversation Flow';
+            edgeWidth = 2;
         } else {
-            // Gradient from blue to purple based on weight for similarity edges
+            // Regular edges - make them more subtle
             const weight = edge.weight || 0.5;
-            const r = Math.floor(0 + (255 * weight));  // Red increases with weight
-            const g = Math.floor(100 * (1 - weight));  // Green decreases with weight
-            const b = Math.floor(255);  // Blue stays high
+            
+            // More muted colors for non-center edges
+            const r = Math.floor(100 + (100 * weight));  // Muted red
+            const g = Math.floor(100 + (50 * (1 - weight)));  // Muted green
+            const b = Math.floor(150 + (105 * weight));  // Muted blue
             
             edgeColor = {
-                color: `rgb(${r}, ${g}, ${b})`,
-                opacity: Math.min(0.9, 0.4 + edge.weight * 0.5)
+                color: `rgba(${r}, ${g}, ${b}, 0.3)`,  // Lower opacity for regular edges
+                opacity: 0.3  // Very subtle for non-center edges
             };
             edgeTitle = `Similarity: ${edge.weight.toFixed(3)}`;
         }
         
+        // Determine if edge should be hidden based on threshold
+        // For center view, only show edges connected to center and strong connections
+        const hidden = centerNodeId ? 
+            !(isConnectedToCenter || (edge.weight >= 0.7)) :  // In center view, hide most non-center edges
+            !(edge.type === 'conversation' || edge.weight >= relationStrengthThreshold);
+        
         return {
+            id: `edge-${index}`,  // Add unique ID for each edge
             from: edge.from,
             to: edge.to,
             value: edge.weight || 0.8,
             color: edgeColor,
             title: edgeTitle,
-            width: edge.type === 'conversation' ? 2 : 1  // Make conversation edges thicker
+            width: edgeWidth,
+            hidden: hidden,
+            weight: edge.weight,  // Store original weight
+            type: edge.type,  // Store type for filtering
+            chosen: isConnectedToCenter ? {
+                edge: function(values, id, selected, hovering) {
+                    values.width = 4;  // Even thicker when selected
+                    values.color = '#00ffff';
+                }
+            } : false,
+            smooth: {
+                enabled: true,
+                type: isConnectedToCenter ? 'straightCross' : 'dynamic'  // Different curve for center edges
+            },
+            zIndex: zIndex  // Higher z-index for center edges
         };
     }));
     
+    // Sort edges so that center-connected edges are rendered last (on top)
+    const edgesArray = edges.get();
+    edgesArray.sort((a, b) => {
+        // Check if edges are connected to center
+        const aIsCenter = centerNodeId && (a.from === centerNodeId || a.to === centerNodeId);
+        const bIsCenter = centerNodeId && (b.from === centerNodeId || b.to === centerNodeId);
+        
+        if (aIsCenter && !bIsCenter) return 1;  // a comes after b
+        if (!aIsCenter && bIsCenter) return -1; // b comes after a
+        return 0;  // Keep original order
+    });
+    
+    // Clear and re-add edges in sorted order
+    edges.clear();
+    edges.add(edgesArray);
+    
     const graphData = { nodes, edges };
     
-    // Check if we have a center node for special layout
-    const centerNode = data.nodes.find(n => n.is_center);
-    
+    // Options for the network visualization
     const options = {
         nodes: {
             shape: 'dot',
@@ -535,23 +892,41 @@ function createGraphVisualization(data) {
         },
         edges: {
             smooth: {
-                type: 'continuous'
+                type: 'continuous',
+                roundness: 0.5
             },
-            width: 1,  // Reduced from 2
-            shadow: true
+            width: 1,  // Default width
+            shadow: true,
+            arrows: {
+                to: {
+                    enabled: false  // Disable arrows for cleaner look
+                }
+            },
+            selectionWidth: function (width) { 
+                return width * 2; 
+            },
+            hoverWidth: function (width) { 
+                return width * 1.5; 
+            }
         },
         physics: {
+            enabled: true,
             stabilization: {
-                iterations: 200
+                enabled: true,
+                iterations: 500,  // Increased for better initial positioning
+                updateInterval: 50,
+                fit: true
             },
             barnesHut: {
-                gravitationalConstant: -10000,  // Increased for more spacing
-                centralGravity: 0.2,  // Reduced to allow more spread
-                springConstant: 0.015,  // Further reduced for looser connections
-                springLength: 200,  // Increased spring length for more spacing
-                damping: 0.09,  // Added damping for stability
-                avoidOverlap: 0.7  // Increased to prevent overlap with more spacing
-            }
+                gravitationalConstant: currentGravity,  // Use dynamic gravity
+                centralGravity: 0.3,  // Increased for more center pull
+                springConstant: 0.04,  // Increased for stronger springs
+                springLength: 95,  // Slightly shorter for tighter layout
+                damping: 0.5,  // Much higher damping to stop oscillation
+                avoidOverlap: 0.1  // Reduced to allow tighter packing
+            },
+            timestep: 0.5,  // Smaller timestep for stability
+            adaptiveTimestep: true
         },
         interaction: {
             hover: true,
@@ -572,6 +947,9 @@ function createGraphVisualization(data) {
     // Create network
     graphNetwork = new vis.Network(container, graphData, options);
     
+    // Store the nodes dataset globally for access
+    graphNetwork.nodesDataset = nodes;
+    
     // Add click handlers
     graphNetwork.on('click', function(params) {
         if (params.nodes.length > 0) {
@@ -579,6 +957,41 @@ function createGraphVisualization(data) {
             const node = nodes.get(nodeId);
             displayNodeDetails(node);
         }
+    });
+    
+    // Enable drag to reposition - nodes will stay where placed
+    graphNetwork.on('dragEnd', function(params) {
+        if (params.nodes.length > 0) {
+            // Node was dragged - it will stay in its new position since physics is off
+            console.log('Node repositioned:', params.nodes[0]);
+        }
+    });
+    
+    // Return a promise that resolves when the network is stabilized
+    return new Promise((resolve) => {
+        graphNetwork.once('stabilizationIterationsDone', function() {
+            console.log('Network stabilized');
+            // Stop physics after stabilization to prevent continuous movement
+            setTimeout(() => {
+                graphNetwork.setOptions({
+                    physics: {
+                        enabled: false  // Stop physics to freeze positions
+                    }
+                });
+                console.log('Physics stopped - nodes frozen');
+            }, 500);  // Small delay to ensure final positions are set
+            resolve();
+        });
+        
+        // Fallback in case stabilization doesn't trigger
+        setTimeout(() => {
+            graphNetwork.setOptions({
+                physics: {
+                    enabled: false
+                }
+            });
+            resolve();
+        }, 3000);  // Give it 3 seconds max
     });
 }
 
@@ -673,6 +1086,39 @@ function updateGraphStats(data) {
     
     const avgDegree = data.edges.length * 2 / Math.max(1, data.nodes.length);
     document.getElementById('avgDegree').textContent = avgDegree.toFixed(1);
+}
+
+function displaySpaceWeights(spaceWeights) {
+    // Display space weights from server
+    console.log('displaySpaceWeights called with:', spaceWeights);
+    const euclideanPct = Math.round(spaceWeights.euclidean * 100);
+    const hyperbolicPct = Math.round(spaceWeights.hyperbolic * 100);
+    console.log('Calculated percentages - Euclidean:', euclideanPct, 'Hyperbolic:', hyperbolicPct);
+    
+    const euclideanBar = document.getElementById('euclideanWeight');
+    const hyperbolicBar = document.getElementById('hyperbolicWeight');
+    
+    if (euclideanBar && hyperbolicBar) {
+        euclideanBar.style.width = `${euclideanPct}%`;
+        euclideanBar.textContent = `Euclidean: ${euclideanPct}%`;
+        hyperbolicBar.style.width = `${hyperbolicPct}%`;
+        hyperbolicBar.textContent = `Hyperbolic: ${hyperbolicPct}%`;
+    }
+    
+    // Update the space indicator badge
+    const spaceIndicator = document.getElementById('graphSpaceIndicator');
+    if (spaceIndicator) {
+        if (euclideanPct > 60) {
+            spaceIndicator.textContent = 'Euclidean-Heavy';
+            spaceIndicator.className = 'badge bg-info ms-2';
+        } else if (hyperbolicPct > 60) {
+            spaceIndicator.textContent = 'Hyperbolic-Heavy';
+            spaceIndicator.className = 'badge bg-warning ms-2';
+        } else {
+            spaceIndicator.textContent = 'Balanced';
+            spaceIndicator.className = 'badge bg-success ms-2';
+        }
+    }
 }
 
 function updateSpaceWeights(graphData = null) {
@@ -1065,6 +1511,179 @@ window.viewMemoryDetails = async function(memoryId) {
     });
 }
 
+// Function to update edge filtering based on relation strength threshold
+function updateEdgeFiltering(threshold) {
+    if (!graphNetwork || !allGraphData) return;
+    
+    relationStrengthThreshold = threshold;
+    
+    // Get the edges dataset from the network
+    const edgesDataset = graphNetwork.body.data.edges;
+    const nodesDataset = graphNetwork.body.data.nodes;
+    
+    // Only update if we have valid datasets
+    if (!edgesDataset || !nodesDataset) {
+        console.warn('Datasets not ready for filtering');
+        return;
+    }
+    
+    const updates = [];
+    
+    // Go through all edges and update visibility
+    edgesDataset.forEach(edge => {
+        const shouldHide = !(edge.type === 'conversation' || edge.weight >= relationStrengthThreshold);
+        updates.push({
+            id: edge.id,
+            hidden: shouldHide
+        });
+    });
+    
+    // Apply all updates at once
+    edgesDataset.update(updates);
+    
+    // Update edge count in statistics
+    const visibleCount = allGraphData.edges.filter(edge => 
+        edge.type === 'conversation' || edge.weight >= relationStrengthThreshold
+    ).length;
+    document.getElementById('edgeCount').textContent = visibleCount;
+    
+    // Find connected components based on visible edges
+    try {
+        const connectedComponents = findConnectedComponents(nodesDataset, edgesDataset, relationStrengthThreshold);
+        
+        // Update node clustering to reflect actual connectivity
+        const nodeUpdates = [];
+        connectedComponents.forEach((component, componentId) => {
+            component.forEach(nodeId => {
+                nodeUpdates.push({
+                    id: nodeId,
+                    group: componentId  // Use group to visually distinguish components
+                });
+            });
+        });
+        
+        if (nodeUpdates.length > 0) {
+            nodesDataset.update(nodeUpdates);
+        }
+    } catch (error) {
+        console.error('Error updating connected components:', error);
+    }
+    
+    // Simply restart physics without temporary changes
+    graphNetwork.setOptions({
+        physics: {
+            enabled: true,
+            stabilization: {
+                enabled: true,
+                iterations: 100,
+                updateInterval: 50
+            }
+        }
+    });
+    
+    // Let physics run to separate disconnected components naturally
+    graphNetwork.stabilize(100);
+}
+
+// Helper function to find connected components
+function findConnectedComponents(nodesDataset, edgesDataset, threshold) {
+    const adjacencyList = {};
+    const visited = new Set();
+    const components = [];
+    const nodeIds = [];
+    
+    // Get all node IDs
+    nodesDataset.forEach(node => {
+        nodeIds.push(node.id);
+        adjacencyList[node.id] = [];  // Initialize with empty array
+    });
+    
+    // Build adjacency list from visible edges
+    edgesDataset.forEach(edge => {
+        if (!edge.hidden && (edge.type === 'conversation' || edge.weight >= threshold)) {
+            // Only add if both nodes exist
+            if (adjacencyList[edge.from] !== undefined && adjacencyList[edge.to] !== undefined) {
+                adjacencyList[edge.from].push(edge.to);
+                adjacencyList[edge.to].push(edge.from);
+            }
+        }
+    });
+    
+    // DFS to find connected components
+    function dfs(nodeId, component) {
+        visited.add(nodeId);
+        component.push(nodeId);
+        
+        if (adjacencyList[nodeId] && adjacencyList[nodeId].length > 0) {
+            adjacencyList[nodeId].forEach(neighbor => {
+                if (!visited.has(neighbor)) {
+                    dfs(neighbor, component);
+                }
+            });
+        }
+    }
+    
+    // Find all components
+    nodeIds.forEach(nodeId => {
+        if (!visited.has(nodeId)) {
+            const component = [];
+            dfs(nodeId, component);
+            components.push(component);
+        }
+    });
+    
+    return components;
+}
+
+// Function to update physics configuration for gravity
+function updateGraphPhysics(gravity) {
+    if (!graphNetwork) return;
+    
+    currentGravity = gravity;
+    
+    // Calculate proportional parameters based on gravity
+    // More negative gravity = more spacing
+    const centralGravity = 0.1 + (gravity + 50000) / 100000;  // Range: 0.1 to 0.6
+    const springLength = 100 + (Math.abs(gravity) / 100);  // Range: 110 to 600
+    const springConstant = 0.001 + (50000 + gravity) / 5000000;  // Range: 0.001 to 0.01
+    
+    // Update physics options with better stabilization
+    graphNetwork.setOptions({
+        physics: {
+            enabled: true,
+            stabilization: {
+                enabled: true,
+                iterations: 100,  // Quick re-stabilization
+                updateInterval: 50,
+                fit: false  // Don't refit view when adjusting
+            },
+            barnesHut: {
+                gravitationalConstant: currentGravity,
+                centralGravity: 0.3,  // Keep consistent center pull
+                springConstant: 0.04,  // Consistent spring strength
+                springLength: 95 + (Math.abs(gravity) / 500),  // Adjust spring length based on gravity
+                damping: 0.5,  // High damping to prevent oscillation
+                avoidOverlap: 0.1
+            },
+            timestep: 0.5,
+            adaptiveTimestep: true
+        }
+    });
+    
+    // Start stabilization then stop physics
+    graphNetwork.stabilize(100);
+    
+    // Stop physics after stabilization to prevent drift
+    setTimeout(() => {
+        graphNetwork.setOptions({
+            physics: {
+                enabled: false
+            }
+        });
+        console.log('Physics stopped after adjustment');
+    }, 2000);  // Give it 2 seconds to stabilize
+}
+
 window.showMemoryInGraph = function(memoryId) {
     // Close the details modal
     const detailModal = bootstrap.Modal.getInstance(document.getElementById('memoryDetailModal'));
@@ -1081,24 +1700,42 @@ window.showMemoryInGraph = function(memoryId) {
         initializeGraph(memoryId).then(() => {
             // Focus on the center node
             if (graphNetwork && memoryId) {
-                // The node should already be centered due to server-side filtering
-                // Additional focus for emphasis
-                graphNetwork.fit({
-                    animation: {
-                        duration: 500,
-                        easingFunction: 'easeInOutQuad'
+                // Check if the node exists in the dataset
+                if (graphNetwork.nodesDataset && graphNetwork.nodesDataset.get(memoryId)) {
+                    // The node should already be centered due to server-side filtering
+                    // Additional focus for emphasis
+                    graphNetwork.fit({
+                        animation: {
+                            duration: 500,
+                            easingFunction: 'easeInOutQuad'
+                        }
+                    });
+                    
+                    // Select and highlight the center node
+                    try {
+                        graphNetwork.selectNodes([memoryId]);
+                    } catch (e) {
+                        console.warn('Could not select node:', e);
                     }
-                });
-                
-                // Select and highlight the center node
-                graphNetwork.selectNodes([memoryId]);
-                
-                // Find and display the node details
-                const node = allMemories.find(m => m.id === memoryId);
-                if (node) {
-                    displayNodeDetails(node);
+                    
+                    // Get the node from the dataset and display details
+                    const node = graphNetwork.nodesDataset.get(memoryId);
+                    if (node) {
+                        displayNodeDetails(node);
+                    }
+                } else {
+                    console.warn('Center node not found in graph:', memoryId);
+                    // Just fit the view to show all nodes
+                    graphNetwork.fit({
+                        animation: {
+                            duration: 500,
+                            easingFunction: 'easeInOutQuad'
+                        }
+                    });
                 }
             }
+        }).catch(error => {
+            console.error('Error initializing graph:', error);
         });
     }, 300);
 }
@@ -1169,14 +1806,151 @@ function changePage(page) {
 }
 
 function sortTable(field) {
-    allMemories.sort((a, b) => {
-        if (a[field] < b[field]) return -1;
-        if (a[field] > b[field]) return 1;
-        return 0;
-    });
+    // Determine new sort state
+    if (sortField === field) {
+        // Same field clicked - cycle through states
+        if (sortDirection === 'asc') {
+            sortDirection = 'desc';
+        } else if (sortDirection === 'desc') {
+            // Remove sort - restore original order
+            sortField = null;
+            sortDirection = null;
+            allMemories = [...originalMemoryOrder];
+        } else {
+            // Should not happen, but default to asc
+            sortDirection = 'asc';
+        }
+    } else {
+        // Different field clicked - start with ascending
+        sortField = field;
+        sortDirection = 'asc';
+    }
     
+    // Apply sort if needed
+    if (sortField && sortDirection) {
+        allMemories.sort((a, b) => {
+            let aVal, bVal;
+            
+            // Special handling for space weight - sort by euclidean percentage
+            if (sortField === 'spaceWeight') {
+                // Calculate euclidean percentage for each memory
+                const aEuclidean = calculateEuclideanPercentage(a);
+                const bEuclidean = calculateEuclideanPercentage(b);
+                aVal = aEuclidean;
+                bVal = bEuclidean;
+            } else {
+                aVal = a[sortField] || '';
+                bVal = b[sortField] || '';
+            }
+            
+            // Handle null/undefined values
+            if (aVal === '' && bVal === '') return 0;
+            if (aVal === '') return 1;
+            if (bVal === '') return -1;
+            
+            // Compare values
+            let comparison = 0;
+            if (aVal < bVal) comparison = -1;
+            if (aVal > bVal) comparison = 1;
+            
+            // Apply direction
+            return sortDirection === 'asc' ? comparison : -comparison;
+        });
+    }
+    
+    // Update visual indicators
+    updateSortIndicators(sortField, sortDirection);
+    
+    // Reset to first page and display
     currentPage = 1;
     displayMemories();
+}
+
+function calculateEuclideanPercentage(memory) {
+    // Calculate euclidean percentage for sorting
+    let concreteScore = 0;
+    let abstractScore = 0;
+    
+    if (memory.who) concreteScore += 1.0;
+    if (memory.what) concreteScore += 2.0;
+    if (memory.when) concreteScore += 0.5;
+    if (memory.where) concreteScore += 0.5;
+    if (memory.why) abstractScore += 1.5;
+    if (memory.how) abstractScore += 1.0;
+    
+    const total = concreteScore + abstractScore;
+    if (total === 0) return 0;
+    
+    return (concreteScore / total) * 100;
+}
+
+function setupColumnResizing() {
+    const table = document.getElementById('memoryTable');
+    if (!table) return;
+    
+    const resizeHandles = table.querySelectorAll('.resize-handle');
+    
+    resizeHandles.forEach(handle => {
+        let startX = 0;
+        let startWidth = 0;
+        let column = null;
+        
+        handle.addEventListener('mousedown', (e) => {
+            e.stopPropagation(); // Prevent sorting when resizing
+            startX = e.pageX;
+            column = handle.parentElement;
+            startWidth = column.offsetWidth;
+            
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+        });
+        
+        function handleMouseMove(e) {
+            if (!column) return;
+            const diff = e.pageX - startX;
+            const newWidth = Math.max(50, startWidth + diff); // Minimum 50px width
+            column.style.width = newWidth + 'px';
+            column.style.minWidth = newWidth + 'px';
+            column.style.maxWidth = newWidth + 'px';
+        }
+        
+        function handleMouseUp() {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            column = null;
+        }
+    });
+}
+
+function updateSortIndicators(field, direction) {
+    // Reset all sort indicators
+    document.querySelectorAll('.sortable').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+        const icon = th.querySelector('.sort-icon');
+        if (icon) {
+            icon.className = 'bi bi-arrow-down-up sort-icon';
+        }
+    });
+    
+    // Update active column indicator
+    if (field && direction) {
+        const activeHeader = document.querySelector(`.sortable[data-field="${field}"]`);
+        if (activeHeader) {
+            activeHeader.classList.add(`sort-${direction}`);
+            const icon = activeHeader.querySelector('.sort-icon');
+            if (icon) {
+                if (direction === 'asc') {
+                    icon.className = 'bi bi-arrow-up sort-icon';
+                } else {
+                    icon.className = 'bi bi-arrow-down sort-icon';
+                }
+            }
+        }
+    }
 }
 
 function showTypingIndicator() {
