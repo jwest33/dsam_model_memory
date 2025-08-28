@@ -11,7 +11,7 @@ The system employs two complementary geometric spaces:
 ### 1.1 Euclidean Space (ℝ^768)
 A 768-dimensional real vector space using standard L2 (Euclidean) distance metric for capturing lexical and syntactic similarity.
 
-**Why 768 dimensions?** Higher dimensions provide more capacity to encode nuanced differences between similar concepts without interference (the "blessing of dimensionality" for embeddings). The 768 dimensions match common transformer output sizes, allowing rich semantic representation where each dimension can capture different linguistic features (syntax, semantics, style, domain).
+**Why 768 dimensions?** We use the all-mpnet-base-v2 model which natively produces 768-dimensional embeddings. This provides superior semantic understanding compared to smaller models, with each dimension capturing different linguistic features (syntax, semantics, style, domain). No additional projection is needed - we directly use the model's high-quality embeddings for the Euclidean space.
 
 **Distance metric:**
 ```
@@ -43,19 +43,18 @@ where points x, y ∈ 𝔹^n = {x ∈ ℝ^n : ||x|| < 1}
 ## 2. Embedding Generation
 
 ### 2.1 Base Embeddings
-We use the pre-trained sentence transformer `all-MiniLM-L6-v2` to generate initial 384-dimensional embeddings, which are then projected:
+We use the pre-trained sentence transformer `all-mpnet-base-v2` to generate 768-dimensional embeddings:
 
-**Why this architecture?** The sentence transformer provides semantically meaningful base representations trained on millions of text pairs. Projecting to different dimensions for each space allows optimization - more dimensions (768) for Euclidean to capture fine-grained lexical details, fewer (64) for Hyperbolic since the curved geometry provides additional representational power.
+**Why this architecture?** The all-mpnet-base-v2 model provides state-of-the-art semantic representations, outperforming smaller models like MiniLM. Since it natively produces 768-dimensional embeddings, we use them directly for the Euclidean space, while projecting down to 64 dimensions for the Hyperbolic space where the curved geometry provides additional representational power.
 
-**Euclidean projection:**
+**Euclidean embeddings (direct use):**
 ```python
-W_E ∈ ℝ^(768×384)  # Learned projection matrix
-e_euclidean = W_E @ base_embedding + b_E
+e_euclidean = base_embedding 
 ```
 
 **Hyperbolic projection with exponential map:**
 ```python
-W_H ∈ ℝ^(64×384)   # Learned projection matrix
+W_H ∈ ℝ^(64×768)   # Learned projection matrix (from 768-dim base)
 v = W_H @ base_embedding + b_H
 e_hyperbolic = exp_0(v) = tanh(||v||/2) * (v/||v||)
 ```

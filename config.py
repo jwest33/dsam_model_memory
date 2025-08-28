@@ -97,7 +97,7 @@ class EmbeddingConfig:
     """Configuration for embedding generation"""
     
     # Model settings
-    embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_model_name: str = "sentence-transformers/all-mpnet-base-v2"
     use_transformer: bool = True
     cache_embeddings: bool = True
     

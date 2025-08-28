@@ -382,56 +382,56 @@ class BenchmarkDatasetGenerator:
         """Initialize personas with their characteristics"""
         return {
             PersonaType.DEVELOPER: {
-                'name_pool': ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank'],
+                'name_pool': ['User'],
                 'typical_activities': [ActivityType.CODING, ActivityType.DEBUGGING, ActivityType.REVIEWING],
                 'typical_locations': [LocationType.IDE, LocationType.TERMINAL, LocationType.CODEBASE],
                 'communication_style': 'technical',
                 'query_patterns': ['concrete', 'technical', 'code-focused']
             },
             PersonaType.DATA_SCIENTIST: {
-                'name_pool': ['Sarah', 'Mike', 'Lisa', 'Tom', 'Emma', 'Jack'],
+                'name_pool': ['User'],
                 'typical_activities': [ActivityType.RESEARCHING, ActivityType.CODING, ActivityType.TESTING],
                 'typical_locations': [LocationType.NOTEBOOK, LocationType.DATABASE, LocationType.DOCUMENTATION],
                 'communication_style': 'analytical',
                 'query_patterns': ['statistical', 'exploratory', 'model-focused']
             },
             PersonaType.DEVOPS: {
-                'name_pool': ['Alex', 'Sam', 'Pat', 'Jordan', 'Taylor', 'Morgan'],
+                'name_pool': ['User'],
                 'typical_activities': [ActivityType.DEPLOYING, ActivityType.TESTING, ActivityType.PLANNING],
                 'typical_locations': [LocationType.TERMINAL, LocationType.CLOUD_CONSOLE, LocationType.GITHUB],
                 'communication_style': 'process-oriented',
                 'query_patterns': ['infrastructure', 'automation', 'monitoring']
             },
             PersonaType.STUDENT: {
-                'name_pool': ['Chris', 'Jamie', 'Robin', 'Casey', 'Drew', 'Quinn'],
+                'name_pool': ['User'],
                 'typical_activities': [ActivityType.LEARNING, ActivityType.CODING, ActivityType.RESEARCHING],
                 'typical_locations': [LocationType.BROWSER, LocationType.IDE, LocationType.DOCUMENTATION],
                 'communication_style': 'inquisitive',
                 'query_patterns': ['exploratory', 'conceptual', 'example-seeking']
             },
             PersonaType.MANAGER: {
-                'name_pool': ['David', 'Jennifer', 'Robert', 'Michelle', 'William', 'Linda'],
+                'name_pool': ['User'],
                 'typical_activities': [ActivityType.PLANNING, ActivityType.MEETING, ActivityType.REVIEWING],
                 'typical_locations': [LocationType.SLACK, LocationType.GITHUB, LocationType.BROWSER],
                 'communication_style': 'strategic',
                 'query_patterns': ['high-level', 'process', 'timeline-focused']
             },
             PersonaType.DESIGNER: {
-                'name_pool': ['Olivia', 'Ethan', 'Sophia', 'Mason', 'Ava', 'Lucas'],
+                'name_pool': ['User'],
                 'typical_activities': [ActivityType.PLANNING, ActivityType.REVIEWING, ActivityType.DOCUMENTING],
                 'typical_locations': [LocationType.BROWSER, LocationType.DOCUMENTATION, LocationType.API_CLIENT],
                 'communication_style': 'creative',
                 'query_patterns': ['visual', 'user-focused', 'iterative']
             },
             PersonaType.RESEARCHER: {
-                'name_pool': ['Nathan', 'Grace', 'Ryan', 'Lily', 'Andrew', 'Zoe'],
+                'name_pool': ['User'],
                 'typical_activities': [ActivityType.RESEARCHING, ActivityType.DOCUMENTING, ActivityType.TESTING],
                 'typical_locations': [LocationType.NOTEBOOK, LocationType.DOCUMENTATION, LocationType.BROWSER],
                 'communication_style': 'methodical',
                 'query_patterns': ['theoretical', 'comparative', 'evidence-based']
             },
             PersonaType.QA_ENGINEER: {
-                'name_pool': ['Kevin', 'Amy', 'Brian', 'Nicole', 'Steven', 'Laura'],
+                'name_pool': ['User'],
                 'typical_activities': [ActivityType.TESTING, ActivityType.DEBUGGING, ActivityType.DOCUMENTING],
                 'typical_locations': [LocationType.DEBUGGER, LocationType.API_CLIENT, LocationType.TERMINAL],
                 'communication_style': 'detail-oriented',

@@ -135,7 +135,7 @@ class DualSpaceEncoder:
     Encoder producing both Euclidean and Hyperbolic embeddings with field-aware composition.
     """
     
-    def __init__(self, model_name: str = 'sentence-transformers/all-MiniLM-L6-v2',
+    def __init__(self, model_name: str = 'sentence-transformers/all-mpnet-base-v2',
                  euclidean_dim: int = 768, hyperbolic_dim: int = 64,
                  field_weights: Optional[Dict[str, float]] = None,
                  max_norm: float = 0.999, epsilon: float = 1e-5):
@@ -157,7 +157,12 @@ class DualSpaceEncoder:
         }
         
         # Initialize projection heads (as numpy arrays for simplicity)
-        self.euclidean_head = np.random.randn(self.base_dim, euclidean_dim) * 0.01
+        # For all-mpnet-base-v2, base_dim already equals euclidean_dim (768)
+        # So euclidean_head is identity, only project for hyperbolic
+        if self.base_dim == euclidean_dim:
+            self.euclidean_head = np.eye(self.base_dim)  # Identity matrix, no projection needed
+        else:
+            self.euclidean_head = np.random.randn(self.base_dim, euclidean_dim) * 0.01
         self.hyperbolic_head = np.random.randn(self.base_dim, hyperbolic_dim) * 0.01
         
         # Field weights (learnable gates)

@@ -78,7 +78,7 @@
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link rounded-0" id="memory-tab" data-bs-toggle="tab" data-bs-target="#memory" type="button" role="tab">
-                            <i class="bi bi-database"></i> Memory Store
+                            <i class="bi bi-table"></i> Memory Store
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
@@ -167,6 +167,13 @@
                                     </div>
                                 </div>
                                 
+                                <!-- Pagination Info -->
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div class="text-muted">
+                                        Showing <span id="showingStart">0</span> - <span id="showingEnd">0</span> of <span id="totalMemoriesInfo">0</span> memories
+                                    </div>
+                                </div>
+                                
                                 <!-- Memory Table with Enhanced Columns -->
                                 <div class="table-responsive">
                                     <table class="table table-dark table-hover" id="memoryTable">
@@ -223,9 +230,9 @@
 
                     <!-- New Analytics Tab -->
                     <div class="tab-pane fade" id="analytics" role="tabpanel">
-                        <div class="analytics-container">
-                            <div class="row mb-4">
-                                <div class="col-md-3">
+                        <div class="analytics-container" style="max-height: calc(100vh - 200px); overflow-y: auto; overflow-x: hidden;">
+                            <div class="row mb-3">
+                                <div class="col-lg-3 col-md-6 mb-2">
                                     <div class="card bg-dark border-info">
                                         <div class="card-body">
                                             <h6 class="card-title text-info">Total Events</h6>
@@ -233,7 +240,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-lg-3 col-md-6 mb-2">
                                     <div class="card bg-dark border-warning">
                                         <div class="card-body">
                                             <h6 class="card-title text-warning">Total Queries</h6>
@@ -241,7 +248,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-lg-3 col-md-6 mb-2">
                                     <div class="card bg-dark border-success">
                                         <div class="card-body">
                                             <h6 class="card-title text-success">Avg Euclidean Residual</h6>
@@ -249,7 +256,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-lg-3 col-md-6 mb-2">
                                     <div class="card bg-dark border-purple">
                                         <div class="card-body">
                                             <h6 class="card-title text-purple">Avg Hyperbolic Residual</h6>
@@ -260,23 +267,37 @@
                             </div>
 
                             <div class="row">
-                                <div class="col-md-6">
+                                <div class="col-lg-6 mb-3">
                                     <div class="card bg-dark">
                                         <div class="card-header">
                                             <h6 class="mb-0 text-cyan">Residual Evolution</h6>
                                         </div>
-                                        <div class="card-body">
-                                            <canvas id="residualChart"></canvas>
+                                        <div class="card-body" style="padding: 10px;">
+                                            <div style="max-height: 250px; position: relative; display: flex; justify-content: center; align-items: center;">
+                                                <canvas id="residualChart"></canvas>
+                                            </div>
+                                            <div class="mt-2 text-center">
+                                                <!-- Empty spacer to match pie chart height -->
+                                                <small class="text-muted">&nbsp;</small><br>
+                                                <span style="visibility: hidden;">&nbsp;</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-lg-6 mb-3">
                                     <div class="card bg-dark">
                                         <div class="card-header">
                                             <h6 class="mb-0 text-cyan">Space Usage Distribution</h6>
                                         </div>
-                                        <div class="card-body">
-                                            <canvas id="spaceUsageChart"></canvas>
+                                        <div class="card-body" style="padding: 10px;">
+                                            <div style="max-height: 250px; position: relative; display: flex; justify-content: center; align-items: center;">
+                                                <canvas id="spaceUsageChart"></canvas>
+                                            </div>
+                                            <div class="mt-2 text-center" id="spaceWeightAverages">
+                                                <small class="text-muted">Collective Space Ratio:</small><br>
+                                                <span class="badge bg-info">λE: <span id="avgLambdaE">0.50</span></span>
+                                                <span class="badge bg-warning">λH: <span id="avgLambdaH">0.50</span></span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -538,5 +559,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Load enhanced JS directly -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/memory-pagination.js') }}"></script>
 </body>
 </html>
