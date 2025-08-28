@@ -47,7 +47,7 @@ def main():
     import threading
     def open_browser():
         import time
-        time.sleep(2)
+        time.sleep(5)
         webbrowser.open('http://localhost:5000')
     
     browser_thread = threading.Thread(target=open_browser)

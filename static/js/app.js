@@ -435,6 +435,8 @@ async function loadMemories() {
         console.log('Data received:', data);
         
         allMemories = data.memories || [];
+        // Store in raw property for memory-pagination.js compatibility
+        allMemories.raw = allMemories;
         // Store original order for removing sort
         originalMemoryOrder = [...allMemories];
         console.log('Total memories loaded:', allMemories.length);
@@ -1231,23 +1233,34 @@ function initializeCharts() {
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 2,  // Match the pie chart aspect ratio
                 plugins: {
                     legend: {
+                        position: 'bottom',
                         labels: {
-                            color: '#ffffff'
+                            color: '#ffffff',
+                            padding: 10,
+                            font: {
+                                size: 11
+                            }
                         }
                     }
                 },
                 scales: {
                     y: {
                         beginAtZero: true,
-                        max: 0.4,
+                        // Remove fixed max to allow auto-scaling
                         ticks: {
-                            color: '#ffffff'
+                            color: '#ffffff',
+                            // Add padding to prevent clipping at top
+                            padding: 5
                         },
                         grid: {
                             color: 'rgba(255, 255, 255, 0.1)'
-                        }
+                        },
+                        // Add grace to automatically add some space above max value
+                        grace: '10%'
                     },
                     x: {
                         ticks: {
@@ -1262,24 +1275,38 @@ function initializeCharts() {
         });
     }
     
-    // Space usage distribution chart
+    // Space usage distribution chart - now shows collective ratio as percentages
     const spaceCtx = document.getElementById('spaceUsageChart');
     if (spaceCtx) {
         spaceUsageChart = new Chart(spaceCtx, {
             type: 'doughnut',
             data: {
-                labels: ['Euclidean Dominant', 'Hyperbolic Dominant', 'Balanced'],
+                labels: ['Euclidean Space', 'Hyperbolic Space'],
                 datasets: [{
-                    data: [0, 0, 0],
-                    backgroundColor: ['#00bcd4', '#ffc107', '#6c757d']
+                    data: [50, 50],
+                    backgroundColor: ['#00bcd4', '#ffc107']
                 }]
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 2,  // Makes the chart wider than tall (reduces height)
                 plugins: {
                     legend: {
+                        position: 'bottom',
                         labels: {
-                            color: '#ffffff'
+                            color: '#ffffff',
+                            padding: 10,
+                            font: {
+                                size: 11
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + context.parsed.toFixed(1) + '%';
+                            }
                         }
                     }
                 }
@@ -1301,14 +1328,27 @@ async function updateCharts() {
             residualChart.update();
         }
         
-        // Update space usage chart
+        // Update space usage chart - now shows percentages
         if (spaceUsageChart && data.space_distribution) {
             spaceUsageChart.data.datasets[0].data = [
                 data.space_distribution.euclidean,
-                data.space_distribution.hyperbolic,
-                data.space_distribution.balanced
+                data.space_distribution.hyperbolic
             ];
             spaceUsageChart.update();
+            
+            // Update average lambda values if available
+            if (data.space_distribution.avg_lambda_e !== undefined) {
+                const lambdaEElement = document.getElementById('avgLambdaE');
+                if (lambdaEElement) {
+                    lambdaEElement.textContent = data.space_distribution.avg_lambda_e.toFixed(2);
+                }
+            }
+            if (data.space_distribution.avg_lambda_h !== undefined) {
+                const lambdaHElement = document.getElementById('avgLambdaH');
+                if (lambdaHElement) {
+                    lambdaHElement.textContent = data.space_distribution.avg_lambda_h.toFixed(2);
+                }
+            }
         }
         
     } catch (error) {
@@ -1421,69 +1461,186 @@ window.deleteMemory = async function(memoryId) {
 }
 
 window.viewMemoryDetails = async function(memoryId) {
-    // Find the memory
-    const memory = allMemories.find(m => m.id === memoryId);
+    // Find the memory in both allMemories and allMemories.raw
+    let memory = allMemories.find ? allMemories.find(m => m.id === memoryId) : null;
+    if (!memory && allMemories.raw) {
+        memory = allMemories.raw.find(m => m.id === memoryId);
+    }
     if (!memory) {
         console.error('Memory not found:', memoryId);
         return;
+    }
+    
+    // Calculate space weights for this memory
+    let concreteScore = 0;
+    let abstractScore = 0;
+    
+    if (memory.who) concreteScore += 1.0;
+    if (memory.what) concreteScore += 2.0;
+    if (memory.when) concreteScore += 0.5;
+    if (memory.where) concreteScore += 0.5;
+    if (memory.why) abstractScore += 1.5;
+    if (memory.how) abstractScore += 1.0;
+    
+    const total = concreteScore + abstractScore;
+    const euclideanPct = total > 0 ? Math.round((concreteScore / total) * 100) : 50;
+    const hyperbolicPct = 100 - euclideanPct;
+    
+    // Determine residual status color
+    let residualColor = 'success';
+    let residualStatus = 'Low';
+    if (memory.residual_norm) {
+        const norm = parseFloat(memory.residual_norm);
+        if (norm > 0.3) {
+            residualColor = 'danger';
+            residualStatus = 'High';
+        } else if (norm > 0.2) {
+            residualColor = 'warning';
+            residualStatus = 'Medium';
+        }
     }
     
     // Create a modal to show details
     const modalHtml = `
         <div class="modal fade" id="memoryDetailModal" tabindex="-1">
             <div class="modal-dialog modal-lg">
-                <div class="modal-content">
+                <div class="modal-content" style="background-color: #1a1a2e;">
                     <div class="modal-header">
-                        <h5 class="modal-title">Memory Details</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        <h5 class="modal-title text-cyan">Memory Details</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <strong>Who:</strong> ${escapeHtml(memory.who || '—')}
-                            </div>
-                            <div class="col-md-6">
-                                <strong>When:</strong> ${formatDate(memory.when)}
+                        <!-- Basic Information -->
+                        <h6 class="text-purple mb-3">Basic Information</h6>
+                        <div class="mb-3">
+                            <div class="text-info small">Memory ID</div>
+                            <div class="text-white ms-3">${escapeHtml(memory.id || '—')}</div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="text-info small">Episode ID</div>
+                            <div class="text-white ms-3">${escapeHtml(memory.episode_id || '—')}</div>
+                        </div>
+                        <div class="mb-4">
+                            <div class="text-info small">Event Type</div>
+                            <div class="ms-3"><span class="badge bg-secondary">${escapeHtml(memory.type || 'observation')}</span></div>
+                        </div>
+                        
+                        <!-- 5W1H Fields -->
+                        <h6 class="text-purple mb-3">Context Information (5W1H)</h6>
+                        
+                        <div class="mb-3">
+                            <div class="text-info small">Who</div>
+                            <div class="text-white ms-3">${escapeHtml(memory.who || '—')}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="text-info small">What</div>
+                            <div class="ms-3">
+                                <div class="p-2 bg-dark rounded text-white" style="background-color: #0f0f1a !important;">
+                                    ${escapeHtml(memory.what || '—')}
+                                </div>
                             </div>
                         </div>
+                        
+                        <div class="mb-3">
+                            <div class="text-info small">When</div>
+                            <div class="text-white ms-3">${formatDate(memory.when)}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="text-info small">Where</div>
+                            <div class="text-white ms-3">${escapeHtml(memory.where || '—')}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="text-info small">Why</div>
+                            <div class="ms-3">
+                                <div class="p-2 bg-dark rounded text-white" style="background-color: #0f0f1a !important;">
+                                    ${escapeHtml(memory.why || '—')}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="text-info small">How</div>
+                            <div class="ms-3">
+                                <div class="p-2 bg-dark rounded text-white" style="background-color: #0f0f1a !important;">
+                                    ${escapeHtml(memory.how || '—')}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Space Usage Information -->
+                        <h6 class="text-purple mb-3">Space Encoding</h6>
                         <div class="row mb-3">
                             <div class="col-md-12">
-                                <strong>What:</strong><br>
-                                <div class="p-2 bg-dark rounded">${escapeHtml(memory.what || '—')}</div>
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="text-muted me-2">Space Distribution:</span>
+                                </div>
+                                <div class="progress" style="height: 25px;">
+                                    <div class="progress-bar bg-info" role="progressbar" style="width: ${euclideanPct}%">
+                                        Euclidean ${euclideanPct}%
+                                    </div>
+                                    <div class="progress-bar bg-warning" role="progressbar" style="width: ${hyperbolicPct}%">
+                                        Hyperbolic ${hyperbolicPct}%
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <strong>Where:</strong> ${escapeHtml(memory.where || '—')}
-                            </div>
-                            <div class="col-md-6">
-                                <strong>Type:</strong> ${escapeHtml(memory.type || '—')}
-                            </div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-md-12">
-                                <strong>Why:</strong><br>
-                                <div class="p-2 bg-dark rounded">${escapeHtml(memory.why || '—')}</div>
+                        
+                        <!-- Residual Information -->
+                        <h6 class="text-purple mb-3">Adaptation Metrics</h6>
+                        
+                        <div class="mb-3">
+                            <div class="text-info small">Residual Norm</div>
+                            <div class="text-white ms-3">
+                                ${memory.residual_norm ? memory.residual_norm.toFixed(4) : '0.0000'}
+                                <span class="badge bg-${residualColor} ms-2">${residualStatus}</span>
                             </div>
                         </div>
-                        <div class="row mb-3">
-                            <div class="col-md-12">
-                                <strong>How:</strong><br>
-                                <div class="p-2 bg-dark rounded">${escapeHtml(memory.how || '—')}</div>
+                        
+                        <div class="mb-3">
+                            <div class="text-info small">Has Residual Adaptation</div>
+                            <div class="ms-3">
+                                <span class="badge ${memory.has_residual ? 'bg-success' : 'bg-secondary'}">
+                                    ${memory.has_residual ? 'Yes' : 'No'}
+                                </span>
                             </div>
                         </div>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <strong>Residual Norm:</strong> ${memory.residual_norm ? memory.residual_norm.toFixed(4) : '0.0000'}
-                            </div>
-                            <div class="col-md-6">
-                                <strong>Has Residual:</strong> ${memory.has_residual ? 'Yes' : 'No'}
+                        
+                        ${memory.residual_euclidean_norm ? `
+                        <div class="mb-3">
+                            <div class="text-info small">Euclidean Residual</div>
+                            <div class="text-white ms-3">${memory.residual_euclidean_norm.toFixed(4)}</div>
+                        </div>
+                        ` : ''}
+                        
+                        ${memory.residual_hyperbolic_norm ? `
+                        <div class="mb-3">
+                            <div class="text-info small">Hyperbolic Residual</div>
+                            <div class="text-white ms-3">${memory.residual_hyperbolic_norm.toFixed(4)}</div>
+                        </div>
+                        ` : ''}
+                        
+                        <!-- Additional Metadata -->
+                        ${memory.cluster_id !== undefined ? `
+                        <h6 class="text-purple mb-3">Clustering Information</h6>
+                        <div class="mb-3">
+                            <div class="text-info small">Cluster Assignment</div>
+                            <div class="ms-3">
+                                <span class="badge bg-primary">
+                                    ${memory.cluster_id >= 0 ? 'Cluster ' + memory.cluster_id : 'Noise'}
+                                </span>
                             </div>
                         </div>
+                        ` : ''}
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-info" onclick="window.showMemoryInGraph('${memoryId}')">
                             <i class="bi bi-diagram-3"></i> Show in Graph
+                        </button>
+                        <button type="button" class="btn btn-danger" onclick="window.deleteMemory('${memoryId}')">
+                            <i class="bi bi-trash"></i> Delete
                         </button>
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     </div>

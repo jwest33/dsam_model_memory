@@ -620,34 +620,120 @@ def get_stats():
 def get_analytics():
     """Get analytics data for charts"""
     try:
-        # Generate sample data for charts
-        # In production, this would track actual history
-        
-        # Residual evolution (mock data showing convergence)
-        time_points = 10
+        # Get actual residual history if available
         residual_history = {
-            'labels': [f"T{i}" for i in range(time_points)],
-            'euclidean': [0.01 + 0.02 * np.exp(-i/3) + np.random.random() * 0.005 for i in range(time_points)],
-            'hyperbolic': [0.05 + 0.1 * np.exp(-i/3) + np.random.random() * 0.01 for i in range(time_points)]
+            'labels': [],
+            'euclidean': [],
+            'hyperbolic': []
         }
         
-        # Space distribution
-        total_memories = memory_agent.memory_store.total_events
-        if total_memories > 0:
-            # Estimate based on residual distribution
-            euclidean_count = sum(1 for r in memory_agent.memory_store.residuals.values() 
-                                 if np.linalg.norm(r['euclidean']) > np.linalg.norm(r['hyperbolic']))
-            hyperbolic_count = sum(1 for r in memory_agent.memory_store.residuals.values() 
-                                  if np.linalg.norm(r['hyperbolic']) > np.linalg.norm(r['euclidean']))
-            balanced_count = total_memories - euclidean_count - hyperbolic_count
+        # Collect real residual norms for existing memories
+        if memory_agent.memory_store.residuals:
+            for i, (event_id, residuals) in enumerate(list(memory_agent.memory_store.residuals.items())[:10]):
+                residual_history['labels'].append(f"M{i}")
+                residual_history['euclidean'].append(float(np.linalg.norm(residuals['euclidean'])))
+                residual_history['hyperbolic'].append(float(np.linalg.norm(residuals['hyperbolic'])))
         else:
-            euclidean_count = hyperbolic_count = balanced_count = 0
+            # Generate sample data if no residuals yet
+            time_points = 10
+            residual_history = {
+                'labels': [f"T{i}" for i in range(time_points)],
+                'euclidean': [0.01 + 0.02 * np.exp(-i/3) + np.random.random() * 0.005 for i in range(time_points)],
+                'hyperbolic': [0.05 + 0.1 * np.exp(-i/3) + np.random.random() * 0.01 for i in range(time_points)]
+            }
         
+        # Calculate collective space usage ratio across all memories
+        total_memories = memory_agent.memory_store.total_events
+        euclidean_weight_sum = 0.0
+        hyperbolic_weight_sum = 0.0
+        
+        if total_memories > 0:
+            try:
+                # Get all memories from ChromaDB
+                collection = memory_agent.memory_store.chromadb.client.get_collection("events")
+                all_memories = collection.get(include=["metadatas"])
+                
+                logger.info(f"Analyzing {len(all_memories['metadatas'])} memories for space distribution")
+                
+                # Check if we have stored lambda values
+                has_lambda_values = any('lambda_e' in m for m in all_memories['metadatas'])
+                
+                if has_lambda_values:
+                    # Use actual lambda values for accurate collective ratio
+                    for metadata in all_memories['metadatas']:
+                        lambda_e = float(metadata.get('lambda_e', 0.5))
+                        lambda_h = float(metadata.get('lambda_h', 0.5))
+                        euclidean_weight_sum += lambda_e
+                        hyperbolic_weight_sum += lambda_h
+                else:
+                    # Calculate based on field presence
+                    for metadata in all_memories['metadatas']:
+                        # Use the encoder's logic to compute weights for this memory
+                        query_fields = {}
+                        for field in ['who', 'what', 'where', 'why', 'how']:
+                            value = metadata.get(field, '')
+                            if value and value.strip():
+                                query_fields[field] = value
+                        
+                        # Compute weights using the same logic as DualSpaceEncoder
+                        concrete_score = 0
+                        abstract_score = 0
+                        
+                        for field, text in query_fields.items():
+                            if field in ['what', 'where', 'who']:
+                                concrete_score += len(text.split())
+                            elif field in ['why', 'how']:
+                                abstract_score += len(text.split())
+                        
+                        # Calculate lambda values
+                        total = concrete_score + abstract_score
+                        if total > 0:
+                            lambda_e = concrete_score / total
+                            lambda_h = abstract_score / total
+                        else:
+                            lambda_e = lambda_h = 0.5
+                        
+                        # Apply smoothing (same as encoder)
+                        lambda_e = 0.3 + 0.4 * lambda_e
+                        lambda_h = 0.3 + 0.4 * lambda_h
+                        
+                        # Normalize to sum to 1
+                        total = lambda_e + lambda_h
+                        lambda_e = lambda_e / total
+                        lambda_h = lambda_h / total
+                        
+                        euclidean_weight_sum += lambda_e
+                        hyperbolic_weight_sum += lambda_h
+                
+                # Calculate percentages for the pie chart
+                total_weight = euclidean_weight_sum + hyperbolic_weight_sum
+                if total_weight > 0:
+                    euclidean_percentage = (euclidean_weight_sum / total_weight) * 100
+                    hyperbolic_percentage = (hyperbolic_weight_sum / total_weight) * 100
+                else:
+                    euclidean_percentage = 50
+                    hyperbolic_percentage = 50
+                
+                logger.info(f"Collective space ratio: Euclidean={euclidean_percentage:.1f}%, Hyperbolic={hyperbolic_percentage:.1f}%")
+                        
+            except Exception as e:
+                logger.warning(f"Could not analyze memories for space distribution: {e}")
+                # Fall back to equal distribution if error
+                euclidean_percentage = 50
+                hyperbolic_percentage = 50
+        else:
+            euclidean_percentage = 50
+            hyperbolic_percentage = 50
+        
+        # Return percentages for pie chart
         space_distribution = {
-            'euclidean': euclidean_count,
-            'hyperbolic': hyperbolic_count,
-            'balanced': balanced_count
+            'euclidean': euclidean_percentage,
+            'hyperbolic': hyperbolic_percentage
         }
+        
+        # Add the same percentages as average lambda values for consistency
+        space_distribution['avg_lambda_e'] = euclidean_percentage / 100.0
+        space_distribution['avg_lambda_h'] = hyperbolic_percentage / 100.0
         
         return jsonify({
             'residual_history': residual_history,

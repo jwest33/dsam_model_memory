@@ -19,6 +19,7 @@ from sklearn.preprocessing import StandardScaler
 from models.event import Event, FiveW1H, EventType
 from memory.chromadb_store import ChromaDBStore
 from memory.dual_space_encoder import DualSpaceEncoder, HyperbolicOperations, mobius_add
+from memory.temporal_query import integrate_temporal_with_dual_space
 from memory.hopfield import ModernHopfieldNetwork
 from config import get_config
 
@@ -190,7 +191,8 @@ class MemoryStore:
         query: Dict[str, str],
         k: int = 10,
         use_clustering: bool = True,
-        update_residuals: bool = True
+        update_residuals: bool = True,
+        use_temporal: bool = True
     ) -> List[Tuple[Event, float]]:
         """
         Retrieve memories using product distance and HDBSCAN clustering.
@@ -200,6 +202,7 @@ class MemoryStore:
             k: Number of memories to retrieve
             use_clustering: Whether to use HDBSCAN clustering
             update_residuals: Whether to update residuals based on retrieval
+            use_temporal: Whether to apply temporal weighting for time-aware queries
             
         Returns:
             List of (event, relevance_score) tuples
@@ -258,6 +261,15 @@ class MemoryStore:
             else:
                 # Convert distance to similarity score
                 results = [(event, 1.0 / (1.0 + dist)) for event, dist in reranked[:k]]
+            
+            # Apply temporal weighting if enabled
+            if use_temporal:
+                results, temporal_context = integrate_temporal_with_dual_space(
+                    query, results, self.encoder, lambda_e, lambda_h
+                )
+                if temporal_context.get('applied', False):
+                    logger.info(f"Temporal weighting applied: {temporal_context['temporal_type']} "
+                              f"(strength: {temporal_context['temporal_strength']:.2f})")
             
             # Update residuals based on co-retrieval if enabled
             if update_residuals and len(results) > 1:

@@ -35,6 +35,10 @@ body {
     min-height: 100vh;
 }
 
+.btn {
+    color: #7c7c7c;
+}
+
 /* Container margins */
 .container-fluid {
     padding-left: 2rem;
@@ -298,6 +302,8 @@ h6 { font-size: 0.60rem; }
 .badge {
     background: var(--synth-gradient-accent);
     padding: 0.35em 0.65em;
+    color: rgb(49, 49, 49);
+
 }
 
 /* Forms */
@@ -314,6 +320,13 @@ h6 { font-size: 0.60rem; }
     box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
 }
 
+.form-control:disabled, .form-select:disabled {
+    background: var(--synth-surface) !important;
+    border-color: var(--synth-border);
+    color: var(--synth-text-muted);
+    opacity: 0.8;
+}
+
 .search-box {
     background: rgba(26, 22, 37, 0.5);
     border: 1px solid rgba(0, 255, 255, 0.3);
@@ -323,7 +336,7 @@ h6 { font-size: 0.60rem; }
 .btn-primary {
     background: var(--synth-gradient-primary);
     border: none;
-    color: white;
+    color: rgb(49, 49, 49);
     font-weight: 500;
 }
 
@@ -336,6 +349,16 @@ h6 { font-size: 0.60rem; }
 .btn-accent {
     background: var(--synth-gradient-accent);
     border: none;
+    color: rgb(49, 49, 49);
+}
+
+.btn-info {
+    background: var(--synth-gradient-accent);
+    border: none;
+    color: rgb(49, 49, 49);
+}
+
+.btn-danger {
     color: white;
 }
 
@@ -438,6 +461,22 @@ h6 { font-size: 0.60rem; }
 .table-hover tbody tr:hover {
     background: var(--synth-gradient-subtle);
     cursor: pointer;
+}
+
+/* Memory row specific styling for enhanced clickability */
+.memory-row {
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.memory-row:hover {
+    background: linear-gradient(90deg, rgba(0, 255, 255, 0.08) 0%, rgba(168, 85, 247, 0.05) 100%) !important;
+    transform: translateX(3px);
+    box-shadow: inset 3px 0 0 var(--synth-cyan);
+}
+
+.memory-row td {
+    border-color: rgba(45, 36, 56, 0.5);
 }
 
 /* Modals */
