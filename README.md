@@ -6,7 +6,7 @@ DSAM is an adaptive geometric memory system for AI agents featuring dual-space e
 
 DSAM is a content-addressable memory system that operates on dual geometric manifolds. Unlike traditional memory systems that require explicit addresses, DSAM retrieves memories based on semantic similarity of their content. The architecture combines Euclidean space for concrete/lexical similarity with Hyperbolic space for abstract/hierarchical relationships, featuring immutable anchor embeddings with bounded residual adaptation that enable memories to evolve while maintaining stable representations.
 
-[Memory Cluster](example-memory-cluster-simple.jpg)
+![Memory Cluster](example-memory-cluster-simple.jpg)
 
 ## Core Architecture
 
