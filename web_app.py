@@ -158,13 +158,55 @@ def chat():
 
 @app.route('/api/memories', methods=['GET'])
 def get_memories():
-    """Get all memories with residual information"""
+    """Get all memories with residual information and raw/merged views"""
+    view_mode = request.args.get('view', 'merged')  # 'merged' or 'raw'
+    
     try:
         stats = memory_agent.get_statistics()
         
         memories = []
         
-        # Get all events from ChromaDB
+        # Check for raw view mode
+        if view_mode == 'raw':
+            # Get raw events and their groupings
+            raw_events = memory_agent.memory_store.get_all_raw_events()
+            merge_groups = memory_agent.memory_store.get_merge_groups()
+            
+            # Get raw events collection for space weights
+            try:
+                raw_collection = memory_agent.memory_store.chromadb.client.get_collection('raw_events')
+                raw_results = raw_collection.get(include=['metadatas'])
+                raw_metadata_map = {raw_results['ids'][i]: raw_results['metadatas'][i] 
+                                   for i in range(len(raw_results['ids']))}
+            except:
+                raw_metadata_map = {}
+            
+            for raw_id, event in raw_events.items():
+                merged_id = memory_agent.memory_store.get_merged_event_for_raw(raw_id)
+                raw_metadata = raw_metadata_map.get(raw_id, {})
+                memories.append({
+                    'id': raw_id,
+                    'merged_id': merged_id,
+                    'type': 'raw',
+                    'five_w1h': event.five_w1h.to_dict(),
+                    'event_type': event.event_type.value,
+                    'timestamp': event.created_at.isoformat(),
+                    'episode_id': event.episode_id,
+                    'residual_norm': 0,  # Raw events don't have residuals
+                    'euclidean_weight': float(raw_metadata.get('euclidean_weight', 0.5)),
+                    'hyperbolic_weight': float(raw_metadata.get('hyperbolic_weight', 0.5))
+                })
+            
+            return jsonify({
+                'memories': memories,
+                'merge_groups': merge_groups,
+                'total_raw': len(raw_events),
+                'total_merged': len(merge_groups),
+                'total_events': stats.get('total_events', 0),
+                'view_mode': view_mode
+            })
+        
+        # Default merged view - get all events from ChromaDB
         try:
             collection = memory_agent.memory_store.chromadb.client.get_collection("events")
             results = collection.get(include=["metadatas"])
@@ -192,7 +234,9 @@ def get_memories():
                     'type': metadata.get('event_type', 'observation'),
                     'episode_id': metadata.get('episode_id', ''),
                     'has_residual': has_residual,
-                    'residual_norm': float(residual_norm)
+                    'residual_norm': float(residual_norm),
+                    'euclidean_weight': float(metadata.get('euclidean_weight', 0.5)),
+                    'hyperbolic_weight': float(metadata.get('hyperbolic_weight', 0.5))
                 })
         except Exception as e:
             logger.warning(f"Could not retrieve events: {e}")
@@ -204,6 +248,32 @@ def get_memories():
         
     except Exception as e:
         logger.error(f"Get memories error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/memory/<memory_id>/raw', methods=['GET'])
+def get_memory_raw_events(memory_id):
+    """Get all raw events for a merged memory"""
+    try:
+        raw_events = memory_agent.memory_store.get_raw_events_for_merged(memory_id)
+        
+        formatted_raw = []
+        for event in raw_events:
+            formatted_raw.append({
+                'id': f"raw_{event.id}",
+                'five_w1h': event.five_w1h.to_dict(),
+                'event_type': event.event_type.value,
+                'timestamp': event.created_at.isoformat(),
+                'episode_id': event.episode_id
+            })
+        
+        return jsonify({
+            'merged_id': memory_id,
+            'raw_events': formatted_raw,
+            'total_raw': len(formatted_raw)
+        })
+        
+    except Exception as e:
+        logger.error(f"Failed to get raw events: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/memories', methods=['POST'])
@@ -614,6 +684,31 @@ def get_stats():
         
     except Exception as e:
         logger.error(f"Stats error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/merge-stats', methods=['GET'])
+def get_merge_statistics():
+    """Get merge statistics for the UI"""
+    try:
+        stats = memory_agent.memory_store.get_statistics()
+        merge_groups = memory_agent.memory_store.get_merge_groups()
+        
+        # Calculate distribution of merge sizes
+        size_distribution = {}
+        for merged_id, raw_ids in merge_groups.items():
+            size = len(raw_ids)
+            size_key = str(size) if size <= 5 else "6+"
+            size_distribution[size_key] = size_distribution.get(size_key, 0) + 1
+        
+        return jsonify({
+            'total_raw': stats.get('total_raw_events', 0),
+            'total_merged': stats.get('total_merged_groups', 0),
+            'average_merge_size': stats.get('average_merge_size', 0),
+            'size_distribution': size_distribution,
+            'merge_groups': merge_groups
+        })
+    except Exception as e:
+        logger.error(f"Failed to get merge stats: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/analytics', methods=['GET'])

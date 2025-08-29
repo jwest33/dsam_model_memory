@@ -17,8 +17,8 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 
 # Set offline mode
-os.environ['HF_HUB_OFFLINE'] = '1'
-os.environ['TRANSFORMERS_OFFLINE'] = '1'
+os.environ['HF_HUB_OFFLINE'] = '1' # Set to online mode to cache embedding model: os.environ.pop('HF_HUB_OFFLINE', None)
+os.environ['TRANSFORMERS_OFFLINE'] = '1' # Set to online mode to cache embedding model: os.environ.pop('TRANSFORMERS_OFFLINE', None)
 
 # Suppress warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
@@ -87,10 +87,12 @@ class BenchmarkDatasetGenerator:
         self.config = get_config()
         self.memory_agent = MemoryAgent(self.config)
         
+        # Initialize llm_servers list first to avoid AttributeError in __del__
+        self.llm_servers = []
+        
         # Setup LLMs for conversation generation
         self.use_dual_llm = use_dual_llm
         self.alternative_model = alternative_model or r"C:\models\Qwen3-4B-Instruct-2507\Qwen3-4B-Instruct-2507-UD-Q8_K_XL.gguf"
-        self.llm_servers = []
         self._setup_llms()
         
         # Initialize personas with characteristics
@@ -578,6 +580,51 @@ class BenchmarkDatasetGenerator:
                 keywords=keywords
             ))
         
+        # Overlap scenarios - Same names but different contexts/people
+        # These test the system's ability to distinguish between different people with the same name
+        overlap_topics = [
+            # Alex scenarios (different Alexes)
+            ("Alex Smith's backend API implementation", ["REST", "GraphQL", "authentication", "microservices"]),
+            ("Alex Johnson's UX design portfolio", ["wireframes", "prototypes", "user-research", "Figma"]),
+            ("Working with Alex Chen on database optimization", ["indexing", "query-performance", "PostgreSQL", "caching"]),
+            ("Alex Rivera's machine learning models", ["neural-networks", "training", "deployment", "accuracy"]),
+            
+            # Jordan scenarios (different Jordans)
+            ("Jordan Williams project management approach", ["agile", "scrum", "roadmap", "stakeholders"]),
+            ("Jordan Davis's research on transformers", ["attention", "BERT", "NLP", "papers"]),
+            ("Jordan Taylor's DevOps infrastructure", ["Kubernetes", "Docker", "CI/CD", "monitoring"]),
+            ("Jordan Martinez's frontend framework", ["React", "components", "state-management", "testing"]),
+            
+            # Taylor scenarios (different Taylors)
+            ("Taylor Brown's deployment pipeline", ["Jenkins", "GitHub-Actions", "automation", "rollback"]),
+            ("Taylor Thompson's QA automation framework", ["Selenium", "Cypress", "coverage", "regression"]),
+            ("Taylor Anderson's data science workflow", ["pandas", "scikit-learn", "feature-engineering", "validation"]),
+            ("Taylor White's security audit findings", ["vulnerabilities", "penetration-testing", "OWASP", "remediation"]),
+            
+            # Chris scenarios (different Chrises)
+            ("Chris Lee's mobile app architecture", ["React-Native", "iOS", "Android", "performance"]),
+            ("Chris Moore's database migration strategy", ["schema-changes", "rollback", "downtime", "versioning"]),
+            ("Chris Jackson's cloud cost optimization", ["AWS", "Azure", "budgeting", "resource-tagging"]),
+            ("Chris Harris's API documentation", ["OpenAPI", "Swagger", "examples", "versioning"]),
+            
+            # Sam scenarios (different Sams)
+            ("Sam Wilson's code review feedback", ["best-practices", "refactoring", "maintainability", "standards"]),
+            ("Sam Clark's incident response", ["monitoring", "alerting", "troubleshooting", "post-mortem"]),
+            ("Sam Lewis's performance optimization", ["profiling", "bottlenecks", "caching", "algorithms"]),
+            ("Sam Walker's accessibility improvements", ["WCAG", "screen-readers", "keyboard-navigation", "testing"])
+        ]
+        
+        for topic, keywords in overlap_topics:
+            scenarios.append(ConversationScenario(
+                topic=topic,
+                category="overlap",  # Special category for overlap scenarios
+                complexity=random.choice(["medium", "complex"]),
+                space_preference="balanced",  # These require both concrete and abstract reasoning
+                personas=[PersonaType.DEVELOPER, PersonaType.MANAGER, PersonaType.DATA_SCIENTIST],
+                activities=[ActivityType.CODING, ActivityType.REVIEWING, ActivityType.PLANNING],
+                keywords=keywords
+            ))
+        
         # Mixed scenarios (Balanced) - Practical implementation with theory
         mixed_topics = [
             # Full-Stack Projects
@@ -718,12 +765,20 @@ class BenchmarkDatasetGenerator:
         
         for i, (what, why, how) in enumerate(exchanges):
             # Alternate between user input and observations to simulate conversation
-            event_type = EventType.USER_INPUT if i % 2 == 0 else EventType.OBSERVATION
+            # User messages are USER_INPUT, Assistant responses are OBSERVATION
+            if i % 2 == 0:
+                # User message
+                event_type = EventType.USER_INPUT
+                actual_who = "User"
+            else:
+                # Assistant response
+                event_type = EventType.OBSERVATION
+                actual_who = "Assistant"
             
             event = Event(
                 event_type=event_type,
                 five_w1h=FiveW1H(
-                    who=who,
+                    who=actual_who,  # Use User/Assistant instead of persona names
                     what=what,
                     when=timestamp,
                     where=location.value,
@@ -817,7 +872,7 @@ class BenchmarkDatasetGenerator:
         else:
             style = "practical and balanced. Mix implementation concerns with broader architectural considerations"
         
-        prompt = f"""You are a {persona.value} named {random.choice(persona_info['name_pool'])} working on {scenario.topic}.
+        prompt = f"""You are a User working on {scenario.topic}.
 {context}
 Generate a realistic technical question about {random.choice(scenario.keywords)} that is {style}.
 The question should be something a {persona_info['communication_style']} person would ask.
