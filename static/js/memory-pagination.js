@@ -14,6 +14,7 @@
     
     // Function to create memory table row
     window.createMemoryRow = function(memory, includeAll = false) {
+        
         const row = document.createElement('tr');
         row.style.cursor = 'pointer';
         row.classList.add('memory-row');
@@ -50,13 +51,24 @@
         // Calculate space weight for this memory
         const memorySpaceWeight = typeof calculateMemorySpaceWeight === 'function' ? calculateMemorySpaceWeight(memory) : '';
         
+        // Helper to escape attributes (handles quotes)
+        const escapeAttr = (text) => {
+            if (!text) return '';
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        };
+        
         row.innerHTML = `
             <td>${escapeHtml(who)}</td>
-            <td title="${escapeHtml(what)}">${escapeHtml(whatDisplay)}</td>
+            <td title="${escapeAttr(what)}">${escapeHtml(whatDisplay)}</td>
             <td>${typeof formatDate === 'function' ? formatDate(when) : when}</td>
             <td>${escapeHtml(whereDisplay)}</td>
-            <td title="${escapeHtml(why)}">${escapeHtml(whyDisplay)}</td>
-            <td title="${escapeHtml(how)}">${escapeHtml(howDisplay)}</td>
+            <td title="${escapeAttr(why)}">${escapeHtml(whyDisplay)}</td>
+            <td title="${escapeAttr(how)}">${escapeHtml(howDisplay)}</td>
             <td>${memorySpaceWeight}</td>
             <td>${residualIndicator}</td>
             <td>
@@ -139,6 +151,22 @@
     // Helper function to create a memory row
     function createMemoryRow(memory, includeAll) {
         const row = document.createElement('tr');
+        row.style.cursor = 'pointer';
+        row.classList.add('memory-row');
+        row.setAttribute('data-memory-id', memory.id);
+        
+        // Add click handler for the entire row
+        row.addEventListener('click', function(e) {
+            // Don't trigger if clicking on a button or icon
+            if (e.target.closest('button') || e.target.closest('i')) {
+                return;
+            }
+            
+            // Call viewMemoryDetails
+            if (window.viewMemoryDetails) {
+                window.viewMemoryDetails(memory.id);
+            }
+        });
         
         // Fields should already be flattened by loadMemories
         const who = memory.who || '—';
@@ -171,6 +199,17 @@
             return div.innerHTML;
         }
         
+        // Helper to escape HTML attributes (handles quotes)
+        function escapeAttr(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+        
         // Helper to format date
         function formatDate(dateStr) {
             if (!dateStr) return '';
@@ -184,6 +223,24 @@
         
         // Helper to calculate space weight
         function calculateSpaceWeight(mem) {
+            // Use real space weights if available
+            if (mem.euclidean_weight !== undefined && mem.hyperbolic_weight !== undefined) {
+                const euclideanPct = Math.round(mem.euclidean_weight * 100);
+                const hyperbolicPct = Math.round(mem.hyperbolic_weight * 100);
+                return `
+                    <div class="d-flex align-items-center">
+                        <div class="progress flex-grow-1" style="height: 15px; min-width: 80px;">
+                            <div class="progress-bar bg-info" style="width: ${euclideanPct}%" 
+                                 title="Euclidean: ${euclideanPct}%"></div>
+                            <div class="progress-bar bg-warning" style="width: ${hyperbolicPct}%" 
+                                 title="Hyperbolic: ${hyperbolicPct}%"></div>
+                        </div>
+                        <small class="ms-2">${euclideanPct}/${hyperbolicPct}</small>
+                    </div>
+                `;
+            }
+            
+            // Fallback to field-based calculation
             let concreteScore = 0;
             let abstractScore = 0;
             
@@ -228,20 +285,22 @@
         // Build row HTML
         row.innerHTML = `
             <td>${escapeHtml(who)}</td>
-            <td title="${escapeHtml(what)}">${escapeHtml(whatDisplay)}${mergeIndicator}</td>
+            <td title="${escapeAttr(what)}">${escapeHtml(whatDisplay)}${mergeIndicator}</td>
             <td>${formatDate(when)}</td>
             <td>${escapeHtml(whereDisplay)}</td>
-            <td title="${escapeHtml(why)}">${escapeHtml(whyDisplay)}</td>
-            <td title="${escapeHtml(how)}">${escapeHtml(howDisplay)}</td>
+            <td title="${escapeAttr(why)}">${escapeHtml(whyDisplay)}</td>
+            <td title="${escapeAttr(how)}">${escapeHtml(howDisplay)}</td>
             <td>${calculateSpaceWeight(memory)}</td>
             <td>${getResidualBadge(memory)}</td>
             <td>
                 <button class="btn btn-sm btn-outline-info" onclick="window.viewMemoryDetails('${memory.id}')" title="View Details">
                     <i class="bi bi-eye"></i>
                 </button>
-                <button class="btn btn-sm btn-outline-primary" onclick="window.showMemoryInGraph('${memory.id}')" title="Show in Graph">
-                    <i class="bi bi-diagram-3"></i>
-                </button>
+                ${memory.type !== 'raw' ? 
+                    `<button class="btn btn-sm btn-outline-primary" onclick="window.showMemoryInGraph('${memory.id}')" title="Show in Graph">
+                        <i class="bi bi-diagram-3"></i>
+                    </button>` : ''
+                }
                 ${memory.type === 'raw' && memory.merged_id ? 
                     `<button class="btn btn-sm btn-outline-warning" onclick="window.showMergeGroup('${memory.merged_id}')" title="Show Merge Group">
                         <i class="bi bi-collection"></i>
@@ -266,6 +325,7 @@
         const startIndex = (paginationCurrentPage - 1) * paginationItemsPerPage;
         const endIndex = Math.min(startIndex + paginationItemsPerPage, paginationFilteredMemories.length);
         const pageMemories = paginationFilteredMemories.slice(startIndex, endIndex);
+        
         
         // Display memories with all columns
         pageMemories.forEach(memory => {

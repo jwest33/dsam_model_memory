@@ -750,16 +750,16 @@ def get_analytics():
                 
                 logger.info(f"Analyzing {len(all_memories['metadatas'])} memories for space distribution")
                 
-                # Check if we have stored lambda values
-                has_lambda_values = any('lambda_e' in m for m in all_memories['metadatas'])
+                # Check if we have stored weight values
+                has_weight_values = any('euclidean_weight' in m for m in all_memories['metadatas'])
                 
-                if has_lambda_values:
-                    # Use actual lambda values for accurate collective ratio
+                if has_weight_values:
+                    # Use actual weight values for accurate collective ratio
                     for metadata in all_memories['metadatas']:
-                        lambda_e = float(metadata.get('lambda_e', 0.5))
-                        lambda_h = float(metadata.get('lambda_h', 0.5))
-                        euclidean_weight_sum += lambda_e
-                        hyperbolic_weight_sum += lambda_h
+                        euclidean_weight = float(metadata.get('euclidean_weight', 0.5))
+                        hyperbolic_weight = float(metadata.get('hyperbolic_weight', 0.5))
+                        euclidean_weight_sum += euclidean_weight
+                        hyperbolic_weight_sum += hyperbolic_weight
                 else:
                     # Calculate based on field presence
                     for metadata in all_memories['metadatas']:

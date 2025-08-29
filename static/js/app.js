@@ -473,11 +473,19 @@ async function loadMemories() {
                 when: m.five_w1h?.when || m.when || m.timestamp || '',
                 where: m.five_w1h?.where || m.where || '',
                 why: m.five_w1h?.why || m.why || '',
-                how: m.five_w1h?.how || m.how || ''
+                how: m.five_w1h?.how || m.how || '',
+                // Preserve space weights
+                euclidean_weight: m.euclidean_weight,
+                hyperbolic_weight: m.hyperbolic_weight
             }));
         } else {
             // For merged view, memories already have direct properties
-            allMemories.raw = allMemories;
+            // Make sure space weights are preserved
+            allMemories.raw = allMemories.map(m => ({
+                ...m,
+                euclidean_weight: m.euclidean_weight,
+                hyperbolic_weight: m.hyperbolic_weight
+            }));
         }
         // Store original order for removing sort
         originalMemoryOrder = [...allMemories];
@@ -1376,7 +1384,7 @@ function initializeCharts() {
                 }, {
                     label: 'Hyperbolic',
                     data: [],
-                    borderColor: '#ffc107',
+                    borderColor: '#ae00c5ff',
                     backgroundColor: 'rgba(255, 193, 7, 0.1)',
                     tension: 0.4
                 }]
@@ -1629,7 +1637,7 @@ window.showMergeGroup = async function(mergedId) {
                                                     aria-controls="collapse${idx}">
                                                 <div class="d-flex justify-content-between align-items-center w-100 me-3">
                                                     <div>
-                                                        <span class="badge bg-gradient bg-cyan me-2">Event ${idx + 1}</span>
+                                                        <span class="badge bg-primary me-2">Event ${idx + 1}</span>
                                                         <span class="badge bg-${event.event_type === 'user_input' ? 'primary' : 
                                                                          event.event_type === 'assistant_response' ? 'success' : 
                                                                          'secondary'} me-2">
@@ -1768,20 +1776,36 @@ window.viewMemoryDetails = async function(memoryId) {
         return;
     }
     
-    // Calculate space weights for this memory
-    let concreteScore = 0;
-    let abstractScore = 0;
+    // Extract 5W1H fields - handle both nested (raw) and direct (merged) structures
+    const who = memory.five_w1h?.who || memory.who || '—';
+    const what = memory.five_w1h?.what || memory.what || '—';
+    const when = memory.five_w1h?.when || memory.when || memory.timestamp || '—';
+    const where = memory.five_w1h?.where || memory.where || '—';
+    const why = memory.five_w1h?.why || memory.why || '—';
+    const how = memory.five_w1h?.how || memory.how || '—';
     
-    if (memory.who) concreteScore += 1.0;
-    if (memory.what) concreteScore += 2.0;
-    if (memory.when) concreteScore += 0.5;
-    if (memory.where) concreteScore += 0.5;
-    if (memory.why) abstractScore += 1.5;
-    if (memory.how) abstractScore += 1.0;
+    // Use real space weights if available, otherwise calculate from fields
+    let euclideanPct, hyperbolicPct;
     
-    const total = concreteScore + abstractScore;
-    const euclideanPct = total > 0 ? Math.round((concreteScore / total) * 100) : 50;
-    const hyperbolicPct = 100 - euclideanPct;
+    if (memory.euclidean_weight !== undefined && memory.hyperbolic_weight !== undefined) {
+        euclideanPct = Math.round(memory.euclidean_weight * 100);
+        hyperbolicPct = Math.round(memory.hyperbolic_weight * 100);
+    } else {
+        // Fallback to field-based calculation
+        let concreteScore = 0;
+        let abstractScore = 0;
+        
+        if (who && who !== '—') concreteScore += 1.0;
+        if (what && what !== '—') concreteScore += 2.0;
+        if (when && when !== '—') concreteScore += 0.5;
+        if (where && where !== '—') concreteScore += 0.5;
+        if (why && why !== '—') abstractScore += 1.5;
+        if (how && how !== '—') abstractScore += 1.0;
+        
+        const total = concreteScore + abstractScore;
+        euclideanPct = total > 0 ? Math.round((concreteScore / total) * 100) : 50;
+        hyperbolicPct = 100 - euclideanPct;
+    }
     
     // Determine residual status color
     let residualColor = 'success';
@@ -1819,7 +1843,7 @@ window.viewMemoryDetails = async function(memoryId) {
                         </div>
                         <div class="mb-4">
                             <div class="text-info small">Event Type</div>
-                            <div class="ms-3"><span class="badge bg-secondary">${escapeHtml(memory.type || 'observation')}</span></div>
+                            <div class="ms-3"><span class="badge bg-secondary">${escapeHtml(memory.type || memory.event_type || 'observation')}</span></div>
                         </div>
                         
                         <!-- 5W1H Fields -->
@@ -1827,33 +1851,33 @@ window.viewMemoryDetails = async function(memoryId) {
                         
                         <div class="mb-3">
                             <div class="text-info small">Who</div>
-                            <div class="text-white ms-3">${escapeHtml(memory.who || '—')}</div>
+                            <div class="text-white ms-3">${escapeHtml(who)}</div>
                         </div>
                         
                         <div class="mb-3">
                             <div class="text-info small">What</div>
                             <div class="ms-3">
                                 <div class="p-2 bg-dark rounded text-white" style="background-color: #0f0f1a !important;">
-                                    ${escapeHtml(memory.what || '—')}
+                                    ${escapeHtml(what)}
                                 </div>
                             </div>
                         </div>
                         
                         <div class="mb-3">
                             <div class="text-info small">When</div>
-                            <div class="text-white ms-3">${formatDate(memory.when)}</div>
+                            <div class="text-white ms-3">${formatDate(when)}</div>
                         </div>
                         
                         <div class="mb-3">
                             <div class="text-info small">Where</div>
-                            <div class="text-white ms-3">${escapeHtml(memory.where || '—')}</div>
+                            <div class="text-white ms-3">${escapeHtml(where)}</div>
                         </div>
                         
                         <div class="mb-3">
                             <div class="text-info small">Why</div>
                             <div class="ms-3">
                                 <div class="p-2 bg-dark rounded text-white" style="background-color: #0f0f1a !important;">
-                                    ${escapeHtml(memory.why || '—')}
+                                    ${escapeHtml(why)}
                                 </div>
                             </div>
                         </div>
@@ -1862,7 +1886,7 @@ window.viewMemoryDetails = async function(memoryId) {
                             <div class="text-info small">How</div>
                             <div class="ms-3">
                                 <div class="p-2 bg-dark rounded text-white" style="background-color: #0f0f1a !important;">
-                                    ${escapeHtml(memory.how || '—')}
+                                    ${escapeHtml(how)}
                                 </div>
                             </div>
                         </div>
@@ -1933,12 +1957,16 @@ window.viewMemoryDetails = async function(memoryId) {
                         ` : ''}
                     </div>
                     <div class="modal-footer">
+                        ${memory.type !== 'raw' ? `
                         <button type="button" class="btn btn-info" onclick="window.showMemoryInGraph('${memoryId}')">
                             <i class="bi bi-diagram-3"></i> Show in Graph
                         </button>
+                        ` : ''}
+                        ${memory.type !== 'raw' ? `
                         <button type="button" class="btn btn-danger" onclick="window.deleteMemory('${memoryId}')">
                             <i class="bi bi-trash"></i> Delete
                         </button>
+                        ` : ''}
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     </div>
                 </div>
