@@ -1,6 +1,6 @@
 # [DSAM] Dual-Space Agentic Memory
 
-DSAM is an adaptive geometric memory system for AI agents featuring dual-space encoding (Euclidean + Hyperbolic), adaptive residual learning, provenance tracking, and dynamic visualization.
+DSAM is an adaptive geometric memory system for AI agents featuring dual-space encoding (Euclidean + Hyperbolic), adaptive residual learning, provenance tracking, event deduplication with raw event preservation, and dynamic visualization.
 
 ## Overview
 
@@ -11,11 +11,11 @@ DSAM is a content-addressable memory system that operates on dual geometric mani
 ## Core Architecture
 
 ### Dual-Space Encoding
-- **Euclidean Space** (768-dim): Direct semantic embeddings from all-mpnet-base-v2 for concrete information
+- **Euclidean Space** (768-dim): Direct semantic embeddings from all-MiniLM-L6-v2 for concrete information
 - **Hyperbolic Space** (64-dim): Models hierarchical relationships using Poincaré ball geometry with numerical stability
 - **Field-Aware Composition**: Learned gates weight contributions from 5W1H fields
 - **Product Distance Metrics**: Query-dependent weighting between spaces (λ_E + λ_H = 1.0)
-- **Enhanced Base Model**: Using sentence-transformers/all-mpnet-base-v2 for superior semantic understanding
+- **Real-time Space Weight Calculation**: Dynamically calculated and persisted weights based on embedding properties
 
 ### Content-Addressable Memory
 - **Semantic Retrieval**: Query with partial content, retrieve by meaning not location
@@ -31,6 +31,13 @@ DSAM is a content-addressable memory system that operates on dual geometric mani
 - **Momentum-Based Updates**: Smooth adaptation with configurable momentum (0.9) and decay factor (0.995)
 - **HDBSCAN Clustering**: Density-based clustering with configurable parameters (min_cluster_size, min_samples)
 - **Provenance Tracking**: Version history, residual norms, co-retrieval partners, and access patterns
+
+### Event Deduplication & Raw Event Preservation
+- **Automatic Deduplication**: Similar events (similarity > 0.15) are merged to prevent redundancy
+- **Raw Event Storage**: All original events are preserved and linked to their merged representations
+- **Dual View Interface**: Toggle between merged events (deduplicated) and raw events (all originals)
+- **Merge Group Tracking**: Visualize which raw events have been merged together
+- **Bidirectional Mapping**: Navigate from merged events to raw events and vice versa
 
 ### 5W1H Journal Framework
 Complete context encoding for each memory:
@@ -58,6 +65,16 @@ export TRANSFORMERS_OFFLINE=1
 
 ## Quick Start
 
+### Start LLM Server (Required for Chat)
+
+```bash
+# Start the local LLM server first
+python llama_server_client.py start
+
+# The server will run in the background
+# To stop it later: python llama_server_client.py stop
+```
+
 ### Command Line Interface
 
 ```bash
@@ -83,6 +100,9 @@ python cli.py load
 ### Web Interface
 
 ```bash
+# Make sure LLM server is running first (for chat functionality)
+python llama_server_client.py start
+
 # Launch enhanced web interface
 python run_web.py
 
@@ -91,10 +111,12 @@ python run_web.py
 
 The web interface provides:
 - Interactive chat with real-time space weight visualization
-- Memory management with full 5W1H display
+- Memory management with full 5W1H display and calculated space weights
+- Dual view modes: Merged (deduplicated) and Raw (all events)
 - Graph visualization with configurable HDBSCAN parameters
 - Analytics dashboard with residual tracking
 - Provenance information for each memory
+- Merge group visualization showing raw-to-merged event relationships
 
 ### Generate Dataset
 - Iterative script generating memory events using two-way LLM calls
@@ -114,13 +136,16 @@ python simulate_conversations.py
 
 ### Memory Management
 - Full 5W1H field display with all metadata
+- Real-time calculated space weights (Euclidean/Hyperbolic percentages)
+- Dual view modes:
+  - **Merged View**: Deduplicated events with merge indicators
+  - **Raw View**: All original events with merge group information
 - Provenance tracking (version, access count, co-retrieval partners)
 - Residual norm visualization
 - Field-specific adaptation limits
-- Space dominance indicators
-- Residual norm visualization
 - Individual memory graph view
 - Batch operations support
+- Click-to-view memory details with actual space weight display
 
 ### Graph Visualization
 - **Interactive Network Graph**: Powered by vis.js
@@ -148,23 +173,27 @@ python simulate_conversations.py
 
 ### Core Endpoints
 - `POST /api/chat`: Send chat messages with space weight calculation
-- `GET /api/memories`: Retrieve all memories with metadata
+- `GET /api/memories`: Retrieve all memories with metadata (supports `?view=raw` or `?view=merged`)
 - `POST /api/memories`: Create new memory
 - `DELETE /api/memories/<id>`: Delete specific memory
+- `GET /api/memory/<id>/raw`: Get raw events for a merged memory
 - `POST /api/graph`: Get memory graph data with optional center node
 - `POST /api/search`: Search memories by query
 - `GET /api/stats`: Get system statistics
 - `GET /api/analytics`: Get analytics data for charts
+- `GET /api/merge-stats`: Get merge group statistics
 
 ## System Architecture
 
 ### Memory Store (`memory/memory_store.py`)
-- Dual-space encoding integration
+- Dual-space encoding integration with real-time weight calculation
+- Event deduplication with raw event preservation
+- Bidirectional raw-to-merged event mapping
 - Residual and momentum tracking with scale-aware bounds
 - HDBSCAN clustering with configurable parameters
 - Field-level adaptation limits
 - Forgetting mechanism for drift hygiene
-- ChromaDB backend interface
+- ChromaDB backend interface with multiple collections (events, raw_events, blocks)
 
 ### Dual-Space Encoder (`memory/dual_space_encoder.py`)
 - Sentence transformer for base embeddings (all-mpnet-base-v2)
