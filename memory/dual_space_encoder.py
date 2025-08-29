@@ -364,14 +364,19 @@ class DualSpaceEncoder:
         hyperbolic_embedding = embeddings.get('hyperbolic_anchor')
         
         # Calculate Euclidean space activation
-        # Higher magnitude and variance = more information content
-        euclidean_magnitude = np.linalg.norm(euclidean_embedding)
+        # Normalize by dimensionality for fair comparison
+        euclidean_dim = euclidean_embedding.shape[0]  # 768
+        hyperbolic_dim = hyperbolic_embedding.shape[0]  # 64
+        
+        # Calculate normalized magnitudes (average magnitude per dimension)
+        euclidean_magnitude = np.linalg.norm(euclidean_embedding) / np.sqrt(euclidean_dim)
         euclidean_variance = np.var(euclidean_embedding)
+        
+        # For Euclidean: combine normalized magnitude with variance
+        # Reduce variance multiplier for more balance
         euclidean_activation = euclidean_magnitude * (1 + euclidean_variance)
         
         # Calculate Hyperbolic space activation
-        # In hyperbolic space, distance from origin indicates hierarchical depth
-        # We use the Poincaré ball model where ||x|| < 1
         hyperbolic_norm = np.linalg.norm(hyperbolic_embedding)
         
         # Hyperbolic distance from origin in Poincaré ball
@@ -381,10 +386,13 @@ class DualSpaceEncoder:
         else:
             hyperbolic_distance = 3.0  # Cap at reasonable value
             
-        # Higher distance from origin = more abstract/hierarchical
-        # Also consider variance for information content
+        # Normalize hyperbolic magnitude similarly
+        hyperbolic_magnitude = hyperbolic_norm / np.sqrt(hyperbolic_dim)
         hyperbolic_variance = np.var(hyperbolic_embedding)
-        hyperbolic_activation = hyperbolic_distance * (1 + hyperbolic_variance)
+        
+        # For Hyperbolic: balance distance and magnitude more evenly
+        # Reduce the heavy weighting we had before
+        hyperbolic_activation = (hyperbolic_distance + hyperbolic_magnitude) * (1 + hyperbolic_variance)
         
         # Normalize to get weights (ensure they sum to 1)
         total_activation = euclidean_activation + hyperbolic_activation
