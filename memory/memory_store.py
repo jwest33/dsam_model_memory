@@ -6,15 +6,17 @@ This module implements the enhanced memory system with:
 - Immutable anchors with bounded adaptive residuals
 - Product distance metrics for retrieval
 - HDBSCAN clustering with product similarity
+- Raw event preservation with merged presentation layer
 """
 
 import numpy as np
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Optional, Any, Set
 from datetime import datetime
 import logging
 from pathlib import Path
 import hdbscan
 from sklearn.preprocessing import StandardScaler
+import uuid
 
 from models.event import Event, FiveW1H, EventType
 from memory.chromadb_store import ChromaDBStore
@@ -30,6 +32,7 @@ class MemoryStore:
     """
     Unified memory store with dual-space encoding and product distance metrics.
     Features immutable anchors with bounded adaptive residuals.
+    Now includes raw event tracking alongside merged events.
     """
     
     def __init__(self):
@@ -38,6 +41,17 @@ class MemoryStore:
         
         # Core storage (ChromaDB is primary)
         self.chromadb = ChromaDBStore()
+        
+        # Initialize raw events collection in ChromaDB
+        self._init_raw_events_collection()
+        
+        # Raw event tracking (in memory for fast access)
+        self.raw_events = {}  # raw_event_id -> Event
+        self.merged_to_raw = {}  # merged_event_id -> Set[raw_event_ids]
+        self.raw_to_merged = {}  # raw_event_id -> merged_event_id
+        
+        # Load existing raw events from ChromaDB
+        self._load_raw_events_from_db()
         
         # Dual-space encoder with config values
         self.encoder = DualSpaceEncoder(
@@ -116,35 +130,168 @@ class MemoryStore:
             self.total_events = 0
             self.total_queries = 0
     
-    def store_event(self, event: Event) -> Tuple[bool, str]:
+    def _init_raw_events_collection(self):
+        """Initialize the raw events collection in ChromaDB"""
+        try:
+            # Check if raw_events collection exists
+            collections = self.chromadb.client.list_collections()
+            if not any(c.name == 'raw_events' for c in collections):
+                self.chromadb.client.create_collection(
+                    name='raw_events',
+                    metadata={"description": "Raw events with merge tracking"}
+                )
+                logger.info("Created raw_events collection")
+        except Exception as e:
+            logger.warning(f"Could not initialize raw events collection: {e}")
+    
+    def _load_raw_events_from_db(self):
+        """Load existing raw events from ChromaDB"""
+        try:
+            raw_collection = self.chromadb.client.get_collection('raw_events')
+            results = raw_collection.get(include=['metadatas', 'documents'])
+            
+            for i, metadata in enumerate(results['metadatas']):
+                raw_id = results['ids'][i]
+                merged_id = metadata.get('merged_id')
+                
+                # Reconstruct event
+                event = Event(
+                    id=metadata.get('original_id', raw_id.replace('raw_', '')),
+                    five_w1h=FiveW1H(
+                        who=metadata.get('who', ''),
+                        what=metadata.get('what', ''),
+                        when=metadata.get('when', ''),
+                        where=metadata.get('where', ''),
+                        why=metadata.get('why', ''),
+                        how=metadata.get('how', '')
+                    ),
+                    event_type=EventType(metadata.get('event_type', 'observation')),
+                    episode_id=metadata.get('episode_id', '')
+                )
+                
+                # Store in memory
+                self.raw_events[raw_id] = event
+                
+                # Track merge mappings
+                if merged_id:
+                    self.raw_to_merged[raw_id] = merged_id
+                    if merged_id not in self.merged_to_raw:
+                        self.merged_to_raw[merged_id] = set()
+                    self.merged_to_raw[merged_id].add(raw_id)
+            
+            logger.info(f"Loaded {len(self.raw_events)} raw events from ChromaDB")
+            
+        except Exception as e:
+            logger.warning(f"Could not load raw events: {e}")
+    
+    def store_event(self, event: Event, preserve_raw: bool = True) -> Tuple[bool, str]:
         """
         Store an event with dual-space encoding.
         Creates immutable anchors and initializes residuals to zero.
+        Optionally preserves raw event while merging for display.
         
         Args:
             event: Event to store
+            preserve_raw: If True, stores raw event even when merging
             
         Returns:
             Tuple of (success, message)
         """
         try:
-            # Generate dual-space embeddings
+            # Generate unique raw event ID if not present
+            raw_event_id = f"raw_{event.id}" if preserve_raw else event.id
+            
+            # Generate dual-space embeddings first
             embeddings = self.encoder.encode(event.five_w1h.to_dict())
+            
+            # Calculate actual space weights from embeddings
+            euclidean_weight, hyperbolic_weight = self.encoder.calculate_space_activation(embeddings)
+            
+            # Store raw event if preserving
+            if preserve_raw:
+                self.raw_events[raw_event_id] = event
+                
+                # Also store in ChromaDB for persistence
+                try:
+                    raw_collection = self.chromadb.client.get_collection('raw_events')
+                    raw_collection.add(
+                        ids=[raw_event_id],
+                        documents=[event.five_w1h.what or ""],
+                        metadatas=[{
+                            'original_id': event.id,
+                            'who': event.five_w1h.who or "",
+                            'what': event.five_w1h.what or "",
+                            'when': event.five_w1h.when or "",
+                            'where': event.five_w1h.where or "",
+                            'why': event.five_w1h.why or "",
+                            'how': event.five_w1h.how or "",
+                            'event_type': event.event_type.value,
+                            'episode_id': event.episode_id,
+                            'merged_id': '',  # Will be updated after merging
+                            'euclidean_weight': str(euclidean_weight),
+                            'hyperbolic_weight': str(hyperbolic_weight)
+                        }],
+                        embeddings=[embeddings['euclidean_anchor'].tolist()]  # Store embedding for potential future use
+                    )
+                except Exception as e:
+                    logger.warning(f"Could not store raw event in ChromaDB: {e}")
             
             # Check for duplicates based on product distance
             similar_events = self._find_similar_events(embeddings, k=5)
             
+            merged_event_id = None
             if similar_events:
                 for similar_event, distance in similar_events:
                     if distance < 0.15:  # Very close in product space
+                        merged_event_id = similar_event.id
+                        
+                        # Track raw-to-merged mapping
+                        if preserve_raw:
+                            self.raw_to_merged[raw_event_id] = merged_event_id
+                            if merged_event_id not in self.merged_to_raw:
+                                self.merged_to_raw[merged_event_id] = set()
+                            self.merged_to_raw[merged_event_id].add(raw_event_id)
+                            
+                            # Update merged_id in ChromaDB
+                            try:
+                                raw_collection = self.chromadb.client.get_collection('raw_events')
+                                raw_collection.update(
+                                    ids=[raw_event_id],
+                                    metadatas=[{'merged_id': merged_event_id}]
+                                )
+                            except Exception as e:
+                                logger.warning(f"Could not update merge mapping in ChromaDB: {e}")
+                        
                         # Update residuals of existing event instead of creating duplicate
                         self._merge_into_existing(similar_event.id, embeddings)
                         return True, f"Merged into existing event {similar_event.id[:8]}"
             
             # Store immutable anchors in ChromaDB
+            # Calculate actual space weights from embeddings
+            euclidean_weight, hyperbolic_weight = self.encoder.calculate_space_activation(embeddings)
+            
             # For ChromaDB, concatenate euclidean anchor for vector search
             chromadb_embedding = embeddings['euclidean_anchor']
-            self.chromadb.store_event(event, chromadb_embedding)
+            self.chromadb.store_event(event, chromadb_embedding, 
+                                     euclidean_weight=euclidean_weight, 
+                                     hyperbolic_weight=hyperbolic_weight)
+            
+            # Track raw-to-merged mapping for new merged event
+            if preserve_raw:
+                self.raw_to_merged[raw_event_id] = event.id
+                if event.id not in self.merged_to_raw:
+                    self.merged_to_raw[event.id] = set()
+                self.merged_to_raw[event.id].add(raw_event_id)
+                
+                # Update merged_id in ChromaDB
+                try:
+                    raw_collection = self.chromadb.client.get_collection('raw_events')
+                    raw_collection.update(
+                        ids=[raw_event_id],
+                        metadatas=[{'merged_id': event.id}]
+                    )
+                except Exception as e:
+                    logger.warning(f"Could not update merge mapping in ChromaDB: {e}")
             
             # Store full embeddings in cache
             self.embedding_cache[event.id] = embeddings
@@ -581,10 +728,35 @@ class MemoryStore:
             logger.error(f"Failed to load state: {e}")
             return False
     
+    def get_raw_events_for_merged(self, merged_event_id: str) -> List[Event]:
+        """Get all raw events associated with a merged event"""
+        raw_event_ids = self.merged_to_raw.get(merged_event_id, set())
+        return [self.raw_events[rid] for rid in raw_event_ids if rid in self.raw_events]
+    
+    def get_merged_event_for_raw(self, raw_event_id: str) -> Optional[str]:
+        """Get the merged event ID that a raw event belongs to"""
+        return self.raw_to_merged.get(raw_event_id)
+    
+    def get_all_raw_events(self) -> Dict[str, Event]:
+        """Get all raw events"""
+        return self.raw_events.copy()
+    
+    def get_merge_groups(self) -> Dict[str, List[str]]:
+        """Get all merge groups (merged_id -> list of raw_ids)"""
+        return {mid: list(rids) for mid, rids in self.merged_to_raw.items()}
+    
     def get_statistics(self) -> Dict[str, Any]:
         """Get statistics about the memory store."""
+        # Calculate merge statistics
+        total_raw = len(self.raw_events)
+        total_merged = len(self.merged_to_raw)
+        avg_merge_size = sum(len(rids) for rids in self.merged_to_raw.values()) / max(1, total_merged) if total_merged > 0 else 0
+        
         return {
             'total_events': self.total_events,
+            'total_raw_events': total_raw,
+            'total_merged_groups': total_merged,
+            'average_merge_size': avg_merge_size,
             'total_queries': self.total_queries,
             'total_episodes': len(self.episode_map),
             'events_with_residuals': len(self.residuals),

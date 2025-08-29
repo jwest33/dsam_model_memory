@@ -90,7 +90,8 @@ class ChromaDBStore:
             embedding_function=None
         )
     
-    def store_event(self, event: Event, embedding: np.ndarray, block_id: Optional[str] = None) -> bool:
+    def store_event(self, event: Event, embedding: np.ndarray, block_id: Optional[str] = None, 
+                     euclidean_weight: float = 0.5, hyperbolic_weight: float = 0.5) -> bool:
         """
         Store an event in the database
         
@@ -116,6 +117,9 @@ class ChromaDBStore:
                 "why": event.five_w1h.why or "",
                 "how": event.five_w1h.how or "",
                 "confidence": float(event.confidence),
+                # Space weights - actual activation in each space
+                "euclidean_weight": float(euclidean_weight),
+                "hyperbolic_weight": float(hyperbolic_weight),
                 # Provenance tracking
                 "version": 1,  # Version number for tracking updates
                 "anchor_hash": str(hash(str(embedding.tolist()))),  # Hash of anchor embedding
