@@ -50,6 +50,7 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
         console.log('Loading stats...');
         loadStats();
+        loadMergeStats();
     } catch (error) {
         console.error('Error in loadStats:', error);
     }
@@ -66,6 +67,22 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeApp() {
+    // Set up view mode toggle listeners
+    const mergedView = document.getElementById('mergedView');
+    const rawView = document.getElementById('rawView');
+    if (mergedView) {
+        mergedView.addEventListener('change', () => {
+            console.log('Switched to merged view');
+            loadMemories();
+        });
+    }
+    if (rawView) {
+        rawView.addEventListener('change', () => {
+            console.log('Switched to raw view');
+            loadMemories();
+        });
+    }
+    
     // Set up component selector listeners for real-time graph updates
     const componentCheckboxes = document.querySelectorAll('#componentSelector input[type="checkbox"]');
     componentCheckboxes.forEach(checkbox => {
@@ -413,6 +430,10 @@ function toggleMemoryDetails(messageId) {
 async function loadMemories() {
     console.log('Loading memories...');
     
+    // Get current view mode
+    const viewMode = document.getElementById('rawView').checked ? 'raw' : 'merged';
+    console.log('View mode:', viewMode);
+    
     // Show loading indicator in table
     const tbody = document.getElementById('memoryTableBody');
     if (tbody) {
@@ -429,17 +450,54 @@ async function loadMemories() {
     }
     
     try {
-        const response = await fetch('/api/memories');
+        // Fetch memories with view mode
+        const response = await fetch(`/api/memories?view=${viewMode}`);
         console.log('Response status:', response.status);
         const data = await response.json();
         console.log('Data received:', data);
         
+        // Store merge groups if in raw view
+        if (viewMode === 'raw' && data.merge_groups) {
+            window.mergeGroups = data.merge_groups;
+        }
+        
         allMemories = data.memories || [];
-        // Store in raw property for memory-pagination.js compatibility
-        allMemories.raw = allMemories;
+        // For memory-pagination.js compatibility, store the correct format
+        // The pagination expects a raw array with direct properties, not nested five_w1h
+        if (viewMode === 'raw') {
+            // For raw view, flatten the five_w1h properties for display
+            allMemories.raw = allMemories.map(m => ({
+                ...m,
+                who: m.five_w1h?.who || m.who || '',
+                what: m.five_w1h?.what || m.what || '',
+                when: m.five_w1h?.when || m.when || m.timestamp || '',
+                where: m.five_w1h?.where || m.where || '',
+                why: m.five_w1h?.why || m.why || '',
+                how: m.five_w1h?.how || m.how || '',
+                // Preserve space weights
+                euclidean_weight: m.euclidean_weight,
+                hyperbolic_weight: m.hyperbolic_weight
+            }));
+        } else {
+            // For merged view, memories already have direct properties
+            // Make sure space weights are preserved
+            allMemories.raw = allMemories.map(m => ({
+                ...m,
+                euclidean_weight: m.euclidean_weight,
+                hyperbolic_weight: m.hyperbolic_weight
+            }));
+        }
         // Store original order for removing sort
         originalMemoryOrder = [...allMemories];
         console.log('Total memories loaded:', allMemories.length);
+        
+        // Update counts in UI
+        if (data.total_raw !== undefined) {
+            document.getElementById('rawCount').textContent = data.total_raw;
+        }
+        if (data.total_merged !== undefined) {
+            document.getElementById('mergedCount').textContent = data.total_merged || data.total_events || allMemories.length;
+        }
         
         // Log first memory structure to debug
         if (allMemories.length > 0) {
@@ -460,7 +518,9 @@ async function loadMemories() {
         }
         
         // Display memories
+        console.log('About to call displayMemories, allMemories:', allMemories.length);
         displayMemories();
+        console.log('displayMemories completed');
         
     } catch (error) {
         console.error('Error loading memories:', error);
@@ -482,39 +542,80 @@ async function loadMemories() {
 }
 
 function displayMemories() {
-    const tbody = document.getElementById('memoryTableBody');
-    if (!tbody) return;
-    
-    const startIdx = (currentPage - 1) * itemsPerPage;
-    const endIdx = startIdx + itemsPerPage;
-    const pageMemories = allMemories.slice(startIdx, endIdx);
-    
-    tbody.innerHTML = '';
-    
-    pageMemories.forEach(memory => {
-        const row = document.createElement('tr');
+    console.log('=== displayMemories TRY ===');
+    try {
+        console.log('=== displayMemories START ===');
+        console.log('allMemories length:', allMemories.length);
+        console.log('currentPage:', currentPage, 'itemsPerPage:', itemsPerPage);
         
-        // Get residual indicator  
-        const residualIndicator = getResidualIndicator(memory);
+        const tbody = document.getElementById('memoryTableBody');
+        console.log('tbody element:', tbody);
         
-        // Handle potentially empty fields
-        const who = memory.who || '';
-        const what = memory.what || '';
-        const when = memory.when || '';
-        const where = memory.where || '';
-        const why = memory.why || '';
-        const how = memory.how || '';
-        const whatDisplay = what.length > 40 ? what.substring(0, 40) + '...' : what;
-        const whereDisplay = where.length > 20 ? where.substring(0, 20) + '...' : where;
-        const whyDisplay = why.length > 30 ? why.substring(0, 30) + '...' : why;
-        const howDisplay = how.length > 25 ? how.substring(0, 25) + '...' : how;
+        if (!tbody) {
+            console.log('ERROR: memoryTableBody not found!');
+            return;
+        }
         
-        // Calculate space weight for this memory
-        const memorySpaceWeight = calculateMemorySpaceWeight(memory);
+        const startIdx = (currentPage - 1) * itemsPerPage;
+        const endIdx = startIdx + itemsPerPage;
+        const pageMemories = allMemories.slice(startIdx, endIdx);
+        console.log('Slicing from', startIdx, 'to', endIdx);
+        console.log('pageMemories length:', pageMemories.length);
         
-        row.innerHTML = `
+        if (pageMemories.length === 0) {
+            console.log('WARNING: No memories to display on this page');
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center">No memories to display</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = '';
+        
+        pageMemories.forEach((memory, index) => {
+            const row = document.createElement('tr');
+            
+            // Debug log for first memory
+            if (index === 0) {
+                console.log('Processing first memory:', memory);
+                console.log('five_w1h:', memory.five_w1h);
+            }
+            
+            // Get residual indicator  
+            const residualIndicator = getResidualIndicator(memory);
+            
+            // Handle potentially empty fields - prioritize five_w1h for raw view
+            const who = memory.five_w1h?.who || memory.who || '';
+            const what = memory.five_w1h?.what || memory.what || '';
+            const when = memory.five_w1h?.when || memory.when || memory.timestamp || '';
+            const where = memory.five_w1h?.where || memory.where || '';
+            const why = memory.five_w1h?.why || memory.why || '';
+            const how = memory.five_w1h?.how || memory.how || '';
+            
+            // Debug log extracted values
+            if (index === 0) {
+                console.log('Extracted values:', { who, what, when, where, why, how });
+            }
+            
+            const whatDisplay = what.length > 40 ? what.substring(0, 40) + '...' : what;
+            const whereDisplay = where.length > 20 ? where.substring(0, 20) + '...' : where;
+            const whyDisplay = why.length > 30 ? why.substring(0, 30) + '...' : why;
+            const howDisplay = how.length > 25 ? how.substring(0, 25) + '...' : how;
+            
+            // Add merge indicator for raw view
+            let mergeIndicator = '';
+            if (memory.type === 'raw' && memory.merged_id) {
+                const mergeGroup = window.mergeGroups?.[memory.merged_id];
+                const groupSize = mergeGroup ? mergeGroup.length : 1;
+                mergeIndicator = `<span class="badge bg-info ms-1" title="Part of merged group ${memory.merged_id.substring(0, 8)}">
+                    <i class="bi bi-layers"></i> ${groupSize}
+                </span>`;
+            }
+            
+            // Calculate space weight for this memory
+            const memorySpaceWeight = calculateMemorySpaceWeight(memory);
+            
+            row.innerHTML = `
             <td>${escapeHtml(who)}</td>
-            <td title="${escapeHtml(what)}">${escapeHtml(whatDisplay)}</td>
+            <td title="${escapeHtml(what)}">${escapeHtml(whatDisplay)}${mergeIndicator}</td>
             <td>${formatDate(when)}</td>
             <td>${escapeHtml(whereDisplay)}</td>
             <td title="${escapeHtml(why)}">${escapeHtml(whyDisplay)}</td>
@@ -528,33 +629,71 @@ function displayMemories() {
                 <button class="btn btn-sm btn-outline-primary" onclick="window.showMemoryInGraph('${memory.id}')" title="Show in Graph">
                     <i class="bi bi-diagram-3"></i>
                 </button>
-                <button class="btn btn-sm btn-outline-danger" onclick="window.deleteMemory('${memory.id}')" title="Delete">
-                    <i class="bi bi-trash"></i>
-                </button>
+                ${memory.type === 'raw' && memory.merged_id ? 
+                    `<button class="btn btn-sm btn-outline-warning" onclick="window.showMergeGroup('${memory.merged_id}')" title="Show Merge Group">
+                        <i class="bi bi-collection"></i>
+                    </button>` : 
+                    `<button class="btn btn-sm btn-outline-danger" onclick="window.deleteMemory('${memory.id}')" title="Delete">
+                        <i class="bi bi-trash"></i>
+                    </button>`
+                }
             </td>
-        `;
+            `;
+            
+            tbody.appendChild(row);
+        });
         
-        tbody.appendChild(row);
-    });
-    
-    // Update pagination
-    updatePagination();
+        // Update pagination
+        updatePagination();
+        console.log('=== displayMemories END - Success ===');
+    } catch (error) {
+        console.error('=== displayMemories ERROR ===');
+        console.error('Error:', error);
+        console.error('Stack:', error.stack);
+    }
 }
 
 function calculateMemorySpaceWeight(memory) {
-    // Calculate space weight for individual memory
+    // Use real space weights from the backend if available
+    if (memory.euclidean_weight !== undefined && memory.hyperbolic_weight !== undefined) {
+        const euclideanPct = Math.round(memory.euclidean_weight * 100);
+        const hyperbolicPct = Math.round(memory.hyperbolic_weight * 100);
+        
+        // Create a mini progress bar with real weights
+        return `
+            <div class="d-flex align-items-center">
+                <div class="progress flex-grow-1" style="height: 15px; min-width: 80px;">
+                    <div class="progress-bar bg-info" style="width: ${euclideanPct}%" 
+                         title="Euclidean: ${euclideanPct}%"></div>
+                    <div class="progress-bar bg-warning" style="width: ${hyperbolicPct}%" 
+                         title="Hyperbolic: ${hyperbolicPct}%"></div>
+                </div>
+                <small class="ms-2">${euclideanPct}/${hyperbolicPct}</small>
+            </div>
+        `;
+    }
+    
+    // Fallback to field-based calculation if weights not available
     let concreteScore = 0;
     let abstractScore = 0;
     
+    // Check both direct properties and five_w1h
+    const who = memory.five_w1h?.who || memory.who;
+    const what = memory.five_w1h?.what || memory.what;
+    const when = memory.five_w1h?.when || memory.when;
+    const where = memory.five_w1h?.where || memory.where;
+    const why = memory.five_w1h?.why || memory.why;
+    const how = memory.five_w1h?.how || memory.how;
+    
     // Score concrete fields
-    if (memory.who) concreteScore += 1.0;
-    if (memory.what) concreteScore += 2.0;
-    if (memory.when) concreteScore += 0.5;
-    if (memory.where) concreteScore += 0.5;
+    if (who) concreteScore += 1.0;
+    if (what) concreteScore += 2.0;
+    if (when) concreteScore += 0.5;
+    if (where) concreteScore += 0.5;
     
     // Score abstract fields
-    if (memory.why) abstractScore += 1.5;
-    if (memory.how) abstractScore += 1.0;
+    if (why) abstractScore += 1.5;
+    if (how) abstractScore += 1.0;
     
     const total = concreteScore + abstractScore;
     if (total === 0) {
@@ -1183,6 +1322,25 @@ function refreshGraph() {
 }
 
 // Analytics and statistics
+async function loadMergeStats() {
+    try {
+        const response = await fetch('/api/merge-stats');
+        const data = await response.json();
+        
+        // Update UI with merge statistics
+        if (data.total_raw !== undefined) {
+            document.getElementById('rawCount').textContent = data.total_raw;
+        }
+        if (data.total_merged !== undefined) {
+            document.getElementById('mergedCount').textContent = data.total_merged;
+        }
+        
+        console.log('Merge statistics loaded:', data);
+    } catch (error) {
+        console.error('Error loading merge stats:', error);
+    }
+}
+
 async function loadStats() {
     try {
         const response = await fetch('/api/stats');
@@ -1226,7 +1384,7 @@ function initializeCharts() {
                 }, {
                     label: 'Hyperbolic',
                     data: [],
-                    borderColor: '#ffc107',
+                    borderColor: '#ae00c5ff',
                     backgroundColor: 'rgba(255, 193, 7, 0.1)',
                     tension: 0.4
                 }]
@@ -1440,6 +1598,153 @@ function updateExpectedSpaceUsage() {
     }
 }
 
+window.showMergeGroup = async function(mergedId) {
+    try {
+        const response = await fetch(`/api/memory/${mergedId}/raw`);
+        const data = await response.json();
+        
+        // Create modal content with synthwave styling
+        const modalHtml = `
+            <div class="modal fade" id="mergeGroupModal" tabindex="-1">
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content bg-dark border-cyan">
+                        <div class="modal-header border-cyan">
+                            <h5 class="modal-title text-cyan">
+                                <i class="bi bi-layers text-warning"></i> Merge Group Details
+                                <span class="badge bg-info ms-2">${data.total_raw} events</span>
+                                <span class="badge bg-purple ms-2">ID: ${mergedId.substring(0, 8)}...</span>
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                            <div class="mb-3">
+                                <small class="text-muted">
+                                    This merge group contains ${data.total_raw} similar events that were automatically grouped based on semantic similarity.
+                                </small>
+                            </div>
+                            <div class="accordion accordion-flush" id="mergeGroupAccordion">
+                                ${data.raw_events.map((event, idx) => {
+                                    const eventId = event.id || `event_${idx}`;
+                                    const isFirst = idx === 0;
+                                    return `
+                                    <div class="accordion-item bg-dark border-secondary mb-2">
+                                        <h2 class="accordion-header" id="heading${idx}">
+                                            <button class="accordion-button ${!isFirst ? 'collapsed' : ''} bg-dark text-white" 
+                                                    type="button" 
+                                                    data-bs-toggle="collapse" 
+                                                    data-bs-target="#collapse${idx}" 
+                                                    aria-expanded="${isFirst}" 
+                                                    aria-controls="collapse${idx}">
+                                                <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                                                    <div>
+                                                        <span class="badge bg-primary me-2">Event ${idx + 1}</span>
+                                                        <span class="badge bg-${event.event_type === 'user_input' ? 'primary' : 
+                                                                         event.event_type === 'assistant_response' ? 'success' : 
+                                                                         'secondary'} me-2">
+                                                            ${event.event_type}
+                                                        </span>
+                                                        <small class="text-info">${escapeHtml(event.five_w1h.who || 'Unknown')}</small>
+                                                    </div>
+                                                    <small class="text-muted">${formatDate(event.five_w1h.when || event.timestamp)}</small>
+                                                </div>
+                                            </button>
+                                        </h2>
+                                        <div id="collapse${idx}" 
+                                             class="accordion-collapse collapse ${isFirst ? 'show' : ''}" 
+                                             aria-labelledby="heading${idx}" 
+                                             data-bs-parent="#mergeGroupAccordion">
+                                            <div class="accordion-body bg-darker">
+                                                <div class="row g-3">
+                                                    <div class="col-12">
+                                                        <div class="card bg-dark border-secondary">
+                                                            <div class="card-body">
+                                                                <h6 class="text-cyan mb-3">
+                                                                    <i class="bi bi-info-circle"></i> Event Context (5W1H)
+                                                                </h6>
+                                                                <div class="row g-2">
+                                                                    <div class="col-md-6">
+                                                                        <small class="text-muted d-block">Who</small>
+                                                                        <div class="text-white">${escapeHtml(event.five_w1h.who || '—')}</div>
+                                                                    </div>
+                                                                    <div class="col-md-6">
+                                                                        <small class="text-muted d-block">When</small>
+                                                                        <div class="text-white">${formatDate(event.five_w1h.when || event.timestamp)}</div>
+                                                                    </div>
+                                                                    <div class="col-md-6">
+                                                                        <small class="text-muted d-block">Where</small>
+                                                                        <div class="text-white">${escapeHtml(event.five_w1h.where || '—')}</div>
+                                                                    </div>
+                                                                    <div class="col-md-6">
+                                                                        <small class="text-muted d-block">How</small>
+                                                                        <div class="text-white">${escapeHtml(event.five_w1h.how || '—')}</div>
+                                                                    </div>
+                                                                    <div class="col-12">
+                                                                        <small class="text-muted d-block">What</small>
+                                                                        <div class="text-white bg-darker p-2 rounded mt-1" style="max-height: 150px; overflow-y: auto;">
+                                                                            ${escapeHtml(event.five_w1h.what || '—')}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="col-12">
+                                                                        <small class="text-muted d-block">Why</small>
+                                                                        <div class="text-white">${escapeHtml(event.five_w1h.why || '—')}</div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <div class="d-flex gap-2">
+                                                            <small class="text-muted">Episode:</small>
+                                                            <code class="text-cyan">${event.episode_id}</code>
+                                                        </div>
+                                                        <div class="d-flex gap-2">
+                                                            <small class="text-muted">Raw Event ID:</small>
+                                                            <code class="text-warning">${eventId}</code>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                        <div class="modal-footer border-cyan">
+                            <div class="me-auto">
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle"></i> 
+                                    Events merged based on similarity threshold: 0.15
+                                </small>
+                            </div>
+                            <button type="button" class="btn btn-outline-cyan" data-bs-dismiss="modal">
+                                <i class="bi bi-x-circle"></i> Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove existing modal if any
+        const existingModal = document.getElementById('mergeGroupModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Add modal to body
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('mergeGroupModal'));
+        modal.show();
+        
+    } catch (error) {
+        console.error('Error loading merge group:', error);
+        alert('Failed to load merge group details');
+    }
+};
+
 window.deleteMemory = async function(memoryId) {
     if (!confirm('Are you sure you want to delete this memory?')) return;
     
@@ -1471,20 +1776,36 @@ window.viewMemoryDetails = async function(memoryId) {
         return;
     }
     
-    // Calculate space weights for this memory
-    let concreteScore = 0;
-    let abstractScore = 0;
+    // Extract 5W1H fields - handle both nested (raw) and direct (merged) structures
+    const who = memory.five_w1h?.who || memory.who || '—';
+    const what = memory.five_w1h?.what || memory.what || '—';
+    const when = memory.five_w1h?.when || memory.when || memory.timestamp || '—';
+    const where = memory.five_w1h?.where || memory.where || '—';
+    const why = memory.five_w1h?.why || memory.why || '—';
+    const how = memory.five_w1h?.how || memory.how || '—';
     
-    if (memory.who) concreteScore += 1.0;
-    if (memory.what) concreteScore += 2.0;
-    if (memory.when) concreteScore += 0.5;
-    if (memory.where) concreteScore += 0.5;
-    if (memory.why) abstractScore += 1.5;
-    if (memory.how) abstractScore += 1.0;
+    // Use real space weights if available, otherwise calculate from fields
+    let euclideanPct, hyperbolicPct;
     
-    const total = concreteScore + abstractScore;
-    const euclideanPct = total > 0 ? Math.round((concreteScore / total) * 100) : 50;
-    const hyperbolicPct = 100 - euclideanPct;
+    if (memory.euclidean_weight !== undefined && memory.hyperbolic_weight !== undefined) {
+        euclideanPct = Math.round(memory.euclidean_weight * 100);
+        hyperbolicPct = Math.round(memory.hyperbolic_weight * 100);
+    } else {
+        // Fallback to field-based calculation
+        let concreteScore = 0;
+        let abstractScore = 0;
+        
+        if (who && who !== '—') concreteScore += 1.0;
+        if (what && what !== '—') concreteScore += 2.0;
+        if (when && when !== '—') concreteScore += 0.5;
+        if (where && where !== '—') concreteScore += 0.5;
+        if (why && why !== '—') abstractScore += 1.5;
+        if (how && how !== '—') abstractScore += 1.0;
+        
+        const total = concreteScore + abstractScore;
+        euclideanPct = total > 0 ? Math.round((concreteScore / total) * 100) : 50;
+        hyperbolicPct = 100 - euclideanPct;
+    }
     
     // Determine residual status color
     let residualColor = 'success';
@@ -1522,7 +1843,7 @@ window.viewMemoryDetails = async function(memoryId) {
                         </div>
                         <div class="mb-4">
                             <div class="text-info small">Event Type</div>
-                            <div class="ms-3"><span class="badge bg-secondary">${escapeHtml(memory.type || 'observation')}</span></div>
+                            <div class="ms-3"><span class="badge bg-secondary">${escapeHtml(memory.type || memory.event_type || 'observation')}</span></div>
                         </div>
                         
                         <!-- 5W1H Fields -->
@@ -1530,33 +1851,33 @@ window.viewMemoryDetails = async function(memoryId) {
                         
                         <div class="mb-3">
                             <div class="text-info small">Who</div>
-                            <div class="text-white ms-3">${escapeHtml(memory.who || '—')}</div>
+                            <div class="text-white ms-3">${escapeHtml(who)}</div>
                         </div>
                         
                         <div class="mb-3">
                             <div class="text-info small">What</div>
                             <div class="ms-3">
                                 <div class="p-2 bg-dark rounded text-white" style="background-color: #0f0f1a !important;">
-                                    ${escapeHtml(memory.what || '—')}
+                                    ${escapeHtml(what)}
                                 </div>
                             </div>
                         </div>
                         
                         <div class="mb-3">
                             <div class="text-info small">When</div>
-                            <div class="text-white ms-3">${formatDate(memory.when)}</div>
+                            <div class="text-white ms-3">${formatDate(when)}</div>
                         </div>
                         
                         <div class="mb-3">
                             <div class="text-info small">Where</div>
-                            <div class="text-white ms-3">${escapeHtml(memory.where || '—')}</div>
+                            <div class="text-white ms-3">${escapeHtml(where)}</div>
                         </div>
                         
                         <div class="mb-3">
                             <div class="text-info small">Why</div>
                             <div class="ms-3">
                                 <div class="p-2 bg-dark rounded text-white" style="background-color: #0f0f1a !important;">
-                                    ${escapeHtml(memory.why || '—')}
+                                    ${escapeHtml(why)}
                                 </div>
                             </div>
                         </div>
@@ -1565,7 +1886,7 @@ window.viewMemoryDetails = async function(memoryId) {
                             <div class="text-info small">How</div>
                             <div class="ms-3">
                                 <div class="p-2 bg-dark rounded text-white" style="background-color: #0f0f1a !important;">
-                                    ${escapeHtml(memory.how || '—')}
+                                    ${escapeHtml(how)}
                                 </div>
                             </div>
                         </div>
@@ -1636,12 +1957,16 @@ window.viewMemoryDetails = async function(memoryId) {
                         ` : ''}
                     </div>
                     <div class="modal-footer">
+                        ${memory.type !== 'raw' ? `
                         <button type="button" class="btn btn-info" onclick="window.showMemoryInGraph('${memoryId}')">
                             <i class="bi bi-diagram-3"></i> Show in Graph
                         </button>
+                        ` : ''}
+                        ${memory.type !== 'raw' ? `
                         <button type="button" class="btn btn-danger" onclick="window.deleteMemory('${memoryId}')">
                             <i class="bi bi-trash"></i> Delete
                         </button>
+                        ` : ''}
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     </div>
                 </div>

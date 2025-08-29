@@ -14,6 +14,7 @@
     
     // Function to create memory table row
     window.createMemoryRow = function(memory, includeAll = false) {
+        
         const row = document.createElement('tr');
         row.style.cursor = 'pointer';
         row.classList.add('memory-row');
@@ -50,13 +51,24 @@
         // Calculate space weight for this memory
         const memorySpaceWeight = typeof calculateMemorySpaceWeight === 'function' ? calculateMemorySpaceWeight(memory) : '';
         
+        // Helper to escape attributes (handles quotes)
+        const escapeAttr = (text) => {
+            if (!text) return '';
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        };
+        
         row.innerHTML = `
             <td>${escapeHtml(who)}</td>
-            <td title="${escapeHtml(what)}">${escapeHtml(whatDisplay)}</td>
+            <td title="${escapeAttr(what)}">${escapeHtml(whatDisplay)}</td>
             <td>${typeof formatDate === 'function' ? formatDate(when) : when}</td>
             <td>${escapeHtml(whereDisplay)}</td>
-            <td title="${escapeHtml(why)}">${escapeHtml(whyDisplay)}</td>
-            <td title="${escapeHtml(how)}">${escapeHtml(howDisplay)}</td>
+            <td title="${escapeAttr(why)}">${escapeHtml(whyDisplay)}</td>
+            <td title="${escapeAttr(how)}">${escapeHtml(howDisplay)}</td>
             <td>${memorySpaceWeight}</td>
             <td>${residualIndicator}</td>
             <td>
@@ -136,6 +148,173 @@
     }
     
     // Display memories with pagination
+    // Helper function to create a memory row
+    function createMemoryRow(memory, includeAll) {
+        const row = document.createElement('tr');
+        row.style.cursor = 'pointer';
+        row.classList.add('memory-row');
+        row.setAttribute('data-memory-id', memory.id);
+        
+        // Add click handler for the entire row
+        row.addEventListener('click', function(e) {
+            // Don't trigger if clicking on a button or icon
+            if (e.target.closest('button') || e.target.closest('i')) {
+                return;
+            }
+            
+            // Call viewMemoryDetails
+            if (window.viewMemoryDetails) {
+                window.viewMemoryDetails(memory.id);
+            }
+        });
+        
+        // Fields should already be flattened by loadMemories
+        const who = memory.who || '—';
+        const what = memory.what || '—';  // Default to em dash if missing
+        const when = memory.when || memory.timestamp || '—';
+        const where = memory.where || '—';
+        const why = memory.why || '—';
+        const how = memory.how || '—';
+        
+        // Truncate long fields for display (but preserve the dash for empty fields)
+        const whatDisplay = what === '—' ? '—' : (what.length > 40 ? what.substring(0, 40) + '...' : what);
+        const whereDisplay = where === '—' ? '—' : (where.length > 20 ? where.substring(0, 20) + '...' : where);
+        const whyDisplay = why === '—' ? '—' : (why.length > 30 ? why.substring(0, 30) + '...' : why);
+        const howDisplay = how === '—' ? '—' : (how.length > 25 ? how.substring(0, 25) + '...' : how);
+        
+        // Add merge indicator for raw view
+        let mergeIndicator = '';
+        if (memory.type === 'raw' && memory.merged_id && window.mergeGroups) {
+            const mergeGroup = window.mergeGroups[memory.merged_id];
+            const groupSize = mergeGroup ? mergeGroup.length : 1;
+            mergeIndicator = `<span class="badge bg-info ms-1" title="Part of merged group ${memory.merged_id.substring(0, 8)}">
+                <i class="bi bi-layers"></i> ${groupSize}
+            </span>`;
+        }
+        
+        // Helper to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Helper to escape HTML attributes (handles quotes)
+        function escapeAttr(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+        
+        // Helper to format date
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            try {
+                const date = new Date(dateStr);
+                return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+            } catch {
+                return dateStr;
+            }
+        }
+        
+        // Helper to calculate space weight
+        function calculateSpaceWeight(mem) {
+            // Use real space weights if available
+            if (mem.euclidean_weight !== undefined && mem.hyperbolic_weight !== undefined) {
+                const euclideanPct = Math.round(mem.euclidean_weight * 100);
+                const hyperbolicPct = Math.round(mem.hyperbolic_weight * 100);
+                return `
+                    <div class="d-flex align-items-center">
+                        <div class="progress flex-grow-1" style="height: 15px; min-width: 80px;">
+                            <div class="progress-bar bg-info" style="width: ${euclideanPct}%" 
+                                 title="Euclidean: ${euclideanPct}%"></div>
+                            <div class="progress-bar bg-warning" style="width: ${hyperbolicPct}%" 
+                                 title="Hyperbolic: ${hyperbolicPct}%"></div>
+                        </div>
+                        <small class="ms-2">${euclideanPct}/${hyperbolicPct}</small>
+                    </div>
+                `;
+            }
+            
+            // Fallback to field-based calculation
+            let concreteScore = 0;
+            let abstractScore = 0;
+            
+            // Score concrete fields - check if they have actual content (not empty or dash)
+            if (who && who !== '—' && who.trim()) concreteScore += 1.0;
+            if (what && what !== '—' && what.trim()) concreteScore += 2.0;
+            if (when && when !== '—' && when.trim()) concreteScore += 0.5;
+            if (where && where !== '—' && where.trim()) concreteScore += 0.5;
+            
+            // Score abstract fields - check if they have actual content (not empty or dash)
+            if (why && why !== '—' && why.trim()) abstractScore += 1.5;
+            if (how && how !== '—' && how.trim()) abstractScore += 1.0;
+            
+            const total = concreteScore + abstractScore;
+            if (total === 0) {
+                return '<span class="badge bg-secondary">No data</span>';
+            }
+            
+            const euclideanPct = Math.round((concreteScore / total) * 100);
+            const hyperbolicPct = Math.round((abstractScore / total) * 100);
+            
+            return `
+                <div class="progress" style="height: 20px;">
+                    <div class="progress-bar bg-info" style="width: ${euclideanPct}%">${euclideanPct}%</div>
+                    <div class="progress-bar bg-warning" style="width: ${hyperbolicPct}%">${hyperbolicPct}%</div>
+                </div>
+            `;
+        }
+        
+        // Helper to get residual badge
+        function getResidualBadge(memory) {
+            const norm = memory.residual_norm || 0;
+            if (norm < 0.1) {
+                return '<span class="badge bg-success">Low</span>';
+            } else if (norm < 0.3) {
+                return '<span class="badge bg-warning">Medium</span>';
+            } else {
+                return '<span class="badge bg-danger">High</span>';
+            }
+        }
+        
+        // Build row HTML
+        row.innerHTML = `
+            <td>${escapeHtml(who)}</td>
+            <td title="${escapeAttr(what)}">${escapeHtml(whatDisplay)}${mergeIndicator}</td>
+            <td>${formatDate(when)}</td>
+            <td>${escapeHtml(whereDisplay)}</td>
+            <td title="${escapeAttr(why)}">${escapeHtml(whyDisplay)}</td>
+            <td title="${escapeAttr(how)}">${escapeHtml(howDisplay)}</td>
+            <td>${calculateSpaceWeight(memory)}</td>
+            <td>${getResidualBadge(memory)}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-info" onclick="window.viewMemoryDetails('${memory.id}')" title="View Details">
+                    <i class="bi bi-eye"></i>
+                </button>
+                ${memory.type !== 'raw' ? 
+                    `<button class="btn btn-sm btn-outline-primary" onclick="window.showMemoryInGraph('${memory.id}')" title="Show in Graph">
+                        <i class="bi bi-diagram-3"></i>
+                    </button>` : ''
+                }
+                ${memory.type === 'raw' && memory.merged_id ? 
+                    `<button class="btn btn-sm btn-outline-warning" onclick="window.showMergeGroup('${memory.merged_id}')" title="Show Merge Group">
+                        <i class="bi bi-collection"></i>
+                    </button>` : 
+                    `<button class="btn btn-sm btn-outline-danger" onclick="window.deleteMemory('${memory.id}')" title="Delete">
+                        <i class="bi bi-trash"></i>
+                    </button>`
+                }
+            </td>
+        `;
+        
+        return row;
+    }
+    
     function displayMemoriesWithPaging() {
         const tableBody = document.getElementById('memoryTableBody');
         if (!tableBody) return;
@@ -146,6 +325,7 @@
         const startIndex = (paginationCurrentPage - 1) * paginationItemsPerPage;
         const endIndex = Math.min(startIndex + paginationItemsPerPage, paginationFilteredMemories.length);
         const pageMemories = paginationFilteredMemories.slice(startIndex, endIndex);
+        
         
         // Display memories with all columns
         pageMemories.forEach(memory => {
