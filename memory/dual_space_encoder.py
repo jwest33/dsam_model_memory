@@ -135,7 +135,7 @@ class DualSpaceEncoder:
     Encoder producing both Euclidean and Hyperbolic embeddings with field-aware composition.
     """
     
-    def __init__(self, model_name: str = 'sentence-transformers/all-mpnet-base-v2',
+    def __init__(self, model_name: str = 'all-mpnet-base-v2',
                  euclidean_dim: int = 768, hyperbolic_dim: int = 64,
                  field_weights: Optional[Dict[str, float]] = None,
                  max_norm: float = 0.999, epsilon: float = 1e-5):
@@ -349,6 +349,55 @@ class DualSpaceEncoder:
         updated['hyperbolic_residual'] = new_hy_residual
         
         return updated
+    
+    def calculate_space_activation(self, embeddings: Dict[str, np.ndarray]) -> Tuple[float, float]:
+        """
+        Calculate the actual space activation based on embedding magnitudes and properties.
+        Returns (euclidean_weight, hyperbolic_weight) representing how much each space is activated.
+        
+        This is based on:
+        1. Magnitude of embeddings in each space
+        2. Variance/spread of the embeddings
+        3. Distance from origin (especially important for hyperbolic)
+        """
+        euclidean_embedding = embeddings.get('euclidean_anchor')
+        hyperbolic_embedding = embeddings.get('hyperbolic_anchor')
+        
+        # Calculate Euclidean space activation
+        # Higher magnitude and variance = more information content
+        euclidean_magnitude = np.linalg.norm(euclidean_embedding)
+        euclidean_variance = np.var(euclidean_embedding)
+        euclidean_activation = euclidean_magnitude * (1 + euclidean_variance)
+        
+        # Calculate Hyperbolic space activation
+        # In hyperbolic space, distance from origin indicates hierarchical depth
+        # We use the Poincaré ball model where ||x|| < 1
+        hyperbolic_norm = np.linalg.norm(hyperbolic_embedding)
+        
+        # Hyperbolic distance from origin in Poincaré ball
+        # d(0, x) = arctanh(||x||)
+        if hyperbolic_norm < 0.999:  # Avoid numerical issues near boundary
+            hyperbolic_distance = np.arctanh(hyperbolic_norm)
+        else:
+            hyperbolic_distance = 3.0  # Cap at reasonable value
+            
+        # Higher distance from origin = more abstract/hierarchical
+        # Also consider variance for information content
+        hyperbolic_variance = np.var(hyperbolic_embedding)
+        hyperbolic_activation = hyperbolic_distance * (1 + hyperbolic_variance)
+        
+        # Normalize to get weights (ensure they sum to 1)
+        total_activation = euclidean_activation + hyperbolic_activation
+        
+        if total_activation > 0:
+            euclidean_weight = euclidean_activation / total_activation
+            hyperbolic_weight = hyperbolic_activation / total_activation
+        else:
+            # Default to equal weights if no activation
+            euclidean_weight = 0.5
+            hyperbolic_weight = 0.5
+            
+        return float(euclidean_weight), float(hyperbolic_weight)
     
     def compute_query_weights(self, query_fields: Dict[str, str]) -> Tuple[float, float]:
         """
