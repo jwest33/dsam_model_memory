@@ -15,7 +15,7 @@ DSAM is a content-addressable memory system that operates on dual geometric mani
 - **Hyperbolic Space** (64-dim): Models hierarchical relationships using Poincaré ball geometry with numerical stability
 - **Field-Aware Composition**: Learned gates weight contributions from 5W1H fields
 - **Product Distance Metrics**: Query-dependent weighting between spaces (λ_E + λ_H = 1.0)
-- **Enhanced Base Model**: Using sentence-transformers/all-mpnet-base-v2 for superior semantic understanding
+- **Enhanced Base Model**: Using sentence-transformers/Qwen3-Embedding-0.6B for superior semantic understanding
 
 ### Content-Addressable Memory
 - **Semantic Retrieval**: Query with partial content, retrieve by meaning not location
