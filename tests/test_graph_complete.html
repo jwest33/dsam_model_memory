@@ -43,11 +43,11 @@
             let html = '<h2>Test Results:</h2>';
             
             if (centerNode && centerNode.is_center) {
-                html += '<p style="color: green;">✓ Center node found and properly marked</p>';
+                html += '<p style="color: green;">Center node found and properly marked</p>';
             } else if (centerNode) {
                 html += '<p style="color: orange;">⚠ Center node found but not marked as center</p>';
             } else {
-                html += '<p style="color: red;">✗ Center node not found in graph</p>';
+                html += '<p style="color: red;">Center node not found in graph</p>';
             }
             
             html += `<p>Total nodes: ${data.nodes.length}</p>`;

@@ -293,7 +293,7 @@ class LLMServerManager:
         if self._config.use_remote:
             logger.info(f"Using remote LLM server at {self._config.base_url}")
             if self.is_running():
-                logger.info("✓ Remote LLM server is accessible")
+                logger.info("Remote LLM server is accessible")
                 return True
             else:
                 logger.warning(f"Remote LLM server at {self._config.base_url} is not responding")
@@ -303,7 +303,7 @@ class LLMServerManager:
                 start_time = time.time()
                 while time.time() - start_time < self._config.startup_timeout:
                     if self.is_running():
-                        logger.info("✓ Remote LLM server is now accessible")
+                        logger.info("Remote LLM server is now accessible")
                         return True
                     time.sleep(self._config.health_check_interval)
                 

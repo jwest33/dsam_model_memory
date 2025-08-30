@@ -87,10 +87,11 @@ def chat():
         query_fields = {'what': user_message}
         lambda_e, lambda_h = encoder.compute_query_weights(query_fields)
 
-        # Retrieve relevant memories
-        relevant_memories = memory_agent.recall(
-            what=user_message,
-            k=5
+        # Retrieve relevant memories with enhanced context
+        relevant_memories = memory_agent.memory_store.retrieve_memories_with_context(
+            {'what': user_message},
+            k=5,
+            context_format='detailed'
         )
 
         # Build context and track memory details
@@ -98,22 +99,40 @@ def chat():
         memory_details = []
         if relevant_memories:
             context_lines = ["Relevant memories:"]
-            for mem, score in relevant_memories:
-                snippet = mem.five_w1h.what[:100]
-                ellipsis = "..." if len(mem.five_w1h.what) > 100 else ""
-                context_lines.append(f"- [{score:.2f}] {mem.five_w1h.who}: {snippet}{ellipsis}")
+            for memory_obj, score, context_str in relevant_memories:
+                # Add the generated context
+                context_lines.append(f"\n[Score: {score:.2f}]")
+                context_lines.append(context_str)
                 
                 # Collect memory details for frontend
-                memory_details.append({
-                    'id': mem.id,
-                    'who': mem.five_w1h.who or '',
-                    'what': mem.five_w1h.what or '',
-                    'when': mem.five_w1h.when or '',
-                    'where': mem.five_w1h.where or '',
-                    'why': mem.five_w1h.why or '',
-                    'how': mem.five_w1h.how or '',
-                    'score': float(score)
-                })
+                # Check if it's a merged event or regular event
+                from models.merged_event import MergedEvent
+                if isinstance(memory_obj, MergedEvent):
+                    latest_state = memory_obj.get_latest_state()
+                    memory_details.append({
+                        'id': memory_obj.id,
+                        'who': latest_state.get('who', ''),
+                        'what': latest_state.get('what', ''),
+                        'when': latest_state.get('when', ''),
+                        'where': latest_state.get('where', ''),
+                        'why': latest_state.get('why', ''),
+                        'how': latest_state.get('how', ''),
+                        'score': float(score),
+                        'merge_count': memory_obj.merge_count,
+                        'is_merged': True
+                    })
+                else:
+                    memory_details.append({
+                        'id': memory_obj.id,
+                        'who': memory_obj.five_w1h.who or '',
+                        'what': memory_obj.five_w1h.what or '',
+                        'when': memory_obj.five_w1h.when or '',
+                        'where': memory_obj.five_w1h.where or '',
+                        'why': memory_obj.five_w1h.why or '',
+                        'how': memory_obj.five_w1h.how or '',
+                        'score': float(score),
+                        'is_merged': False
+                    })
             context = "\n".join(context_lines) + "\n\n"
 
         # Generate LLM response
@@ -223,6 +242,18 @@ def get_memories():
                     hy_norm = np.linalg.norm(memory_agent.memory_store.residuals[event_id]['hyperbolic'])
                     residual_norm = (eu_norm + hy_norm) / 2
                 
+                # Check if this is a merged event
+                is_merged = False
+                merge_count = 1
+                if event_id in memory_agent.memory_store.merged_events_cache:
+                    merged = memory_agent.memory_store.merged_events_cache[event_id]
+                    is_merged = True
+                    merge_count = merged.merge_count
+                elif f"merged_{event_id}" in memory_agent.memory_store.merged_events_cache:
+                    merged = memory_agent.memory_store.merged_events_cache[f"merged_{event_id}"]
+                    is_merged = True
+                    merge_count = merged.merge_count
+                
                 memories.append({
                     'id': event_id,
                     'who': metadata.get('who', ''),
@@ -236,7 +267,9 @@ def get_memories():
                     'has_residual': has_residual,
                     'residual_norm': float(residual_norm),
                     'euclidean_weight': float(metadata.get('euclidean_weight', 0.5)),
-                    'hyperbolic_weight': float(metadata.get('hyperbolic_weight', 0.5))
+                    'hyperbolic_weight': float(metadata.get('hyperbolic_weight', 0.5)),
+                    'is_merged': is_merged,
+                    'merge_count': merge_count
                 })
         except Exception as e:
             logger.warning(f"Could not retrieve events: {e}")
@@ -274,6 +307,163 @@ def get_memory_raw_events(memory_id):
         
     except Exception as e:
         logger.error(f"Failed to get raw events: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/memory/<memory_id>/merged-details', methods=['GET'])
+def get_merged_event_details(memory_id):
+    """Get detailed information about a merged event or create one for single memories"""
+    try:
+        from models.merged_event import MergedEvent
+        
+        merged_event = None
+        
+        # 1. Check in-memory cache first (for performance)
+        if memory_id in memory_agent.memory_store.merged_events_cache:
+            merged_event = memory_agent.memory_store.merged_events_cache[memory_id]
+            logger.info(f"Found merged event {memory_id} in cache")
+        
+        # 2. If not in cache, load from ChromaDB (primary storage)
+        if not merged_event:
+            merged_event = memory_agent.memory_store.chromadb.get_merged_event(memory_id)
+            if merged_event:
+                # Update cache for future quick access
+                memory_agent.memory_store.merged_events_cache[memory_id] = merged_event
+                logger.info(f"Loaded merged event {memory_id} from ChromaDB")
+        
+        # 3. Check if this is a raw event that's part of a merged group
+        if not merged_event and memory_id in memory_agent.memory_store.raw_to_merged:
+            merged_id = memory_agent.memory_store.raw_to_merged[memory_id]
+            # Check cache first
+            if merged_id in memory_agent.memory_store.merged_events_cache:
+                merged_event = memory_agent.memory_store.merged_events_cache[merged_id]
+                logger.info(f"Found cached merged event {merged_id} for raw event {memory_id}")
+            else:
+                # Load from ChromaDB
+                merged_event = memory_agent.memory_store.chromadb.get_merged_event(merged_id)
+                if merged_event:
+                    memory_agent.memory_store.merged_events_cache[merged_id] = merged_event
+                    logger.info(f"Loaded merged event {merged_id} for raw event {memory_id}")
+        
+        # 4. If still no merged event, try to get the regular event and create a single-event merged view
+        if not merged_event:
+            # Try to get the event from ChromaDB
+            event = memory_agent.memory_store.chromadb.get_event(memory_id)
+            if event:
+                # Create a merged event view for single event
+                merged_event = MergedEvent(
+                    id=f"single_{memory_id}",
+                    base_event_id=memory_id
+                )
+                event_data = {
+                    'who': event.five_w1h.who or '',
+                    'what': event.five_w1h.what or '',
+                    'when': event.five_w1h.when or '',
+                    'where': event.five_w1h.where or '',
+                    'why': event.five_w1h.why or '',
+                    'how': event.five_w1h.how or '',
+                    'timestamp': event.created_at
+                }
+                merged_event.add_raw_event(memory_id, event_data)
+                logger.info(f"Created single-event merged view for {memory_id}")
+            else:
+                logger.info(f"No event found for {memory_id}")
+                return jsonify({'error': 'Memory not found', 'memory_id': memory_id}), 404
+        
+        # Format the response with all component details
+        response = {
+            'id': merged_event.id,
+            'base_event_id': merged_event.base_event_id,
+            'merge_count': merged_event.merge_count,
+            'created_at': merged_event.created_at.isoformat(),
+            'last_updated': merged_event.last_updated.isoformat(),
+            
+            # Component variations
+            'who_variants': {},
+            'what_variants': {},
+            'when_timeline': [],
+            'where_locations': merged_event.where_locations,
+            'why_variants': {},
+            'how_methods': merged_event.how_methods,
+            
+            # Latest state
+            'latest_state': merged_event.get_latest_state(),
+            'dominant_pattern': merged_event.dominant_pattern,
+            
+            # Relationships
+            'temporal_chain': merged_event.temporal_chain,
+            'supersedes': merged_event.supersedes,
+            'superseded_by': merged_event.superseded_by,
+            'depends_on': list(merged_event.depends_on),
+            'enables': list(merged_event.enables),
+            
+            # Raw events
+            'raw_event_ids': list(merged_event.raw_event_ids)
+        }
+        
+        # Format WHO variants
+        for who, variants in merged_event.who_variants.items():
+            response['who_variants'][who] = [
+                {
+                    'value': v.value,
+                    'timestamp': v.timestamp.isoformat(),
+                    'event_id': v.event_id,
+                    'relationship': v.relationship.value,
+                    'version': v.version
+                }
+                for v in variants
+            ]
+        
+        # Format WHAT variants
+        for what, variants in merged_event.what_variants.items():
+            response['what_variants'][what] = [
+                {
+                    'value': v.value,
+                    'timestamp': v.timestamp.isoformat(),
+                    'event_id': v.event_id,
+                    'relationship': v.relationship.value,
+                    'version': v.version
+                }
+                for v in variants
+            ]
+        
+        # Format WHEN timeline
+        response['when_timeline'] = [
+            {
+                'timestamp': tp.timestamp.isoformat(),
+                'semantic_time': tp.semantic_time,
+                'event_id': tp.event_id,
+                'description': tp.description
+            }
+            for tp in merged_event.when_timeline
+        ]
+        
+        # Format WHY variants
+        for why, variants in merged_event.why_variants.items():
+            response['why_variants'][why] = [
+                {
+                    'value': v.value,
+                    'timestamp': v.timestamp.isoformat(),
+                    'event_id': v.event_id,
+                    'relationship': v.relationship.value,
+                    'version': v.version
+                }
+                for v in variants
+            ]
+        
+        # Generate context preview
+        context_generator = memory_agent.memory_store.context_generator
+        context_summary = context_generator.generate_context(merged_event, None, 'summary')
+        context_detailed = context_generator.generate_context(merged_event, None, 'detailed')
+        
+        response['context_preview'] = {
+            'summary': context_summary,
+            'detailed': context_detailed
+        }
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        logger.error(f"Failed to get merged event details: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/memories', methods=['POST'])
@@ -482,43 +672,52 @@ def get_graph():
             nodes.append(node)
             node_map[event.id] = i
         
-        # Build edges based on embedding similarity
+        # Build edges based on cached similarity scores
         edges = []
         edge_threshold = 0.3 if not center_node_id else 0.25  # Lower threshold for focused view
         
-        # Get embeddings for all nodes to compute proper similarity
-        node_embeddings = {}
-        for node in nodes:
-            if node['id'] in memory_agent.memory_store.embedding_cache:
-                node_embeddings[node['id']] = memory_agent.memory_store.embedding_cache[node['id']]
+        # Get space weights from query for similarity adjustment
+        query = {comp: '' for comp in components}
+        lambda_e, lambda_h = memory_agent.memory_store.encoder.compute_query_weights(query)
         
+        # Use cached similarities for efficiency
         for i in range(len(nodes)):
             for j in range(i + 1, len(nodes)):
                 # Skip if nodes not in included set
                 if nodes[i]['id'] not in included_ids or nodes[j]['id'] not in included_ids:
                     continue
                 
-                # Use embedding similarity if available
-                similarity = 0.0
-                if nodes[i]['id'] in node_embeddings and nodes[j]['id'] in node_embeddings:
-                    # Compute product distance using the encoder
-                    emb1 = node_embeddings[nodes[i]['id']]
-                    emb2 = node_embeddings[nodes[j]['id']]
-                    
-                    # Build query from selected components for weight calculation
-                    query = {comp: nodes[i].get(comp, '') for comp in components if nodes[i].get(comp)}
-                    lambda_e, lambda_h = memory_agent.memory_store.encoder.compute_query_weights(query)
-                    
-                    # Compute product distance (convert to similarity)
-                    distance = memory_agent.memory_store.encoder.compute_product_distance(
-                        emb1, emb2, lambda_e, lambda_h
-                    )
-                    similarity = 1.0 / (1.0 + distance)  # Convert distance to similarity
-                else:
-                    # Fallback to simple similarity
-                    similarity = compute_node_similarity(nodes[i], nodes[j], components)
+                # Try to get cached similarity first
+                similarity = memory_agent.memory_store.chromadb.get_cached_similarity(
+                    nodes[i]['id'], nodes[j]['id'], lambda_e, lambda_h
+                )
                 
-                if similarity > edge_threshold:  # Threshold for edge creation
+                if similarity is None:
+                    # Fallback: compute on-demand if not cached
+                    if (nodes[i]['id'] in memory_agent.memory_store.embedding_cache and 
+                        nodes[j]['id'] in memory_agent.memory_store.embedding_cache):
+                        
+                        emb1 = memory_agent.memory_store.embedding_cache[nodes[i]['id']]
+                        emb2 = memory_agent.memory_store.embedding_cache[nodes[j]['id']]
+                        
+                        # Compute product distance (convert to similarity)
+                        distance = memory_agent.memory_store.encoder.compute_product_distance(
+                            emb1, emb2, lambda_e, lambda_h
+                        )
+                        similarity = 1.0 / (1.0 + distance)
+                        
+                        # Cache this similarity for future use
+                        memory_agent.memory_store.chromadb.update_similarity_cache(
+                            nodes[i]['id'], emb1
+                        )
+                        memory_agent.memory_store.chromadb.update_similarity_cache(
+                            nodes[j]['id'], emb2
+                        )
+                    else:
+                        # Last resort: simple text similarity
+                        similarity = compute_node_similarity(nodes[i], nodes[j], components)
+                
+                if similarity and similarity > edge_threshold:  # Threshold for edge creation
                     edges.append({
                         'from': nodes[i]['id'],
                         'to': nodes[j]['id'],
@@ -711,6 +910,16 @@ def get_merge_statistics():
         logger.error(f"Failed to get merge stats: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/similarity-cache-stats', methods=['GET'])
+def get_similarity_cache_stats():
+    """Get similarity cache statistics"""
+    try:
+        stats = memory_agent.memory_store.chromadb.get_similarity_stats()
+        return jsonify(stats)
+    except Exception as e:
+        logger.error(f"Error getting similarity cache stats: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/analytics', methods=['GET'])
 def get_analytics():
     """Get analytics data for charts"""
@@ -896,6 +1105,20 @@ def assign_clusters(nodes, edges):
     
     return clusters
 
+def preload_similarity_cache():
+    """Pre-populate similarity cache on startup"""
+    try:
+        logger.info("Pre-loading similarity cache...")
+        # This will be done automatically when memory_store initializes
+        # through the _load_embeddings_to_cache() method
+        stats = memory_agent.memory_store.chromadb.get_similarity_stats()
+        logger.info(f"Similarity cache loaded: {stats['cached_pairs']} pairs, "
+                   f"{stats['num_embeddings']} embeddings")
+    except Exception as e:
+        logger.warning(f"Could not preload similarity cache: {e}")
+
 if __name__ == '__main__':
     initialize_system()
+    # Pre-load similarity cache after system initialization
+    preload_similarity_cache()
     app.run(debug=True, port=5000)

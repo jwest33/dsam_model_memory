@@ -1,6 +1,6 @@
 # [DSAM] Dual-Space Agentic Memory
 
-DSAM is an adaptive memory system for AI agents featuring dual-space encoding (Euclidean + Hyperbolic), adaptive residual learning, provenance tracking, event merging with raw event preservation, and dynamic visualization.
+DSAM is a high-performance adaptive memory system for AI agents featuring dual-space encoding (Euclidean + Hyperbolic), adaptive residual learning, provenance tracking, event merging with raw event preservation, similarity caching, and dynamic visualization.
 
 ## Overview
 
@@ -31,13 +31,21 @@ DSAM is a content-addressable memory system that operates on dual geometric mani
 - **Momentum-Based Updates**: Smooth adaptation with configurable momentum (0.9) and decay factor (0.995)
 - **HDBSCAN Clustering**: Density-based clustering with configurable parameters (min_cluster_size, min_samples)
 - **Provenance Tracking**: Version history, residual norms, co-retrieval partners, and access patterns
+- **Similarity Cache**: Pre-computed pairwise similarities with O(1) lookup performance
 
 ### Event Deduplication & Raw Event Preservation
-- **Automatic Deduplication**: Similar events (similarity > 0.15) are merged to prevent redundancy
+- **Automatic Deduplication**: Similar events (similarity > 0.85) are merged to prevent redundancy
 - **Raw Event Storage**: All original events are preserved and linked to their merged representations
 - **Dual View Interface**: Toggle between merged events (deduplicated) and raw events (all originals)
 - **Merge Group Tracking**: Visualize which raw events have been merged together
 - **Bidirectional Mapping**: Navigate from merged events to raw events and vice versa
+
+### Performance Optimization
+- **Similarity Cache**: Pre-computed pairwise similarities eliminate redundant calculations
+- **Batch Processing**: Efficient bulk operations for dataset generation and storage
+- **Parallel Generation**: Multi-threaded conversation generation for benchmarking
+- **Sparse Storage**: Only similarities above threshold (0.2) are cached
+- **Persistent Cache**: Similarity scores survive application restarts
 
 ### 5W1H Journal Framework
 Complete context encoding for each memory:
@@ -50,22 +58,6 @@ Complete context encoding for each memory:
 
 ## Installation
 
-### Quick Setup (Recommended)
-
-#### Windows
-```bash
-# Clone repository
-git clone <repository-url>
-cd agent-wip
-
-# Run automated setup script
-python setup_venv.py
-
-# Activate virtual environment
-.venv\Scripts\activate
-```
-
-#### Linux/MacOS
 ```bash
 # Clone repository
 git clone https://github.com/jwest33/dsam_model_memory
@@ -74,10 +66,12 @@ cd agent-wip
 # Run automated setup script
 python setup_venv.py
 
-# Activate virtual environment
+# Windows activate virtual environment
+.venv\Scripts\activate
+
+# Linux/MacOS activate virtual environment
 source .venv/bin/activate
 ```
-
 
 ### Environment Configuration
 
@@ -126,30 +120,17 @@ If ChromaDB fails to install:
 pip install chromadb
 ```
 
-### Virtual Environment Management
-
-```bash
-# Activate virtual environment (required before running any commands)
-# Windows:
-.venv\Scripts\activate
-# Linux/MacOS:
-source .venv/bin/activate
-
-# Verify activation (should show .venv path)
-which python  # Linux/MacOS
-where python  # Windows
-
-# Deactivate when done
-deactivate
-```
-
 ## Quick Start
-
-**Important**: Always activate the virtual environment first!
 
 ### Run the Web Interface
 
 ```bash
+# Windows activate virtual environment
+.venv\Scripts\activate
+
+# Linux/MacOS activate virtual environment
+source .venv/bin/activate
+
 # Make sure LLM server is running first
 python llama_server_client.py start
 
@@ -169,11 +150,17 @@ The web interface provides:
 - Merge group visualization showing raw-to-merged event relationships
 
 ### Generate Dataset
-- Iterative script generating memory events using two-way LLM calls
 
 ```bash
-# Run conversation simulations
+# Standard dataset generation (sequential)
 python benchmark\generate_benchmark_dataset.py
+
+# Fast dataset generation (batched and parallel, 4-8x faster)
+python benchmark\generate_benchmark_dataset_fast.py
+# Options: Small (100), Medium (500), Large (1000), Extra Large (2000), Massive (5000)
+
+# Test similarity cache performance
+python benchmark_similarity_performance.py
 ```
 
 ## Web Interface Features
@@ -196,6 +183,7 @@ python benchmark\generate_benchmark_dataset.py
 - Individual memory graph view
 - Batch operations support
 - Click-to-view memory details with actual space weight display
+- Similarity cache statistics and hit rate monitoring
 
 ### Graph Visualization
 - **Interactive Network Graph**: Powered by vis.js
@@ -311,6 +299,13 @@ DSAM extends traditional content-addressable memory with geometric intelligence:
 - Balanced queries use both spaces equally
 - Content determines retrieval geometry automatically
 
+### Performance Optimizations
+- **Similarity Cache**: Pre-computed pairwise similarities with O(1) lookup
+- **Batch Processing**: Efficient bulk operations for memory storage
+- **Parallel Generation**: Multi-threaded dataset creation (4-8x speedup)
+- **Sparse Storage**: Only significant similarities cached (threshold: 0.2)
+- **Persistent Cache**: Survives application restarts
+
 ### Residual Adaptation
 - Memories adapt based on co-retrieval patterns
 - Bounded updates prevent representation drift
@@ -322,6 +317,7 @@ DSAM extends traditional content-addressable memory with geometric intelligence:
 - Real-time residual tracking
 - Interactive graph exploration
 - Component-based filtering
+- Similarity cache statistics
 
 ## Configuration
 

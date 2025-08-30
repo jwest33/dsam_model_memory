@@ -203,11 +203,9 @@ class DualSpaceEncoder:
         # Map from origin to Poincaré ball with stability
         tangent_norm = np.linalg.norm(tangent_vec)
         if tangent_norm > 0:
-            # Ensure we stay within the ball with configured max_norm
-            scale = np.tanh(tangent_norm) * min(1.0, self.max_norm / tangent_norm)
+            # Use tanh to map naturally to (0,1), scaled down to avoid boundary
+            scale = np.tanh(tangent_norm)
             hyperbolic_vec = scale * tangent_vec / tangent_norm
-            # Apply retraction to ensure we're within bounds
-            hyperbolic_vec = HyperbolicOperations.clip_norm(hyperbolic_vec, self.max_norm, self.epsilon)
         else:
             hyperbolic_vec = np.zeros(self.hyperbolic_dim)
         
@@ -373,8 +371,7 @@ class DualSpaceEncoder:
         euclidean_variance = np.var(euclidean_embedding)
         
         # For Euclidean: combine normalized magnitude with variance
-        # Reduce variance multiplier for more balance
-        euclidean_activation = euclidean_magnitude * (1 + euclidean_variance)
+        euclidean_activation = euclidean_magnitude * (1 + np.sqrt(euclidean_variance))
         
         # Calculate Hyperbolic space activation
         hyperbolic_norm = np.linalg.norm(hyperbolic_embedding)
@@ -390,9 +387,16 @@ class DualSpaceEncoder:
         hyperbolic_magnitude = hyperbolic_norm / np.sqrt(hyperbolic_dim)
         hyperbolic_variance = np.var(hyperbolic_embedding)
         
-        # For Hyperbolic: balance distance and magnitude more evenly
-        # Reduce the heavy weighting we had before
-        hyperbolic_activation = (hyperbolic_distance + hyperbolic_magnitude) * (1 + hyperbolic_variance)
+        # For Hyperbolic: Use ONLY the geodesic distance (not double-counting magnitude)
+        # Apply a dampening factor to arctanh to reduce its dominance
+        # Scale by 0.5 to bring it closer to Euclidean range
+        hyperbolic_activation = (0.5 * hyperbolic_distance) * (1 + np.sqrt(hyperbolic_variance))
+        
+        # Apply dimension correction factor
+        # Since Euclidean has 768 dims and Hyperbolic has 64, we need to balance this
+        # Ratio is 768/64 = 12, so apply sqrt(12) ≈ 3.46 correction
+        dimension_correction = np.sqrt(euclidean_dim / hyperbolic_dim)
+        euclidean_activation *= dimension_correction
         
         # Normalize to get weights (ensure they sum to 1)
         total_activation = euclidean_activation + hyperbolic_activation
@@ -418,24 +422,29 @@ class DualSpaceEncoder:
         
         for field, text in query_fields.items():
             if text and text.strip():
+                word_count = len(text.split())
                 if field in ['what', 'where', 'who']:
-                    concrete_score += len(text.split())
+                    concrete_score += word_count
                 elif field in ['why', 'how']:
-                    abstract_score += len(text.split())
+                    abstract_score += word_count
                 elif field == 'when':
-                    concrete_score += 0.5 * len(text.split())
+                    # Temporal is somewhat concrete
+                    concrete_score += 0.7 * word_count
+                    abstract_score += 0.3 * word_count
         
-        # Normalize to get weights
+        # If no query fields, default to balanced
+        if concrete_score == 0 and abstract_score == 0:
+            return 0.5, 0.5
+        
+        # Normalize to get initial weights
         total = concrete_score + abstract_score
-        if total > 0:
-            lambda_e = concrete_score / total
-            lambda_h = abstract_score / total
-        else:
-            lambda_e = lambda_h = 0.5
+        lambda_e = concrete_score / total
+        lambda_h = abstract_score / total
         
-        # Apply smoothing to avoid extreme values
-        lambda_e = 0.3 + 0.4 * lambda_e
-        lambda_h = 0.3 + 0.4 * lambda_h
+        # Apply gentler smoothing to preserve query intent while avoiding extremes
+        # This gives range [0.2, 0.8] instead of [0.3, 0.7]
+        lambda_e = 0.2 + 0.6 * lambda_e
+        lambda_h = 0.2 + 0.6 * lambda_h
         
         # Normalize to sum to 1
         total = lambda_e + lambda_h
