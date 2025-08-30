@@ -605,6 +605,274 @@ def get_merged_event_details(memory_id):
         logger.error(f"Failed to get merged event details: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/multi-merge/<merge_type>/<merge_id>/details', methods=['GET'])
+def get_multi_merge_details(merge_type, merge_id):
+    """Get details about a multi-dimensional merge group"""
+    try:
+        multi_merger = getattr(memory_agent.memory_store, 'multi_merger', None)
+        if not multi_merger:
+            return jsonify({'error': 'Multi-dimensional merger not available'}), 404
+        
+        # Get the merge type enum
+        from models.merge_types import MergeType
+        try:
+            merge_type_enum = MergeType(merge_type)
+        except ValueError:
+            return jsonify({'error': f'Invalid merge type: {merge_type}'}), 400
+        
+        # Get the merge group
+        groups = multi_merger.merge_groups.get(merge_type_enum, {})
+        if merge_id not in groups:
+            logger.info(f"Multi-merge group not found: {merge_type}/{merge_id}")
+            return jsonify({'error': f'Merge group not found: {merge_id}'}), 404
+        
+        group_data = groups[merge_id]
+        merged_event = group_data.get('merged_event')
+        
+        if not merged_event:
+            return jsonify({'error': 'Merge group has no merged event'}), 404
+        
+        # Get latest state from merged event
+        latest_state = merged_event.get_latest_state()
+        
+        # Format response similar to standard merged event
+        response = {
+            'id': merge_id,
+            'merge_type': merge_type,
+            'merge_key': group_data.get('key', ''),
+            'base_event_id': merged_event.base_event_id,
+            'merge_count': len(merged_event.raw_event_ids),
+            
+            # Latest state
+            'latest_state': latest_state,
+            
+            # Component variants (from merged event)
+            'who_variants': {},
+            'what_variants': {},
+            'when_variants': {},
+            'where_variants': {},
+            'why_variants': {},
+            'how_variants': {},
+            
+            # Raw events  
+            'raw_event_ids': list(merged_event.raw_event_ids),
+            
+            # Metadata
+            'created_at': group_data.get('created_at', datetime.utcnow()).isoformat(),
+            'last_updated': group_data.get('last_updated', datetime.utcnow()).isoformat()
+        }
+        
+        # Format WHO variants
+        if hasattr(merged_event, 'who_variants') and merged_event.who_variants:
+            for who, variants in merged_event.who_variants.items():
+                response['who_variants'][who] = [
+                    {
+                        'value': v.value,
+                        'timestamp': v.timestamp.isoformat() if hasattr(v.timestamp, 'isoformat') else str(v.timestamp),
+                        'event_id': v.event_id,
+                        'relationship': v.relationship.value if hasattr(v.relationship, 'value') else str(v.relationship),
+                    }
+                    for v in variants
+                ]
+        
+        # Format WHAT variants
+        if hasattr(merged_event, 'what_variants') and merged_event.what_variants:
+            for what, variants in merged_event.what_variants.items():
+                response['what_variants'][what] = [
+                    {
+                        'value': v.value,
+                        'timestamp': v.timestamp.isoformat() if hasattr(v.timestamp, 'isoformat') else str(v.timestamp),
+                        'event_id': v.event_id,
+                        'relationship': v.relationship.value if hasattr(v.relationship, 'value') else str(v.relationship),
+                    }
+                    for v in variants
+                ]
+        
+        # Format WHEN timeline
+        if hasattr(merged_event, 'when_timeline') and merged_event.when_timeline:
+            response['when_variants']['timeline'] = [
+                {
+                    'value': tp.semantic_time or tp.timestamp.isoformat() if hasattr(tp, 'semantic_time') else str(tp),
+                    'timestamp': tp.timestamp.isoformat() if hasattr(tp, 'timestamp') and hasattr(tp.timestamp, 'isoformat') else str(tp),
+                    'event_id': tp.event_id if hasattr(tp, 'event_id') else '',
+                    'relationship': 'temporal'
+                }
+                for tp in merged_event.when_timeline
+            ]
+        
+        # Format WHERE locations (different structure)
+        if hasattr(merged_event, 'where_locations') and merged_event.where_locations:
+            response['where_variants']['locations'] = [
+                {
+                    'value': location,
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'event_id': '',
+                    'relationship': 'location',
+                    'count': count
+                }
+                for location, count in merged_event.where_locations.items()
+            ]
+        
+        # Format WHY variants
+        if hasattr(merged_event, 'why_variants') and merged_event.why_variants:
+            for why, variants in merged_event.why_variants.items():
+                response['why_variants'][why] = [
+                    {
+                        'value': v.value,
+                        'timestamp': v.timestamp.isoformat() if hasattr(v.timestamp, 'isoformat') else str(v.timestamp),
+                        'event_id': v.event_id,
+                        'relationship': v.relationship.value if hasattr(v.relationship, 'value') else str(v.relationship),
+                    }
+                    for v in variants
+                ]
+        
+        # Format HOW methods (different structure)
+        if hasattr(merged_event, 'how_methods') and merged_event.how_methods:
+            response['how_variants']['methods'] = [
+                {
+                    'value': method,
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'event_id': '',
+                    'relationship': 'method',
+                    'count': count
+                }
+                for method, count in merged_event.how_methods.items()
+            ]
+        
+        # Generate functional context model for LLM
+        # Build a coherent narrative rather than separated components
+        
+        # Determine the primary actor(s)
+        actors = set()
+        for variants in merged_event.who_variants.values():
+            for v in variants:
+                actors.add(v.value)
+        primary_actor = list(actors)[0] if actors else "Unknown"
+        
+        # Determine the primary context/location
+        locations = set()
+        if hasattr(merged_event, 'where_variants'):
+            for variants in merged_event.where_variants.values():
+                for v in variants:
+                    locations.add(v.value)
+        elif hasattr(merged_event, 'where_locations'):
+            locations = set(merged_event.where_locations.keys())
+        primary_location = list(locations)[0] if locations else "unspecified location"
+        
+        # Build context summary
+        context_summary = f"## Context Model for {merge_type.title()} Memory Group\n\n"
+        
+        if merge_type == 'actor':
+            context_summary += f"This memory group tracks all interactions involving {primary_actor}. "
+            context_summary += f"There have been {len(merged_event.raw_event_ids)} recorded events "
+            context_summary += f"primarily occurring in {primary_location}.\n\n"
+        elif merge_type == 'temporal':
+            context_summary += f"This memory group represents a temporal sequence of {len(merged_event.raw_event_ids)} related events "
+            context_summary += f"that form a coherent conversation or workflow thread.\n\n"
+        elif merge_type == 'conceptual':
+            # Extract the main concept from why/how
+            concepts = []
+            for variants in merged_event.why_variants.values():
+                for v in variants[:2]:
+                    concepts.append(v.value)
+            main_concept = concepts[0] if concepts else "a specific concept"
+            context_summary += f"This memory group captures events related to {main_concept}. "
+            context_summary += f"It contains {len(merged_event.raw_event_ids)} events that share this conceptual theme.\n\n"
+        elif merge_type == 'spatial':
+            context_summary += f"This memory group contains all {len(merged_event.raw_event_ids)} events "
+            context_summary += f"that occurred in {primary_location}.\n\n"
+        
+        # Build detailed functional context
+        context_detailed = "## Interaction Pattern\n\n"
+        
+        # Create a coherent narrative from the variations
+        if merged_event.what_variants:
+            # Group interactions by actor pairs
+            interactions = []
+            for key, variants in merged_event.what_variants.items():
+                for v in variants[:10]:  # Get up to 10 most relevant
+                    # Get the who for this event
+                    who = "User"  # Default
+                    for who_variants in merged_event.who_variants.values():
+                        for who_v in who_variants:
+                            if who_v.event_id == v.event_id:
+                                who = who_v.value
+                                break
+                    
+                    # Format as conversational context
+                    what_text = v.value[:200] + "..." if len(v.value) > 200 else v.value
+                    interactions.append(f"{who}: {what_text}")
+            
+            if interactions:
+                context_detailed += "### Key Interactions:\n\n"
+                for interaction in interactions[:8]:  # Limit to 8 for context window
+                    context_detailed += f"{interaction}\n\n"
+        
+        # Add pattern analysis
+        context_detailed += "### Behavioral Patterns:\n\n"
+        
+        # Analyze the why/how patterns
+        intents = set()
+        methods = set()
+        
+        # Handle why_variants if present
+        if hasattr(merged_event, 'why_variants') and merged_event.why_variants:
+            for variants in merged_event.why_variants.values():
+                for v in variants:
+                    if v.value:
+                        intents.add(v.value.split(':')[0] if ':' in v.value else v.value[:30])
+        
+        # Handle how - could be how_variants or how_methods
+        if hasattr(merged_event, 'how_variants') and merged_event.how_variants:
+            for variants in merged_event.how_variants.values():
+                for v in variants:
+                    if v.value:
+                        methods.add(v.value)
+        elif hasattr(merged_event, 'how_methods') and merged_event.how_methods:
+            # how_methods is a dict of method->count
+            methods = set(merged_event.how_methods.keys())
+        
+        if intents:
+            context_detailed += f"**Primary Intents:** {', '.join(list(intents)[:5])}\n"
+        if methods:
+            context_detailed += f"**Interaction Methods:** {', '.join(list(methods)[:3])}\n"
+        
+        # Add temporal context if available
+        if hasattr(merged_event, 'when_timeline') and merged_event.when_timeline:
+            all_times = []
+            for tp in merged_event.when_timeline:
+                if hasattr(tp, 'timestamp'):
+                    all_times.append(tp.timestamp)
+            if all_times:
+                context_detailed += f"\n**Temporal Span:** This group spans interactions from {min(all_times)} to {max(all_times)}\n"
+        elif hasattr(merged_event, 'when_variants') and merged_event.when_variants:
+            all_times = []
+            for variants in merged_event.when_variants.values():
+                for v in variants:
+                    all_times.append(v.timestamp if hasattr(v, 'timestamp') else v.value)
+            if all_times:
+                context_detailed += f"\n**Temporal Span:** This group spans interactions from {min(all_times)} to {max(all_times)}\n"
+        
+        context_detailed += "\n### Usage Guidance:\n"
+        context_detailed += "When referencing this memory group, consider:\n"
+        context_detailed += f"1. The primary context is {merge_type} clustering\n"
+        context_detailed += f"2. Events share common {group_data.get('key', 'patterns')}\n"
+        context_detailed += f"3. Use this group to understand patterns in {primary_actor}'s interactions\n"
+        
+        # Add context preview to response
+        response['context_preview'] = {
+            'summary': context_summary,
+            'detailed': context_detailed
+        }
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        logger.error(f"Failed to get multi-merge details: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/memories', methods=['POST'])
 def create_memory():
     """Create a new memory"""
@@ -714,9 +982,52 @@ def get_graph():
             # Get the center node's data
             try:
                 center_metadata = None
+                raw_event_ids_to_include = []
+                
+                # Check if it's a multi-dimensional merge group ID (e.g., temporal_xxx, actor_xxx, etc.)
+                if '_' in center_node_id and not center_node_id.startswith('merged_') and not center_node_id.startswith('raw_'):
+                    # Try to parse as multi-dimensional merge group
+                    parts = center_node_id.split('_', 1)
+                    logger.info(f"Checking multi-dimensional merge: parts={parts}")
+                    if len(parts) == 2:
+                        merge_type_str, group_id = parts
+                        # Try to get the merge group
+                        multi_merger = getattr(memory_agent.memory_store, 'multi_merger', None)
+                        logger.info(f"Multi-merger exists: {multi_merger is not None}")
+                        if multi_merger:
+                            from models.merge_types import MergeType
+                            try:
+                                merge_type_enum = MergeType(merge_type_str)
+                                groups = multi_merger.merge_groups.get(merge_type_enum, {})
+                                logger.info(f"Groups for {merge_type_str}: {len(groups)} groups, looking for {center_node_id}")
+                                logger.info(f"Available group IDs: {list(groups.keys())[:5]}")  # Show first 5 IDs
+                                # The group IDs are stored with the full prefix, so use the full center_node_id
+                                if center_node_id in groups:
+                                    group_data = groups[center_node_id]
+                                    logger.info(f"Found group {center_node_id}, group_data keys: {group_data.keys() if isinstance(group_data, dict) else 'not a dict'}")
+                                    # Get the merged event from the group data
+                                    merged_event = group_data.get('merged_event')
+                                    if merged_event:
+                                        logger.info(f"Found merged_event for {center_node_id}")
+                                        latest_state = merged_event.get_latest_state()
+                                        logger.info(f"Latest state type: {type(latest_state)}, keys: {latest_state.keys() if isinstance(latest_state, dict) else 'not a dict'}")
+                                        center_metadata = {
+                                            'who': latest_state.get('who', ''),
+                                            'what': latest_state.get('what', ''),
+                                            'when': latest_state.get('when', ''),
+                                            'where': latest_state.get('where', ''),
+                                            'why': latest_state.get('why', ''),
+                                            'how': latest_state.get('how', '')
+                                        }
+                                        raw_event_ids_to_include = list(merged_event.raw_event_ids)
+                                        logger.info(f"Successfully extracted metadata for {center_node_id}")
+                                    else:
+                                        logger.warning(f"No merged_event in group_data for {center_node_id}")
+                            except ValueError:
+                                pass  # Not a valid merge type
                 
                 # Check if it's a merged event ID
-                if center_node_id.startswith('merged_'):
+                if center_metadata is None and center_node_id.startswith('merged_'):
                     # Look in merged events cache
                     if center_node_id in memory_agent.memory_store.merged_events_cache:
                         merged_event = memory_agent.memory_store.merged_events_cache[center_node_id]
@@ -738,7 +1049,7 @@ def get_graph():
                     else:
                         # Try to get from events collection (might be stored there)
                         actual_center_id = center_node_id.replace('merged_', '')
-                else:
+                elif center_metadata is None:
                     # Regular event ID - check both with and without raw_ prefix
                     actual_center_id = center_node_id
                     if not center_node_id.startswith('raw_'):
@@ -1225,9 +1536,14 @@ def get_merge_statistics():
         if multi_merger:
             for merge_type in [MergeType.ACTOR, MergeType.TEMPORAL, MergeType.CONCEPTUAL, MergeType.SPATIAL]:
                 groups = multi_merger.merge_groups.get(merge_type, {})
+                total_events = 0
+                for group_data in groups.values():
+                    merged_event = group_data.get('merged_event')
+                    if merged_event:
+                        total_events += len(merged_event.raw_event_ids)
                 multi_stats[merge_type.value] = {
                     'group_count': len(groups),
-                    'total_events': sum(len(g.get('events', [])) for g in groups.values())
+                    'total_events': total_events
                 }
         
         return jsonify({
@@ -1446,34 +1762,21 @@ def get_merge_dimensions():
     try:
         dimensions = []
         
+        # Check if we have multi-dimensional merger
+        multi_merger = getattr(memory_agent.memory_store, 'multi_merger', None)
+        
         for merge_type in MergeType:
-            # Count events for this dimension from existing merged events
             count = 0
             total_events = 0
-            merged_events = memory_agent.memory_store.merged_events_cache
             
-            for merged_event in merged_events.values():
-                should_include = False
-                
-                if merge_type == MergeType.TEMPORAL:
-                    should_include = True
-                elif merge_type == MergeType.ACTOR:
-                    who_variants = set()
-                    for variants in merged_event.who_variants.values():
-                        for v in variants:
-                            who_variants.add(v.value.lower())
-                    should_include = len(who_variants) <= 2
-                elif merge_type == MergeType.CONCEPTUAL:
-                    should_include = merged_event.merge_count > 1
-                elif merge_type == MergeType.SPATIAL:
-                    where_locations = merged_event.where_locations
-                    should_include = len(where_locations) > 0 and any(loc for loc in where_locations if loc)
-                elif merge_type == MergeType.HYBRID:
-                    should_include = False  # Skip hybrid for now
-                
-                if should_include:
-                    count += 1
-                    total_events += merged_event.merge_count
+            if multi_merger and merge_type != MergeType.HYBRID:
+                # Get counts from multi-dimensional merger
+                groups = multi_merger.merge_groups.get(merge_type, {})
+                count = len(groups)
+                for group_data in groups.values():
+                    merged_event = group_data.get('merged_event')
+                    if merged_event:
+                        total_events += len(merged_event.raw_event_ids)
             
             dimension_info = {
                 'type': merge_type.value,
