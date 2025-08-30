@@ -647,7 +647,7 @@ function displayMemories() {
             if (memory.merge_count && memory.merge_count > 1) {
                 // This is a merged event
                 mergeIndicator = `<span class="badge bg-success ms-1" title="Merged event with ${memory.merge_count} components">
-                    <i class="bi bi-layers-fill"></i> ${memory.merge_count}
+                    ${memory.merge_count}
                 </span>`;
             } else if (memory.is_merged) {
                 // This is marked as merged from the backend
@@ -659,7 +659,7 @@ function displayMemories() {
                 const mergeGroup = window.mergeGroups?.[memory.merged_id];
                 const groupSize = mergeGroup ? mergeGroup.length : 1;
                 mergeIndicator = `<span class="badge bg-info ms-1" title="Part of merged group ${memory.merged_id.substring(0, 8)}">
-                    <i class="bi bi-layers"></i> ${groupSize}
+                    ${groupSize}
                 </span>`;
             }
             

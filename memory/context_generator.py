@@ -92,7 +92,7 @@ class MergedEventContextGenerator:
     
     def _generate_detailed_context(self, merged_event: MergedEvent, 
                                   query_context: Optional[Dict]) -> str:
-        """Generate detailed context with all component variations"""
+        """Generate detailed context grouped by actor"""
         context_parts = []
         
         # Compute relevance scores if query provided
@@ -101,18 +101,18 @@ class MergedEventContextGenerator:
         
         # Header with merge information
         if merged_event.merge_count > 1:
-            context_parts.append(f"[Merged {merged_event.merge_count} similar events]")
+            context_parts.append(f"[Conversation with {merged_event.merge_count} exchanges]")
             context_parts.append("")
         
         # WHO - Actors involved
         who_context = self._format_who_component(merged_event, relevance_scores['who'])
         if who_context:
-            context_parts.append(f"Actors: {who_context}")
+            context_parts.append(f"Participants: {who_context}")
         
-        # WHAT - Actions and their evolution
+        # WHAT - Actions grouped by actor
         what_context = self._format_what_component(merged_event, relevance_scores['what'])
         if what_context:
-            context_parts.append("Actions:")
+            context_parts.append("Dialogue:")
             context_parts.append(what_context)
         
         # WHEN - Temporal context
@@ -288,7 +288,7 @@ class MergedEventContextGenerator:
         return ", ".join(actors)
     
     def _format_what_component(self, merged_event: MergedEvent, relevance: float) -> str:
-        """Format the WHAT component showing action evolution"""
+        """Format the WHAT component grouped by actor"""
         if not merged_event.what_variants:
             return ""
         
@@ -296,19 +296,28 @@ class MergedEventContextGenerator:
             # Just show latest
             return merged_event.dominant_pattern.get('what', '')
         
-        # Show action timeline
-        lines = []
+        # Group actions by actor
+        actor_actions = {}
         for action_key, variants in merged_event.what_variants.items():
-            for i, variant in enumerate(variants):
-                prefix = self._get_relationship_prefix(variant.relationship)
+            for variant in variants:
+                # Get actor from the raw event data if available
+                actor = variant.source_event_id if hasattr(variant, 'source_event_id') else 'Unknown'
+                # Try to extract actor from merged event raw data
+                if hasattr(merged_event, 'raw_events') and variant.source_event_id in merged_event.raw_events:
+                    actor = merged_event.raw_events[variant.source_event_id].get('who', 'Unknown')
+                
+                if actor not in actor_actions:
+                    actor_actions[actor] = []
+                
                 timestamp_str = variant.timestamp.strftime('%Y-%m-%d %H:%M')
-                
-                if len(variants) > 1:
-                    version_str = f" (v{variant.version})"
-                else:
-                    version_str = ""
-                
-                lines.append(f"  {prefix} {variant.value}{version_str} [{timestamp_str}]")
+                prefix = self._get_relationship_prefix(variant.relationship)
+                actor_actions[actor].append(f"    {prefix} {variant.value} [{timestamp_str}]")
+        
+        # Format by actor
+        lines = []
+        for actor, actions in sorted(actor_actions.items()):
+            lines.append(f"  [{actor}]:")
+            lines.extend(actions)
         
         return "\n".join(lines)
     

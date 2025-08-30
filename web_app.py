@@ -60,6 +60,20 @@ def initialize_system():
         chromadb_store=memory_agent.memory_store.chromadb if hasattr(memory_agent.memory_store, 'chromadb') else None
     )
     
+    # Attach multi-merger to memory store for access in API endpoints
+    memory_agent.memory_store.multi_merger = multi_merger
+    
+    # Load existing merge groups from ChromaDB
+    try:
+        multi_merger._load_existing_merges()
+        logger.info(f"Loaded multi-dimensional merge groups: "
+                   f"Actor: {len(multi_merger.merge_groups.get(MergeType.ACTOR, {}))}, "
+                   f"Temporal: {len(multi_merger.merge_groups.get(MergeType.TEMPORAL, {}))}, "
+                   f"Conceptual: {len(multi_merger.merge_groups.get(MergeType.CONCEPTUAL, {}))}, "
+                   f"Spatial: {len(multi_merger.merge_groups.get(MergeType.SPATIAL, {}))}")
+    except Exception as e:
+        logger.warning(f"Could not load existing merge groups: {e}")
+    
     logger.info("Enhanced system initialized successfully")
 
 @app.route('/')
@@ -302,6 +316,73 @@ def get_memories():
         
     except Exception as e:
         logger.error(f"Get memories error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/memory/<memory_id>/merge-groups', methods=['GET'])
+def get_memory_merge_groups(memory_id):
+    """Get all merge groups that contain this memory (raw or merged)"""
+    try:
+        merge_groups = []
+        multi_merger = getattr(memory_agent.memory_store, 'multi_merger', None)
+        
+        # Check standard deduplication merges
+        standard_merges = memory_agent.memory_store.get_merge_groups()
+        
+        # Check if this is a merged event ID
+        if memory_id in standard_merges:
+            merge_groups.append({
+                'type': 'standard',
+                'id': memory_id,
+                'name': 'Standard Deduplication',
+                'merge_count': len(standard_merges[memory_id]),
+                'raw_event_ids': list(standard_merges[memory_id])
+            })
+        
+        # Check if this is a raw event in standard merges
+        for merged_id, raw_ids in standard_merges.items():
+            clean_id = memory_id.replace('raw_', '')
+            if clean_id in raw_ids or f"raw_{clean_id}" in raw_ids:
+                merge_groups.append({
+                    'type': 'standard',
+                    'id': merged_id,
+                    'name': 'Standard Deduplication',
+                    'merge_count': len(raw_ids),
+                    'raw_event_ids': list(raw_ids)
+                })
+                break
+        
+        # Check multi-dimensional merges if available
+        if multi_merger:
+            from models.merge_types import MergeType
+            
+            # Clean the ID for comparison
+            clean_id = memory_id.replace('raw_', '').replace('merged_', '')
+            
+            # Check each merge type
+            for merge_type in [MergeType.ACTOR, MergeType.TEMPORAL, MergeType.CONCEPTUAL, MergeType.SPATIAL]:
+                groups = multi_merger.merge_groups.get(merge_type, {})
+                
+                for group_id, group_data in groups.items():
+                    merged_event = group_data.get('merged_event')
+                    if merged_event:
+                        # Check if our event is in this group
+                        if clean_id in merged_event.raw_event_ids or memory_id in merged_event.raw_event_ids:
+                            merge_groups.append({
+                                'type': merge_type.value,
+                                'id': group_id,
+                                'name': merge_type.name.title(),
+                                'key': group_data.get('key', 'Unknown'),
+                                'merge_count': merged_event.merge_count,
+                                'raw_event_ids': list(merged_event.raw_event_ids)
+                            })
+        
+        return jsonify({
+            'memory_id': memory_id,
+            'merge_groups': merge_groups,
+            'total_groups': len(merge_groups)
+        })
+    except Exception as e:
+        logger.error(f"Error getting merge groups for memory: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/memory/<memory_id>/raw', methods=['GET'])
@@ -1103,27 +1184,65 @@ def get_stats():
 
 @app.route('/api/merge-stats', methods=['GET'])
 def get_merge_statistics():
-    """Get merge statistics for the UI"""
+    """Get merge statistics for the UI including multi-dimensional merges"""
     try:
         stats = memory_agent.memory_store.get_statistics()
-        merge_groups = memory_agent.memory_store.get_merge_groups()
         
-        # Calculate distribution of merge sizes
+        # Get standard merge groups
+        standard_merge_groups = memory_agent.memory_store.get_merge_groups()
+        
+        # Collect all merge groups including multi-dimensional
+        all_merge_groups = {}
+        
+        # Add standard deduplication merges
+        all_merge_groups['standard'] = standard_merge_groups
+        
+        # Add multi-dimensional merges if available
+        multi_merger = getattr(memory_agent.memory_store, 'multi_merger', None)
+        if multi_merger:
+            # Add each merge type
+            for merge_type in [MergeType.ACTOR, MergeType.TEMPORAL, MergeType.CONCEPTUAL, MergeType.SPATIAL]:
+                groups = multi_merger.merge_groups.get(merge_type, {})
+                type_merges = {}
+                
+                for group_id, group_data in groups.items():
+                    merged_event = group_data.get('merged_event')
+                    if merged_event:
+                        type_merges[group_id] = list(merged_event.raw_event_ids)
+                
+                if type_merges:
+                    all_merge_groups[merge_type.value] = type_merges
+        
+        # Calculate distribution of merge sizes for standard merges
         size_distribution = {}
-        for merged_id, raw_ids in merge_groups.items():
+        for merged_id, raw_ids in standard_merge_groups.items():
             size = len(raw_ids)
             size_key = str(size) if size <= 5 else "6+"
             size_distribution[size_key] = size_distribution.get(size_key, 0) + 1
+        
+        # Calculate multi-dimensional statistics
+        multi_stats = {}
+        if multi_merger:
+            for merge_type in [MergeType.ACTOR, MergeType.TEMPORAL, MergeType.CONCEPTUAL, MergeType.SPATIAL]:
+                groups = multi_merger.merge_groups.get(merge_type, {})
+                multi_stats[merge_type.value] = {
+                    'group_count': len(groups),
+                    'total_events': sum(len(g.get('events', [])) for g in groups.values())
+                }
         
         return jsonify({
             'total_raw': stats.get('total_raw_events', 0),
             'total_merged': stats.get('total_merged_groups', 0),
             'average_merge_size': stats.get('average_merge_size', 0),
             'size_distribution': size_distribution,
-            'merge_groups': merge_groups
+            'merge_groups': standard_merge_groups,  # Keep for backward compatibility
+            'all_merge_groups': all_merge_groups,  # New field with all merge types
+            'multi_dimensional_stats': multi_stats  # Statistics for each merge type
         })
     except Exception as e:
         logger.error(f"Failed to get merge stats: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/similarity-cache-stats', methods=['GET'])
@@ -1374,52 +1493,138 @@ def get_merge_dimensions():
         logger.error(f"Error getting merge dimensions: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/merge-types', methods=['GET'])
+def get_merge_types():
+    """Get available merge types and their statistics"""
+    try:
+        multi_merger = getattr(memory_agent.memory_store, 'multi_merger', None)
+        
+        merge_types = []
+        
+        # Add standard deduplication merges
+        standard_groups = memory_agent.memory_store.get_merge_groups()
+        merge_types.append({
+            'type': 'standard',
+            'name': 'Standard Deduplication',
+            'description': 'Events merged based on similarity threshold',
+            'group_count': len(standard_groups),
+            'total_events': sum(len(ids) for ids in standard_groups.values())
+        })
+        
+        if multi_merger:
+            # Add multi-dimensional merge types
+            from models.merge_types import MergeType
+            
+            for merge_type in [MergeType.ACTOR, MergeType.TEMPORAL, MergeType.CONCEPTUAL, MergeType.SPATIAL]:
+                groups = multi_merger.merge_groups.get(merge_type, {})
+                total_events = sum(len(g.get('events', [])) for g in groups.values())
+                
+                descriptions = {
+                    MergeType.ACTOR: 'Events grouped by actor (who)',
+                    MergeType.TEMPORAL: 'Events grouped by conversation threads',
+                    MergeType.CONCEPTUAL: 'Events grouped by concepts/goals',
+                    MergeType.SPATIAL: 'Events grouped by location'
+                }
+                
+                merge_types.append({
+                    'type': merge_type.value,
+                    'name': merge_type.name.title(),
+                    'description': descriptions.get(merge_type, ''),
+                    'group_count': len(groups),
+                    'total_events': total_events
+                })
+        
+        return jsonify({
+            'merge_types': merge_types,
+            'total_types': len(merge_types)
+        })
+    except Exception as e:
+        logger.error(f"Error getting merge types: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/merge-groups/<merge_type>', methods=['GET'])
 def get_merge_groups(merge_type):
     """Get all merge groups for a specific dimension"""
     try:
-        # For now, use the existing merged events from memory_store
-        # and categorize them by dimension type
-        merged_events = memory_agent.memory_store.merged_events_cache
+        # Check if we have multi-dimensional merger
+        multi_merger = getattr(memory_agent.memory_store, 'multi_merger', None)
         
-        formatted_groups = []
-        
-        # Group merged events by the requested dimension
-        for merged_id, merged_event in merged_events.items():
-            # Get the latest state to determine categorization
-            latest_state = merged_event.get_latest_state()
-            
-            # Categorize based on merge type - be more inclusive
-            should_include = False
-            
-            if merge_type == 'temporal':
-                # All merged events have temporal aspect
-                should_include = True
-            elif merge_type == 'actor':
-                # Include all events that have who field
-                should_include = bool(latest_state.get('who'))
-            elif merge_type == 'conceptual':
-                # Include all events that have what or why
-                should_include = bool(latest_state.get('what') or latest_state.get('why'))
-            elif merge_type == 'spatial':
-                # Include all events that have where or how
-                should_include = bool(latest_state.get('where') or latest_state.get('how'))
-            
-            if should_include:
-                formatted_groups.append({
-                    'id': merged_id,
-                    'type': merge_type,
-                    'key': latest_state.get('who', 'Unknown'),
-                    'merge_count': merged_event.merge_count,
-                    'created_at': merged_event.created_at.isoformat(),
-                    'last_updated': merged_event.last_updated.isoformat(),
-                    'latest_state': latest_state,
-                    'dominant_pattern': getattr(merged_event, 'dominant_pattern', 'conversation'),
-                    'raw_event_ids': list(merged_event.raw_event_ids)
+        if not multi_merger:
+            # Fallback to standard merge groups
+            if merge_type == 'standard':
+                merge_groups = memory_agent.memory_store.get_merge_groups()
+                formatted_groups = []
+                for merged_id, raw_ids in merge_groups.items():
+                    formatted_groups.append({
+                        'id': merged_id,
+                        'type': 'standard',
+                        'key': f"Merged ({len(raw_ids)} events)",
+                        'merge_count': len(raw_ids),
+                        'raw_event_ids': list(raw_ids)
+                    })
+                return jsonify({
+                    'merge_type': merge_type,
+                    'groups': formatted_groups,
+                    'total': len(formatted_groups)
+                })
+            else:
+                return jsonify({
+                    'merge_type': merge_type,
+                    'groups': [],
+                    'total': 0,
+                    'message': 'Multi-dimensional merger not initialized'
                 })
         
-        # Sort by last updated
-        formatted_groups.sort(key=lambda x: x['last_updated'], reverse=True)
+        # Get the appropriate merge type enum
+        from models.merge_types import MergeType
+        merge_type_map = {
+            'actor': MergeType.ACTOR,
+            'temporal': MergeType.TEMPORAL,
+            'conceptual': MergeType.CONCEPTUAL,
+            'spatial': MergeType.SPATIAL,
+            'standard': None  # For standard deduplication merges
+        }
+        
+        merge_type_enum = merge_type_map.get(merge_type.lower())
+        
+        # Handle standard deduplication merges
+        if merge_type == 'standard':
+            merge_groups = memory_agent.memory_store.get_merge_groups()
+            formatted_groups = []
+            for merged_id, raw_ids in merge_groups.items():
+                formatted_groups.append({
+                    'id': merged_id,
+                    'type': 'standard',
+                    'key': f"Merged ({len(raw_ids)} events)",
+                    'merge_count': len(raw_ids),
+                    'raw_event_ids': list(raw_ids)
+                })
+        else:
+            # Get multi-dimensional merge groups
+            if merge_type_enum is None:
+                return jsonify({'error': f'Invalid merge type: {merge_type}'}), 400
+            
+            groups = multi_merger.merge_groups.get(merge_type_enum, {})
+            formatted_groups = []
+            
+            for group_id, group_data in groups.items():
+                merged_event = group_data.get('merged_event')
+                if merged_event:
+                    latest_state = merged_event.get_latest_state()
+                    formatted_groups.append({
+                        'id': group_id,
+                        'type': merge_type,
+                        'key': group_data.get('key', 'Unknown'),
+                        'merge_count': merged_event.merge_count,
+                        'created_at': group_data.get('created_at', datetime.utcnow()).isoformat() if 'created_at' in group_data else '',
+                        'last_updated': group_data.get('last_updated', datetime.utcnow()).isoformat() if 'last_updated' in group_data else '',
+                        'latest_state': latest_state,
+                        'raw_event_ids': list(merged_event.raw_event_ids),
+                        'events_count': len(group_data.get('events', []))
+                    })
+        
+        # Sort by merge count (largest groups first)
+        formatted_groups.sort(key=lambda x: x.get('merge_count', 0), reverse=True)
         
         return jsonify({
             'merge_type': merge_type,
@@ -1428,6 +1633,8 @@ def get_merge_groups(merge_type):
         })
     except Exception as e:
         logger.error(f"Error getting merge groups: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/merge-group/<merge_type>/<group_id>', methods=['GET'])

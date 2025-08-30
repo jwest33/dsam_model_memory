@@ -117,29 +117,43 @@ def load_benchmark_with_full_processing(
                         merged_count += 1
                     
                     # Process multi-dimensional merges if merger available
-                    if multi_merger and hasattr(memory_agent.memory_store, 'embedding_cache'):
-                        # Check for embeddings with both the original ID and raw_ prefix
-                        embedding_id = None
-                        if event.id in memory_agent.memory_store.embedding_cache:
-                            embedding_id = event.id
-                        elif f"raw_{event.id}" in memory_agent.memory_store.embedding_cache:
-                            embedding_id = f"raw_{event.id}"
+                    if multi_merger:
+                        # Get embeddings - try multiple sources
+                        embeddings = None
                         
-                        if embedding_id:
-                            embeddings = memory_agent.memory_store.embedding_cache[embedding_id]
-                            merge_assignments = multi_merger.process_new_event(event, embeddings)
+                        # First check memory store's embedding cache
+                        if hasattr(memory_agent.memory_store, 'embedding_cache'):
+                            # Check for embeddings with both the original ID and raw_ prefix
+                            embedding_id = None
+                            if event.id in memory_agent.memory_store.embedding_cache:
+                                embedding_id = event.id
+                            elif f"raw_{event.id}" in memory_agent.memory_store.embedding_cache:
+                                embedding_id = f"raw_{event.id}"
                             
-                            # Track which dimensions got merges
-                            for merge_type in merge_assignments:
-                                multi_merge_stats[merge_type] += 1
-                        else:
-                            # Generate embeddings if not in cache
-                            embeddings = memory_agent.memory_store.encoder.encode(event.five_w1h.to_dict())
-                            merge_assignments = multi_merger.process_new_event(event, embeddings)
+                            if embedding_id:
+                                embeddings = memory_agent.memory_store.embedding_cache[embedding_id]
+                        
+                        # If no embeddings found, generate them
+                        if embeddings is None:
+                            # Generate embeddings using the dual-space encoder
+                            raw_embeddings = memory_agent.memory_store.encoder.encode(event.five_w1h.to_dict())
                             
-                            # Track which dimensions got merges
-                            for merge_type in merge_assignments:
-                                multi_merge_stats[merge_type] += 1
+                            # Ensure proper structure for multi-dimensional merger
+                            embeddings = {
+                                'euclidean_anchor': raw_embeddings.get('euclidean_anchor', raw_embeddings.get('euclidean', None)),
+                                'hyperbolic_anchor': raw_embeddings.get('hyperbolic_anchor', raw_embeddings.get('hyperbolic', None))
+                            }
+                            
+                            # Store in cache for future use
+                            if hasattr(memory_agent.memory_store, 'embedding_cache'):
+                                memory_agent.memory_store.embedding_cache[event.id] = embeddings
+                        
+                        # Process with multi-dimensional merger
+                        merge_assignments = multi_merger.process_new_event(event, embeddings)
+                        
+                        # Track which dimensions got merges
+                        for merge_type in merge_assignments:
+                            multi_merge_stats[merge_type] += 1
                     
                     # Collect embeddings for batch cache update if available
                     if hasattr(memory_agent.memory_store, 'embedding_cache') and event.id in memory_agent.memory_store.embedding_cache:
@@ -253,9 +267,23 @@ def load_benchmark_with_full_processing(
     if multi_merger:
         print(f"\nMulti-Dimensional Merge Statistics:")
         for merge_type in MergeType:
-            group_count = len(multi_merger.merge_groups.get(merge_type, {}))
-            events_merged = multi_merge_stats[merge_type]
-            print(f"  {merge_type.name:12} - Groups: {group_count:4}, Events: {events_merged:4}")
+            if merge_type == MergeType.HYBRID:
+                continue  # Skip HYBRID type as it's not used directly
+            type_groups = multi_merger.merge_groups.get(merge_type, {})
+            group_count = len(type_groups)
+            events_merged = multi_merge_stats.get(merge_type, 0)
+            
+            # Show details for each merge group
+            print(f"\n  {merge_type.name:12} - Groups: {group_count:4}, Events merged: {events_merged:4}")
+            
+            # List the first few groups for verification
+            if type_groups:
+                for i, (merge_id, group_data) in enumerate(list(type_groups.items())[:3]):
+                    merged_event = group_data.get('merged_event')
+                    if merged_event:
+                        print(f"    - {merge_id}: {merged_event.merge_count} events, key='{group_data.get('key', 'N/A')}'")
+                if len(type_groups) > 3:
+                    print(f"    ... and {len(type_groups) - 3} more groups")
     
     # Show similarity cache stats if available
     if hasattr(memory_agent.memory_store, 'similarity_cache'):
@@ -287,11 +315,15 @@ def main():
     print("Initializing Memory Agent...")
     memory_agent = MemoryAgent(config)
     
-    # Initialize multi-dimensional merger
+    # Initialize multi-dimensional merger (create once and reuse across all batches)
     print("Initializing Multi-Dimensional Merger...")
     multi_merger = MultiDimensionalMerger(
         chromadb_store=memory_agent.memory_store.chromadb if hasattr(memory_agent.memory_store, 'chromadb') else None
     )
+    
+    # Attach to memory store so it persists across batches
+    if hasattr(memory_agent.memory_store, 'chromadb'):
+        memory_agent.memory_store.multi_merger = multi_merger
     
     # Check for existing data
     initial_stats = memory_agent.memory_store.get_statistics()
