@@ -307,16 +307,23 @@ class SmartMerger:
         Returns:
             True if events should be merged
         """
-        # Primary check: embedding distance
-        if distance > 0.15:  # Too far apart
+        # Check if this is a conversation first
+        who1 = event1_data.get('who', '').lower()
+        who2 = event2_data.get('who', '').lower()
+        conversation_actors = {'user', 'assistant', 'ai', 'bot', 'system', 'human'}
+        is_conversation = who1 in conversation_actors or who2 in conversation_actors
+        
+        # Primary check: embedding distance (more lenient for conversations)
+        distance_threshold = 0.25 if is_conversation else 0.15
+        if distance > distance_threshold:  # Too far apart
             return False
         
         # Secondary checks on components
         
-        # If actors are completely different, maybe don't merge
-        if event1_data.get('who') and event2_data.get('who'):
-            if event1_data['who'] != event2_data['who']:
-                # Different actors, check if actions are very similar
+        # If actors are different and NOT a conversation, require higher similarity
+        if who1 and who2 and who1 != who2:
+            if not is_conversation:
+                # Different actors, not a conversation - check if actions are very similar
                 if event1_data.get('what') and event2_data.get('what'):
                     action_sim = self._calculate_text_similarity(
                         event1_data['what'], 
@@ -324,6 +331,7 @@ class SmartMerger:
                     )
                     if action_sim < 0.8:  # Not similar enough to merge different actors
                         return False
+            # For conversations, we're more lenient - the embedding distance check is enough
         
         # Check temporal distance
         if 'timestamp' in event1_data and 'timestamp' in event2_data:

@@ -646,6 +646,54 @@ h6 { font-size: 0.60rem; }
     font-weight: bold;
 }
 
+/* View mode toggle - compact version of nav tabs */
+.view-mode-toggle .nav-tabs {
+    background: var(--synth-surface);
+    border-radius: 8px;
+    border: 1px solid var(--synth-border);
+    overflow: hidden;
+}
+
+.view-mode-toggle .nav-tabs .nav-link {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    min-width: 120px;
+}
+
+.view-mode-toggle .nav-tabs .nav-link .badge {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.4rem;
+}
+
+.view-mode-toggle .btn-check {
+    position: absolute;
+    clip: rect(0,0,0,0);
+    pointer-events: none;
+}
+
+/* Merge dimension selector - even smaller tabs */
+.merge-dimension-selector .nav-tabs {
+    background: var(--synth-surface);
+    border-radius: 6px;
+    border: 1px solid var(--synth-border);
+    overflow: hidden;
+}
+
+.merge-dimension-selector .nav-tabs .nav-link {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.7rem;
+    min-width: 90px;
+}
+
+.merge-dimension-selector .nav-tabs .nav-link .badge {
+    font-size: 0.6rem;
+    padding: 0.15rem 0.3rem;
+}
+
+.merge-dimension-selector .nav-tabs .nav-link i {
+    font-size: 0.75rem;
+}
+
 /* Modal tabs for merged events */
 #mergedEventModal .nav-tabs .nav-link {
     color: #ff00ff;

@@ -14,10 +14,15 @@ let allGraphData = null;  // Store complete graph data for filtering
 let sortField = null;  // Current sort field
 let sortDirection = null;  // 'asc', 'desc', or null
 let originalMemoryOrder = [];  // Store original order of memories
+let currentMergeDimension = null;  // Current merge dimension being viewed (null = not initialized)
+let mergeGroups = {};  // Cache of merge groups by dimension
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOMContentLoaded fired');
+    
+    // Clean up any leftover modal backdrops from previous sessions
+    document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
     
     try {
         console.log('Initializing app...');
@@ -70,17 +75,56 @@ function initializeApp() {
     // Set up view mode toggle listeners
     const mergedView = document.getElementById('mergedView');
     const rawView = document.getElementById('rawView');
+    const dimensionSelector = document.querySelector('.merge-dimension-selector');
+    
     if (mergedView) {
         mergedView.addEventListener('change', () => {
             console.log('Switched to merged view');
+            // Update nav-link active classes
+            document.querySelector('label[for="mergedView"]').classList.add('active');
+            document.querySelector('label[for="rawView"]').classList.remove('active');
+            // Show dimension selector in merged view
+            if (dimensionSelector) {
+                dimensionSelector.style.display = 'block';
+            }
+            // If no dimension selected, default to temporal
+            if (!currentMergeDimension) {
+                currentMergeDimension = 'temporal';
+            }
             loadMemories();
         });
     }
     if (rawView) {
         rawView.addEventListener('change', () => {
             console.log('Switched to raw view');
+            // Update nav-link active classes
+            document.querySelector('label[for="rawView"]').classList.add('active');
+            document.querySelector('label[for="mergedView"]').classList.remove('active');
+            // Hide dimension selector in raw view
+            if (dimensionSelector) {
+                dimensionSelector.style.display = 'none';
+            }
             loadMemories();
         });
+    }
+    
+    // Initialize with merged view showing temporal dimension
+    const memoryList = document.getElementById('memoryList');
+    const memoryTableContainer = document.getElementById('memoryTableContainer');
+    
+    if (mergedView && mergedView.checked) {
+        if (dimensionSelector) {
+            dimensionSelector.style.display = 'block';
+        }
+        if (memoryList) memoryList.style.display = 'block';
+        if (memoryTableContainer) memoryTableContainer.style.display = 'none';
+        currentMergeDimension = 'temporal';
+    } else if (rawView && rawView.checked) {
+        if (dimensionSelector) {
+            dimensionSelector.style.display = 'none';
+        }
+        if (memoryList) memoryList.style.display = 'none';
+        if (memoryTableContainer) memoryTableContainer.style.display = 'block';
     }
     
     // Set up component selector listeners for real-time graph updates
@@ -427,7 +471,7 @@ function toggleMemoryDetails(messageId) {
 }
 
 // Memory loading and display
-async function loadMemories() {
+async function loadMemoriesOriginal() {
     console.log('Loading memories...');
     
     // Get current view mode
@@ -461,12 +505,11 @@ async function loadMemories() {
             window.mergeGroups = data.merge_groups;
         }
         
-        allMemories = data.memories || [];
         // For memory-pagination.js compatibility, store the correct format
         // The pagination expects a raw array with direct properties, not nested five_w1h
         if (viewMode === 'raw') {
             // For raw view, flatten the five_w1h properties for display
-            allMemories.raw = allMemories.map(m => ({
+            allMemories = (data.memories || []).map(m => ({
                 ...m,
                 who: m.five_w1h?.who || m.who || '',
                 what: m.five_w1h?.what || m.what || '',
@@ -480,8 +523,7 @@ async function loadMemories() {
             }));
         } else {
             // For merged view, memories already have direct properties
-            // Make sure space weights are preserved
-            allMemories.raw = allMemories.map(m => ({
+            allMemories = (data.memories || []).map(m => ({
                 ...m,
                 euclidean_weight: m.euclidean_weight,
                 hyperbolic_weight: m.hyperbolic_weight
@@ -651,6 +693,16 @@ function displayMemories() {
             </td>
             `;
             
+            // Make row clickable
+            row.style.cursor = 'pointer';
+            row.title = 'Click to view details';
+            row.addEventListener('click', (e) => {
+                // Don't trigger if clicking on a button or within the actions cell
+                if (!e.target.closest('button') && !e.target.closest('td:last-child')) {
+                    window.viewMemoryDetails(memory.id);
+                }
+            });
+            
             tbody.appendChild(row);
         });
         
@@ -777,10 +829,15 @@ window.showMemoryGraph = function() {
         `;
     }
     
-    const modal = new bootstrap.Modal(document.getElementById('memoryGraphModal'));
+    const modalElement = document.getElementById('memoryGraphModal');
+    const modal = new bootstrap.Modal(modalElement);
     
-    // Add event listener to resize graph when modal is fully shown
-    document.getElementById('memoryGraphModal').addEventListener('shown.bs.modal', function () {
+    // Remove any existing event listeners first
+    const newModalElement = modalElement.cloneNode(true);
+    modalElement.parentNode.replaceChild(newModalElement, modalElement);
+    
+    // Add event listener to resize graph when modal is fully shown (once)
+    newModalElement.addEventListener('shown.bs.modal', function () {
         // Initialize graph after modal is fully shown
         initializeGraph().then(() => {
             // Ensure the network fits properly in the container
@@ -788,10 +845,24 @@ window.showMemoryGraph = function() {
                 graphNetwork.redraw();
                 graphNetwork.fit();
             }
+        }).catch(error => {
+            console.error('Failed to initialize graph:', error);
+            const graphContainer = document.getElementById('memoryGraph');
+            if (graphContainer) {
+                graphContainer.innerHTML = `
+                    <div class="d-flex flex-column justify-content-center align-items-center h-100">
+                        <i class="bi bi-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
+                        <div class="mt-3 text-danger">Failed to load graph</div>
+                        <small class="text-muted mt-2">${error.message || 'Please check console for details'}</small>
+                    </div>
+                `;
+            }
         });
-    });
+    }, { once: true });  // Use once option to auto-remove after firing
     
-    modal.show();
+    // Create modal with the new element
+    const newModal = new bootstrap.Modal(newModalElement);
+    newModal.show();
 }
 
 async function initializeGraph(centerNodeId = null) {
@@ -831,15 +902,58 @@ async function initializeGraph(centerNodeId = null) {
             requestBody.similarity_threshold = 0.2;  // Lower threshold to show more related memories
         }
         
+        console.log('Sending graph request:', requestBody);
+        console.log('Request URL: /api/graph');
+        console.log('Request method: POST');
+        
         const response = await fetch('/api/graph', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache',
             },
+            cache: 'no-store',
             body: JSON.stringify(requestBody)
         });
         
+        console.log('Response status:', response.status);
+        console.log('Response OK:', response.ok);
+        console.log('Response URL:', response.url);
+        
+        if (!response.ok) {
+            // Try to get error message from response
+            let errorMessage = `HTTP error! status: ${response.status}`;
+            try {
+                const errorData = await response.json();
+                if (errorData.error) {
+                    errorMessage += ` - ${errorData.error}`;
+                }
+            } catch (e) {
+                // Response might not be JSON
+            }
+            throw new Error(errorMessage);
+        }
+        
         const data = await response.json();
+        
+        // Log the data for debugging
+        console.log('Graph API response:', data);
+        
+        // Check if data has the expected structure
+        if (!data || typeof data !== 'object') {
+            console.error('Invalid response from graph API:', data);
+            throw new Error('Invalid response from graph API');
+        }
+        
+        if (!data.nodes || !Array.isArray(data.nodes)) {
+            console.error('Invalid graph data structure - nodes:', data.nodes);
+            throw new Error('Invalid graph data: missing or invalid nodes array');
+        }
+        
+        if (!data.edges || !Array.isArray(data.edges)) {
+            console.error('Invalid graph data structure - edges:', data.edges);
+            throw new Error('Invalid graph data: missing or invalid edges array');
+        }
         
         // Create graph visualization and wait for stabilization
         await createGraphVisualization(data);
@@ -1777,13 +1891,12 @@ window.deleteMemory = async function(memoryId) {
 }
 
 window.viewMemoryDetailsOriginal = async function(memoryId) {
-    // Find the memory in both allMemories and allMemories.raw
-    let memory = allMemories.find ? allMemories.find(m => m.id === memoryId) : null;
-    if (!memory && allMemories.raw) {
-        memory = allMemories.raw.find(m => m.id === memoryId);
-    }
+    // Find the memory in allMemories (it's already an array)
+    let memory = Array.isArray(allMemories) ? allMemories.find(m => m.id === memoryId) : null;
+    
     if (!memory) {
         console.error('Memory not found:', memoryId);
+        console.log('Available memory IDs:', allMemories.map(m => m.id));
         return;
     }
     
@@ -2016,32 +2129,50 @@ async function viewMergedEventDetails(memoryId) {
         
         const mergedEvent = await response.json();
         
-        // Create enhanced modal for merged event
-        const modalHtml = createMergedEventModal(mergedEvent);
-        
         // Remove existing modal if any
         const existingModal = document.getElementById('mergedEventModal');
         if (existingModal) {
+            const existingModalInstance = bootstrap.Modal.getInstance(existingModal);
+            if (existingModalInstance) {
+                existingModalInstance.hide();
+                existingModalInstance.dispose();
+            }
             existingModal.remove();
         }
         
-        // Add modal to body
+        // Clean up any stray backdrops
+        document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+        
+        // Create enhanced modal for merged event
+        const modalHtml = createMergedEventModal(mergedEvent);
+        
+        // Add modal to body using insertAdjacentHTML to preserve structure
         document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Get the newly added modal element
+        const modalElement = document.getElementById('mergedEventModal');
         
         // Initialize tabs and other interactive elements
         initializeMergedEventModal(mergedEvent);
         
-        // Show modal
-        const modal = new bootstrap.Modal(document.getElementById('mergedEventModal'));
+        // Create and show the modal using Bootstrap's standard approach
+        const modal = new bootstrap.Modal(modalElement);
         modal.show();
         
         // Clean up after close
-        document.getElementById('mergedEventModal').addEventListener('hidden.bs.modal', function() {
+        modalElement.addEventListener('hidden.bs.modal', function() {
+            const instance = bootstrap.Modal.getInstance(this);
+            if (instance) {
+                instance.dispose();
+            }
             this.remove();
-        });
+        }, { once: true });
     } catch (error) {
         console.error('Error fetching merged event details:', error);
-        showAlert('Failed to load merged event details', 'danger');
+        // Clean up any backdrops on error
+        document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+        // Fall back to regular view
+        return viewMemoryDetailsOriginal(memoryId);
     }
 }
 
@@ -2293,7 +2424,7 @@ function createVariationAccordionItem(id, label, variants) {
         <div class="accordion-item bg-dark border-secondary">
             <h2 class="accordion-header">
                 <button class="accordion-button collapsed bg-dark text-white" type="button" data-bs-toggle="collapse" data-bs-target="#${id}Variations">
-                    <span class="text-cyan">${label}</span> <span class="badge bg-info ms-2">${variantCount} variations</span>
+                    <span class="text-cyan">${label}</span> <span class="badge bg-info ms-2">${variantCount}</span>
                 </button>
             </h2>
             <div id="${id}Variations" class="accordion-collapse collapse" data-bs-parent="#variationsAccordion">
@@ -2350,7 +2481,13 @@ function initializeMergedEventModal(mergedEvent) {
 
 // Enhanced function to check if memory is merged and display accordingly
 window.viewMemoryDetails = async function(memoryId) {
-    // First try to get it as a merged event
+    // Check if this is a raw event (raw events have IDs starting with 'raw_')
+    if (memoryId.startsWith('raw_')) {
+        // Raw events should use the original details viewer
+        return window.viewMemoryDetailsOriginal(memoryId);
+    }
+    
+    // For non-raw events, try to get it as a merged event
     try {
         await viewMergedEventDetails(memoryId);
     } catch (error) {
@@ -2534,18 +2671,48 @@ function updateGraphPhysics(gravity) {
 }
 
 window.showMemoryInGraph = function(memoryId) {
-    // Close the details modal
+    // Close any open details modals
     const detailModal = bootstrap.Modal.getInstance(document.getElementById('memoryDetailModal'));
     if (detailModal) {
         detailModal.hide();
     }
     
-    // Open the graph modal
-    const graphModal = new bootstrap.Modal(document.getElementById('memoryGraphModal'));
-    graphModal.show();
+    // Also close the merged event details modal if it's open
+    const mergedModal = bootstrap.Modal.getInstance(document.getElementById('mergedEventModal'));
+    if (mergedModal) {
+        mergedModal.hide();
+        // Give it a moment to close before removing
+        setTimeout(() => {
+            const mergedElement = document.getElementById('mergedEventModal');
+            if (mergedElement) {
+                mergedElement.remove();
+            }
+        }, 300);
+    }
     
-    // Initialize graph after modal is shown, with the selected memory as center
-    setTimeout(() => {
+    // Show loading indicator immediately
+    const graphContainer = document.getElementById('memoryGraph');
+    if (graphContainer) {
+        graphContainer.innerHTML = `
+            <div class="d-flex flex-column justify-content-center align-items-center h-100">
+                <div class="spinner-grow text-purple" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-3 text-muted">Loading memory in graph...</div>
+            </div>
+        `;
+    }
+    
+    // Open the graph modal
+    const modalElement = document.getElementById('memoryGraphModal');
+    const graphModal = new bootstrap.Modal(modalElement);
+    
+    // Use the modal shown event to initialize the graph
+    modalElement.addEventListener('shown.bs.modal', function onModalShown() {
+        // Remove this listener after it fires once
+        modalElement.removeEventListener('shown.bs.modal', onModalShown);
+        
+        // Initialize graph with the selected memory as center
         initializeGraph(memoryId).then(() => {
             // Focus on the center node
             if (graphNetwork && memoryId) {
@@ -2585,8 +2752,21 @@ window.showMemoryInGraph = function(memoryId) {
             }
         }).catch(error => {
             console.error('Error initializing graph:', error);
+            // Show error in graph container
+            const graphContainer = document.getElementById('memoryGraph');
+            if (graphContainer) {
+                graphContainer.innerHTML = `
+                    <div class="d-flex flex-column justify-content-center align-items-center h-100">
+                        <i class="bi bi-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
+                        <div class="mt-3 text-danger">Failed to load graph</div>
+                        <small class="text-muted mt-2">${error.message || 'Please check console for details'}</small>
+                    </div>
+                `;
+            }
         });
-    }, 300);
+    });
+    
+    graphModal.show();
 }
 
 window.performSearch = async function() {
@@ -2854,3 +3034,372 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+// Multi-dimensional merge functions
+async function loadMergeDimensions() {
+    try {
+        const response = await fetch('/api/merge-dimensions');
+        const data = await response.json();
+        
+        // Update dimension counts in UI
+        data.dimensions.forEach(dim => {
+            const countElement = document.getElementById(`${dim.type}-count`);
+            if (countElement) {
+                countElement.textContent = dim.group_count;
+            }
+        });
+        
+        return data.dimensions;
+    } catch (error) {
+        console.error('Error loading merge dimensions:', error);
+        return [];
+    }
+}
+
+async function switchMergeDimension(dimension) {
+    currentMergeDimension = dimension;
+    
+    // Update nav-link active classes
+    document.querySelectorAll('.merge-dimension-selector .nav-link').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.dimension === dimension) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Update description
+    const descriptions = {
+        'temporal': 'Groups conversation threads and sequential actions',
+        'actor': 'Groups all memories from the same person or actor',
+        'conceptual': 'Groups memories by goals, purposes, and abstract concepts',
+        'spatial': 'Groups memories by location or spatial context'
+    };
+    const descElement = document.getElementById('dimension-description');
+    if (descElement) {
+        descElement.textContent = descriptions[dimension] || '';
+    }
+    
+    // Load merge groups for this dimension
+    await loadMergeGroups(dimension);
+}
+
+async function loadMergeGroups(dimension) {
+    try {
+        const response = await fetch(`/api/merge-groups/${dimension}`);
+        const data = await response.json();
+        
+        // Cache the groups
+        mergeGroups[dimension] = data.groups;
+        
+        // Display the merge groups
+        displayMergeGroups(data.groups);
+        
+        return data.groups;
+    } catch (error) {
+        console.error('Error loading merge groups:', error);
+        return [];
+    }
+}
+
+function displayMergeGroups(groups) {
+    // Hide card view, show table view
+    const memoryList = document.getElementById('memoryList');
+    const memoryTableContainer = document.getElementById('memoryTableContainer');
+    
+    if (memoryList) memoryList.style.display = 'none';
+    if (memoryTableContainer) memoryTableContainer.style.display = 'block';
+    
+    const tbody = document.getElementById('memoryTableBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    if (groups.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No merge groups found for this dimension</td></tr>';
+        return;
+    }
+    
+    // Display merge groups in table format
+    groups.forEach(group => {
+        const row = document.createElement('tr');
+        const latest = group.latest_state || {};
+        
+        // Get the most recent values from the merged event
+        const who = latest.who || group.key || '—';
+        const what = latest.what || '—';
+        const when = latest.when || group.last_updated || '—';
+        const where = latest.where || '—';
+        const why = latest.why || '—';
+        const how = latest.how || '—';
+        
+        // Create merge indicator
+        const mergeIndicator = `<span class="badge bg-success ms-1" title="${group.merge_count} merged events">
+            <i class="bi bi-layers-fill"></i> ${group.merge_count}
+        </span>`;
+        
+        // Create space weight indicator (use dominant pattern)
+        const spaceWeight = group.dominant_pattern === 'abstract' ? 
+            '<span class="badge bg-warning">Hyperbolic</span>' : 
+            '<span class="badge bg-info">Euclidean</span>';
+        
+        row.innerHTML = `
+            <td>${escapeHtml(who)}</td>
+            <td title="${escapeHtml(what)}">${escapeHtml(what.substring(0, 40))}${what.length > 40 ? '...' : ''}${mergeIndicator}</td>
+            <td>${formatDate(when)}</td>
+            <td>${escapeHtml(where.substring(0, 20))}${where.length > 20 ? '...' : ''}</td>
+            <td title="${escapeHtml(why)}">${escapeHtml(why.substring(0, 30))}${why.length > 30 ? '...' : ''}</td>
+            <td title="${escapeHtml(how)}">${escapeHtml(how.substring(0, 25))}${how.length > 25 ? '...' : ''}</td>
+            <td>${spaceWeight}</td>
+            <td><span class="badge bg-secondary">Merged</span></td>
+            <td>
+                <button class="btn btn-sm btn-outline-info" onclick="window.viewMemoryDetails('${group.id}')" title="View Details">
+                    <i class="bi bi-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-primary" onclick="window.showMemoryInGraph('${group.id}')" title="Show in Graph">
+                    <i class="bi bi-diagram-3"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-warning" onclick="window.showMergeGroup('${group.id}')" title="Show Raw Events">
+                    <i class="bi bi-collection"></i>
+                </button>
+            </td>
+        `;
+        
+        // Make row clickable
+        row.style.cursor = 'pointer';
+        row.title = 'Click to view details';
+        row.addEventListener('click', (e) => {
+            // Don't trigger if clicking on a button or within the actions cell
+            if (!e.target.closest('button') && !e.target.closest('td:last-child')) {
+                window.viewMemoryDetails(group.id);
+            }
+        });
+        
+        tbody.appendChild(row);
+    });
+    
+    // Update pagination for merged view
+    updatePagination();
+}
+
+function createMergeGroupCard(group) {
+    const card = document.createElement('div');
+    card.className = 'memory-card mb-3';
+    
+    const primaryField = getPrimaryFieldForDimension(group.type);
+    const primaryValue = group.latest_state[primaryField] || group.key || 'Unknown';
+    
+    card.innerHTML = `
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5 class="card-title">${escapeHtml(primaryValue)}</h5>
+                        <div class="text-muted small">
+                            <span class="badge bg-info me-2">${group.merge_count} merged events</span>
+                            <span>Last updated: ${formatDate(group.last_updated)}</span>
+                        </div>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewMergeGroupDetail('${group.type}', '${group.id}')">
+                            <i class="bi bi-eye"></i> View Details
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    ${renderGroupSummary(group)}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    return card;
+}
+
+function getPrimaryFieldForDimension(dimension) {
+    const fields = {
+        'actor': 'who',
+        'temporal': 'what',
+        'conceptual': 'why',
+        'spatial': 'where'
+    };
+    return fields[dimension] || 'what';
+}
+
+function renderGroupSummary(group) {
+    const state = group.latest_state;
+    let summary = '<div class="small">';
+    
+    if (state.who) summary += `<div><strong>Who:</strong> ${escapeHtml(state.who)}</div>`;
+    if (state.what) summary += `<div><strong>What:</strong> ${escapeHtml(state.what.substring(0, 100))}${state.what.length > 100 ? '...' : ''}</div>`;
+    if (state.why) summary += `<div><strong>Why:</strong> ${escapeHtml(state.why)}</div>`;
+    if (state.where) summary += `<div><strong>Where:</strong> ${escapeHtml(state.where)}</div>`;
+    
+    summary += '</div>';
+    return summary;
+}
+
+async function viewMergeGroupDetail(mergeType, groupId) {
+    try {
+        const response = await fetch(`/api/merge-group/${mergeType}/${groupId}`);
+        const data = await response.json();
+        
+        // Show detail modal or navigate to detail view
+        showMergeGroupDetailModal(data);
+    } catch (error) {
+        console.error('Error loading merge group detail:', error);
+    }
+}
+
+function showMergeGroupDetailModal(mergeGroup) {
+    // Create or update modal for merge group details
+    let modal = document.getElementById('mergeGroupDetailModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.className = 'modal fade';
+        modal.id = 'mergeGroupDetailModal';
+        modal.innerHTML = `
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Merge Group Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body" id="mergeGroupDetailBody">
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    const modalBody = document.getElementById('mergeGroupDetailBody');
+    modalBody.innerHTML = renderMergeGroupDetail(mergeGroup);
+    
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+}
+
+function renderMergeGroupDetail(group) {
+    let html = `
+        <div class="merge-group-detail">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <h6>Basic Information</h6>
+                    <div class="small">
+                        <div><strong>Type:</strong> ${group.type}</div>
+                        <div><strong>ID:</strong> ${group.id}</div>
+                        <div><strong>Merge Count:</strong> ${group.merge_count}</div>
+                        <div><strong>Created:</strong> ${formatDate(group.created_at)}</div>
+                        <div><strong>Last Updated:</strong> ${formatDate(group.last_updated)}</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h6>Latest State</h6>
+                    <div class="small">
+                        ${renderGroupSummary({latest_state: group.latest_state})}
+                    </div>
+                </div>
+            </div>
+    `;
+    
+    // Component variations
+    if (Object.keys(group.who_variants || {}).length > 0) {
+        html += renderComponentVariations('Who', group.who_variants);
+    }
+    if (Object.keys(group.what_variants || {}).length > 0) {
+        html += renderComponentVariations('What', group.what_variants);
+    }
+    if (Object.keys(group.why_variants || {}).length > 0) {
+        html += renderComponentVariations('Why', group.why_variants);
+    }
+    
+    // Timeline
+    if (group.when_timeline && group.when_timeline.length > 0) {
+        html += `
+            <div class="mb-3">
+                <h6>Timeline</h6>
+                <div class="timeline small">
+        `;
+        group.when_timeline.forEach(point => {
+            html += `
+                <div class="timeline-item">
+                    <span class="badge bg-secondary me-2">${formatDate(point.timestamp)}</span>
+                    ${escapeHtml(point.description || point.semantic_time || '')}
+                </div>
+            `;
+        });
+        html += '</div></div>';
+    }
+    
+    // Raw events
+    if (group.raw_event_ids && group.raw_event_ids.length > 0) {
+        html += `
+            <div class="mb-3">
+                <h6>Raw Events (${group.raw_event_ids.length})</h6>
+                <div class="small text-muted">
+                    ${group.raw_event_ids.slice(0, 5).join(', ')}
+                    ${group.raw_event_ids.length > 5 ? '...' : ''}
+                </div>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+function renderComponentVariations(componentName, variants) {
+    let html = `
+        <div class="mb-3">
+            <h6>${componentName} Variations</h6>
+            <div class="variations small">
+    `;
+    
+    for (const [key, variantList] of Object.entries(variants)) {
+        variantList.forEach(variant => {
+            html += `
+                <div class="variant-item mb-1">
+                    <span class="badge bg-secondary me-1">${variant.relationship}</span>
+                    <span class="badge bg-info me-1">v${variant.version}</span>
+                    ${escapeHtml(variant.value)}
+                    <span class="text-muted ms-2">(${formatDate(variant.timestamp)})</span>
+                </div>
+            `;
+        });
+    }
+    
+    html += '</div></div>';
+    return html;
+}
+
+// Update the existing loadMemories function to check for merge dimension mode
+window.loadMemories = async function() {
+    // Check current view mode
+    const isRawView = document.getElementById('rawView') && document.getElementById('rawView').checked;
+    const isMergedView = document.getElementById('mergedView') && document.getElementById('mergedView').checked;
+    
+    // Get display elements
+    const memoryList = document.getElementById('memoryList');
+    const memoryTableContainer = document.getElementById('memoryTableContainer');
+    
+    // Load merge dimensions (for counts)
+    await loadMergeDimensions();
+    
+    if (isRawView) {
+        // Raw view - show table, hide cards
+        if (memoryList) memoryList.style.display = 'none';
+        if (memoryTableContainer) memoryTableContainer.style.display = 'block';
+        await loadMemoriesOriginal();
+    } else if (isMergedView) {
+        // Merged view - show table (will be handled by displayMergeGroups)
+        // Default to temporal if not set
+        if (!currentMergeDimension) {
+            currentMergeDimension = 'temporal';
+        }
+        await loadMergeGroups(currentMergeDimension);
+    }
+}
+
+// Export functions for global access
+window.switchMergeDimension = switchMergeDimension;
+window.viewMergeGroupDetail = viewMergeGroupDetail;
