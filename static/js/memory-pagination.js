@@ -188,7 +188,7 @@
             const mergeGroup = window.mergeGroups[memory.merged_id];
             const groupSize = mergeGroup ? mergeGroup.length : 1;
             mergeIndicator = `<span class="badge bg-info ms-1" title="Part of merged group ${memory.merged_id.substring(0, 8)}">
-                <i class="bi bi-layers"></i> ${groupSize}
+                ${groupSize}
             </span>`;
         }
         
