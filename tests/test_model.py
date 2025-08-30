@@ -127,7 +127,7 @@ def test_field_adaptation():
     print(f"  Original relevance: {relevance}")
     print(f"  Limited relevance: {limited_relevance}")
     
-    print("✓ Field adaptation tests passed")
+    print("Field adaptation tests passed")
 
 def test_provenance_tracking():
     """Test provenance and versioning"""
@@ -180,7 +180,7 @@ def test_provenance_tracking():
     print(f"  Access count: {provenance['access_count']}")
     print(f"  Residual norms: E={provenance['residual_norm_euclidean']:.3f}, H={provenance['residual_norm_hyperbolic']:.3f}")
     
-    print("✓ Provenance tracking tests passed")
+    print("Provenance tracking tests passed")
 
 def test_forgetting():
     """Test forgetting mechanism"""

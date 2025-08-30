@@ -29,7 +29,7 @@ def test_dual_space_memory():
     # Initialize memory store
     print("\n1. Initializing enhanced memory store...")
     store = MemoryStore()
-    print("   ✓ Memory store initialized with dual-space encoder")
+    print("   Memory store initialized with dual-space encoder")
     
     # Test storing events
     print("\n2. Storing test events...")
@@ -87,10 +87,10 @@ def test_dual_space_memory():
         
         success, message = store.store_event(event)
         if success:
-            print(f"   ✓ {message}")
+            print(f"   {message}")
             stored_events.append(event)
         else:
-            print(f"   ✗ Failed: {message}")
+            print(f"   Failed: {message}")
     
     # Test retrieval with concrete query (should favor Euclidean)
     print("\n3. Testing retrieval with concrete query...")
@@ -192,12 +192,12 @@ def test_dual_space_memory():
     print("\n9. Testing state persistence...")
     state_dir = Path("./test_state")
     success = store.save_state(state_dir)
-    print(f"   Save state: {'✓ Success' if success else '✗ Failed'}")
+    print(f"   Save state: {'Success' if success else 'Failed'}")
     
     # Create new store and load state
     new_store = MemoryStore()
     success = new_store.load_state(state_dir)
-    print(f"   Load state: {'✓ Success' if success else '✗ Failed'}")
+    print(f"   Load state: {'Success' if success else 'Failed'}")
     
     # Cleanup
     import shutil
@@ -205,7 +205,7 @@ def test_dual_space_memory():
         shutil.rmtree(state_dir)
     
     print("\n" + "=" * 60)
-    print("✓ All tests completed successfully!")
+    print("All tests completed successfully!")
     print("=" * 60)
 
 if __name__ == "__main__":

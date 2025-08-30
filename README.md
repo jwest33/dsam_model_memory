@@ -1,12 +1,15 @@
 # [DSAM] Dual-Space Agentic Memory
 
-DSAM is an adaptive geometric memory system for AI agents featuring dual-space encoding (Euclidean + Hyperbolic), adaptive residual learning, provenance tracking, event deduplication with raw event preservation, and dynamic visualization.
+> [!CAUTION]
+> DSAM is currently pre-release, functionality might be broken while the app is prepared for release
+
+DSAM is a high-performance adaptive memory system for AI agents featuring dual-space encoding (Euclidean + Hyperbolic), multi-dimensional merging, adaptive residual learning, provenance tracking, event deduplication with raw event preservation, similarity caching, and dynamic visualization.
 
 ## Overview
 
 DSAM is a content-addressable memory system that operates on dual geometric manifolds. Unlike traditional memory systems that require explicit addresses, DSAM retrieves memories based on semantic similarity of their content. The architecture combines Euclidean space for concrete/lexical similarity with Hyperbolic space for abstract/hierarchical relationships, featuring immutable anchor embeddings with bounded residual adaptation that enable memories to evolve while maintaining stable representations.
 
-![Memory Cluster](example-memory-cluster-simple.jpg)
+![Memory Cluster](docs/example-memory-cluster-simple.jpg)
 
 ## Core Architecture
 
@@ -31,13 +34,26 @@ DSAM is a content-addressable memory system that operates on dual geometric mani
 - **Momentum-Based Updates**: Smooth adaptation with configurable momentum (0.9) and decay factor (0.995)
 - **HDBSCAN Clustering**: Density-based clustering with configurable parameters (min_cluster_size, min_samples)
 - **Provenance Tracking**: Version history, residual norms, co-retrieval partners, and access patterns
+- **Similarity Cache**: Pre-computed pairwise similarities with O(1) lookup performance
 
-### Event Deduplication & Raw Event Preservation
-- **Automatic Deduplication**: Similar events (similarity > 0.15) are merged to prevent redundancy
+### Multi-Dimensional Merging & Event Deduplication
+- **Multi-Dimensional Merge Groups**: Events organized across multiple dimensions:
+  - **Actor Merging**: Groups events by participant (who)
+  - **Temporal Merging**: Groups events by conversation threads
+  - **Conceptual Merging**: Groups events by concepts and goals
+  - **Spatial Merging**: Groups events by location context
+- **Automatic Deduplication**: Similar events (similarity > 0.85) are merged to prevent redundancy
 - **Raw Event Storage**: All original events are preserved and linked to their merged representations
 - **Dual View Interface**: Toggle between merged events (deduplicated) and raw events (all originals)
-- **Merge Group Tracking**: Visualize which raw events have been merged together
+- **Merge Group Tracking**: Visualize which raw events have been merged together across dimensions
 - **Bidirectional Mapping**: Navigate from merged events to raw events and vice versa
+
+### Performance Optimization
+- **Similarity Cache**: Pre-computed pairwise similarities eliminate redundant calculations
+- **Batch Processing**: Efficient bulk operations for dataset generation and storage
+- **Parallel Generation**: Multi-threaded conversation generation for benchmarking
+- **Sparse Storage**: Only similarities above threshold (0.2) are cached
+- **Persistent Cache**: Similarity scores survive application restarts
 
 ### 5W1H Journal Framework
 Complete context encoding for each memory:
@@ -52,55 +68,78 @@ Complete context encoding for each memory:
 
 ```bash
 # Clone repository
-git clone <repository-url>
+git clone https://github.com/jwest33/dsam_model_memory
 cd agent-wip
 
-# Install dependencies
-pip install -r requirements.txt
+# Run automated setup script
+python setup_venv.py
 
-# For offline mode (recommended)
-export HF_HUB_OFFLINE=1
-export TRANSFORMERS_OFFLINE=1
+# Windows activate virtual environment
+.venv\Scripts\activate
+
+# Linux/MacOS activate virtual environment
+source .venv/bin/activate
+```
+
+### Environment Configuration
+
+The system uses a `.env` file for configuration. Key settings:
+
+```bash
+# Set offline mode (recommended)
+HF_HUB_OFFLINE=1
+TRANSFORMERS_OFFLINE=1
+
+# Optional: Custom paths
+CHROMADB_PATH=./state/chromadb
+BENCHMARK_DATASETS_PATH=./benchmark_datasets
+
+# Optional: Flask settings
+FLASK_PORT=5000
+```
+
+### Troubleshooting Installation
+
+#### PyTorch Installation Issues
+If you encounter issues with PyTorch:
+```bash
+# CPU-only version (smaller, faster install)
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+# CUDA 11.8 (for NVIDIA GPUs)
+pip install torch --index-url https://download.pytorch.org/whl/cu118
+```
+
+#### HuggingFace Model Downloads
+If models fail to download:
+1. Ensure you have internet connection for first-time setup
+2. After initial download, use offline mode via `.env` file
+3. Models are cached in `~/.cache/huggingface/`
+
+#### ChromaDB Issues
+If ChromaDB fails to install:
+```bash
+# Install build tools first
+# Windows: Install Visual Studio Build Tools
+# Linux: sudo apt-get install build-essential
+# MacOS: xcode-select --install
+
+# Then retry
+pip install chromadb
 ```
 
 ## Quick Start
 
-### Start LLM Server (Required for Chat)
+### Run the Web Interface
 
 ```bash
-# Start the local LLM server first
-python llama_server_client.py start
+# Windows activate virtual environment
+.venv\Scripts\activate
 
-# The server will run in the background
-# To stop it later: python llama_server_client.py stop
-```
+# Linux/MacOS activate virtual environment
+source .venv/bin/activate
 
-### Command Line Interface
-
-```bash
-# Initialize memory system
-python cli.py init
-
-# Store memories (no address needed - content is the key)
-python cli.py remember --who "Alice" --what "implemented search feature" --where "backend" --why "user requirement" --how "elasticsearch integration"
-
-# Content-addressable recall - query by partial content
-python cli.py recall --what "search" --k 10  # Finds memories semantically similar to "search"
-python cli.py recall --who "Alice" --what "feature" --k 5  # Multi-field content matching
-python cli.py recall --why "optimization" --k 10  # Abstract concept retrieval
-
-# View statistics
-python cli.py stats
-
-# Save/Load state
-python cli.py save
-python cli.py load
-```
-
-### Web Interface
-
-```bash
-# Make sure LLM server is running first (for chat functionality)
+# Make sure LLM server is running first
 python llama_server_client.py start
 
 # Launch enhanced web interface
@@ -112,18 +151,25 @@ python run_web.py
 The web interface provides:
 - Interactive chat with real-time space weight visualization
 - Memory management with full 5W1H display and calculated space weights
+- Multi-dimensional merge groups (Actor, Temporal, Conceptual, Spatial)
 - Dual view modes: Merged (deduplicated) and Raw (all events)
-- Graph visualization with configurable HDBSCAN parameters
+- Graph visualization with adjustable layout controls
 - Analytics dashboard with residual tracking
 - Provenance information for each memory
-- Merge group visualization showing raw-to-merged event relationships
+- Merge group visualization showing relationships across dimensions
 
 ### Generate Dataset
-- Iterative script generating memory events using two-way LLM calls
 
 ```bash
-# Run conversation simulations
-python simulate_conversations.py
+# Standard dataset generation (sequential)
+python benchmark\generate_benchmark_dataset.py
+
+# Fast dataset generation (batched and parallel, 4-8x faster)
+python benchmark\generate_benchmark_dataset_fast.py
+# Options: Small (100), Medium (500), Large (1000), Extra Large (2000), Massive (5000)
+
+# Test similarity cache performance
+python benchmark_similarity_performance.py
 ```
 
 ## Web Interface Features
@@ -137,30 +183,30 @@ python simulate_conversations.py
 ### Memory Management
 - Full 5W1H field display with all metadata
 - Real-time calculated space weights (Euclidean/Hyperbolic percentages)
+- Multi-dimensional merge dimensions:
+  - **Actor**: Groups by participants
+  - **Temporal**: Groups by conversation threads
+  - **Conceptual**: Groups by concepts/goals
+  - **Spatial**: Groups by location context
 - Dual view modes:
   - **Merged View**: Deduplicated events with merge indicators
   - **Raw View**: All original events with merge group information
+- Unified component table display with aligned columns
 - Provenance tracking (version, access count, co-retrieval partners)
 - Residual norm visualization
 - Field-specific adaptation limits
 - Individual memory graph view
 - Batch operations support
 - Click-to-view memory details with actual space weight display
+- Similarity cache statistics and hit rate monitoring
 
 ### Graph Visualization
 - **Interactive Network Graph**: Powered by vis.js
-- **5W1H Component Selection**: Choose which fields to visualize
-- **Multiple Visualization Modes**:
-  - Dual-space view
-  - Euclidean-only
-  - Hyperbolic-only
-  - Residual magnitude
-- **HDBSCAN Clustering**: Configurable clustering with adjustable parameters
-  - Min cluster size (2-20)
-  - Min samples (1-10)
-  - Real-time parameter adjustment
+- **Multi-Dimensional Support**: Visualize merge groups from any dimension
 - **Individual Memory Focus**: View a memory and its related connections
+- **Adjustable Layout**: Graph spacing control slider for optimal viewing
 - **Graph Statistics**: Nodes, edges, clusters, average degree
+- **Color-Coded Nodes**: Different colors for users, assistants, and memory types
 
 ### Analytics Dashboard
 - Total events and queries metrics
@@ -182,6 +228,9 @@ python simulate_conversations.py
 - `GET /api/stats`: Get system statistics
 - `GET /api/analytics`: Get analytics data for charts
 - `GET /api/merge-stats`: Get merge group statistics
+- `GET /api/merge-dimensions`: Get available merge dimensions
+- `GET /api/merge-groups/<type>`: Get merge groups by dimension type
+- `GET /api/multi-merge/<type>/<id>/details`: Get details for multi-dimensional merge group
 
 ## System Architecture
 
@@ -261,6 +310,13 @@ DSAM extends traditional content-addressable memory with geometric intelligence:
 - Balanced queries use both spaces equally
 - Content determines retrieval geometry automatically
 
+### Performance Optimizations
+- **Similarity Cache**: Pre-computed pairwise similarities with O(1) lookup
+- **Batch Processing**: Efficient bulk operations for memory storage
+- **Parallel Generation**: Multi-threaded dataset creation (4-8x speedup)
+- **Sparse Storage**: Only significant similarities cached (threshold: 0.2)
+- **Persistent Cache**: Survives application restarts
+
 ### Residual Adaptation
 - Memories adapt based on co-retrieval patterns
 - Bounded updates prevent representation drift
@@ -272,6 +328,7 @@ DSAM extends traditional content-addressable memory with geometric intelligence:
 - Real-time residual tracking
 - Interactive graph exploration
 - Component-based filtering
+- Similarity cache statistics
 
 ## Configuration
 
@@ -343,28 +400,12 @@ python clear_memories.py
 - Use forgetting mechanism to reset specific memories
 - Consider clearing if consistently > bounds
 
-## Development
-
-### Testing
-```bash
-# Test dual-space memory
-python tests/test_dual_space.py
-
-# Test full model
-python test/test_model.py
-
-# Test api
-python tests/test_api.py
-
-
-```
-
-### Adding New Features
-1. Extend memory operations in `memory_agent.py`
-2. Add API endpoints in `web_app.py`
-3. Update frontend in `static/js/app.js`
-4. Document in relevant markdown files
-
 ## License
 
 [MIT License](LICENSE)
+
+## TODO:
+  * Update chat interface to get merge groups instead of raw
+  * Memory block graph terminal context vectors/pointers
+  * Consolidate `.js` files
+  * Consolidate data model modules

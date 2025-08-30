@@ -8,7 +8,7 @@ replacing JSON files with ChromaDB for better performance and scalability.
 import json
 import logging
 import numpy as np
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any, Set
 from datetime import datetime
 import pickle
 import base64
@@ -25,6 +25,7 @@ except ImportError:
 from models.event import Event, FiveW1H
 from models.memory_block import MemoryBlock
 from config import get_config
+from memory.similarity_cache import SimilarityCache
 
 logger = logging.getLogger(__name__)
 
@@ -64,8 +65,15 @@ class ChromaDBStore:
             'episode_map': {}  # episode_id -> [event_ids]
         }
         
+        # Initialize similarity cache with a lower threshold for graph edges
+        # Using 0.2 to cache potential edges (different from 0.85 deduplication threshold)
+        self.similarity_cache = SimilarityCache(similarity_threshold=0.2)
+        
         # Load cache
         self._refresh_cache()
+        
+        # Load similarity cache from metadata if exists
+        self._load_similarity_cache()
     
     def _init_collections(self):
         """Initialize or get ChromaDB collections"""
@@ -87,6 +95,59 @@ class ChromaDBStore:
         self.metadata_collection = self.client.get_or_create_collection(
             name="metadata",
             metadata={"description": "System metadata and indices"},
+            embedding_function=None
+        )
+        
+        # Similarity cache collection
+        self.similarity_cache_collection = self.client.get_or_create_collection(
+            name="similarity_cache",
+            metadata={"description": "Pre-computed similarity scores"},
+            embedding_function=None
+        )
+        
+        # Merged events collection
+        self.merged_events_collection = self.client.get_or_create_collection(
+            name="merged_events",
+            metadata={"description": "Merged events with component tracking"},
+            embedding_function=None
+        )
+        
+        # Raw events collection (enhanced)
+        self.raw_events_collection = self.client.get_or_create_collection(
+            name="raw_events",
+            metadata={"description": "Raw events with merge tracking"},
+            embedding_function=None
+        )
+        
+        # Multi-dimensional merge collections
+        self.actor_merges_collection = self.client.get_or_create_collection(
+            name="actor_merges",
+            metadata={"description": "WHO-based merged events (actor-centric view)"},
+            embedding_function=None
+        )
+        
+        self.temporal_merges_collection = self.client.get_or_create_collection(
+            name="temporal_merges",
+            metadata={"description": "WHAT/WHEN-based merged events (conversations, sequences)"},
+            embedding_function=None
+        )
+        
+        self.conceptual_merges_collection = self.client.get_or_create_collection(
+            name="conceptual_merges",
+            metadata={"description": "WHY/HOW-based merged events (goals, concepts)"},
+            embedding_function=None
+        )
+        
+        self.spatial_merges_collection = self.client.get_or_create_collection(
+            name="spatial_merges",
+            metadata={"description": "WHERE-based merged events (location-centric)"},
+            embedding_function=None
+        )
+        
+        # Merge membership tracking collection
+        self.merge_tracker_collection = self.client.get_or_create_collection(
+            name="merge_tracker",
+            metadata={"description": "Tracks raw event to merge group mappings"},
             embedding_function=None
         )
     
@@ -627,6 +688,96 @@ class ChromaDBStore:
             logger.error(f"Failed to retrieve all events: {e}")
             return []
     
+    def _load_similarity_cache(self):
+        """Load similarity cache from ChromaDB."""
+        try:
+            # Get similarity cache from metadata collection
+            result = self.metadata_collection.get(
+                ids=["similarity_cache"],
+                include=["documents"]
+            )
+            
+            if result['ids'] and result['documents']:
+                cache_data = json.loads(result['documents'][0])
+                self.similarity_cache = SimilarityCache.from_dict(cache_data)
+                logger.info(f"Loaded similarity cache with {len(self.similarity_cache.cache)} pairs")
+            else:
+                logger.info("No existing similarity cache found, starting fresh")
+        except Exception as e:
+            logger.warning(f"Could not load similarity cache: {e}")
+    
+    def _save_similarity_cache(self):
+        """Save similarity cache to ChromaDB."""
+        try:
+            cache_data = self.similarity_cache.to_dict()
+            # Create a dummy embedding for metadata storage
+            dummy_embedding = np.zeros(384).tolist()
+            self.metadata_collection.upsert(
+                ids=["similarity_cache"],
+                documents=[json.dumps(cache_data)],
+                metadatas=[{"type": "similarity_cache", "updated_at": datetime.now().isoformat()}],
+                embeddings=[dummy_embedding]
+            )
+            logger.debug("Saved similarity cache to ChromaDB")
+        except Exception as e:
+            logger.error(f"Failed to save similarity cache: {e}")
+    
+    def update_similarity_cache(self, event_id: str, embeddings: Dict):
+        """
+        Update similarity cache with new event embeddings.
+        
+        Args:
+            event_id: Event ID
+            embeddings: Dictionary with euclidean/hyperbolic embeddings
+        """
+        self.similarity_cache.add_embedding(event_id, embeddings, update_similarities=True)
+        # Save periodically (every 10 updates)
+        if len(self.similarity_cache.dirty_ids) == 0 and len(self.similarity_cache.cache) % 10 == 0:
+            self._save_similarity_cache()
+    
+    def batch_update_similarity_cache(self, embeddings_dict: Dict[str, Dict]):
+        """
+        Batch update similarity cache with multiple embeddings.
+        
+        Args:
+            embeddings_dict: Dictionary mapping event_id -> embeddings
+        """
+        self.similarity_cache.batch_add_embeddings(embeddings_dict)
+        self._save_similarity_cache()
+    
+    def get_cached_similarity(self, id1: str, id2: str, lambda_e: float = 0.5, lambda_h: float = 0.5) -> Optional[float]:
+        """
+        Get cached similarity between two events.
+        
+        Args:
+            id1: First event ID
+            id2: Second event ID
+            lambda_e: Euclidean space weight
+            lambda_h: Hyperbolic space weight
+            
+        Returns:
+            Similarity score or None if not cached
+        """
+        return self.similarity_cache.get_similarity(id1, id2, lambda_e, lambda_h)
+    
+    def get_top_similar_events(self, event_id: str, k: int = 10, exclude_ids: Set[str] = None) -> List[Tuple[str, float]]:
+        """
+        Get top-k most similar events from cache.
+        
+        Args:
+            event_id: Event ID
+            k: Number of similar events
+            exclude_ids: IDs to exclude
+            
+        Returns:
+            List of (event_id, similarity) tuples
+        """
+        return self.similarity_cache.get_top_k_similar(event_id, k, exclude_ids)
+    
+    def get_similarity_stats(self) -> Dict:
+        """Get similarity cache statistics."""
+        return self.similarity_cache.get_stats()
+    
     def get_statistics(self) -> Dict[str, Any]:
         """Get database statistics"""
         try:
@@ -980,6 +1131,198 @@ class ChromaDBStore:
             
         except Exception as e:
             logger.error(f"Failed to refresh cache: {e}")
+    
+    def store_merged_event(self, merged_event, embedding: np.ndarray) -> bool:
+        """
+        Store a merged event with all its component tracking.
+        
+        Args:
+            merged_event: MergedEvent object to store
+            embedding: Centroid embedding for the merged event
+            
+        Returns:
+            Success status
+        """
+        try:
+            from models.merged_event import MergedEvent
+            
+            # Prepare metadata
+            metadata = {
+                'base_event_id': merged_event.base_event_id,
+                'merge_count': merged_event.merge_count,
+                'created_at': merged_event.created_at.isoformat(),
+                'last_updated': merged_event.last_updated.isoformat(),
+                'raw_event_count': len(merged_event.raw_event_ids),
+                'who_variants_count': len(merged_event.who_variants),
+                'what_variants_count': len(merged_event.what_variants),
+                'confidence_score': float(merged_event.confidence_score),
+                'coherence_score': float(merged_event.coherence_score)
+            }
+            
+            # Add dominant pattern to metadata for quick access
+            if merged_event.dominant_pattern:
+                metadata['dominant_who'] = merged_event.dominant_pattern.get('who', '')
+                metadata['dominant_what'] = merged_event.dominant_pattern.get('what', '')
+                metadata['dominant_when'] = merged_event.dominant_pattern.get('when', '')
+                metadata['dominant_where'] = merged_event.dominant_pattern.get('where', '')
+                metadata['dominant_why'] = merged_event.dominant_pattern.get('why', '')
+                metadata['dominant_how'] = merged_event.dominant_pattern.get('how', '')
+            
+            # Serialize the full merged event as document
+            document = json.dumps(merged_event.to_dict())
+            
+            # Store in ChromaDB
+            self.merged_events_collection.upsert(
+                ids=[merged_event.id],
+                embeddings=[embedding.tolist()],
+                documents=[document],
+                metadatas=[metadata]
+            )
+            
+            # Store raw event mappings
+            for raw_id in merged_event.raw_event_ids:
+                self._update_raw_event_mapping(raw_id, merged_event.id)
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to store merged event: {e}")
+            return False
+    
+    def get_merged_event(self, merged_event_id: str):
+        """
+        Retrieve a merged event by ID.
+        
+        Args:
+            merged_event_id: ID of the merged event
+            
+        Returns:
+            MergedEvent object or None
+        """
+        try:
+            from models.merged_event import MergedEvent
+            
+            result = self.merged_events_collection.get(
+                ids=[merged_event_id],
+                include=['documents', 'metadatas']
+            )
+            
+            if not result['ids']:
+                return None
+            
+            # Deserialize from document
+            document = json.loads(result['documents'][0])
+            merged_event = MergedEvent.from_dict(document)
+            
+            return merged_event
+            
+        except Exception as e:
+            logger.error(f"Failed to retrieve merged event {merged_event_id}: {e}")
+            return None
+    
+    def retrieve_merged_events_by_query(self, query_embedding: np.ndarray, 
+                                       k: int = 10) -> List[Tuple]:
+        """
+        Retrieve merged events by embedding similarity.
+        
+        Args:
+            query_embedding: Query vector
+            k: Number of results
+            
+        Returns:
+            List of (merged_event, similarity_score) tuples
+        """
+        try:
+            from models.merged_event import MergedEvent
+            
+            results = self.merged_events_collection.query(
+                query_embeddings=[query_embedding.tolist()],
+                n_results=k
+            )
+            
+            merged_events_with_scores = []
+            if results['ids'] and results['ids'][0]:
+                for i, merged_id in enumerate(results['ids'][0]):
+                    # Deserialize merged event
+                    document = json.loads(results['documents'][0][i])
+                    merged_event = MergedEvent.from_dict(document)
+                    
+                    # Calculate similarity
+                    distance = results['distances'][0][i] if results['distances'] else 0
+                    similarity = 1.0 / (1.0 + distance)
+                    
+                    merged_events_with_scores.append((merged_event, similarity))
+            
+            return merged_events_with_scores
+            
+        except Exception as e:
+            logger.error(f"Failed to retrieve merged events: {e}")
+            return []
+    
+    def _update_raw_event_mapping(self, raw_event_id: str, merged_event_id: str) -> bool:
+        """
+        Update the mapping between raw and merged events.
+        
+        Args:
+            raw_event_id: ID of the raw event
+            merged_event_id: ID of the merged event
+            
+        Returns:
+            Success status
+        """
+        try:
+            # Check if raw event exists
+            result = self.raw_events_collection.get(
+                ids=[raw_event_id],
+                include=['metadatas']
+            )
+            
+            if result['ids']:
+                # Update existing raw event
+                metadata = result['metadatas'][0]
+                metadata['merged_event_id'] = merged_event_id
+                
+                self.raw_events_collection.update(
+                    ids=[raw_event_id],
+                    metadatas=[metadata]
+                )
+            else:
+                # Create placeholder for raw event mapping
+                self.raw_events_collection.add(
+                    ids=[raw_event_id],
+                    documents=[''],
+                    metadatas=[{'merged_event_id': merged_event_id}],
+                    embeddings=[[0.0] * self.config.memory.embedding_dim]
+                )
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to update raw event mapping: {e}")
+            return False
+    
+    def get_raw_events_for_merged(self, merged_event_id: str) -> List[str]:
+        """
+        Get all raw event IDs associated with a merged event.
+        
+        Args:
+            merged_event_id: ID of the merged event
+            
+        Returns:
+            List of raw event IDs
+        """
+        try:
+            # Query raw events collection for this merged ID
+            results = self.raw_events_collection.get(
+                where={'merged_event_id': merged_event_id},
+                include=['ids']
+            )
+            
+            return results['ids'] if results['ids'] else []
+            
+        except Exception as e:
+            logger.error(f"Failed to get raw events for merged {merged_event_id}: {e}")
+            return []
     
     def __repr__(self) -> str:
         """String representation"""
