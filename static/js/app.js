@@ -6,7 +6,7 @@ let itemsPerPage = 10;
 let graphNetwork = null;
 let residualChart = null;
 let spaceUsageChart = null;
-let clusteringEnabled = true;
+let clusteringEnabled = false;  // Disabled since we removed the UI controls
 let currentCenterNode = null;  // Track if we're viewing an individual memory
 let relationStrengthThreshold = 0.3;  // Default threshold for edge filtering
 let currentGravity = -8000;  // Default gravity value (negative for repulsion)
@@ -14,10 +14,15 @@ let allGraphData = null;  // Store complete graph data for filtering
 let sortField = null;  // Current sort field
 let sortDirection = null;  // 'asc', 'desc', or null
 let originalMemoryOrder = [];  // Store original order of memories
+let currentMergeDimension = null;  // Current merge dimension being viewed (null = not initialized)
+let mergeGroups = {};  // Cache of merge groups by dimension
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOMContentLoaded fired');
+    
+    // Clean up any leftover modal backdrops from previous sessions
+    document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
     
     try {
         console.log('Initializing app...');
@@ -70,75 +75,56 @@ function initializeApp() {
     // Set up view mode toggle listeners
     const mergedView = document.getElementById('mergedView');
     const rawView = document.getElementById('rawView');
+    const dimensionSelector = document.querySelector('.merge-dimension-selector');
+    
     if (mergedView) {
         mergedView.addEventListener('change', () => {
             console.log('Switched to merged view');
+            // Update nav-link active classes
+            document.querySelector('label[for="mergedView"]').classList.add('active');
+            document.querySelector('label[for="rawView"]').classList.remove('active');
+            // Show dimension selector in merged view
+            if (dimensionSelector) {
+                dimensionSelector.style.display = 'block';
+            }
+            // If no dimension selected, default to temporal
+            if (!currentMergeDimension) {
+                currentMergeDimension = 'temporal';
+            }
             loadMemories();
         });
     }
     if (rawView) {
         rawView.addEventListener('change', () => {
             console.log('Switched to raw view');
+            // Update nav-link active classes
+            document.querySelector('label[for="rawView"]').classList.add('active');
+            document.querySelector('label[for="mergedView"]').classList.remove('active');
+            // Hide dimension selector in raw view
+            if (dimensionSelector) {
+                dimensionSelector.style.display = 'none';
+            }
             loadMemories();
         });
     }
     
-    // Set up component selector listeners for real-time graph updates
-    const componentCheckboxes = document.querySelectorAll('#componentSelector input[type="checkbox"]');
-    componentCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', () => {
-            // Don't update space weights here - will be done after graph refresh
-            if (graphNetwork) {
-                refreshGraph();
-            }
-        });
-    });
+    // Initialize with merged view showing temporal dimension
+    const memoryList = document.getElementById('memoryList');
+    const memoryTableContainer = document.getElementById('memoryTableContainer');
     
-    // Visualization mode change listener
-    const vizMode = document.getElementById('visualizationMode');
-    if (vizMode) {
-        vizMode.addEventListener('change', refreshGraph);
-    }
-    
-    // Toggle clustering button
-    const toggleBtn = document.getElementById('toggleClustering');
-    const clusteringParams = document.getElementById('clusteringParams');
-    if (toggleBtn) {
-        toggleBtn.addEventListener('click', () => {
-            clusteringEnabled = !clusteringEnabled;
-            toggleBtn.classList.toggle('btn-outline-warning');
-            toggleBtn.classList.toggle('btn-warning');
-            
-            // Show/hide clustering parameters
-            if (clusteringParams) {
-                clusteringParams.style.display = clusteringEnabled ? 'block' : 'none';
-            }
-            
-            refreshGraph();
-        });
-    }
-    
-    // Update graph when clustering parameters change
-    const minClusterSizeInput = document.getElementById('minClusterSize');
-    const minSamplesInput = document.getElementById('minSamples');
-    
-    if (minClusterSizeInput) {
-        minClusterSizeInput.addEventListener('change', refreshGraph);
-    }
-    
-    if (minSamplesInput) {
-        minSamplesInput.addEventListener('change', refreshGraph);
-    }
-    
-    // Initialize relation strength slider
-    const relationSlider = document.getElementById('relationStrengthSlider');
-    const relationValue = document.getElementById('relationStrengthValue');
-    if (relationSlider) {
-        relationSlider.addEventListener('input', function(e) {
-            const value = parseFloat(e.target.value);
-            relationValue.textContent = value.toFixed(2);
-            updateEdgeFiltering(value);
-        });
+    if (mergedView && mergedView.checked) {
+        if (dimensionSelector) {
+            dimensionSelector.style.display = 'block';
+        }
+        if (memoryList) memoryList.style.display = 'block';
+        if (memoryTableContainer) memoryTableContainer.style.display = 'none';
+        currentMergeDimension = 'temporal';
+    } else if (rawView && rawView.checked) {
+        if (dimensionSelector) {
+            dimensionSelector.style.display = 'none';
+        }
+        if (memoryList) memoryList.style.display = 'none';
+        if (memoryTableContainer) memoryTableContainer.style.display = 'block';
     }
     
     // Initialize gravity slider - now inverted so higher values = more spread out
@@ -427,7 +413,7 @@ function toggleMemoryDetails(messageId) {
 }
 
 // Memory loading and display
-async function loadMemories() {
+async function loadMemoriesOriginal() {
     console.log('Loading memories...');
     
     // Get current view mode
@@ -461,12 +447,11 @@ async function loadMemories() {
             window.mergeGroups = data.merge_groups;
         }
         
-        allMemories = data.memories || [];
         // For memory-pagination.js compatibility, store the correct format
         // The pagination expects a raw array with direct properties, not nested five_w1h
         if (viewMode === 'raw') {
             // For raw view, flatten the five_w1h properties for display
-            allMemories.raw = allMemories.map(m => ({
+            allMemories = (data.memories || []).map(m => ({
                 ...m,
                 who: m.five_w1h?.who || m.who || '',
                 what: m.five_w1h?.what || m.what || '',
@@ -480,8 +465,7 @@ async function loadMemories() {
             }));
         } else {
             // For merged view, memories already have direct properties
-            // Make sure space weights are preserved
-            allMemories.raw = allMemories.map(m => ({
+            allMemories = (data.memories || []).map(m => ({
                 ...m,
                 euclidean_weight: m.euclidean_weight,
                 hyperbolic_weight: m.hyperbolic_weight
@@ -496,7 +480,10 @@ async function loadMemories() {
             document.getElementById('rawCount').textContent = data.total_raw;
         }
         if (data.total_merged !== undefined) {
-            document.getElementById('mergedCount').textContent = data.total_merged || data.total_events || allMemories.length;
+            const mergedCountEl = document.getElementById('mergedCount');
+            if (mergedCountEl) {
+                mergedCountEl.textContent = data.total_merged || data.total_events || allMemories.length;
+            }
         }
         
         // Log first memory structure to debug
@@ -600,13 +587,24 @@ function displayMemories() {
             const whyDisplay = why.length > 30 ? why.substring(0, 30) + '...' : why;
             const howDisplay = how.length > 25 ? how.substring(0, 25) + '...' : how;
             
-            // Add merge indicator for raw view
+            // Add merge indicator for merged events or raw view
             let mergeIndicator = '';
-            if (memory.type === 'raw' && memory.merged_id) {
+            if (memory.merge_count && memory.merge_count > 1) {
+                // This is a merged event
+                mergeIndicator = `<span class="badge bg-success ms-1" title="Merged event with ${memory.merge_count} components">
+                    ${memory.merge_count}
+                </span>`;
+            } else if (memory.is_merged) {
+                // This is marked as merged from the backend
+                mergeIndicator = `<span class="badge bg-success ms-1" title="Merged event">
+                    <i class="bi bi-layers-fill"></i> M
+                </span>`;
+            } else if (memory.type === 'raw' && memory.merged_id) {
+                // This is a raw event that's part of a merge group
                 const mergeGroup = window.mergeGroups?.[memory.merged_id];
                 const groupSize = mergeGroup ? mergeGroup.length : 1;
                 mergeIndicator = `<span class="badge bg-info ms-1" title="Part of merged group ${memory.merged_id.substring(0, 8)}">
-                    <i class="bi bi-layers"></i> ${groupSize}
+                    ${groupSize}
                 </span>`;
             }
             
@@ -639,6 +637,16 @@ function displayMemories() {
                 }
             </td>
             `;
+            
+            // Make row clickable
+            row.style.cursor = 'pointer';
+            row.title = 'Click to view details';
+            row.addEventListener('click', (e) => {
+                // Don't trigger if clicking on a button or within the actions cell
+                if (!e.target.closest('button') && !e.target.closest('td:last-child')) {
+                    window.viewMemoryDetails(memory.id);
+                }
+            });
             
             tbody.appendChild(row);
         });
@@ -766,10 +774,15 @@ window.showMemoryGraph = function() {
         `;
     }
     
-    const modal = new bootstrap.Modal(document.getElementById('memoryGraphModal'));
+    const modalElement = document.getElementById('memoryGraphModal');
+    const modal = new bootstrap.Modal(modalElement);
     
-    // Add event listener to resize graph when modal is fully shown
-    document.getElementById('memoryGraphModal').addEventListener('shown.bs.modal', function () {
+    // Remove any existing event listeners first
+    const newModalElement = modalElement.cloneNode(true);
+    modalElement.parentNode.replaceChild(newModalElement, modalElement);
+    
+    // Add event listener to resize graph when modal is fully shown (once)
+    newModalElement.addEventListener('shown.bs.modal', function () {
         // Initialize graph after modal is fully shown
         initializeGraph().then(() => {
             // Ensure the network fits properly in the container
@@ -777,10 +790,24 @@ window.showMemoryGraph = function() {
                 graphNetwork.redraw();
                 graphNetwork.fit();
             }
+        }).catch(error => {
+            console.error('Failed to initialize graph:', error);
+            const graphContainer = document.getElementById('memoryGraph');
+            if (graphContainer) {
+                graphContainer.innerHTML = `
+                    <div class="d-flex flex-column justify-content-center align-items-center h-100">
+                        <i class="bi bi-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
+                        <div class="mt-3 text-danger">Failed to load graph</div>
+                        <small class="text-muted mt-2">${error.message || 'Please check console for details'}</small>
+                    </div>
+                `;
+            }
         });
-    });
+    }, { once: true });  // Use once option to auto-remove after firing
     
-    modal.show();
+    // Create modal with the new element
+    const newModal = new bootstrap.Modal(newModalElement);
+    newModal.show();
 }
 
 async function initializeGraph(centerNodeId = null) {
@@ -807,11 +834,10 @@ async function initializeGraph(centerNodeId = null) {
         
         const requestBody = {
             components: components,
-            use_clustering: clusteringEnabled,
-            visualization_mode: document.getElementById('visualizationMode').value,
-            // Include HDBSCAN parameters if clustering is enabled
-            min_cluster_size: clusteringEnabled ? parseInt(document.getElementById('minClusterSize').value) : 5,
-            min_samples: clusteringEnabled ? parseInt(document.getElementById('minSamples').value) : 3
+            use_clustering: false,  // Clustering disabled since we removed the UI
+            visualization_mode: 'dual',  // Default to dual-space
+            min_cluster_size: 5,
+            min_samples: 3
         };
         
         // Add center node if specified
@@ -820,15 +846,58 @@ async function initializeGraph(centerNodeId = null) {
             requestBody.similarity_threshold = 0.2;  // Lower threshold to show more related memories
         }
         
+        console.log('Sending graph request:', requestBody);
+        console.log('Request URL: /api/graph');
+        console.log('Request method: POST');
+        
         const response = await fetch('/api/graph', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache',
             },
+            cache: 'no-store',
             body: JSON.stringify(requestBody)
         });
         
+        console.log('Response status:', response.status);
+        console.log('Response OK:', response.ok);
+        console.log('Response URL:', response.url);
+        
+        if (!response.ok) {
+            // Try to get error message from response
+            let errorMessage = `HTTP error! status: ${response.status}`;
+            try {
+                const errorData = await response.json();
+                if (errorData.error) {
+                    errorMessage += ` - ${errorData.error}`;
+                }
+            } catch (e) {
+                // Response might not be JSON
+            }
+            throw new Error(errorMessage);
+        }
+        
         const data = await response.json();
+        
+        // Log the data for debugging
+        console.log('Graph API response:', data);
+        
+        // Check if data has the expected structure
+        if (!data || typeof data !== 'object') {
+            console.error('Invalid response from graph API:', data);
+            throw new Error('Invalid response from graph API');
+        }
+        
+        if (!data.nodes || !Array.isArray(data.nodes)) {
+            console.error('Invalid graph data structure - nodes:', data.nodes);
+            throw new Error('Invalid graph data: missing or invalid nodes array');
+        }
+        
+        if (!data.edges || !Array.isArray(data.edges)) {
+            console.error('Invalid graph data structure - edges:', data.edges);
+            throw new Error('Invalid graph data: missing or invalid edges array');
+        }
         
         // Create graph visualization and wait for stabilization
         await createGraphVisualization(data);
@@ -867,11 +936,8 @@ async function initializeGraph(centerNodeId = null) {
 }
 
 function getSelectedComponents() {
-    const components = [];
-    document.querySelectorAll('#componentSelector input[type="checkbox"]:checked').forEach(checkbox => {
-        components.push(checkbox.value);
-    });
-    return components;
+    // Always return all components since we removed the filter checkboxes
+    return ['who', 'what', 'when', 'where', 'why', 'how'];
 }
 
 function createGraphVisualization(data) {
@@ -1137,7 +1203,7 @@ function createGraphVisualization(data) {
 }
 
 function getNodeColor(node) {
-    const vizMode = document.getElementById('visualizationMode').value;
+    const vizMode = 'dual';  // Default to dual-space since we removed the UI control
     
     // First, check if it's User or Assistant for special coloring
     if (node.who === 'User') {
@@ -1329,10 +1395,33 @@ async function loadMergeStats() {
         
         // Update UI with merge statistics
         if (data.total_raw !== undefined) {
-            document.getElementById('rawCount').textContent = data.total_raw;
+            const rawCountEl = document.getElementById('rawCount');
+            if (rawCountEl) rawCountEl.textContent = data.total_raw;
         }
         if (data.total_merged !== undefined) {
-            document.getElementById('mergedCount').textContent = data.total_merged;
+            const mergedCountEl = document.getElementById('mergedCount');
+            if (mergedCountEl) mergedCountEl.textContent = data.total_merged;
+        }
+        
+        // Update multi-dimensional merge counts in tabs
+        if (data.multi_dimensional_stats) {
+            const stats = data.multi_dimensional_stats;
+            if (stats.temporal) {
+                const temporalCount = document.getElementById('temporal-count');
+                if (temporalCount) temporalCount.textContent = stats.temporal.group_count || 0;
+            }
+            if (stats.actor) {
+                const actorCount = document.getElementById('actor-count');
+                if (actorCount) actorCount.textContent = stats.actor.group_count || 0;
+            }
+            if (stats.conceptual) {
+                const conceptualCount = document.getElementById('conceptual-count');
+                if (conceptualCount) conceptualCount.textContent = stats.conceptual.group_count || 0;
+            }
+            if (stats.spatial) {
+                const spatialCount = document.getElementById('spatial-count');
+                if (spatialCount) spatialCount.textContent = stats.spatial.group_count || 0;
+            }
         }
         
         console.log('Merge statistics loaded:', data);
@@ -1765,14 +1854,13 @@ window.deleteMemory = async function(memoryId) {
     }
 }
 
-window.viewMemoryDetails = async function(memoryId) {
-    // Find the memory in both allMemories and allMemories.raw
-    let memory = allMemories.find ? allMemories.find(m => m.id === memoryId) : null;
-    if (!memory && allMemories.raw) {
-        memory = allMemories.raw.find(m => m.id === memoryId);
-    }
+window.viewMemoryDetailsOriginal = async function(memoryId) {
+    // Find the memory in allMemories (it's already an array)
+    let memory = Array.isArray(allMemories) ? allMemories.find(m => m.id === memoryId) : null;
+    
     if (!memory) {
         console.error('Memory not found:', memoryId);
+        console.log('Available memory IDs:', allMemories.map(m => m.id));
         return;
     }
     
@@ -1993,6 +2081,511 @@ window.viewMemoryDetails = async function(memoryId) {
     });
 }
 
+// Function to view merged event details with all variations
+async function viewMergedEventDetails(memoryId) {
+    try {
+        // Check if this is a multi-dimensional merge group (format: type_id)
+        const mergeTypePattern = /^(temporal|actor|conceptual|spatial)_/;
+        const match = memoryId.match(mergeTypePattern);
+        
+        let response;
+        if (match) {
+            // This is a multi-dimensional merge group
+            const mergeType = match[1];
+            response = await fetch(`/api/multi-merge/${mergeType}/${memoryId}/details`);
+        } else {
+            // Try standard merged event endpoint
+            response = await fetch(`/api/memory/${memoryId}/merged-details`);
+        }
+        
+        if (!response.ok) {
+            // Not a merged event, fall back to regular details
+            console.log(`Memory ${memoryId} is not a merged event, showing regular details`);
+            return viewMemoryDetailsOriginal(memoryId);
+        }
+        
+        const mergedEvent = await response.json();
+        
+        // Remove existing modal if any
+        const existingModal = document.getElementById('mergedEventModal');
+        if (existingModal) {
+            const existingModalInstance = bootstrap.Modal.getInstance(existingModal);
+            if (existingModalInstance) {
+                existingModalInstance.hide();
+                existingModalInstance.dispose();
+            }
+            existingModal.remove();
+        }
+        
+        // Clean up any stray backdrops
+        document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+        
+        // Create enhanced modal for merged event
+        const modalHtml = createMergedEventModal(mergedEvent);
+        
+        // Add modal to body using insertAdjacentHTML to preserve structure
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Get the newly added modal element
+        const modalElement = document.getElementById('mergedEventModal');
+        
+        // Initialize tabs and other interactive elements
+        initializeMergedEventModal(mergedEvent);
+        
+        // Create and show the modal using Bootstrap's standard approach
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+        
+        // Clean up after close
+        modalElement.addEventListener('hidden.bs.modal', function() {
+            const instance = bootstrap.Modal.getInstance(this);
+            if (instance) {
+                instance.dispose();
+            }
+            this.remove();
+        }, { once: true });
+    } catch (error) {
+        console.error('Error fetching merged event details:', error);
+        // Clean up any backdrops on error
+        document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+        // Fall back to regular view
+        return viewMemoryDetailsOriginal(memoryId);
+    }
+}
+
+// Create the merged event modal HTML
+function createMergedEventModal(mergedEvent) {
+    const latest = mergedEvent.latest_state || {};
+    
+    return `
+        <div class="modal fade" id="mergedEventModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content" style="background-color: #1a1a2e;">
+                    <div class="modal-header">
+                        <h5 class="modal-title text-cyan">
+                            <i class="bi bi-layers"></i> Merged Event Details
+                            <span class="badge bg-info ms-2">${mergedEvent.merge_count} events</span>
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Tab Navigation -->
+                        <ul class="nav nav-tabs mb-3" role="tablist">
+                            <li class="nav-item">
+                                <a class="nav-link active" data-bs-toggle="tab" href="#mergedOverview">Overview</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-bs-toggle="tab" href="#mergedTimeline">Timeline</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-bs-toggle="tab" href="#mergedContext">LLM Context</a>
+                            </li>
+                        </ul>
+                        
+                        <!-- Tab Content -->
+                        <div class="tab-content">
+                            <!-- Overview Tab -->
+                            <div class="tab-pane fade show active" id="mergedOverview">
+                                ${createMergedOverviewTab(mergedEvent, latest)}
+                            </div>
+                            
+                            <!-- Timeline Tab -->
+                            <div class="tab-pane fade" id="mergedTimeline">
+                                ${createMergedVariationsTab(mergedEvent)}
+                            </div>
+                            
+                            <!-- Context Tab -->
+                            <div class="tab-pane fade" id="mergedContext">
+                                ${createMergedContextTab(mergedEvent)}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-info" onclick="window.showMemoryInGraph('${mergedEvent.id}')">
+                            <i class="bi bi-diagram-3"></i> Show in Graph
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Create overview tab content
+function createMergedOverviewTab(mergedEvent, latest) {
+    // Helper function to create component table
+    const createComponentTable = (title, variants, displayField = 'value') => {
+        if (!variants || Object.keys(variants).length === 0) {
+            return `<div class="mb-3">
+                <div class="text-info small">${title}</div>
+                <div class="text-white ms-3">—</div>
+            </div>`;
+        }
+        
+        let tableHtml = `
+            <div class="mb-4">
+                <h6 class="text-info">${title}</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-dark table-striped">
+                        <thead>
+                            <tr>
+                                <th>Value</th>
+                                <th>Count</th>
+                                <th>Last Updated</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+        
+        // Aggregate all variants
+        const aggregated = {};
+        for (const [key, variantList] of Object.entries(variants)) {
+            for (const variant of variantList) {
+                const value = variant[displayField] || variant.value || key;
+                if (!aggregated[value]) {
+                    aggregated[value] = {
+                        count: 0,
+                        lastUpdated: variant.timestamp
+                    };
+                }
+                aggregated[value].count++;
+                if (variant.timestamp > aggregated[value].lastUpdated) {
+                    aggregated[value].lastUpdated = variant.timestamp;
+                }
+            }
+        }
+        
+        // Sort by count descending
+        const sorted = Object.entries(aggregated).sort((a, b) => b[1].count - a[1].count);
+        
+        for (const [value, data] of sorted.slice(0, 10)) { // Show top 10
+            tableHtml += `
+                <tr>
+                    <td class="text-truncate" style="max-width: 300px;" title="${escapeHtml(value)}">
+                        ${escapeHtml(value.substring(0, 100))}
+                    </td>
+                    <td><span class="badge bg-secondary">${data.count}</span></td>
+                    <td class="text-muted small">${formatDate(data.lastUpdated)}</td>
+                </tr>`;
+        }
+        
+        tableHtml += `
+                        </tbody>
+                    </table>
+                </div>
+                ${sorted.length > 10 ? `<div class="text-muted small">Showing 10 of ${sorted.length} total values</div>` : ''}
+            </div>`;
+        
+        return tableHtml;
+    };
+    
+    // Helper function to create component rows for unified table
+    const createComponentRows = (title, variants, displayField = 'value') => {
+        if (!variants || Object.keys(variants).length === 0) {
+            return `
+                <tr class="table-secondary">
+                    <td colspan="3"><strong>${title}</strong></td>
+                </tr>
+                <tr>
+                    <td colspan="3" class="text-muted ps-4">No data available</td>
+                </tr>`;
+        }
+        
+        // Aggregate all variants
+        const aggregated = {};
+        for (const [key, variantList] of Object.entries(variants)) {
+            for (const variant of variantList) {
+                const value = variant[displayField] || variant.value || key;
+                if (!aggregated[value]) {
+                    aggregated[value] = {
+                        count: 0,
+                        lastUpdated: variant.timestamp
+                    };
+                }
+                aggregated[value].count++;
+                if (variant.timestamp > aggregated[value].lastUpdated) {
+                    aggregated[value].lastUpdated = variant.timestamp;
+                }
+            }
+        }
+        
+        // Sort by count descending
+        const sorted = Object.entries(aggregated).sort((a, b) => b[1].count - a[1].count);
+        
+        let rows = `
+            <tr class="table-secondary">
+                <td colspan="3"><strong>${title}</strong></td>
+            </tr>`;
+        
+        for (const [value, data] of sorted.slice(0, 5)) { // Show top 5 per section
+            rows += `
+                <tr>
+                    <td class="text-truncate ps-4" style="max-width: 400px;" title="${escapeHtml(value)}">
+                        ${escapeHtml(value.substring(0, 100))}
+                    </td>
+                    <td style="width: 100px;"><span class="badge bg-secondary">${data.count}</span></td>
+                    <td style="width: 200px;" class="text-muted small">${formatDate(data.lastUpdated)}</td>
+                </tr>`;
+        }
+        
+        if (sorted.length > 5) {
+            rows += `
+                <tr>
+                    <td colspan="3" class="text-muted small ps-4">...and ${sorted.length - 5} more</td>
+                </tr>`;
+        }
+        
+        return rows;
+    };
+    
+    return `
+        <div class="row">
+            <div class="col-12">
+                <h5 class="text-purple mb-3">Component Summary</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm table-dark table-hover">
+                        <thead>
+                            <tr>
+                                <th>Value</th>
+                                <th style="width: 100px;">Count</th>
+                                <th style="width: 200px;">Last Updated</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${createComponentRows('WHO - Actors', mergedEvent.who_variants)}
+                            ${createComponentRows('WHAT - Actions', mergedEvent.what_variants)}
+                            ${createComponentRows('WHERE - Locations', mergedEvent.where_variants || (mergedEvent.where_locations ? {'locations': Object.entries(mergedEvent.where_locations).map(([loc, count]) => ({value: loc, timestamp: new Date()}))} : {}))}
+                            ${createComponentRows('WHY - Reasons', mergedEvent.why_variants)}
+                            ${createComponentRows('HOW - Methods', mergedEvent.how_variants || (mergedEvent.how_methods ? {'methods': Object.entries(mergedEvent.how_methods).map(([method, count]) => ({value: method, timestamp: new Date()}))} : {}))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <h5 class="text-purple mb-3">Merge Statistics</h5>
+                <div class="mb-3">
+                    <div class="text-info small">Total Events Merged</div>
+                    <div class="text-white ms-3">${mergedEvent.merge_count}</div>
+                </div>
+                <div class="mb-3">
+                    <div class="text-info small">Base Event ID</div>
+                    <div class="text-white ms-3 font-monospace">${escapeHtml(mergedEvent.base_event_id)}</div>
+                </div>
+                <div class="mb-3">
+                    <div class="text-info small">Created</div>
+                    <div class="text-white ms-3">${formatDate(mergedEvent.created_at)}</div>
+                </div>
+                <div class="mb-3">
+                    <div class="text-info small">Last Updated</div>
+                    <div class="text-white ms-3">${formatDate(mergedEvent.last_updated)}</div>
+                </div>
+                ${mergedEvent.supersedes ? `
+                <div class="mb-3">
+                    <div class="text-info small">Supersedes</div>
+                    <div class="text-white ms-3">${escapeHtml(mergedEvent.supersedes)}</div>
+                </div>
+                ` : ''}
+                ${mergedEvent.superseded_by ? `
+                <div class="mb-3">
+                    <div class="text-info small">Superseded By</div>
+                    <div class="text-white ms-3">${escapeHtml(mergedEvent.superseded_by)}</div>
+                </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+}
+
+// Create timeline tab content
+function createMergedTimelineTab(mergedEvent) {
+    if (!mergedEvent.when_timeline || mergedEvent.when_timeline.length === 0) {
+        return '<p class="text-muted">No timeline data available</p>';
+    }
+    
+    let html = '<div class="timeline">';
+    mergedEvent.when_timeline.forEach((point, index) => {
+        html += `
+            <div class="timeline-item mb-3">
+                <div class="d-flex align-items-start">
+                    <div class="badge bg-primary me-3">${index + 1}</div>
+                    <div class="flex-grow-1">
+                        <div class="text-info small">${formatDate(point.timestamp)}</div>
+                        <div class="text-white">${escapeHtml(point.description || 'Event occurred')}</div>
+                        ${point.semantic_time ? `<div class="text-muted small">${escapeHtml(point.semantic_time)}</div>` : ''}
+                        <div class="text-muted small font-monospace">Event: ${escapeHtml(point.event_id)}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    return html;
+}
+
+// Create variations tab content
+function createMergedVariationsTab(mergedEvent) {
+    // Check if there are any variations
+    const hasVariations = 
+        Object.keys(mergedEvent.who_variants || {}).length > 0 ||
+        Object.keys(mergedEvent.what_variants || {}).length > 0 ||
+        Object.keys(mergedEvent.where_locations || {}).length > 0 ||
+        Object.keys(mergedEvent.why_variants || {}).length > 0 ||
+        Object.keys(mergedEvent.how_methods || {}).length > 0;
+    
+    if (!hasVariations) {
+        return '<div class="p-3 text-center text-muted">No component variations available for this event.</div>';
+    }
+    
+    let html = '<div class="accordion accordion-flush" id="variationsAccordion">';
+    
+    // WHO variations
+    if (Object.keys(mergedEvent.who_variants || {}).length > 0) {
+        html += createVariationAccordionItem('who', 'Who', mergedEvent.who_variants);
+    }
+    
+    // WHAT variations
+    if (Object.keys(mergedEvent.what_variants || {}).length > 0) {
+        html += createVariationAccordionItem('what', 'What', mergedEvent.what_variants);
+    }
+    
+    // WHERE locations
+    if (Object.keys(mergedEvent.where_locations || {}).length > 0) {
+        html += `
+            <div class="accordion-item bg-dark border-secondary">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed bg-dark text-white" type="button" data-bs-toggle="collapse" data-bs-target="#whereVariations">
+                        <span class="text-cyan">Where</span> <span class="badge bg-info ms-2">${Object.keys(mergedEvent.where_locations).length} locations</span>
+                    </button>
+                </h2>
+                <div id="whereVariations" class="accordion-collapse collapse" data-bs-parent="#variationsAccordion">
+                    <div class="accordion-body bg-dark">
+                        ${Object.entries(mergedEvent.where_locations).map(([location, count]) => `
+                            <div class="mb-2">
+                                <span class="text-white">${escapeHtml(location)}</span>
+                                <span class="badge bg-secondary ms-2">${count}x</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // WHY variations
+    if (Object.keys(mergedEvent.why_variants || {}).length > 0) {
+        html += createVariationAccordionItem('why', 'Why', mergedEvent.why_variants);
+    }
+    
+    // HOW methods
+    if (Object.keys(mergedEvent.how_methods || {}).length > 0) {
+        html += `
+            <div class="accordion-item bg-dark border-secondary">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed bg-dark text-white" type="button" data-bs-toggle="collapse" data-bs-target="#howVariations">
+                        <span class="text-cyan">How</span> <span class="badge bg-info ms-2">${Object.keys(mergedEvent.how_methods).length} methods</span>
+                    </button>
+                </h2>
+                <div id="howVariations" class="accordion-collapse collapse" data-bs-parent="#variationsAccordion">
+                    <div class="accordion-body bg-dark">
+                        ${Object.entries(mergedEvent.how_methods).map(([method, count]) => `
+                            <div class="mb-2">
+                                <span class="text-white">${escapeHtml(method)}</span>
+                                <span class="badge bg-secondary ms-2">${count}x</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+// Helper function to create variation accordion items
+function createVariationAccordionItem(id, label, variants) {
+    const variantCount = Object.values(variants).reduce((sum, v) => sum + v.length, 0);
+    
+    return `
+        <div class="accordion-item bg-dark border-secondary">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed bg-dark text-white" type="button" data-bs-toggle="collapse" data-bs-target="#${id}Variations">
+                    <span class="text-cyan">${label}</span> <span class="badge bg-info ms-2">${variantCount}</span>
+                </button>
+            </h2>
+            <div id="${id}Variations" class="accordion-collapse collapse" data-bs-parent="#variationsAccordion">
+                <div class="accordion-body bg-dark">
+                    ${Object.entries(variants).map(([key, variantList]) => `
+                        <div class="mb-3">
+                            <h6 class="text-info">${escapeHtml(key.substring(0, 50))}</h6>
+                            ${variantList.map(v => `
+                                <div class="ms-3 mb-2 p-2 bg-dark rounded">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <div class="text-white">${escapeHtml(v.value)}</div>
+                                            <div class="text-muted small">
+                                                ${formatDate(v.timestamp)} 
+                                                <span class="badge bg-secondary ms-2">${v.relationship}</span>
+                                                ${v.version > 1 ? `<span class="badge bg-primary ms-1">v${v.version}</span>` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Create context tab content
+function createMergedContextTab(mergedEvent) {
+    const context = mergedEvent.context_preview || {};
+    
+    return `
+        <div>
+            <h6 class="text-purple mb-3">Summary Context</h6>
+            <div class="p-3 bg-dark rounded mb-4">
+                <pre class="text-white mb-0">${escapeHtml(context.summary || 'No summary available')}</pre>
+            </div>
+            
+            <h6 class="text-purple mb-3">Detailed Context (As Seen by LLM)</h6>
+            <div class="p-3 bg-dark rounded">
+                <pre class="text-white mb-0">${escapeHtml(context.detailed || 'No detailed context available')}</pre>
+            </div>
+        </div>
+    `;
+}
+
+// Initialize merged event modal interactions
+function initializeMergedEventModal(mergedEvent) {
+    // Any additional initialization for interactive elements
+    console.log('Merged event modal initialized for:', mergedEvent.id);
+}
+
+// Enhanced function to check if memory is merged and display accordingly
+window.viewMemoryDetails = async function(memoryId) {
+    // Check if this is a raw event (raw events have IDs starting with 'raw_')
+    if (memoryId.startsWith('raw_')) {
+        // Raw events should use the original details viewer
+        return window.viewMemoryDetailsOriginal(memoryId);
+    }
+    
+    // For non-raw events, try to get it as a merged event
+    try {
+        await viewMergedEventDetails(memoryId);
+    } catch (error) {
+        console.error('Error in viewMergedEventDetails:', error);
+        // Fall back to original view
+        window.viewMemoryDetailsOriginal(memoryId);
+    }
+};
+
 // Function to update edge filtering based on relation strength threshold
 function updateEdgeFiltering(threshold) {
     if (!graphNetwork || !allGraphData) return;
@@ -2167,18 +2760,48 @@ function updateGraphPhysics(gravity) {
 }
 
 window.showMemoryInGraph = function(memoryId) {
-    // Close the details modal
+    // Close any open details modals
     const detailModal = bootstrap.Modal.getInstance(document.getElementById('memoryDetailModal'));
     if (detailModal) {
         detailModal.hide();
     }
     
-    // Open the graph modal
-    const graphModal = new bootstrap.Modal(document.getElementById('memoryGraphModal'));
-    graphModal.show();
+    // Also close the merged event details modal if it's open
+    const mergedModal = bootstrap.Modal.getInstance(document.getElementById('mergedEventModal'));
+    if (mergedModal) {
+        mergedModal.hide();
+        // Give it a moment to close before removing
+        setTimeout(() => {
+            const mergedElement = document.getElementById('mergedEventModal');
+            if (mergedElement) {
+                mergedElement.remove();
+            }
+        }, 300);
+    }
     
-    // Initialize graph after modal is shown, with the selected memory as center
-    setTimeout(() => {
+    // Show loading indicator immediately
+    const graphContainer = document.getElementById('memoryGraph');
+    if (graphContainer) {
+        graphContainer.innerHTML = `
+            <div class="d-flex flex-column justify-content-center align-items-center h-100">
+                <div class="spinner-grow text-purple" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-3 text-muted">Loading memory in graph...</div>
+            </div>
+        `;
+    }
+    
+    // Open the graph modal
+    const modalElement = document.getElementById('memoryGraphModal');
+    const graphModal = new bootstrap.Modal(modalElement);
+    
+    // Use the modal shown event to initialize the graph
+    modalElement.addEventListener('shown.bs.modal', function onModalShown() {
+        // Remove this listener after it fires once
+        modalElement.removeEventListener('shown.bs.modal', onModalShown);
+        
+        // Initialize graph with the selected memory as center
         initializeGraph(memoryId).then(() => {
             // Focus on the center node
             if (graphNetwork && memoryId) {
@@ -2218,8 +2841,21 @@ window.showMemoryInGraph = function(memoryId) {
             }
         }).catch(error => {
             console.error('Error initializing graph:', error);
+            // Show error in graph container
+            const graphContainer = document.getElementById('memoryGraph');
+            if (graphContainer) {
+                graphContainer.innerHTML = `
+                    <div class="d-flex flex-column justify-content-center align-items-center h-100">
+                        <i class="bi bi-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
+                        <div class="mt-3 text-danger">Failed to load graph</div>
+                        <small class="text-muted mt-2">${error.message || 'Please check console for details'}</small>
+                    </div>
+                `;
+            }
         });
-    }, 300);
+    });
+    
+    graphModal.show();
 }
 
 window.performSearch = async function() {
@@ -2487,3 +3123,369 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+// Multi-dimensional merge functions
+async function loadMergeDimensions() {
+    try {
+        const response = await fetch('/api/merge-dimensions');
+        const data = await response.json();
+        
+        // Update dimension counts in UI
+        data.dimensions.forEach(dim => {
+            const countElement = document.getElementById(`${dim.type}-count`);
+            if (countElement) {
+                countElement.textContent = dim.group_count;
+            }
+        });
+        
+        return data.dimensions;
+    } catch (error) {
+        console.error('Error loading merge dimensions:', error);
+        return [];
+    }
+}
+
+async function switchMergeDimension(dimension) {
+    currentMergeDimension = dimension;
+    
+    // Update nav-link active classes
+    document.querySelectorAll('.merge-dimension-selector .nav-link').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.dimension === dimension) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Update description
+    const descriptions = {
+        'temporal': 'Groups conversation threads and sequential actions',
+        'actor': 'Groups all memories from the same person or actor',
+        'conceptual': 'Groups memories by goals, purposes, and abstract concepts',
+        'spatial': 'Groups memories by location or spatial context'
+    };
+    const descElement = document.getElementById('dimension-description');
+    if (descElement) {
+        descElement.textContent = descriptions[dimension] || '';
+    }
+    
+    // Load merge groups for this dimension
+    await loadMergeGroups(dimension);
+}
+
+async function loadMergeGroups(dimension) {
+    try {
+        const response = await fetch(`/api/merge-groups/${dimension}`);
+        const data = await response.json();
+        
+        // Cache the groups
+        mergeGroups[dimension] = data.groups;
+        
+        // Display the merge groups
+        displayMergeGroups(data.groups);
+        
+        return data.groups;
+    } catch (error) {
+        console.error('Error loading merge groups:', error);
+        return [];
+    }
+}
+
+function displayMergeGroups(groups) {
+    // Hide card view, show table view
+    const memoryList = document.getElementById('memoryList');
+    const memoryTableContainer = document.getElementById('memoryTableContainer');
+    
+    if (memoryList) memoryList.style.display = 'none';
+    if (memoryTableContainer) memoryTableContainer.style.display = 'block';
+    
+    const tbody = document.getElementById('memoryTableBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    if (groups.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No merge groups found for this dimension</td></tr>';
+        return;
+    }
+    
+    // Display merge groups in table format
+    groups.forEach(group => {
+        const row = document.createElement('tr');
+        const latest = group.latest_state || {};
+        
+        // Get the most recent values from the merged event
+        const who = latest.who || group.key || '—';
+        const what = latest.what || '—';
+        const when = latest.when || group.last_updated || '—';
+        const where = latest.where || '—';
+        const why = latest.why || '—';
+        const how = latest.how || '—';
+        
+        // Create merge indicator
+        const mergeIndicator = `<span class="badge bg-success ms-1" title="${group.merge_count} merged events">
+            ${group.merge_count}
+        </span>`;
+        
+        // Create space weight indicator (use dominant pattern)
+        const spaceWeight = group.dominant_pattern === 'abstract' ? 
+            '<span class="badge bg-warning">Hyperbolic</span>' : 
+            '<span class="badge bg-info">Euclidean</span>';
+        
+        row.innerHTML = `
+            <td>${escapeHtml(who)}</td>
+            <td title="${escapeHtml(what)}">${escapeHtml(what.substring(0, 40))}${what.length > 40 ? '...' : ''}${mergeIndicator}</td>
+            <td>${formatDate(when)}</td>
+            <td>${escapeHtml(where.substring(0, 20))}${where.length > 20 ? '...' : ''}</td>
+            <td title="${escapeHtml(why)}">${escapeHtml(why.substring(0, 30))}${why.length > 30 ? '...' : ''}</td>
+            <td title="${escapeHtml(how)}">${escapeHtml(how.substring(0, 25))}${how.length > 25 ? '...' : ''}</td>
+            <td>${spaceWeight}</td>
+            <td><span class="badge bg-secondary">Merged</span></td>
+            <td>
+                <button class="btn btn-sm btn-outline-info" onclick="window.viewMemoryDetails('${group.id}')" title="View Details">
+                    <i class="bi bi-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-primary" onclick="window.showMemoryInGraph('${group.id}')" title="Show in Graph">
+                    <i class="bi bi-diagram-3"></i>
+                </button>
+            </td>
+        `;
+        
+        // Make row clickable
+        row.style.cursor = 'pointer';
+        row.title = 'Click to view details';
+        row.addEventListener('click', (e) => {
+            // Don't trigger if clicking on a button or within the actions cell
+            if (!e.target.closest('button') && !e.target.closest('td:last-child')) {
+                window.viewMemoryDetails(group.id);
+            }
+        });
+        
+        tbody.appendChild(row);
+    });
+    
+    // Update pagination for merged view
+    updatePagination();
+}
+
+function createMergeGroupCard(group) {
+    const card = document.createElement('div');
+    card.className = 'memory-card mb-3';
+    
+    const primaryField = getPrimaryFieldForDimension(group.type);
+    const primaryValue = group.latest_state[primaryField] || group.key || 'Unknown';
+    
+    card.innerHTML = `
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5 class="card-title">${escapeHtml(primaryValue)}</h5>
+                        <div class="text-muted small">
+                            <span class="badge bg-info me-2">${group.merge_count} merged events</span>
+                            <span>Last updated: ${formatDate(group.last_updated)}</span>
+                        </div>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewMergeGroupDetail('${group.type}', '${group.id}')">
+                            <i class="bi bi-eye"></i> View Details
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    ${renderGroupSummary(group)}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    return card;
+}
+
+function getPrimaryFieldForDimension(dimension) {
+    const fields = {
+        'actor': 'who',
+        'temporal': 'what',
+        'conceptual': 'why',
+        'spatial': 'where'
+    };
+    return fields[dimension] || 'what';
+}
+
+function renderGroupSummary(group) {
+    const state = group.latest_state;
+    let summary = '<div class="small">';
+    
+    if (state.who) summary += `<div><strong>Who:</strong> ${escapeHtml(state.who)}</div>`;
+    if (state.what) summary += `<div><strong>What:</strong> ${escapeHtml(state.what.substring(0, 100))}${state.what.length > 100 ? '...' : ''}</div>`;
+    if (state.why) summary += `<div><strong>Why:</strong> ${escapeHtml(state.why)}</div>`;
+    if (state.where) summary += `<div><strong>Where:</strong> ${escapeHtml(state.where)}</div>`;
+    
+    summary += '</div>';
+    return summary;
+}
+
+async function viewMergeGroupDetail(mergeType, groupId) {
+    try {
+        const response = await fetch(`/api/merge-group/${mergeType}/${groupId}`);
+        const data = await response.json();
+        
+        // Show detail modal or navigate to detail view
+        showMergeGroupDetailModal(data);
+    } catch (error) {
+        console.error('Error loading merge group detail:', error);
+    }
+}
+
+function showMergeGroupDetailModal(mergeGroup) {
+    // Create or update modal for merge group details
+    let modal = document.getElementById('mergeGroupDetailModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.className = 'modal fade';
+        modal.id = 'mergeGroupDetailModal';
+        modal.innerHTML = `
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Merge Group Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body" id="mergeGroupDetailBody">
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    const modalBody = document.getElementById('mergeGroupDetailBody');
+    modalBody.innerHTML = renderMergeGroupDetail(mergeGroup);
+    
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+}
+
+function renderMergeGroupDetail(group) {
+    let html = `
+        <div class="merge-group-detail">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <h6>Basic Information</h6>
+                    <div class="small">
+                        <div><strong>Type:</strong> ${group.type}</div>
+                        <div><strong>ID:</strong> ${group.id}</div>
+                        <div><strong>Merge Count:</strong> ${group.merge_count}</div>
+                        <div><strong>Created:</strong> ${formatDate(group.created_at)}</div>
+                        <div><strong>Last Updated:</strong> ${formatDate(group.last_updated)}</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h6>Latest State</h6>
+                    <div class="small">
+                        ${renderGroupSummary({latest_state: group.latest_state})}
+                    </div>
+                </div>
+            </div>
+    `;
+    
+    // Component variations
+    if (Object.keys(group.who_variants || {}).length > 0) {
+        html += renderComponentVariations('Who', group.who_variants);
+    }
+    if (Object.keys(group.what_variants || {}).length > 0) {
+        html += renderComponentVariations('What', group.what_variants);
+    }
+    if (Object.keys(group.why_variants || {}).length > 0) {
+        html += renderComponentVariations('Why', group.why_variants);
+    }
+    
+    // Timeline
+    if (group.when_timeline && group.when_timeline.length > 0) {
+        html += `
+            <div class="mb-3">
+                <h6>Timeline</h6>
+                <div class="timeline small">
+        `;
+        group.when_timeline.forEach(point => {
+            html += `
+                <div class="timeline-item">
+                    <span class="badge bg-secondary me-2">${formatDate(point.timestamp)}</span>
+                    ${escapeHtml(point.description || point.semantic_time || '')}
+                </div>
+            `;
+        });
+        html += '</div></div>';
+    }
+    
+    // Raw events
+    if (group.raw_event_ids && group.raw_event_ids.length > 0) {
+        html += `
+            <div class="mb-3">
+                <h6>Raw Events (${group.raw_event_ids.length})</h6>
+                <div class="small text-muted">
+                    ${group.raw_event_ids.slice(0, 5).join(', ')}
+                    ${group.raw_event_ids.length > 5 ? '...' : ''}
+                </div>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+function renderComponentVariations(componentName, variants) {
+    let html = `
+        <div class="mb-3">
+            <h6>${componentName} Variations</h6>
+            <div class="variations small">
+    `;
+    
+    for (const [key, variantList] of Object.entries(variants)) {
+        variantList.forEach(variant => {
+            html += `
+                <div class="variant-item mb-1">
+                    <span class="badge bg-secondary me-1">${variant.relationship}</span>
+                    <span class="badge bg-info me-1">v${variant.version}</span>
+                    ${escapeHtml(variant.value)}
+                    <span class="text-muted ms-2">(${formatDate(variant.timestamp)})</span>
+                </div>
+            `;
+        });
+    }
+    
+    html += '</div></div>';
+    return html;
+}
+
+// Update the existing loadMemories function to check for merge dimension mode
+window.loadMemories = async function() {
+    // Check current view mode
+    const isRawView = document.getElementById('rawView') && document.getElementById('rawView').checked;
+    const isMergedView = document.getElementById('mergedView') && document.getElementById('mergedView').checked;
+    
+    // Get display elements
+    const memoryList = document.getElementById('memoryList');
+    const memoryTableContainer = document.getElementById('memoryTableContainer');
+    
+    // Load merge dimensions (for counts)
+    await loadMergeDimensions();
+    
+    if (isRawView) {
+        // Raw view - show table, hide cards
+        if (memoryList) memoryList.style.display = 'none';
+        if (memoryTableContainer) memoryTableContainer.style.display = 'block';
+        await loadMemoriesOriginal();
+    } else if (isMergedView) {
+        // Merged view - show table (will be handled by displayMergeGroups)
+        // Default to temporal if not set
+        if (!currentMergeDimension) {
+            currentMergeDimension = 'temporal';
+        }
+        await loadMergeGroups(currentMergeDimension);
+    }
+}
+
+// Export functions for global access
+window.switchMergeDimension = switchMergeDimension;
+window.viewMergeGroupDetail = viewMergeGroupDetail;

@@ -89,9 +89,9 @@ def create_test_memories(store: MemoryStore):
         )
         success, msg = store.store_event(event)
         if success:
-            print(f"  ✓ Stored: {event_data['what'][:50]}...")
+            print(f"  Stored: {event_data['what'][:50]}...")
         else:
-            print(f"  ✗ Failed: {msg}")
+            print(f"  Failed: {msg}")
     
     print()
 
@@ -128,7 +128,7 @@ def test_temporal_queries(store: MemoryStore):
     print("=" * 80)
     
     for test in test_queries:
-        print(f"\n📝 Query: {list(test['query'].values())[0]}")
+        print(f"\n Query: {list(test['query'].values())[0]}")
         print(f"   Type: {test['description']}")
         print("-" * 60)
         
@@ -208,13 +208,13 @@ def test_temporal_detection():
         context = handler.compute_temporal_context({"what": phrase})
         
         if context['temporal_strength'] > 0.2:
-            print(f"\n✓ '{phrase}'")
+            print(f"\n'{phrase}'")
             print(f"  Type: {context['temporal_type']}")
             print(f"  Similarity: {context['similarity']:.3f}")
             print(f"  Strength: {context['temporal_strength']:.3f}")
             print(f"  Window: {context['suggested_window']:.1f} hours")
         else:
-            print(f"\n✗ '{phrase}' - No significant temporal intent detected")
+            print(f"\n'{phrase}' - No significant temporal intent detected")
             print(f"  (Strength: {context['temporal_strength']:.3f})")
 
 

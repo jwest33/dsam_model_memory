@@ -612,6 +612,106 @@ h6 { font-size: 0.60rem; }
     border-radius: 5px;
 }
 
+/* Merged Event Styles */
+.timeline-item {
+    border-left: 2px solid #ff00ff;
+    padding-left: 20px;
+    position: relative;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: 5px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #00ffff;
+    box-shadow: 0 0 10px #00ffff;
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: #2a2a4e !important;
+    color: #00ffff !important;
+}
+
+.accordion-button:focus {
+    box-shadow: 0 0 0 0.25rem rgba(0, 255, 255, 0.25);
+}
+
+.badge.bg-success {
+    background: linear-gradient(45deg, #ff00ff, #00ffff) !important;
+    color: #000 !important;
+    font-weight: bold;
+}
+
+/* View mode toggle - compact version of nav tabs */
+.view-mode-toggle .nav-tabs {
+    background: var(--synth-surface);
+    border-radius: 8px;
+    border: 1px solid var(--synth-border);
+    overflow: hidden;
+}
+
+.view-mode-toggle .nav-tabs .nav-link {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    min-width: 120px;
+}
+
+.view-mode-toggle .nav-tabs .nav-link .badge {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.4rem;
+}
+
+.view-mode-toggle .btn-check {
+    position: absolute;
+    clip: rect(0,0,0,0);
+    pointer-events: none;
+}
+
+/* Merge dimension selector - even smaller tabs */
+.merge-dimension-selector .nav-tabs {
+    background: var(--synth-surface);
+    border-radius: 6px;
+    border: 1px solid var(--synth-border);
+    overflow: hidden;
+}
+
+.merge-dimension-selector .nav-tabs .nav-link {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.7rem;
+    min-width: 90px;
+}
+
+.merge-dimension-selector .nav-tabs .nav-link .badge {
+    font-size: 0.6rem;
+    padding: 0.15rem 0.3rem;
+}
+
+.merge-dimension-selector .nav-tabs .nav-link i {
+    font-size: 0.75rem;
+}
+
+/* Modal tabs for merged events */
+#mergedEventModal .nav-tabs .nav-link {
+    color: #ff00ff;
+    background-color: transparent;
+    border-color: transparent;
+}
+
+#mergedEventModal .nav-tabs .nav-link:hover {
+    color: #00ffff;
+    border-color: #00ffff transparent transparent;
+}
+
+#mergedEventModal .nav-tabs .nav-link.active {
+    color: #00ffff;
+    background-color: #1a1a2e;
+    border-color: #00ffff #00ffff transparent;
+}
+
 /* Animations */
 @keyframes fadeIn {
     from {
@@ -876,4 +976,40 @@ h6 { font-size: 0.60rem; }
 .vis-navigation .vis-button {
     margin: 2px !important;
     display: inline-block !important;
+}
+
+/* Merged Event Modal Accordion Styling */
+#mergedEventModal .accordion-button:not(.collapsed) {
+    background-color: rgba(0, 255, 255, 0.1) !important;
+    color: var(--synth-cyan) !important;
+    border-bottom: 1px solid var(--synth-cyan) !important;
+}
+
+#mergedEventModal .accordion-button:focus {
+    box-shadow: none !important;
+    border-color: var(--synth-cyan) !important;
+}
+
+#mergedEventModal .accordion-button::after {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%2300ffff'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e") !important;
+}
+
+#mergedEventModal .accordion-item {
+    border: 1px solid rgba(45, 36, 56, 0.5) !important;
+    margin-bottom: 0.5rem !important;
+}
+
+#mergedEventModal .accordion-body {
+    padding: 1.25rem !important;
+    background: rgba(26, 22, 37, 0.5) !important;
+}
+
+/* Component Variations Tab Enhancement */
+#mergedVariations .accordion-flush .accordion-item {
+    background: transparent !important;
+    border-radius: 0.5rem !important;
+}
+
+#mergedVariations .text-cyan {
+    font-weight: 600 !important;
 }

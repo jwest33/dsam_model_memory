@@ -19,10 +19,14 @@ from sklearn.preprocessing import StandardScaler
 import uuid
 
 from models.event import Event, FiveW1H, EventType
+from models.merged_event import MergedEvent, EventRelationship
 from memory.chromadb_store import ChromaDBStore
 from memory.dual_space_encoder import DualSpaceEncoder, HyperbolicOperations, mobius_add
 from memory.temporal_query import integrate_temporal_with_dual_space
 from memory.hopfield import ModernHopfieldNetwork
+from memory.smart_merger import SmartMerger
+from memory.temporal_chain import TemporalChain
+from memory.context_generator import MergedEventContextGenerator
 from config import get_config
 
 logger = logging.getLogger(__name__)
@@ -50,8 +54,17 @@ class MemoryStore:
         self.merged_to_raw = {}  # merged_event_id -> Set[raw_event_ids]
         self.raw_to_merged = {}  # raw_event_id -> merged_event_id
         
+        # New merging components
+        self.smart_merger = SmartMerger(similarity_threshold=0.85)
+        self.temporal_chain = TemporalChain()
+        self.context_generator = MergedEventContextGenerator(self.temporal_chain)
+        self.merged_events_cache = {}  # merged_event_id -> MergedEvent
+        
         # Load existing raw events from ChromaDB
         self._load_raw_events_from_db()
+        
+        # Load existing merged events from ChromaDB
+        self._load_merged_events_from_db()
         
         # Dual-space encoder with config values
         self.encoder = DualSpaceEncoder(
@@ -117,6 +130,9 @@ class MemoryStore:
             try:
                 collection = self.chromadb.client.get_collection("events")
                 self.total_events = collection.count()
+                
+                # Load existing embeddings into similarity cache
+                self._load_embeddings_to_cache()
             except:
                 self.total_events = 0
             
@@ -129,6 +145,96 @@ class MemoryStore:
         except:
             self.total_events = 0
             self.total_queries = 0
+    
+    def _load_merged_events_from_db(self):
+        """Load all merged events from ChromaDB on initialization."""
+        try:
+            import json
+            # Get all merged events from ChromaDB
+            collection = self.chromadb.merged_events_collection
+            all_merged = collection.get(include=['documents', 'metadatas'])
+            
+            if all_merged['ids']:
+                logger.info(f"Loading {len(all_merged['ids'])} merged events from ChromaDB")
+                
+                from models.merged_event import MergedEvent
+                
+                for i, merged_id in enumerate(all_merged['ids']):
+                    try:
+                        # Deserialize merged event
+                        document = json.loads(all_merged['documents'][i])
+                        merged_event = MergedEvent.from_dict(document)
+                        
+                        # Store in cache
+                        self.merged_events_cache[merged_id] = merged_event
+                        
+                        # Rebuild raw_to_merged mappings
+                        # Handle both raw_ prefixed and non-prefixed IDs
+                        raw_ids_for_mapping = set()
+                        for raw_id in merged_event.raw_event_ids:
+                            # Check which format exists in raw_events
+                            if raw_id in self.raw_events:
+                                self.raw_to_merged[raw_id] = merged_id
+                                raw_ids_for_mapping.add(raw_id)
+                            elif f"raw_{raw_id}" in self.raw_events:
+                                prefixed_id = f"raw_{raw_id}"
+                                self.raw_to_merged[prefixed_id] = merged_id
+                                raw_ids_for_mapping.add(prefixed_id)
+                            elif raw_id.startswith("raw_") and raw_id[4:] in self.raw_events:
+                                unprefixed_id = raw_id[4:]
+                                self.raw_to_merged[unprefixed_id] = merged_id
+                                raw_ids_for_mapping.add(unprefixed_id)
+                        
+                        # Rebuild merged_to_raw mapping with the correct IDs
+                        self.merged_to_raw[merged_id] = raw_ids_for_mapping
+                        
+                    except Exception as e:
+                        logger.error(f"Failed to load merged event {merged_id}: {e}")
+                
+                logger.info(f"Successfully loaded {len(self.merged_events_cache)} merged events")
+            else:
+                logger.info("No existing merged events found in ChromaDB")
+                
+        except Exception as e:
+            logger.warning(f"Could not load merged events from ChromaDB: {e}")
+    
+    def _load_embeddings_to_cache(self):
+        """Load all existing embeddings into similarity cache."""
+        try:
+            collection = self.chromadb.client.get_collection("events")
+            results = collection.get(
+                include=["metadatas", "embeddings"]
+            )
+            
+            if results['ids']:
+                embeddings_dict = {}
+                for i, event_id in enumerate(results['ids']):
+                    # Reconstruct embedding dict from stored data
+                    euclidean_anchor = np.array(results['embeddings'][i])
+                    
+                    # Get residuals if they exist
+                    euclidean_residual = self.residuals.get(event_id, {}).get('euclidean', np.zeros_like(euclidean_anchor))
+                    hyperbolic_residual = self.residuals.get(event_id, {}).get('hyperbolic', np.zeros(64))
+                    
+                    # For hyperbolic anchor, we need to retrieve it from encoder
+                    # or store it separately. For now, create a placeholder
+                    hyperbolic_anchor = np.zeros(64)  # This should be stored/retrieved properly
+                    
+                    embeddings_dict[event_id] = {
+                        'euclidean_anchor': euclidean_anchor,
+                        'euclidean_residual': euclidean_residual,
+                        'hyperbolic_anchor': hyperbolic_anchor,
+                        'hyperbolic_residual': hyperbolic_residual
+                    }
+                    
+                    # Also update embedding cache
+                    self.embedding_cache[event_id] = embeddings_dict[event_id]
+                
+                # Batch update similarity cache
+                self.chromadb.batch_update_similarity_cache(embeddings_dict)
+                logger.info(f"Loaded {len(embeddings_dict)} embeddings into similarity cache")
+        except Exception as e:
+            logger.warning(f"Could not load embeddings to cache: {e}")
     
     def _init_raw_events_collection(self):
         """Initialize the raw events collection in ChromaDB"""
@@ -177,6 +283,7 @@ class MemoryStore:
                     self.raw_to_merged[raw_id] = merged_id
                     if merged_id not in self.merged_to_raw:
                         self.merged_to_raw[merged_id] = set()
+                    # Store the raw_id as is (with raw_ prefix) to match store_event behavior
                     self.merged_to_raw[merged_id].add(raw_id)
             
             logger.info(f"Loaded {len(self.raw_events)} raw events from ChromaDB")
@@ -242,29 +349,87 @@ class MemoryStore:
             merged_event_id = None
             if similar_events:
                 for similar_event, distance in similar_events:
-                    if distance < 0.15:  # Very close in product space
-                        merged_event_id = similar_event.id
+                    # Check if should merge using smart merger
+                    event_data = event.five_w1h.to_dict()
+                    event_data['timestamp'] = event.created_at
+                    
+                    similar_data = similar_event.five_w1h.to_dict()
+                    similar_data['timestamp'] = similar_event.created_at
+                    
+                    if self.smart_merger.should_merge(
+                        embeddings['euclidean_anchor'], 
+                        self.embedding_cache.get(similar_event.id, {}).get('euclidean_anchor', embeddings['euclidean_anchor']),
+                        event_data, similar_data, distance
+                    ):
+                        # Check if similar event is already part of a merged event
+                        merged_event = None
+                        merged_event_id = None
+                        
+                        # First check if the similar event is already merged
+                        if similar_event.id in self.raw_to_merged:
+                            merged_event_id = self.raw_to_merged[similar_event.id]
+                        elif f"merged_{similar_event.id}" in self.merged_events_cache:
+                            merged_event_id = f"merged_{similar_event.id}"
+                        
+                        # Get or create merged event
+                        if merged_event_id and merged_event_id in self.merged_events_cache:
+                            merged_event = self.merged_events_cache[merged_event_id]
+                        else:
+                            # Create new merged event from the similar event
+                            merged_event = MergedEvent(
+                                id=f"merged_{similar_event.id}",
+                                base_event_id=similar_event.id
+                            )
+                            # Use the raw event ID if it exists, otherwise use the original ID
+                            similar_raw_id = f"raw_{similar_event.id}" if f"raw_{similar_event.id}" in self.raw_events else similar_event.id
+                            merged_event.add_raw_event(similar_raw_id, similar_data)
+                            merged_event_id = merged_event.id
+                        
+                        # Use smart merger to merge the new event
+                        # Create a copy of the event with the raw_event_id as its ID for consistency
+                        event_for_merge = Event(
+                            id=raw_event_id if preserve_raw else event.id,
+                            five_w1h=event.five_w1h,
+                            event_type=event.event_type,
+                            episode_id=event.episode_id
+                        )
+                        merged_event = self.smart_merger.merge_events(
+                            merged_event, event_for_merge, 
+                            {'euclidean_weight': euclidean_weight, 'hyperbolic_weight': hyperbolic_weight}
+                        )
+                        
+                        # Update centroid embedding
+                        self._update_merged_embeddings(merged_event.id, embeddings)
+                        
+                        # Store merged event in ChromaDB
+                        centroid_embedding = self._compute_centroid_embedding(merged_event)
+                        self.chromadb.store_merged_event(merged_event, centroid_embedding)
+                        
+                        # Cache the merged event
+                        self.merged_events_cache[merged_event.id] = merged_event
                         
                         # Track raw-to-merged mapping
                         if preserve_raw:
-                            self.raw_to_merged[raw_event_id] = merged_event_id
-                            if merged_event_id not in self.merged_to_raw:
-                                self.merged_to_raw[merged_event_id] = set()
-                            self.merged_to_raw[merged_event_id].add(raw_event_id)
+                            self.raw_to_merged[raw_event_id] = merged_event.id
+                            if merged_event.id not in self.merged_to_raw:
+                                self.merged_to_raw[merged_event.id] = set()
+                            self.merged_to_raw[merged_event.id].add(raw_event_id)
                             
                             # Update merged_id in ChromaDB
                             try:
                                 raw_collection = self.chromadb.client.get_collection('raw_events')
                                 raw_collection.update(
                                     ids=[raw_event_id],
-                                    metadatas=[{'merged_id': merged_event_id}]
+                                    metadatas=[{'merged_id': merged_event.id}]
                                 )
                             except Exception as e:
                                 logger.warning(f"Could not update merge mapping in ChromaDB: {e}")
                         
-                        # Update residuals of existing event instead of creating duplicate
-                        self._merge_into_existing(similar_event.id, embeddings)
-                        return True, f"Merged into existing event {similar_event.id[:8]}"
+                        # Add to temporal chain
+                        chain_context = {'merged_event_id': merged_event.id}
+                        self.temporal_chain.add_event(event, chain_context)
+                        
+                        return True, f"Merged into event {merged_event.id[:8]} ({merged_event.merge_count} total)"
             
             # Store immutable anchors in ChromaDB
             # Calculate actual space weights from embeddings
@@ -295,6 +460,9 @@ class MemoryStore:
             
             # Store full embeddings in cache
             self.embedding_cache[event.id] = embeddings
+            
+            # Update similarity cache in ChromaDB
+            self.chromadb.update_similarity_cache(event.id, embeddings)
             
             # Initialize residuals to zero
             self.residuals[event.id] = {
@@ -431,6 +599,100 @@ class MemoryStore:
         except Exception as e:
             logger.error(f"Failed to retrieve memories: {e}")
             return []
+    
+    def retrieve_memories_with_context(
+        self,
+        query: Dict[str, str],
+        k: int = 10,
+        use_clustering: bool = True,
+        update_residuals: bool = True,
+        use_temporal: bool = True,
+        context_format: str = 'detailed'
+    ) -> List[Tuple[Any, float, str]]:
+        """
+        Retrieve memories with full context generation for LLM consumption.
+        
+        Args:
+            query: 5W1H query fields
+            k: Number of memories to retrieve
+            use_clustering: Whether to use HDBSCAN clustering
+            update_residuals: Whether to update residuals based on retrieval
+            use_temporal: Whether to apply temporal weighting
+            context_format: 'summary', 'detailed', or 'structured'
+            
+        Returns:
+            List of (event, relevance_score, context_string) tuples
+        """
+        # Get basic retrieval results
+        results = self.retrieve_memories(
+            query, k, use_clustering, update_residuals, use_temporal
+        )
+        
+        enhanced_results = []
+        for event, score in results:
+            # Check if this is part of a merged event
+            merged_event = None
+            
+            # Check if event ID maps to a merged event
+            if event.id in self.merged_events_cache:
+                merged_event = self.merged_events_cache[event.id]
+            elif f"merged_{event.id}" in self.merged_events_cache:
+                merged_event = self.merged_events_cache[f"merged_{event.id}"]
+            else:
+                # Try to load from ChromaDB
+                merged_event = self.chromadb.get_merged_event(f"merged_{event.id}")
+                if merged_event:
+                    self.merged_events_cache[merged_event.id] = merged_event
+            
+            if merged_event:
+                # Generate rich context using the context generator
+                query_context = {'query': query, 'score': score}
+                context = self.context_generator.generate_context(
+                    merged_event, query_context, context_format
+                )
+                enhanced_results.append((merged_event, score, context))
+            else:
+                # Single event - generate simple context
+                context = self._generate_simple_event_context(event, context_format)
+                enhanced_results.append((event, score, context))
+        
+        return enhanced_results
+    
+    def _generate_simple_event_context(self, event: Event, format_type: str) -> str:
+        """Generate context for a single non-merged event"""
+        if format_type == 'summary':
+            who = event.five_w1h.who or "Unknown"
+            what = event.five_w1h.what or "performed action"
+            when = event.five_w1h.when or ""
+            return f"{who}: {what}" + (f" ({when})" if when else "")
+        
+        elif format_type == 'structured':
+            lines = [
+                f"EVENT_ID: {event.id}",
+                f"WHO: {event.five_w1h.who or 'N/A'}",
+                f"WHAT: {event.five_w1h.what or 'N/A'}",
+                f"WHEN: {event.five_w1h.when or 'N/A'}",
+                f"WHERE: {event.five_w1h.where or 'N/A'}",
+                f"WHY: {event.five_w1h.why or 'N/A'}",
+                f"HOW: {event.five_w1h.how or 'N/A'}"
+            ]
+            return "\n".join(lines)
+        
+        else:  # detailed
+            parts = []
+            if event.five_w1h.who:
+                parts.append(f"Actor: {event.five_w1h.who}")
+            if event.five_w1h.what:
+                parts.append(f"Action: {event.five_w1h.what}")
+            if event.five_w1h.when:
+                parts.append(f"Time: {event.five_w1h.when}")
+            if event.five_w1h.where:
+                parts.append(f"Location: {event.five_w1h.where}")
+            if event.five_w1h.why:
+                parts.append(f"Reason: {event.five_w1h.why}")
+            if event.five_w1h.how:
+                parts.append(f"Method: {event.five_w1h.how}")
+            return "\n".join(parts) if parts else "No details available"
     
     def _get_effective_embeddings(self, event_id: str, base_embeddings: Dict) -> Dict:
         """Get embeddings with residuals applied."""
@@ -678,6 +940,81 @@ class MemoryStore:
             'hyperbolic': updated['hyperbolic_residual']
         }
     
+    def _compute_centroid_embedding(self, merged_event: MergedEvent) -> np.ndarray:
+        """
+        Compute the centroid embedding for a merged event.
+        
+        Args:
+            merged_event: The merged event
+            
+        Returns:
+            Centroid embedding vector
+        """
+        embeddings_list = []
+        
+        # Collect embeddings for all raw events
+        for raw_id in merged_event.raw_event_ids:
+            if raw_id in self.embedding_cache:
+                emb = self.embedding_cache[raw_id]
+                # Get effective embedding with residuals
+                effective = self._get_effective_embeddings(raw_id, emb)
+                combined = effective['euclidean_anchor'] + effective['euclidean_residual']
+                embeddings_list.append(combined)
+        
+        if not embeddings_list:
+            # Fallback: encode dominant pattern
+            if merged_event.dominant_pattern:
+                embeddings = self.encoder.encode(merged_event.dominant_pattern)
+                return embeddings['euclidean_anchor']
+            else:
+                return np.zeros(self.config.dual_space.euclidean_dim)
+        
+        # Compute centroid
+        centroid = np.mean(embeddings_list, axis=0)
+        return centroid
+    
+    def _update_merged_embeddings(self, merged_event_id: str, new_embeddings: Dict):
+        """
+        Update the embeddings for a merged event by incorporating new event.
+        
+        Args:
+            merged_event_id: ID of the merged event
+            new_embeddings: Embeddings of the new event being merged
+        """
+        if merged_event_id not in self.embedding_cache:
+            # Initialize with new embeddings
+            self.embedding_cache[merged_event_id] = new_embeddings
+            self.residuals[merged_event_id] = {
+                'euclidean': np.zeros_like(new_embeddings['euclidean_anchor']),
+                'hyperbolic': np.zeros_like(new_embeddings['hyperbolic_anchor'])
+            }
+        else:
+            # Update existing embeddings using momentum
+            existing = self.embedding_cache[merged_event_id]
+            
+            if merged_event_id not in self.momentum:
+                self.momentum[merged_event_id] = {
+                    'euclidean': np.zeros_like(existing['euclidean_anchor']),
+                    'hyperbolic': np.zeros_like(existing['hyperbolic_anchor'])
+                }
+            
+            # Adapt towards new embeddings
+            updated = self.encoder.adapt_residuals(
+                existing, new_embeddings,
+                relevance=0.3,
+                momentum=self.momentum[merged_event_id],
+                learning_rate=self.learning_rate,
+                momentum_factor=self.momentum_factor,
+                max_euclidean_norm=self.max_euclidean_norm,
+                max_hyperbolic_geodesic=self.max_hyperbolic_geodesic
+            )
+            
+            # Update residuals
+            self.residuals[merged_event_id] = {
+                'euclidean': updated['euclidean_residual'],
+                'hyperbolic': updated['hyperbolic_residual']
+            }
+    
     def save_state(self, path: Optional[Path] = None) -> bool:
         """Save the current state of the memory store."""
         try:
@@ -730,8 +1067,45 @@ class MemoryStore:
     
     def get_raw_events_for_merged(self, merged_event_id: str) -> List[Event]:
         """Get all raw events associated with a merged event"""
+        # First try the merged_to_raw mapping (which may have raw_ prefixed IDs)
         raw_event_ids = self.merged_to_raw.get(merged_event_id, set())
-        return [self.raw_events[rid] for rid in raw_event_ids if rid in self.raw_events]
+        
+        # If empty, try getting from the merged event itself
+        if not raw_event_ids and merged_event_id in self.merged_events_cache:
+            merged_event = self.merged_events_cache[merged_event_id]
+            raw_event_ids = merged_event.raw_event_ids
+        
+        logger.info(f"Looking for raw events for merged {merged_event_id}: {list(raw_event_ids)[:5]}...")
+        
+        events = []
+        for rid in raw_event_ids:
+            # Check both with and without raw_ prefix
+            # Some IDs in merged_to_raw have the prefix, some in raw_event_ids don't
+            found = False
+            
+            # Try as-is first
+            if rid in self.raw_events:
+                event = self.raw_events[rid]
+                events.append(event)
+                found = True
+            # Try with raw_ prefix
+            elif f"raw_{rid}" in self.raw_events:
+                event = self.raw_events[f"raw_{rid}"]
+                events.append(event)
+                found = True
+            # Try removing raw_ prefix if it exists
+            elif rid.startswith("raw_") and rid[4:] in self.raw_events:
+                event = self.raw_events[rid[4:]]
+                events.append(event)
+                found = True
+            
+            if found and len(events) == 1:  # Log first event
+                logger.info(f"First raw event 5W1H - who: {event.five_w1h.who}, what: {event.five_w1h.what[:50] if event.five_w1h.what else 'None'}")
+            elif not found:
+                logger.warning(f"Raw event not found: {rid}")
+        
+        logger.info(f"Found {len(events)} raw events for merged {merged_event_id}")
+        return events
     
     def get_merged_event_for_raw(self, raw_event_id: str) -> Optional[str]:
         """Get the merged event ID that a raw event belongs to"""
@@ -747,8 +1121,16 @@ class MemoryStore:
     
     def get_statistics(self) -> Dict[str, Any]:
         """Get statistics about the memory store."""
-        # Calculate merge statistics
-        total_raw = len(self.raw_events)
+        # Get actual count from ChromaDB raw_events collection if available
+        try:
+            raw_collection = self.chromadb.client.get_collection('raw_events')
+            # Count only entries that start with 'raw_' to avoid any potential duplicates
+            all_ids = raw_collection.get(limit=1)  # Just to check it exists
+            total_raw = raw_collection.count()
+        except:
+            # Fallback to in-memory count if collection doesn't exist
+            total_raw = len(self.raw_events)
+        
         total_merged = len(self.merged_to_raw)
         avg_merge_size = sum(len(rids) for rids in self.merged_to_raw.values()) / max(1, total_merged) if total_merged > 0 else 0
         
