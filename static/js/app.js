@@ -600,9 +600,20 @@ function displayMemories() {
             const whyDisplay = why.length > 30 ? why.substring(0, 30) + '...' : why;
             const howDisplay = how.length > 25 ? how.substring(0, 25) + '...' : how;
             
-            // Add merge indicator for raw view
+            // Add merge indicator for merged events or raw view
             let mergeIndicator = '';
-            if (memory.type === 'raw' && memory.merged_id) {
+            if (memory.merge_count && memory.merge_count > 1) {
+                // This is a merged event
+                mergeIndicator = `<span class="badge bg-success ms-1" title="Merged event with ${memory.merge_count} components">
+                    <i class="bi bi-layers-fill"></i> ${memory.merge_count}
+                </span>`;
+            } else if (memory.is_merged) {
+                // This is marked as merged from the backend
+                mergeIndicator = `<span class="badge bg-success ms-1" title="Merged event">
+                    <i class="bi bi-layers-fill"></i> M
+                </span>`;
+            } else if (memory.type === 'raw' && memory.merged_id) {
+                // This is a raw event that's part of a merge group
                 const mergeGroup = window.mergeGroups?.[memory.merged_id];
                 const groupSize = mergeGroup ? mergeGroup.length : 1;
                 mergeIndicator = `<span class="badge bg-info ms-1" title="Part of merged group ${memory.merged_id.substring(0, 8)}">
@@ -1765,7 +1776,7 @@ window.deleteMemory = async function(memoryId) {
     }
 }
 
-window.viewMemoryDetails = async function(memoryId) {
+window.viewMemoryDetailsOriginal = async function(memoryId) {
     // Find the memory in both allMemories and allMemories.raw
     let memory = allMemories.find ? allMemories.find(m => m.id === memoryId) : null;
     if (!memory && allMemories.raw) {
@@ -1992,6 +2003,362 @@ window.viewMemoryDetails = async function(memoryId) {
         this.remove();
     });
 }
+
+// Function to view merged event details with all variations
+async function viewMergedEventDetails(memoryId) {
+    try {
+        const response = await fetch(`/api/memory/${memoryId}/merged-details`);
+        if (!response.ok) {
+            // Not a merged event, fall back to regular details
+            console.log(`Memory ${memoryId} is not a merged event, showing regular details`);
+            return viewMemoryDetailsOriginal(memoryId);
+        }
+        
+        const mergedEvent = await response.json();
+        
+        // Create enhanced modal for merged event
+        const modalHtml = createMergedEventModal(mergedEvent);
+        
+        // Remove existing modal if any
+        const existingModal = document.getElementById('mergedEventModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Add modal to body
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Initialize tabs and other interactive elements
+        initializeMergedEventModal(mergedEvent);
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('mergedEventModal'));
+        modal.show();
+        
+        // Clean up after close
+        document.getElementById('mergedEventModal').addEventListener('hidden.bs.modal', function() {
+            this.remove();
+        });
+    } catch (error) {
+        console.error('Error fetching merged event details:', error);
+        showAlert('Failed to load merged event details', 'danger');
+    }
+}
+
+// Create the merged event modal HTML
+function createMergedEventModal(mergedEvent) {
+    const latest = mergedEvent.latest_state || {};
+    
+    return `
+        <div class="modal fade" id="mergedEventModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content" style="background-color: #1a1a2e;">
+                    <div class="modal-header">
+                        <h5 class="modal-title text-cyan">
+                            <i class="bi bi-layers"></i> Merged Event Details
+                            <span class="badge bg-info ms-2">${mergedEvent.merge_count} events</span>
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Tab Navigation -->
+                        <ul class="nav nav-tabs mb-3" role="tablist">
+                            <li class="nav-item">
+                                <a class="nav-link active" data-bs-toggle="tab" href="#mergedOverview">Overview</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-bs-toggle="tab" href="#mergedTimeline">Timeline</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-bs-toggle="tab" href="#mergedVariations">Component Variations</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-bs-toggle="tab" href="#mergedContext">LLM Context</a>
+                            </li>
+                        </ul>
+                        
+                        <!-- Tab Content -->
+                        <div class="tab-content">
+                            <!-- Overview Tab -->
+                            <div class="tab-pane fade show active" id="mergedOverview">
+                                ${createMergedOverviewTab(mergedEvent, latest)}
+                            </div>
+                            
+                            <!-- Timeline Tab -->
+                            <div class="tab-pane fade" id="mergedTimeline">
+                                ${createMergedTimelineTab(mergedEvent)}
+                            </div>
+                            
+                            <!-- Variations Tab -->
+                            <div class="tab-pane fade" id="mergedVariations">
+                                ${createMergedVariationsTab(mergedEvent)}
+                            </div>
+                            
+                            <!-- Context Tab -->
+                            <div class="tab-pane fade" id="mergedContext">
+                                ${createMergedContextTab(mergedEvent)}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-info" onclick="window.showMemoryInGraph('${mergedEvent.id}')">
+                            <i class="bi bi-diagram-3"></i> Show in Graph
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Create overview tab content
+function createMergedOverviewTab(mergedEvent, latest) {
+    return `
+        <div class="row">
+            <div class="col-md-6">
+                <h5 class="text-purple mb-3">Latest State</h5>
+                <div class="mb-3">
+                    <div class="text-info small">Who</div>
+                    <div class="text-white ms-3">${escapeHtml(latest.who || '—')}</div>
+                </div>
+                <div class="mb-3">
+                    <div class="text-info small">What</div>
+                    <div class="p-2 bg-dark rounded text-white ms-3">${escapeHtml(latest.what || '—')}</div>
+                </div>
+                <div class="mb-3">
+                    <div class="text-info small">When</div>
+                    <div class="text-white ms-3">${escapeHtml(latest.when || '—')}</div>
+                </div>
+                <div class="mb-3">
+                    <div class="text-info small">Where</div>
+                    <div class="text-white ms-3">${escapeHtml(latest.where || '—')}</div>
+                </div>
+                <div class="mb-3">
+                    <div class="text-info small">Why</div>
+                    <div class="p-2 bg-dark rounded text-white ms-3">${escapeHtml(latest.why || '—')}</div>
+                </div>
+                <div class="mb-3">
+                    <div class="text-info small">How</div>
+                    <div class="text-white ms-3">${escapeHtml(latest.how || '—')}</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h5 class="text-purple mb-3">Merge Statistics</h5>
+                <div class="mb-3">
+                    <div class="text-info small">Total Events Merged</div>
+                    <div class="text-white ms-3">${mergedEvent.merge_count}</div>
+                </div>
+                <div class="mb-3">
+                    <div class="text-info small">Base Event ID</div>
+                    <div class="text-white ms-3 font-monospace">${escapeHtml(mergedEvent.base_event_id)}</div>
+                </div>
+                <div class="mb-3">
+                    <div class="text-info small">Created</div>
+                    <div class="text-white ms-3">${formatDate(mergedEvent.created_at)}</div>
+                </div>
+                <div class="mb-3">
+                    <div class="text-info small">Last Updated</div>
+                    <div class="text-white ms-3">${formatDate(mergedEvent.last_updated)}</div>
+                </div>
+                ${mergedEvent.supersedes ? `
+                <div class="mb-3">
+                    <div class="text-info small">Supersedes</div>
+                    <div class="text-white ms-3">${escapeHtml(mergedEvent.supersedes)}</div>
+                </div>
+                ` : ''}
+                ${mergedEvent.superseded_by ? `
+                <div class="mb-3">
+                    <div class="text-info small">Superseded By</div>
+                    <div class="text-white ms-3">${escapeHtml(mergedEvent.superseded_by)}</div>
+                </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+}
+
+// Create timeline tab content
+function createMergedTimelineTab(mergedEvent) {
+    if (!mergedEvent.when_timeline || mergedEvent.when_timeline.length === 0) {
+        return '<p class="text-muted">No timeline data available</p>';
+    }
+    
+    let html = '<div class="timeline">';
+    mergedEvent.when_timeline.forEach((point, index) => {
+        html += `
+            <div class="timeline-item mb-3">
+                <div class="d-flex align-items-start">
+                    <div class="badge bg-primary me-3">${index + 1}</div>
+                    <div class="flex-grow-1">
+                        <div class="text-info small">${formatDate(point.timestamp)}</div>
+                        <div class="text-white">${escapeHtml(point.description || 'Event occurred')}</div>
+                        ${point.semantic_time ? `<div class="text-muted small">${escapeHtml(point.semantic_time)}</div>` : ''}
+                        <div class="text-muted small font-monospace">Event: ${escapeHtml(point.event_id)}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    return html;
+}
+
+// Create variations tab content
+function createMergedVariationsTab(mergedEvent) {
+    // Check if there are any variations
+    const hasVariations = 
+        Object.keys(mergedEvent.who_variants || {}).length > 0 ||
+        Object.keys(mergedEvent.what_variants || {}).length > 0 ||
+        Object.keys(mergedEvent.where_locations || {}).length > 0 ||
+        Object.keys(mergedEvent.why_variants || {}).length > 0 ||
+        Object.keys(mergedEvent.how_methods || {}).length > 0;
+    
+    if (!hasVariations) {
+        return '<div class="p-3 text-center text-muted">No component variations available for this event.</div>';
+    }
+    
+    let html = '<div class="accordion accordion-flush" id="variationsAccordion">';
+    
+    // WHO variations
+    if (Object.keys(mergedEvent.who_variants || {}).length > 0) {
+        html += createVariationAccordionItem('who', 'Who', mergedEvent.who_variants);
+    }
+    
+    // WHAT variations
+    if (Object.keys(mergedEvent.what_variants || {}).length > 0) {
+        html += createVariationAccordionItem('what', 'What', mergedEvent.what_variants);
+    }
+    
+    // WHERE locations
+    if (Object.keys(mergedEvent.where_locations || {}).length > 0) {
+        html += `
+            <div class="accordion-item bg-dark border-secondary">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed bg-dark text-white" type="button" data-bs-toggle="collapse" data-bs-target="#whereVariations">
+                        <span class="text-cyan">Where</span> <span class="badge bg-info ms-2">${Object.keys(mergedEvent.where_locations).length} locations</span>
+                    </button>
+                </h2>
+                <div id="whereVariations" class="accordion-collapse collapse" data-bs-parent="#variationsAccordion">
+                    <div class="accordion-body bg-dark">
+                        ${Object.entries(mergedEvent.where_locations).map(([location, count]) => `
+                            <div class="mb-2">
+                                <span class="text-white">${escapeHtml(location)}</span>
+                                <span class="badge bg-secondary ms-2">${count}x</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // WHY variations
+    if (Object.keys(mergedEvent.why_variants || {}).length > 0) {
+        html += createVariationAccordionItem('why', 'Why', mergedEvent.why_variants);
+    }
+    
+    // HOW methods
+    if (Object.keys(mergedEvent.how_methods || {}).length > 0) {
+        html += `
+            <div class="accordion-item bg-dark border-secondary">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed bg-dark text-white" type="button" data-bs-toggle="collapse" data-bs-target="#howVariations">
+                        <span class="text-cyan">How</span> <span class="badge bg-info ms-2">${Object.keys(mergedEvent.how_methods).length} methods</span>
+                    </button>
+                </h2>
+                <div id="howVariations" class="accordion-collapse collapse" data-bs-parent="#variationsAccordion">
+                    <div class="accordion-body bg-dark">
+                        ${Object.entries(mergedEvent.how_methods).map(([method, count]) => `
+                            <div class="mb-2">
+                                <span class="text-white">${escapeHtml(method)}</span>
+                                <span class="badge bg-secondary ms-2">${count}x</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+// Helper function to create variation accordion items
+function createVariationAccordionItem(id, label, variants) {
+    const variantCount = Object.values(variants).reduce((sum, v) => sum + v.length, 0);
+    
+    return `
+        <div class="accordion-item bg-dark border-secondary">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed bg-dark text-white" type="button" data-bs-toggle="collapse" data-bs-target="#${id}Variations">
+                    <span class="text-cyan">${label}</span> <span class="badge bg-info ms-2">${variantCount} variations</span>
+                </button>
+            </h2>
+            <div id="${id}Variations" class="accordion-collapse collapse" data-bs-parent="#variationsAccordion">
+                <div class="accordion-body bg-dark">
+                    ${Object.entries(variants).map(([key, variantList]) => `
+                        <div class="mb-3">
+                            <h6 class="text-info">${escapeHtml(key.substring(0, 50))}</h6>
+                            ${variantList.map(v => `
+                                <div class="ms-3 mb-2 p-2 bg-dark rounded">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <div class="text-white">${escapeHtml(v.value)}</div>
+                                            <div class="text-muted small">
+                                                ${formatDate(v.timestamp)} 
+                                                <span class="badge bg-secondary ms-2">${v.relationship}</span>
+                                                ${v.version > 1 ? `<span class="badge bg-primary ms-1">v${v.version}</span>` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Create context tab content
+function createMergedContextTab(mergedEvent) {
+    const context = mergedEvent.context_preview || {};
+    
+    return `
+        <div>
+            <h6 class="text-purple mb-3">Summary Context</h6>
+            <div class="p-3 bg-dark rounded mb-4">
+                <pre class="text-white mb-0">${escapeHtml(context.summary || 'No summary available')}</pre>
+            </div>
+            
+            <h6 class="text-purple mb-3">Detailed Context (As Seen by LLM)</h6>
+            <div class="p-3 bg-dark rounded">
+                <pre class="text-white mb-0">${escapeHtml(context.detailed || 'No detailed context available')}</pre>
+            </div>
+        </div>
+    `;
+}
+
+// Initialize merged event modal interactions
+function initializeMergedEventModal(mergedEvent) {
+    // Any additional initialization for interactive elements
+    console.log('Merged event modal initialized for:', mergedEvent.id);
+}
+
+// Enhanced function to check if memory is merged and display accordingly
+window.viewMemoryDetails = async function(memoryId) {
+    // First try to get it as a merged event
+    try {
+        await viewMergedEventDetails(memoryId);
+    } catch (error) {
+        console.error('Error in viewMergedEventDetails:', error);
+        // Fall back to original view
+        window.viewMemoryDetailsOriginal(memoryId);
+    }
+};
 
 // Function to update edge filtering based on relation strength threshold
 function updateEdgeFiltering(threshold) {

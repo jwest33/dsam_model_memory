@@ -186,7 +186,7 @@ class BenchmarkDatasetGenerator:
                     timeout=30
                 )
                 
-                print("  ✓ Dual LLM servers ready for realistic conversation generation")
+                print("  Dual LLM servers ready for realistic conversation generation")
             else:
                 print("  Failed to start dual LLM servers, falling back to templates")
                 self.user_llm = None
@@ -1016,7 +1016,7 @@ Response:"""
             # Generate conversation events
             print(f"  → Generating exchanges...", end="", flush=True)
             events = self.generate_conversation_exchange(scenario, persona, timestamp)
-            print(f" ✓ ({len(events)} events)")
+            print(f" ({len(events)} events)")
             
             # Store events
             stored_count = 0
