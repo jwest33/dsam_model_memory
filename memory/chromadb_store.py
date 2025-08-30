@@ -118,6 +118,38 @@ class ChromaDBStore:
             metadata={"description": "Raw events with merge tracking"},
             embedding_function=None
         )
+        
+        # Multi-dimensional merge collections
+        self.actor_merges_collection = self.client.get_or_create_collection(
+            name="actor_merges",
+            metadata={"description": "WHO-based merged events (actor-centric view)"},
+            embedding_function=None
+        )
+        
+        self.temporal_merges_collection = self.client.get_or_create_collection(
+            name="temporal_merges",
+            metadata={"description": "WHAT/WHEN-based merged events (conversations, sequences)"},
+            embedding_function=None
+        )
+        
+        self.conceptual_merges_collection = self.client.get_or_create_collection(
+            name="conceptual_merges",
+            metadata={"description": "WHY/HOW-based merged events (goals, concepts)"},
+            embedding_function=None
+        )
+        
+        self.spatial_merges_collection = self.client.get_or_create_collection(
+            name="spatial_merges",
+            metadata={"description": "WHERE-based merged events (location-centric)"},
+            embedding_function=None
+        )
+        
+        # Merge membership tracking collection
+        self.merge_tracker_collection = self.client.get_or_create_collection(
+            name="merge_tracker",
+            metadata={"description": "Tracks raw event to merge group mappings"},
+            embedding_function=None
+        )
     
     def store_event(self, event: Event, embedding: np.ndarray, block_id: Optional[str] = None, 
                      euclidean_weight: float = 0.5, hyperbolic_weight: float = 0.5) -> bool:

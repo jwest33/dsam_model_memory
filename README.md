@@ -1,5 +1,8 @@
 # [DSAM] Dual-Space Agentic Memory
 
+> [!CAUTION]
+> DSAM is currently pre-release, functionality might be broken while the app is prepared for release
+
 DSAM is a high-performance adaptive memory system for AI agents featuring dual-space encoding (Euclidean + Hyperbolic), adaptive residual learning, provenance tracking, event merging with raw event preservation, similarity caching, and dynamic visualization.
 
 ## Overview

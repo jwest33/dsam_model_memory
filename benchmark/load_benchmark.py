@@ -23,7 +23,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from memory.memory_store import MemoryStore
 from memory.similarity_cache import SimilarityCache
+from memory.multi_dimensional_merger import MultiDimensionalMerger
 from models.event import Event, FiveW1H, EventType
+from models.merge_types import MergeType
 from config import get_config
 from agent.memory_agent import MemoryAgent
 import uuid
@@ -32,6 +34,7 @@ from datetime import datetime
 def load_benchmark_with_full_processing(
     dataset_path: str, 
     memory_agent: MemoryAgent,
+    multi_merger: MultiDimensionalMerger = None,
     batch_size: int = 50,
     compute_cache: bool = True
 ) -> Tuple[int, int, Dict]:
@@ -39,11 +42,13 @@ def load_benchmark_with_full_processing(
     Load benchmark dataset with full processing:
     - Store all events as raw events
     - Create merged events for deduplication
+    - Create multi-dimensional merges (actor, temporal, conceptual, spatial)
     - Build similarity cache for efficient retrieval
     
     Args:
         dataset_path: Path to the benchmark JSON file
         memory_agent: MemoryAgent instance
+        multi_merger: MultiDimensionalMerger instance (optional)
         batch_size: Number of events to process before updating cache
         compute_cache: Whether to compute similarity cache
         
@@ -66,6 +71,13 @@ def load_benchmark_with_full_processing(
     merged_count = 0
     raw_events_stored = 0
     batch_embeddings = {}
+    multi_merge_stats = {
+        MergeType.ACTOR: 0,
+        MergeType.TEMPORAL: 0,
+        MergeType.CONCEPTUAL: 0,
+        MergeType.SPATIAL: 0,
+        MergeType.HYBRID: 0
+    }
     
     # Process events in batches
     for batch_start in range(0, total_events, batch_size):
@@ -103,6 +115,31 @@ def load_benchmark_with_full_processing(
                     # Check if it was merged
                     if "merged" in message.lower() or "updated" in message.lower():
                         merged_count += 1
+                    
+                    # Process multi-dimensional merges if merger available
+                    if multi_merger and hasattr(memory_agent.memory_store, 'embedding_cache'):
+                        # Check for embeddings with both the original ID and raw_ prefix
+                        embedding_id = None
+                        if event.id in memory_agent.memory_store.embedding_cache:
+                            embedding_id = event.id
+                        elif f"raw_{event.id}" in memory_agent.memory_store.embedding_cache:
+                            embedding_id = f"raw_{event.id}"
+                        
+                        if embedding_id:
+                            embeddings = memory_agent.memory_store.embedding_cache[embedding_id]
+                            merge_assignments = multi_merger.process_new_event(event, embeddings)
+                            
+                            # Track which dimensions got merges
+                            for merge_type in merge_assignments:
+                                multi_merge_stats[merge_type] += 1
+                        else:
+                            # Generate embeddings if not in cache
+                            embeddings = memory_agent.memory_store.encoder.encode(event.five_w1h.to_dict())
+                            merge_assignments = multi_merger.process_new_event(event, embeddings)
+                            
+                            # Track which dimensions got merges
+                            for merge_type in merge_assignments:
+                                multi_merge_stats[merge_type] += 1
                     
                     # Collect embeddings for batch cache update if available
                     if hasattr(memory_agent.memory_store, 'embedding_cache') and event.id in memory_agent.memory_store.embedding_cache:
@@ -165,8 +202,8 @@ def load_benchmark_with_full_processing(
                 memory_agent.memory_store.similarity_cache.batch_add_embeddings(all_embeddings)
                 
                 # Persist cache to ChromaDB if method available
-                if hasattr(memory_agent.memory_store.chromadb_store, '_save_similarity_cache'):
-                    memory_agent.memory_store.chromadb_store._save_similarity_cache()
+                if hasattr(memory_agent.memory_store, 'chromadb') and hasattr(memory_agent.memory_store.chromadb, '_save_similarity_cache'):
+                    memory_agent.memory_store.chromadb._save_similarity_cache()
                 
                 cache_time = time.time() - cache_start
                 cache_stats = memory_agent.memory_store.similarity_cache.stats
@@ -189,7 +226,8 @@ def load_benchmark_with_full_processing(
         'failed': failed,
         'merged_count': merged_count,
         'raw_events_stored': raw_events_stored,
-        'memory_store_stats': stats
+        'memory_store_stats': stats,
+        'multi_merge_stats': multi_merge_stats if multi_merger else None
     }
     
     print("\n" + "="*60)
@@ -210,6 +248,14 @@ def load_benchmark_with_full_processing(
         print(f"  Total merge groups: {stats['total_merged_groups']}")
     if 'average_merge_size' in stats:
         print(f"  Average events per merge group: {stats['average_merge_size']:.2f}")
+    
+    # Show multi-dimensional merge statistics if available
+    if multi_merger:
+        print(f"\nMulti-Dimensional Merge Statistics:")
+        for merge_type in MergeType:
+            group_count = len(multi_merger.merge_groups.get(merge_type, {}))
+            events_merged = multi_merge_stats[merge_type]
+            print(f"  {merge_type.name:12} - Groups: {group_count:4}, Events: {events_merged:4}")
     
     # Show similarity cache stats if available
     if hasattr(memory_agent.memory_store, 'similarity_cache'):
@@ -240,6 +286,12 @@ def main():
     # Create memory agent
     print("Initializing Memory Agent...")
     memory_agent = MemoryAgent(config)
+    
+    # Initialize multi-dimensional merger
+    print("Initializing Multi-Dimensional Merger...")
+    multi_merger = MultiDimensionalMerger(
+        chromadb_store=memory_agent.memory_store.chromadb if hasattr(memory_agent.memory_store, 'chromadb') else None
+    )
     
     # Check for existing data
     initial_stats = memory_agent.memory_store.get_statistics()
@@ -296,6 +348,7 @@ def main():
     successful, failed, stats = load_benchmark_with_full_processing(
         str(dataset_path),
         memory_agent,
+        multi_merger=multi_merger,
         batch_size=args.batch_size,
         compute_cache=not args.no_cache
     )
@@ -315,6 +368,7 @@ def main():
     print(f"\nThe system is now ready with:")
     print(f"  - Raw events: All original events preserved")
     print(f"  - Merged events: Deduplicated for efficient display")
+    print(f"  - Multi-dimensional merges: Actor, Temporal, Conceptual, Spatial views")
     if not args.no_cache:
         print(f"  - Similarity cache: Pre-computed for fast retrieval")
     
