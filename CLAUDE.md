@@ -8,11 +8,11 @@ This is a Dual-Space Memory System v2.0 with sophisticated encoding, adaptive le
 
 **Core Architecture:**
 - **Dual-Space Encoding**: Euclidean (768-dim) for concrete/lexical similarity + Hyperbolic (64-dim) for abstract/hierarchical relationships
+- **Multi-Dimensional Merging**: Events organized by Actor, Temporal, Conceptual, and Spatial dimensions
 - **Immutable Anchors**: Base embeddings preserved with bounded residual adaptation
 - **Raw Memory Preservation**: All original events preserved alongside merged/deduplicated views
-- **HDBSCAN Clustering**: Dynamic clustering based on query context with adjustable parameters
 - **ChromaDB Backend**: Scalable vector storage with full 5W1H metadata + raw events collection
-- **Enhanced Web Interface**: Real-time visualization, analytics, dual view modes, and graph exploration
+- **Enhanced Web Interface**: Real-time visualization, analytics, multi-dimensional views, and graph exploration
 
 ## Key Commands
 
@@ -89,13 +89,23 @@ python cli.py load
 3. **ChromaDBStore** (`memory/chromadb_store.py`)
    - Events collection with full 5W1H metadata (merged/deduplicated)
    - Raw events collection for preserving all original events
+   - Multi-dimensional merge collections (actor, temporal, conceptual, spatial)
    - Blocks collection for clustering
    - Metadata collection for system state
    - Similarity cache collection for pre-computed scores
    - Bidirectional mapping between raw and merged events
    - Persistent storage at `./state/chromadb`
 
-4. **Enhanced Web App** (`web_app_enhanced.py`, `run_web.py`)
+4. **MultiDimensionalMerger** (`memory/multi_dimensional_merger.py`)
+   - Manages multiple merge dimensions simultaneously
+   - Actor merging: Groups by participants (who)
+   - Temporal merging: Groups by conversation threads
+   - Conceptual merging: Groups by concepts and goals
+   - Spatial merging: Groups by location context
+   - Tracks merge memberships across dimensions
+   - Persists merge groups to ChromaDB
+
+5. **Enhanced Web App** (`web_app.py`, `run_web.py`)
    - Flask backend with enhanced endpoints
    - Space weight calculation for queries
    - Graph generation with optional center node and interactive controls
@@ -103,14 +113,15 @@ python cli.py load
    - Raw/Merged view toggle support
    - Auto-browser opening and graceful shutdown
 
-5. **Frontend** (`static/js/app-enhanced.js`, `templates/index.html`)
+6. **Frontend** (`static/js/app.js`, `templates/index.html`)
    - Bootstrap 5 + custom synthwave theme + Bootstrap Icons
    - vis.js for graph visualization with individual memory focus
    - Chart.js for analytics (residuals, space usage, lambda weights)
    - Real-time updates and indicators
+   - Multi-dimensional merge dimension selector
    - Merged/Raw view toggle with counts
-   - Adjustable HDBSCAN parameters
-   - Relation strength filters and gravity controls
+   - Simplified graph controls with layout slider
+   - Unified component tables with aligned columns
 
 6. **Similarity Cache** (`memory/similarity_cache.py`)
    - Pre-computed pairwise similarity scores
@@ -128,21 +139,25 @@ Dual-Space Encoding (Euclidean + Hyperbolic)
     ↓
 Store Raw Event in ChromaDB
     ↓
+Multi-Dimensional Merging
+    ├── Actor Dimension (who)
+    ├── Temporal Dimension (conversation threads)
+    ├── Conceptual Dimension (goals/concepts)
+    └── Spatial Dimension (location)
+    ↓
 Update Similarity Cache (batch/incremental)
     ↓
 Check for Duplicates/Merging (threshold: 0.85)
     ↓
-Store/Update Merged Event with Metadata
+Store/Update Merged Events with Metadata
     ↓
 Query → Compute Space Weights (λ_E, λ_H)
     ↓
 Retrieve with Cached Similarities → Product Distance
     ↓
-HDBSCAN Clustering (Optional, adjustable params)
-    ↓
 Residual Adaptation
     ↓
-Return Ranked Results with View Toggle
+Return Ranked Results with Multi-Dimensional Views
 ```
 
 ### Key Innovations
@@ -159,11 +174,11 @@ Return Ranked Results with View Toggle
    - Co-retrieval strengthens connections
 
 3. **Interactive Visualization**
-   - Graph view with 5W1H component selection
+   - Graph view with multi-dimensional merge group support
    - Individual memory focus view (center node as star + related)
-   - Multiple visualization modes with adjustable physics
-   - Real-time clustering toggle with parameter controls
-   - Relation strength filters and gravity adjustments
+   - Simplified controls with layout adjustment slider
+   - Support for visualizing any merge dimension
+   - Color-coded nodes by entity type
 
 4. **Raw Memory Preservation**
    - All original events preserved in `raw_events` collection
@@ -288,6 +303,15 @@ GET /api/memory/<id>/raw
 # Get merge statistics
 GET /api/merge-stats
 
+# Get merge dimensions info
+GET /api/merge-dimensions
+
+# Get merge groups by type
+GET /api/merge-groups/<type>  # type: actor|temporal|conceptual|spatial
+
+# Get multi-dimensional merge details
+GET /api/multi-merge/<type>/<id>/details
+
 # Get analytics data
 GET /api/analytics
 
@@ -297,9 +321,9 @@ GET /api/similarity-cache-stats
 # Graph generation with center node
 POST /api/graph
 {
-    "center_node": "memory_id",  # Optional
-    "min_cluster_size": 3,
-    "min_samples": 2
+    "center_node": "memory_id",  # Optional, supports multi-dimensional IDs
+    "visualization_mode": "dual",
+    "use_clustering": false
 }
 
 ## Important Implementation Details
@@ -321,11 +345,11 @@ metadata = {
 
 ### Graph Visualization
 - Individual memory view: Pass `center_node` parameter
-- Similarity threshold: 0.4 for focused view
+- Multi-dimensional support: Handles temporal_xxx, actor_xxx, conceptual_xxx, spatial_xxx IDs
 - Node styling: Center node displayed as star with red border
-- Physics: Reduced repulsion (gravitationalConstant: -6000), added central gravity (0.4)
-- Interactive controls: Relation strength filter, gravity adjustment
-- HDBSCAN parameters: Adjustable via UI (min_cluster_size, min_samples)
+- Physics: Adjustable via layout slider (compact to spread out)
+- Simplified controls: Single layout adjustment slider
+- Color coding: Different colors for users, assistants, and memory types
 
 ### Raw Memory System
 - Store raw events: All events preserved in `raw_events` collection
@@ -491,7 +515,7 @@ python benchmark/load_benchmark.py
 ## Performance Notes
 
 - Graph visualization: Optimized for ≤200 nodes
-- HDBSCAN: Best with 20+ memories, adjustable parameters
+- Multi-dimensional merging: Handles 4 dimensions simultaneously
 - Real-time updates: < 1s for < 1000 memories
 - Residual bounds: Euclidean < 0.35, Hyperbolic < 0.75
 - Raw event storage: Minimal overhead (~5-10% additional storage)

@@ -75,12 +75,14 @@ class MultiDimensionalMerger:
                 if collection:
                     try:
                         # Get all merge groups from this collection
+                        logger.debug(f"Querying {merge_type.value} collection...")
                         results = collection.get(include=['metadatas', 'embeddings'])
+                        logger.debug(f"Got {len(results.get('ids', [])) if results else 0} results from {merge_type.value} collection")
                         
-                        if results and 'ids' in results:
+                        if results and 'ids' in results and results['ids']:
                             for i, merge_id in enumerate(results['ids']):
-                                metadata = results['metadatas'][i] if i < len(results['metadatas']) else {}
-                                embedding = results['embeddings'][i] if i < len(results['embeddings']) else None
+                                metadata = results['metadatas'][i] if results['metadatas'] is not None and i < len(results['metadatas']) else {}
+                                embedding = results['embeddings'][i] if results['embeddings'] is not None and i < len(results['embeddings']) else None
                                 
                                 # Reconstruct the merge group
                                 merged_event = MergedEvent(
@@ -95,15 +97,137 @@ class MultiDimensionalMerger:
                                     for raw_id in raw_ids:
                                         merged_event.raw_event_ids.add(raw_id.strip())
                                 
+                                # Load the component data from metadata
+                                # Always add a synthetic event with latest values for display
+                                # Even if some fields are empty, this ensures we have something to show
+                                merge_key = metadata.get('merge_key', '')
+                                
+                                # Parse the merge key to extract meaningful data
+                                who_val = metadata.get('latest_who', '')
+                                what_val = metadata.get('latest_what', '')
+                                where_val = metadata.get('latest_where', '')
+                                why_val = metadata.get('latest_why', '')
+                                how_val = metadata.get('latest_how', '')
+                                
+                                # Use merge key to fill in missing values based on merge type
+                                if merge_type == MergeType.ACTOR and not who_val and 'actor' in merge_key:
+                                    who_val = merge_key.replace('_actor', '').replace('actor_', '')
+                                elif merge_type == MergeType.SPATIAL and not where_val and 'location' in merge_key:
+                                    where_val = merge_key.replace('location_', '')
+                                elif merge_type == MergeType.CONCEPTUAL and not why_val and 'concept' in merge_key:
+                                    why_val = merge_key.replace('concept_', '')
+                                elif merge_type == MergeType.TEMPORAL and not what_val:
+                                    what_val = merge_key.replace('temporal_', '')
+                                
+                                synthetic_event_data = {
+                                    'who': who_val or 'unknown',
+                                    'what': what_val or merge_key,
+                                    'when': metadata.get('latest_when', datetime.utcnow().isoformat()),
+                                    'where': where_val or 'unknown',
+                                    'why': why_val or merge_key,
+                                    'how': how_val or 'unknown',
+                                    'timestamp': datetime.utcnow()
+                                }
+                                # Add this as a synthetic event to populate the variants
+                                merged_event.add_raw_event(
+                                    f"synthetic_{merge_id}",
+                                    synthetic_event_data,
+                                    EventRelationship.INITIAL
+                                )
+                                
+                                # Now try to load the actual raw events to build the full timeline
+                                if self.chromadb and merged_event.raw_event_ids:
+                                    try:
+                                        # Try both collections since events might be in either
+                                        raw_collection = None
+                                        events_collection = None
+                                        try:
+                                            raw_collection = self.chromadb.client.get_collection('raw_events')
+                                        except:
+                                            pass
+                                        try:
+                                            events_collection = self.chromadb.client.get_collection('events')
+                                        except:
+                                            pass
+                                        
+                                        # Get all event IDs except synthetic ones
+                                        raw_ids_to_load = [rid for rid in merged_event.raw_event_ids if not rid.startswith('synthetic_')]
+                                        
+                                        if raw_ids_to_load and (raw_collection or events_collection):
+                                            # Try raw_events collection first
+                                            raw_event_results = {'ids': [], 'metadatas': []}
+                                            if raw_collection:
+                                                try:
+                                                    raw_results = raw_collection.get(
+                                                        ids=raw_ids_to_load,
+                                                        include=['metadatas']
+                                                    )
+                                                    if raw_results['ids']:
+                                                        raw_event_results['ids'].extend(raw_results['ids'])
+                                                        raw_event_results['metadatas'].extend(raw_results['metadatas'] or [])
+                                                except:
+                                                    pass
+                                            
+                                            # Try events collection for any missing IDs
+                                            if events_collection:
+                                                missing_ids = [rid for rid in raw_ids_to_load if rid not in raw_event_results['ids']]
+                                                if missing_ids:
+                                                    try:
+                                                        event_results = events_collection.get(
+                                                            ids=missing_ids,
+                                                            include=['metadatas']
+                                                        )
+                                                        if event_results['ids']:
+                                                            raw_event_results['ids'].extend(event_results['ids'])
+                                                            raw_event_results['metadatas'].extend(event_results['metadatas'] or [])
+                                                    except:
+                                                        pass
+                                            
+                                            # Add each raw event to build the component timeline
+                                            for i, raw_id in enumerate(raw_event_results['ids']):
+                                                if raw_event_results['metadatas'] is not None and i < len(raw_event_results['metadatas']):
+                                                    raw_metadata = raw_event_results['metadatas'][i]
+                                                    # Parse timestamp
+                                                    timestamp_str = raw_metadata.get('timestamp', datetime.utcnow().isoformat())
+                                                    if isinstance(timestamp_str, str):
+                                                        try:
+                                                            timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                                                        except:
+                                                            timestamp = datetime.utcnow()
+                                                    else:
+                                                        timestamp = timestamp_str if isinstance(timestamp_str, datetime) else datetime.utcnow()
+                                                    
+                                                    raw_event_data = {
+                                                        'who': raw_metadata.get('who', ''),
+                                                        'what': raw_metadata.get('what', ''),
+                                                        'when': raw_metadata.get('when', ''),
+                                                        'where': raw_metadata.get('where', ''),
+                                                        'why': raw_metadata.get('why', ''),
+                                                        'how': raw_metadata.get('how', ''),
+                                                        'timestamp': timestamp
+                                                    }
+                                                    # Add to merged event to build variations
+                                                    merged_event.add_raw_event(
+                                                        raw_id.replace('raw_', ''),
+                                                        raw_event_data,
+                                                        EventRelationship.VARIATION
+                                                    )
+                                    except Exception as e:
+                                        logger.debug(f"Could not load raw events for timeline: {e}")
+                                
                                 # Store in memory
                                 if merge_type not in self.merge_groups:
                                     self.merge_groups[merge_type] = {}
+                                
+                                # Debug: Check if we're overwriting
+                                if merge_id in self.merge_groups[merge_type]:
+                                    logger.warning(f"Overwriting existing {merge_type.value} group: {merge_id}")
                                 
                                 self.merge_groups[merge_type][merge_id] = {
                                     'key': metadata.get('merge_key', ''),
                                     'merged_event': merged_event,
                                     'events': [],  # Will be populated as needed
-                                    'centroid_embedding': np.array(embedding) if embedding else None,
+                                    'centroid_embedding': np.array(embedding) if embedding is not None else None,
                                     'created_at': datetime.fromisoformat(metadata['created_at']) if 'created_at' in metadata else datetime.utcnow(),
                                     'last_updated': datetime.fromisoformat(metadata['last_updated']) if 'last_updated' in metadata else datetime.utcnow()
                                 }
@@ -112,7 +236,11 @@ class MultiDimensionalMerger:
                                 for raw_id in merged_event.raw_event_ids:
                                     self.tracker.add_merge_membership(raw_id, merge_type, merge_id)
                             
-                            logger.info(f"Loaded {len(results['ids'])} {merge_type.value} merge groups")
+                            logger.info(f"Loaded {len(results['ids'])} {merge_type.value} merge groups from ChromaDB")
+                            logger.info(f"Actually stored in memory: {len(self.merge_groups.get(merge_type, {}))} {merge_type.value} groups")
+                            # Debug: show the IDs
+                            if self.merge_groups.get(merge_type):
+                                logger.debug(f"{merge_type.value} group IDs: {list(self.merge_groups[merge_type].keys())}")
                     except Exception as e:
                         logger.warning(f"Could not load {merge_type.value} merges: {e}")
                         
@@ -141,7 +269,8 @@ class MultiDimensionalMerger:
             
             if merge_id:
                 merge_assignments[merge_type] = merge_id
-                self.tracker.add_merge_membership(event.id, merge_type, merge_id)
+                raw_event_id = f"raw_{event.id}" if not event.id.startswith("raw_") else event.id
+                self.tracker.add_merge_membership(raw_event_id, merge_type, merge_id)
                 
                 # Update the merge group in ChromaDB
                 if self.chromadb:
@@ -272,8 +401,9 @@ class MultiDimensionalMerger:
             base_event_id=event.id
         )
         
-        # Add the event to the merged event
-        merged_event.add_raw_event(event.id, event_data, EventRelationship.INITIAL)
+        # Add the event to the merged event (with raw_ prefix)
+        raw_event_id = f"raw_{event.id}" if not event.id.startswith("raw_") else event.id
+        merged_event.add_raw_event(raw_event_id, event_data, EventRelationship.INITIAL)
         
         # Store in memory
         if merge_type not in self.merge_groups:
@@ -304,8 +434,9 @@ class MultiDimensionalMerger:
         # Determine relationship
         relationship = self.smart_merger._determine_relationship(merged_event, event)
         
-        # Add to merged event
-        merged_event.add_raw_event(event.id, event_data, relationship)
+        # Add to merged event (with raw_ prefix)
+        raw_event_id = f"raw_{event.id}" if not event.id.startswith("raw_") else event.id
+        merged_event.add_raw_event(raw_event_id, event_data, relationship)
         
         # Update group data
         group['events'].append(event_data)
@@ -335,6 +466,9 @@ class MultiDimensionalMerger:
         group = self.merge_groups[merge_type][merge_id]
         merged_event = group['merged_event']
         
+        # Get latest state
+        latest_state = merged_event.get_latest_state()
+        
         # Prepare metadata
         metadata = {
             'merge_type': merge_type.value,
@@ -343,9 +477,15 @@ class MultiDimensionalMerger:
             'created_at': group['created_at'].isoformat(),
             'last_updated': group['last_updated'].isoformat(),
             'raw_event_ids': ','.join(merged_event.raw_event_ids),
+            'base_event_id': merged_event.base_event_id,
             
-            # Latest state of components
-            **merged_event.get_latest_state()
+            # Latest state of components with explicit keys
+            'latest_who': latest_state.get('who', ''),
+            'latest_what': latest_state.get('what', ''),
+            'latest_when': latest_state.get('when', ''),
+            'latest_where': latest_state.get('where', ''),
+            'latest_why': latest_state.get('why', ''),
+            'latest_how': latest_state.get('how', '')
         }
         
         # Store or update in ChromaDB

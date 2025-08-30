@@ -6,7 +6,7 @@ let itemsPerPage = 10;
 let graphNetwork = null;
 let residualChart = null;
 let spaceUsageChart = null;
-let clusteringEnabled = true;
+let clusteringEnabled = false;  // Disabled since we removed the UI controls
 let currentCenterNode = null;  // Track if we're viewing an individual memory
 let relationStrengthThreshold = 0.3;  // Default threshold for edge filtering
 let currentGravity = -8000;  // Default gravity value (negative for repulsion)
@@ -125,64 +125,6 @@ function initializeApp() {
         }
         if (memoryList) memoryList.style.display = 'none';
         if (memoryTableContainer) memoryTableContainer.style.display = 'block';
-    }
-    
-    // Set up component selector listeners for real-time graph updates
-    const componentCheckboxes = document.querySelectorAll('#componentSelector input[type="checkbox"]');
-    componentCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', () => {
-            // Don't update space weights here - will be done after graph refresh
-            if (graphNetwork) {
-                refreshGraph();
-            }
-        });
-    });
-    
-    // Visualization mode change listener
-    const vizMode = document.getElementById('visualizationMode');
-    if (vizMode) {
-        vizMode.addEventListener('change', refreshGraph);
-    }
-    
-    // Toggle clustering button
-    const toggleBtn = document.getElementById('toggleClustering');
-    const clusteringParams = document.getElementById('clusteringParams');
-    if (toggleBtn) {
-        toggleBtn.addEventListener('click', () => {
-            clusteringEnabled = !clusteringEnabled;
-            toggleBtn.classList.toggle('btn-outline-warning');
-            toggleBtn.classList.toggle('btn-warning');
-            
-            // Show/hide clustering parameters
-            if (clusteringParams) {
-                clusteringParams.style.display = clusteringEnabled ? 'block' : 'none';
-            }
-            
-            refreshGraph();
-        });
-    }
-    
-    // Update graph when clustering parameters change
-    const minClusterSizeInput = document.getElementById('minClusterSize');
-    const minSamplesInput = document.getElementById('minSamples');
-    
-    if (minClusterSizeInput) {
-        minClusterSizeInput.addEventListener('change', refreshGraph);
-    }
-    
-    if (minSamplesInput) {
-        minSamplesInput.addEventListener('change', refreshGraph);
-    }
-    
-    // Initialize relation strength slider
-    const relationSlider = document.getElementById('relationStrengthSlider');
-    const relationValue = document.getElementById('relationStrengthValue');
-    if (relationSlider) {
-        relationSlider.addEventListener('input', function(e) {
-            const value = parseFloat(e.target.value);
-            relationValue.textContent = value.toFixed(2);
-            updateEdgeFiltering(value);
-        });
     }
     
     // Initialize gravity slider - now inverted so higher values = more spread out
@@ -538,7 +480,10 @@ async function loadMemoriesOriginal() {
             document.getElementById('rawCount').textContent = data.total_raw;
         }
         if (data.total_merged !== undefined) {
-            document.getElementById('mergedCount').textContent = data.total_merged || data.total_events || allMemories.length;
+            const mergedCountEl = document.getElementById('mergedCount');
+            if (mergedCountEl) {
+                mergedCountEl.textContent = data.total_merged || data.total_events || allMemories.length;
+            }
         }
         
         // Log first memory structure to debug
@@ -889,11 +834,10 @@ async function initializeGraph(centerNodeId = null) {
         
         const requestBody = {
             components: components,
-            use_clustering: clusteringEnabled,
-            visualization_mode: document.getElementById('visualizationMode').value,
-            // Include HDBSCAN parameters if clustering is enabled
-            min_cluster_size: clusteringEnabled ? parseInt(document.getElementById('minClusterSize').value) : 5,
-            min_samples: clusteringEnabled ? parseInt(document.getElementById('minSamples').value) : 3
+            use_clustering: false,  // Clustering disabled since we removed the UI
+            visualization_mode: 'dual',  // Default to dual-space
+            min_cluster_size: 5,
+            min_samples: 3
         };
         
         // Add center node if specified
@@ -992,11 +936,8 @@ async function initializeGraph(centerNodeId = null) {
 }
 
 function getSelectedComponents() {
-    const components = [];
-    document.querySelectorAll('#componentSelector input[type="checkbox"]:checked').forEach(checkbox => {
-        components.push(checkbox.value);
-    });
-    return components;
+    // Always return all components since we removed the filter checkboxes
+    return ['who', 'what', 'when', 'where', 'why', 'how'];
 }
 
 function createGraphVisualization(data) {
@@ -1262,7 +1203,7 @@ function createGraphVisualization(data) {
 }
 
 function getNodeColor(node) {
-    const vizMode = document.getElementById('visualizationMode').value;
+    const vizMode = 'dual';  // Default to dual-space since we removed the UI control
     
     // First, check if it's User or Assistant for special coloring
     if (node.who === 'User') {
@@ -1454,10 +1395,33 @@ async function loadMergeStats() {
         
         // Update UI with merge statistics
         if (data.total_raw !== undefined) {
-            document.getElementById('rawCount').textContent = data.total_raw;
+            const rawCountEl = document.getElementById('rawCount');
+            if (rawCountEl) rawCountEl.textContent = data.total_raw;
         }
         if (data.total_merged !== undefined) {
-            document.getElementById('mergedCount').textContent = data.total_merged;
+            const mergedCountEl = document.getElementById('mergedCount');
+            if (mergedCountEl) mergedCountEl.textContent = data.total_merged;
+        }
+        
+        // Update multi-dimensional merge counts in tabs
+        if (data.multi_dimensional_stats) {
+            const stats = data.multi_dimensional_stats;
+            if (stats.temporal) {
+                const temporalCount = document.getElementById('temporal-count');
+                if (temporalCount) temporalCount.textContent = stats.temporal.group_count || 0;
+            }
+            if (stats.actor) {
+                const actorCount = document.getElementById('actor-count');
+                if (actorCount) actorCount.textContent = stats.actor.group_count || 0;
+            }
+            if (stats.conceptual) {
+                const conceptualCount = document.getElementById('conceptual-count');
+                if (conceptualCount) conceptualCount.textContent = stats.conceptual.group_count || 0;
+            }
+            if (stats.spatial) {
+                const spatialCount = document.getElementById('spatial-count');
+                if (spatialCount) spatialCount.textContent = stats.spatial.group_count || 0;
+            }
         }
         
         console.log('Merge statistics loaded:', data);
@@ -2120,7 +2084,20 @@ window.viewMemoryDetailsOriginal = async function(memoryId) {
 // Function to view merged event details with all variations
 async function viewMergedEventDetails(memoryId) {
     try {
-        const response = await fetch(`/api/memory/${memoryId}/merged-details`);
+        // Check if this is a multi-dimensional merge group (format: type_id)
+        const mergeTypePattern = /^(temporal|actor|conceptual|spatial)_/;
+        const match = memoryId.match(mergeTypePattern);
+        
+        let response;
+        if (match) {
+            // This is a multi-dimensional merge group
+            const mergeType = match[1];
+            response = await fetch(`/api/multi-merge/${mergeType}/${memoryId}/details`);
+        } else {
+            // Try standard merged event endpoint
+            response = await fetch(`/api/memory/${memoryId}/merged-details`);
+        }
+        
         if (!response.ok) {
             // Not a merged event, fall back to regular details
             console.log(`Memory ${memoryId} is not a merged event, showing regular details`);
@@ -2201,9 +2178,6 @@ function createMergedEventModal(mergedEvent) {
                                 <a class="nav-link" data-bs-toggle="tab" href="#mergedTimeline">Timeline</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" data-bs-toggle="tab" href="#mergedVariations">Component Variations</a>
-                            </li>
-                            <li class="nav-item">
                                 <a class="nav-link" data-bs-toggle="tab" href="#mergedContext">LLM Context</a>
                             </li>
                         </ul>
@@ -2217,11 +2191,6 @@ function createMergedEventModal(mergedEvent) {
                             
                             <!-- Timeline Tab -->
                             <div class="tab-pane fade" id="mergedTimeline">
-                                ${createMergedTimelineTab(mergedEvent)}
-                            </div>
-                            
-                            <!-- Variations Tab -->
-                            <div class="tab-pane fade" id="mergedVariations">
                                 ${createMergedVariationsTab(mergedEvent)}
                             </div>
                             
@@ -2245,36 +2214,156 @@ function createMergedEventModal(mergedEvent) {
 
 // Create overview tab content
 function createMergedOverviewTab(mergedEvent, latest) {
+    // Helper function to create component table
+    const createComponentTable = (title, variants, displayField = 'value') => {
+        if (!variants || Object.keys(variants).length === 0) {
+            return `<div class="mb-3">
+                <div class="text-info small">${title}</div>
+                <div class="text-white ms-3">—</div>
+            </div>`;
+        }
+        
+        let tableHtml = `
+            <div class="mb-4">
+                <h6 class="text-info">${title}</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-dark table-striped">
+                        <thead>
+                            <tr>
+                                <th>Value</th>
+                                <th>Count</th>
+                                <th>Last Updated</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+        
+        // Aggregate all variants
+        const aggregated = {};
+        for (const [key, variantList] of Object.entries(variants)) {
+            for (const variant of variantList) {
+                const value = variant[displayField] || variant.value || key;
+                if (!aggregated[value]) {
+                    aggregated[value] = {
+                        count: 0,
+                        lastUpdated: variant.timestamp
+                    };
+                }
+                aggregated[value].count++;
+                if (variant.timestamp > aggregated[value].lastUpdated) {
+                    aggregated[value].lastUpdated = variant.timestamp;
+                }
+            }
+        }
+        
+        // Sort by count descending
+        const sorted = Object.entries(aggregated).sort((a, b) => b[1].count - a[1].count);
+        
+        for (const [value, data] of sorted.slice(0, 10)) { // Show top 10
+            tableHtml += `
+                <tr>
+                    <td class="text-truncate" style="max-width: 300px;" title="${escapeHtml(value)}">
+                        ${escapeHtml(value.substring(0, 100))}
+                    </td>
+                    <td><span class="badge bg-secondary">${data.count}</span></td>
+                    <td class="text-muted small">${formatDate(data.lastUpdated)}</td>
+                </tr>`;
+        }
+        
+        tableHtml += `
+                        </tbody>
+                    </table>
+                </div>
+                ${sorted.length > 10 ? `<div class="text-muted small">Showing 10 of ${sorted.length} total values</div>` : ''}
+            </div>`;
+        
+        return tableHtml;
+    };
+    
+    // Helper function to create component rows for unified table
+    const createComponentRows = (title, variants, displayField = 'value') => {
+        if (!variants || Object.keys(variants).length === 0) {
+            return `
+                <tr class="table-secondary">
+                    <td colspan="3"><strong>${title}</strong></td>
+                </tr>
+                <tr>
+                    <td colspan="3" class="text-muted ps-4">No data available</td>
+                </tr>`;
+        }
+        
+        // Aggregate all variants
+        const aggregated = {};
+        for (const [key, variantList] of Object.entries(variants)) {
+            for (const variant of variantList) {
+                const value = variant[displayField] || variant.value || key;
+                if (!aggregated[value]) {
+                    aggregated[value] = {
+                        count: 0,
+                        lastUpdated: variant.timestamp
+                    };
+                }
+                aggregated[value].count++;
+                if (variant.timestamp > aggregated[value].lastUpdated) {
+                    aggregated[value].lastUpdated = variant.timestamp;
+                }
+            }
+        }
+        
+        // Sort by count descending
+        const sorted = Object.entries(aggregated).sort((a, b) => b[1].count - a[1].count);
+        
+        let rows = `
+            <tr class="table-secondary">
+                <td colspan="3"><strong>${title}</strong></td>
+            </tr>`;
+        
+        for (const [value, data] of sorted.slice(0, 5)) { // Show top 5 per section
+            rows += `
+                <tr>
+                    <td class="text-truncate ps-4" style="max-width: 400px;" title="${escapeHtml(value)}">
+                        ${escapeHtml(value.substring(0, 100))}
+                    </td>
+                    <td style="width: 100px;"><span class="badge bg-secondary">${data.count}</span></td>
+                    <td style="width: 200px;" class="text-muted small">${formatDate(data.lastUpdated)}</td>
+                </tr>`;
+        }
+        
+        if (sorted.length > 5) {
+            rows += `
+                <tr>
+                    <td colspan="3" class="text-muted small ps-4">...and ${sorted.length - 5} more</td>
+                </tr>`;
+        }
+        
+        return rows;
+    };
+    
     return `
         <div class="row">
-            <div class="col-md-6">
-                <h5 class="text-purple mb-3">Latest State</h5>
-                <div class="mb-3">
-                    <div class="text-info small">Who</div>
-                    <div class="text-white ms-3">${escapeHtml(latest.who || '—')}</div>
-                </div>
-                <div class="mb-3">
-                    <div class="text-info small">What</div>
-                    <div class="p-2 bg-dark rounded text-white ms-3">${escapeHtml(latest.what || '—')}</div>
-                </div>
-                <div class="mb-3">
-                    <div class="text-info small">When</div>
-                    <div class="text-white ms-3">${escapeHtml(latest.when || '—')}</div>
-                </div>
-                <div class="mb-3">
-                    <div class="text-info small">Where</div>
-                    <div class="text-white ms-3">${escapeHtml(latest.where || '—')}</div>
-                </div>
-                <div class="mb-3">
-                    <div class="text-info small">Why</div>
-                    <div class="p-2 bg-dark rounded text-white ms-3">${escapeHtml(latest.why || '—')}</div>
-                </div>
-                <div class="mb-3">
-                    <div class="text-info small">How</div>
-                    <div class="text-white ms-3">${escapeHtml(latest.how || '—')}</div>
+            <div class="col-12">
+                <h5 class="text-purple mb-3">Component Summary</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm table-dark table-hover">
+                        <thead>
+                            <tr>
+                                <th>Value</th>
+                                <th style="width: 100px;">Count</th>
+                                <th style="width: 200px;">Last Updated</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${createComponentRows('WHO - Actors', mergedEvent.who_variants)}
+                            ${createComponentRows('WHAT - Actions', mergedEvent.what_variants)}
+                            ${createComponentRows('WHERE - Locations', mergedEvent.where_variants || (mergedEvent.where_locations ? {'locations': Object.entries(mergedEvent.where_locations).map(([loc, count]) => ({value: loc, timestamp: new Date()}))} : {}))}
+                            ${createComponentRows('WHY - Reasons', mergedEvent.why_variants)}
+                            ${createComponentRows('HOW - Methods', mergedEvent.how_variants || (mergedEvent.how_methods ? {'methods': Object.entries(mergedEvent.how_methods).map(([method, count]) => ({value: method, timestamp: new Date()}))} : {}))}
+                        </tbody>
+                    </table>
                 </div>
             </div>
-            <div class="col-md-6">
+        </div>
+        <div class="row mt-4">
+            <div class="col-md-12">
                 <h5 class="text-purple mb-3">Merge Statistics</h5>
                 <div class="mb-3">
                     <div class="text-info small">Total Events Merged</div>
@@ -3134,7 +3223,7 @@ function displayMergeGroups(groups) {
         
         // Create merge indicator
         const mergeIndicator = `<span class="badge bg-success ms-1" title="${group.merge_count} merged events">
-            <i class="bi bi-layers-fill"></i> ${group.merge_count}
+            ${group.merge_count}
         </span>`;
         
         // Create space weight indicator (use dominant pattern)
@@ -3157,9 +3246,6 @@ function displayMergeGroups(groups) {
                 </button>
                 <button class="btn btn-sm btn-outline-primary" onclick="window.showMemoryInGraph('${group.id}')" title="Show in Graph">
                     <i class="bi bi-diagram-3"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-warning" onclick="window.showMergeGroup('${group.id}')" title="Show Raw Events">
-                    <i class="bi bi-collection"></i>
                 </button>
             </td>
         `;
