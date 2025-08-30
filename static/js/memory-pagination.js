@@ -453,10 +453,13 @@
     function filterMemories(searchTerm = '') {
         const term = searchTerm.toLowerCase();
         
+        // Use allMemories directly (it's already an array)
+        const memoriesArray = Array.isArray(allMemories) ? allMemories : [];
+        
         if (!term) {
-            paginationFilteredMemories = [...allMemories.raw];
+            paginationFilteredMemories = [...memoriesArray];
         } else {
-            paginationFilteredMemories = allMemories.raw.filter(memory => {
+            paginationFilteredMemories = memoriesArray.filter(memory => {
                 return (
                     (memory.who || '').toLowerCase().includes(term) ||
                     (memory.what || '').toLowerCase().includes(term) ||
@@ -475,12 +478,14 @@
     
     // Override the displayMemories function
     window.displayMemories = function() {
-        if (!allMemories.raw) {
-            allMemories.raw = [];
-        }
+        // Check if we're in raw view or merged view
+        const isRawView = document.getElementById('rawView') && document.getElementById('rawView').checked;
+        
+        // Use allMemories directly (it's already an array)
+        const memoriesArray = Array.isArray(allMemories) ? allMemories : [];
         
         // Initialize filtered memories
-        paginationFilteredMemories = [...allMemories.raw];
+        paginationFilteredMemories = [...memoriesArray];
         
         // Preserve current sort if it exists, otherwise default to when desc
         if (!paginationCurrentSort || !paginationCurrentSort.field) {

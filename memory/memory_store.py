@@ -169,11 +169,24 @@ class MemoryStore:
                         self.merged_events_cache[merged_id] = merged_event
                         
                         # Rebuild raw_to_merged mappings
+                        # Handle both raw_ prefixed and non-prefixed IDs
+                        raw_ids_for_mapping = set()
                         for raw_id in merged_event.raw_event_ids:
-                            self.raw_to_merged[raw_id] = merged_id
+                            # Check which format exists in raw_events
+                            if raw_id in self.raw_events:
+                                self.raw_to_merged[raw_id] = merged_id
+                                raw_ids_for_mapping.add(raw_id)
+                            elif f"raw_{raw_id}" in self.raw_events:
+                                prefixed_id = f"raw_{raw_id}"
+                                self.raw_to_merged[prefixed_id] = merged_id
+                                raw_ids_for_mapping.add(prefixed_id)
+                            elif raw_id.startswith("raw_") and raw_id[4:] in self.raw_events:
+                                unprefixed_id = raw_id[4:]
+                                self.raw_to_merged[unprefixed_id] = merged_id
+                                raw_ids_for_mapping.add(unprefixed_id)
                         
-                        # Rebuild merged_to_raw mapping
-                        self.merged_to_raw[merged_id] = set(merged_event.raw_event_ids)
+                        # Rebuild merged_to_raw mapping with the correct IDs
+                        self.merged_to_raw[merged_id] = raw_ids_for_mapping
                         
                     except Exception as e:
                         logger.error(f"Failed to load merged event {merged_id}: {e}")
@@ -270,6 +283,7 @@ class MemoryStore:
                     self.raw_to_merged[raw_id] = merged_id
                     if merged_id not in self.merged_to_raw:
                         self.merged_to_raw[merged_id] = set()
+                    # Store the raw_id as is (with raw_ prefix) to match store_event behavior
                     self.merged_to_raw[merged_id].add(raw_id)
             
             logger.info(f"Loaded {len(self.raw_events)} raw events from ChromaDB")
@@ -366,12 +380,21 @@ class MemoryStore:
                                 id=f"merged_{similar_event.id}",
                                 base_event_id=similar_event.id
                             )
-                            merged_event.add_raw_event(similar_event.id, similar_data)
+                            # Use the raw event ID if it exists, otherwise use the original ID
+                            similar_raw_id = f"raw_{similar_event.id}" if f"raw_{similar_event.id}" in self.raw_events else similar_event.id
+                            merged_event.add_raw_event(similar_raw_id, similar_data)
                             merged_event_id = merged_event.id
                         
                         # Use smart merger to merge the new event
+                        # Create a copy of the event with the raw_event_id as its ID for consistency
+                        event_for_merge = Event(
+                            id=raw_event_id if preserve_raw else event.id,
+                            five_w1h=event.five_w1h,
+                            event_type=event.event_type,
+                            episode_id=event.episode_id
+                        )
                         merged_event = self.smart_merger.merge_events(
-                            merged_event, event, 
+                            merged_event, event_for_merge, 
                             {'euclidean_weight': euclidean_weight, 'hyperbolic_weight': hyperbolic_weight}
                         )
                         
@@ -1044,8 +1067,45 @@ class MemoryStore:
     
     def get_raw_events_for_merged(self, merged_event_id: str) -> List[Event]:
         """Get all raw events associated with a merged event"""
+        # First try the merged_to_raw mapping (which may have raw_ prefixed IDs)
         raw_event_ids = self.merged_to_raw.get(merged_event_id, set())
-        return [self.raw_events[rid] for rid in raw_event_ids if rid in self.raw_events]
+        
+        # If empty, try getting from the merged event itself
+        if not raw_event_ids and merged_event_id in self.merged_events_cache:
+            merged_event = self.merged_events_cache[merged_event_id]
+            raw_event_ids = merged_event.raw_event_ids
+        
+        logger.info(f"Looking for raw events for merged {merged_event_id}: {list(raw_event_ids)[:5]}...")
+        
+        events = []
+        for rid in raw_event_ids:
+            # Check both with and without raw_ prefix
+            # Some IDs in merged_to_raw have the prefix, some in raw_event_ids don't
+            found = False
+            
+            # Try as-is first
+            if rid in self.raw_events:
+                event = self.raw_events[rid]
+                events.append(event)
+                found = True
+            # Try with raw_ prefix
+            elif f"raw_{rid}" in self.raw_events:
+                event = self.raw_events[f"raw_{rid}"]
+                events.append(event)
+                found = True
+            # Try removing raw_ prefix if it exists
+            elif rid.startswith("raw_") and rid[4:] in self.raw_events:
+                event = self.raw_events[rid[4:]]
+                events.append(event)
+                found = True
+            
+            if found and len(events) == 1:  # Log first event
+                logger.info(f"First raw event 5W1H - who: {event.five_w1h.who}, what: {event.five_w1h.what[:50] if event.five_w1h.what else 'None'}")
+            elif not found:
+                logger.warning(f"Raw event not found: {rid}")
+        
+        logger.info(f"Found {len(events)} raw events for merged {merged_event_id}")
+        return events
     
     def get_merged_event_for_raw(self, raw_event_id: str) -> Optional[str]:
         """Get the merged event ID that a raw event belongs to"""
@@ -1061,8 +1121,16 @@ class MemoryStore:
     
     def get_statistics(self) -> Dict[str, Any]:
         """Get statistics about the memory store."""
-        # Calculate merge statistics
-        total_raw = len(self.raw_events)
+        # Get actual count from ChromaDB raw_events collection if available
+        try:
+            raw_collection = self.chromadb.client.get_collection('raw_events')
+            # Count only entries that start with 'raw_' to avoid any potential duplicates
+            all_ids = raw_collection.get(limit=1)  # Just to check it exists
+            total_raw = raw_collection.count()
+        except:
+            # Fallback to in-memory count if collection doesn't exist
+            total_raw = len(self.raw_events)
+        
         total_merged = len(self.merged_to_raw)
         avg_merge_size = sum(len(rids) for rids in self.merged_to_raw.values()) / max(1, total_merged) if total_merged > 0 else 0
         
