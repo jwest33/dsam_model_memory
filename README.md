@@ -1,12 +1,12 @@
 # [DSAM] Dual-Space Agentic Memory
 
-DSAM is an adaptive geometric memory system for AI agents featuring dual-space encoding (Euclidean + Hyperbolic), adaptive residual learning, provenance tracking, event deduplication with raw event preservation, and dynamic visualization.
+DSAM is an adaptive memory system for AI agents featuring dual-space encoding (Euclidean + Hyperbolic), adaptive residual learning, provenance tracking, event merging with raw event preservation, and dynamic visualization.
 
 ## Overview
 
 DSAM is a content-addressable memory system that operates on dual geometric manifolds. Unlike traditional memory systems that require explicit addresses, DSAM retrieves memories based on semantic similarity of their content. The architecture combines Euclidean space for concrete/lexical similarity with Hyperbolic space for abstract/hierarchical relationships, featuring immutable anchor embeddings with bounded residual adaptation that enable memories to evolve while maintaining stable representations.
 
-![Memory Cluster](example-memory-cluster-simple.jpg)
+![Memory Cluster](docs/example-memory-cluster-simple.jpg)
 
 ## Core Architecture
 
@@ -50,57 +50,107 @@ Complete context encoding for each memory:
 
 ## Installation
 
+### Quick Setup (Recommended)
+
+#### Windows
 ```bash
 # Clone repository
 git clone <repository-url>
 cd agent-wip
 
-# Install dependencies
-pip install -r requirements.txt
+# Run automated setup script
+python setup_venv.py
 
-# For offline mode (recommended)
-export HF_HUB_OFFLINE=1
-export TRANSFORMERS_OFFLINE=1
+# Activate virtual environment
+.venv\Scripts\activate
+```
+
+#### Linux/MacOS
+```bash
+# Clone repository
+git clone https://github.com/jwest33/dsam_model_memory
+cd agent-wip
+
+# Run automated setup script
+python setup_venv.py
+
+# Activate virtual environment
+source .venv/bin/activate
+```
+
+
+### Environment Configuration
+
+The system uses a `.env` file for configuration. Key settings:
+
+```bash
+# Set offline mode (recommended)
+HF_HUB_OFFLINE=1
+TRANSFORMERS_OFFLINE=1
+
+# Optional: Custom paths
+CHROMADB_PATH=./state/chromadb
+BENCHMARK_DATASETS_PATH=./benchmark_datasets
+
+# Optional: Flask settings
+FLASK_PORT=5000
+```
+
+### Troubleshooting Installation
+
+#### PyTorch Installation Issues
+If you encounter issues with PyTorch:
+```bash
+# CPU-only version (smaller, faster install)
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+# CUDA 11.8 (for NVIDIA GPUs)
+pip install torch --index-url https://download.pytorch.org/whl/cu118
+```
+
+#### HuggingFace Model Downloads
+If models fail to download:
+1. Ensure you have internet connection for first-time setup
+2. After initial download, use offline mode via `.env` file
+3. Models are cached in `~/.cache/huggingface/`
+
+#### ChromaDB Issues
+If ChromaDB fails to install:
+```bash
+# Install build tools first
+# Windows: Install Visual Studio Build Tools
+# Linux: sudo apt-get install build-essential
+# MacOS: xcode-select --install
+
+# Then retry
+pip install chromadb
+```
+
+### Virtual Environment Management
+
+```bash
+# Activate virtual environment (required before running any commands)
+# Windows:
+.venv\Scripts\activate
+# Linux/MacOS:
+source .venv/bin/activate
+
+# Verify activation (should show .venv path)
+which python  # Linux/MacOS
+where python  # Windows
+
+# Deactivate when done
+deactivate
 ```
 
 ## Quick Start
 
-### Start LLM Server (Required for Chat)
+**Important**: Always activate the virtual environment first!
+
+### Run the Web Interface
 
 ```bash
-# Start the local LLM server first
-python llama_server_client.py start
-
-# The server will run in the background
-# To stop it later: python llama_server_client.py stop
-```
-
-### Command Line Interface
-
-```bash
-# Initialize memory system
-python cli.py init
-
-# Store memories (no address needed - content is the key)
-python cli.py remember --who "Alice" --what "implemented search feature" --where "backend" --why "user requirement" --how "elasticsearch integration"
-
-# Content-addressable recall - query by partial content
-python cli.py recall --what "search" --k 10  # Finds memories semantically similar to "search"
-python cli.py recall --who "Alice" --what "feature" --k 5  # Multi-field content matching
-python cli.py recall --why "optimization" --k 10  # Abstract concept retrieval
-
-# View statistics
-python cli.py stats
-
-# Save/Load state
-python cli.py save
-python cli.py load
-```
-
-### Web Interface
-
-```bash
-# Make sure LLM server is running first (for chat functionality)
+# Make sure LLM server is running first
 python llama_server_client.py start
 
 # Launch enhanced web interface
@@ -123,7 +173,7 @@ The web interface provides:
 
 ```bash
 # Run conversation simulations
-python simulate_conversations.py
+python benchmark\generate_benchmark_dataset.py
 ```
 
 ## Web Interface Features
@@ -342,28 +392,6 @@ python clear_memories.py
 - Field-level limits prevent excessive adaptation
 - Use forgetting mechanism to reset specific memories
 - Consider clearing if consistently > bounds
-
-## Development
-
-### Testing
-```bash
-# Test dual-space memory
-python tests/test_dual_space.py
-
-# Test full model
-python test/test_model.py
-
-# Test api
-python tests/test_api.py
-
-
-```
-
-### Adding New Features
-1. Extend memory operations in `memory_agent.py`
-2. Add API endpoints in `web_app.py`
-3. Update frontend in `static/js/app.js`
-4. Document in relevant markdown files
 
 ## License
 
