@@ -3,7 +3,7 @@
 > [!CAUTION]
 > DSAM is currently pre-release, functionality might be broken while the app is prepared for release
 
-DSAM is a high-performance adaptive memory system for AI agents featuring dual-space encoding (Euclidean + Hyperbolic), adaptive residual learning, provenance tracking, event merging with raw event preservation, similarity caching, and dynamic visualization.
+DSAM is a high-performance adaptive memory system for AI agents featuring dual-space encoding (Euclidean + Hyperbolic), multi-dimensional merging, adaptive residual learning, provenance tracking, event deduplication with raw event preservation, similarity caching, and dynamic visualization.
 
 ## Overview
 
@@ -36,11 +36,16 @@ DSAM is a content-addressable memory system that operates on dual geometric mani
 - **Provenance Tracking**: Version history, residual norms, co-retrieval partners, and access patterns
 - **Similarity Cache**: Pre-computed pairwise similarities with O(1) lookup performance
 
-### Event Deduplication & Raw Event Preservation
+### Multi-Dimensional Merging & Event Deduplication
+- **Multi-Dimensional Merge Groups**: Events organized across multiple dimensions:
+  - **Actor Merging**: Groups events by participant (who)
+  - **Temporal Merging**: Groups events by conversation threads
+  - **Conceptual Merging**: Groups events by concepts and goals
+  - **Spatial Merging**: Groups events by location context
 - **Automatic Deduplication**: Similar events (similarity > 0.85) are merged to prevent redundancy
 - **Raw Event Storage**: All original events are preserved and linked to their merged representations
 - **Dual View Interface**: Toggle between merged events (deduplicated) and raw events (all originals)
-- **Merge Group Tracking**: Visualize which raw events have been merged together
+- **Merge Group Tracking**: Visualize which raw events have been merged together across dimensions
 - **Bidirectional Mapping**: Navigate from merged events to raw events and vice versa
 
 ### Performance Optimization
@@ -146,11 +151,12 @@ python run_web.py
 The web interface provides:
 - Interactive chat with real-time space weight visualization
 - Memory management with full 5W1H display and calculated space weights
+- Multi-dimensional merge groups (Actor, Temporal, Conceptual, Spatial)
 - Dual view modes: Merged (deduplicated) and Raw (all events)
-- Graph visualization with configurable HDBSCAN parameters
+- Graph visualization with adjustable layout controls
 - Analytics dashboard with residual tracking
 - Provenance information for each memory
-- Merge group visualization showing raw-to-merged event relationships
+- Merge group visualization showing relationships across dimensions
 
 ### Generate Dataset
 
@@ -177,9 +183,15 @@ python benchmark_similarity_performance.py
 ### Memory Management
 - Full 5W1H field display with all metadata
 - Real-time calculated space weights (Euclidean/Hyperbolic percentages)
+- Multi-dimensional merge dimensions:
+  - **Actor**: Groups by participants
+  - **Temporal**: Groups by conversation threads
+  - **Conceptual**: Groups by concepts/goals
+  - **Spatial**: Groups by location context
 - Dual view modes:
   - **Merged View**: Deduplicated events with merge indicators
   - **Raw View**: All original events with merge group information
+- Unified component table display with aligned columns
 - Provenance tracking (version, access count, co-retrieval partners)
 - Residual norm visualization
 - Field-specific adaptation limits
@@ -190,18 +202,11 @@ python benchmark_similarity_performance.py
 
 ### Graph Visualization
 - **Interactive Network Graph**: Powered by vis.js
-- **5W1H Component Selection**: Choose which fields to visualize
-- **Multiple Visualization Modes**:
-  - Dual-space view
-  - Euclidean-only
-  - Hyperbolic-only
-  - Residual magnitude
-- **HDBSCAN Clustering**: Configurable clustering with adjustable parameters
-  - Min cluster size (2-20)
-  - Min samples (1-10)
-  - Real-time parameter adjustment
+- **Multi-Dimensional Support**: Visualize merge groups from any dimension
 - **Individual Memory Focus**: View a memory and its related connections
+- **Adjustable Layout**: Graph spacing control slider for optimal viewing
 - **Graph Statistics**: Nodes, edges, clusters, average degree
+- **Color-Coded Nodes**: Different colors for users, assistants, and memory types
 
 ### Analytics Dashboard
 - Total events and queries metrics
@@ -223,6 +228,9 @@ python benchmark_similarity_performance.py
 - `GET /api/stats`: Get system statistics
 - `GET /api/analytics`: Get analytics data for charts
 - `GET /api/merge-stats`: Get merge group statistics
+- `GET /api/merge-dimensions`: Get available merge dimensions
+- `GET /api/merge-groups/<type>`: Get merge groups by dimension type
+- `GET /api/multi-merge/<type>/<id>/details`: Get details for multi-dimensional merge group
 
 ## System Architecture
 
@@ -395,3 +403,9 @@ python clear_memories.py
 ## License
 
 [MIT License](LICENSE)
+
+## TODO:
+  * Update chat interface to get merge groups instead of raw
+  * Memory block graph terminal context vectors/pointers
+  * Consolidate `.js` files
+  * Consolidate data model modules
