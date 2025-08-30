@@ -41,7 +41,7 @@ class MemoryCLI:
             self.config = get_config()
         
         self.agent = MemoryAgent(self.config)
-        print(f"✓ Initialized memory system at {self.config.storage.state_dir}")
+        print(f"Initialized memory system at {self.config.storage.state_dir}")
         
         # Show statistics
         stats = self.agent.get_statistics()
@@ -78,12 +78,12 @@ class MemoryCLI:
         )
         
         if success:
-            print(f"✓ Stored memory: {event.id[:8]}")
+            print(f"Stored memory: {event.id[:8]}")
             # Salience now computed at block level
             print(f"  Episode: {event.episode_id}")
             print(f"  Message: {message}")
         else:
-            print(f"✗ Failed to store memory: {message}")
+            print(f"Failed to store memory: {message}")
     
     def recall(
         self,
@@ -152,11 +152,11 @@ class MemoryCLI:
         )
         
         if success:
-            print(f"✓ Recorded observation: {event.id[:8]}")
+            print(f"Recorded observation: {event.id[:8]}")
             print(f"  Episode: {event.episode_id}")
             print(f"  Message: {message}")
         else:
-            print(f"✗ Failed to record observation: {message}")
+            print(f"Failed to record observation: {message}")
     
     def episode(self, episode_id: Optional[str] = None):
         """Show episode events"""
@@ -219,7 +219,7 @@ class MemoryCLI:
             self.initialize()
         
         self.agent.clear()
-        print("✓ Cleared all memories")
+        print("Cleared all memories")
     
     def save(self):
         """Save memory state"""
@@ -227,7 +227,7 @@ class MemoryCLI:
             self.initialize()
         
         self.agent.save()
-        print(f"✓ Saved memory state to {self.config.storage.state_dir}")
+        print(f"Saved memory state to {self.config.storage.state_dir}")
     
     def goal(self, goal: str):
         """Set the current goal"""
@@ -235,7 +235,7 @@ class MemoryCLI:
             self.initialize()
         
         self.agent.set_goal(goal)
-        print(f"✓ Set goal: {goal}")
+        print(f"Set goal: {goal}")
     
     def demo(self):
         """Run a demonstration"""
@@ -271,7 +271,7 @@ class MemoryCLI:
         # Chain events
         print("3. Chaining action and observation...")
         self.agent.chain_events(event1, event2)
-        print("   ✓ Events linked\n")
+        print("   Events linked\n")
         
         print("4. Storing another action...")
         success, msg, event3 = self.agent.remember(
@@ -303,7 +303,7 @@ class MemoryCLI:
         print(f"   Hopfield utilization: {stats['hopfield']['utilization']:.1%}")
         print(f"   Current episode: {stats['current_episode']}")
         
-        print("\n✓ Demonstration complete!")
+        print("\nDemonstration complete!")
 
 def main():
     """Main CLI entry point"""
