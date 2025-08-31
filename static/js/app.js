@@ -1,9 +1,17 @@
 // Enhanced JavaScript for [DSAM] Dual-Space Agentic Memory
 
 let allMemories = [];
-let currentPage = 1;
-let itemsPerPage = 10;
+let currentPage = 1;  // Keep for compatibility, but will use paginationCurrentPage
+let itemsPerPage = 10;  // Keep for compatibility, but will use paginationItemsPerPage
 let graphNetwork = null;
+
+// Enhanced pagination variables from memory-pagination.js
+let paginationCurrentPage = 1;
+let paginationItemsPerPage = 20;
+let paginationCurrentSort = { field: 'when', direction: 'desc' };
+let paginationFilteredMemories = [];
+let paginationLastUserInteraction = 0;
+let lastUserInteraction = 0;
 let residualChart = null;
 let spaceUsageChart = null;
 let clusteringEnabled = false;  // Disabled since we removed the UI controls
@@ -92,6 +100,12 @@ function initializeApp() {
                 currentMergeDimension = 'temporal';
             }
             loadMemories();
+            // Reposition tabs after state change
+            setTimeout(() => {
+                if (typeof positionMemoryViewTabs === 'function') {
+                    positionMemoryViewTabs();
+                }
+            }, 10);
         });
     }
     if (rawView) {
@@ -105,6 +119,12 @@ function initializeApp() {
                 dimensionSelector.style.display = 'none';
             }
             loadMemories();
+            // Reposition tabs after state change
+            setTimeout(() => {
+                if (typeof positionMemoryViewTabs === 'function') {
+                    positionMemoryViewTabs();
+                }
+            }, 10);
         });
     }
     
@@ -158,9 +178,18 @@ function setupEventListeners() {
         chatForm.addEventListener('submit', handleChatSubmit);
     }
     
-    // Search functionality
+    // Search functionality with enhanced filtering
     const searchInput = document.getElementById('memorySearch');
     if (searchInput) {
+        // Real-time search on input
+        searchInput.addEventListener('input', function(e) {
+            // Track user interaction
+            paginationLastUserInteraction = Date.now();
+            window.lastUserInteraction = paginationLastUserInteraction;
+            filterMemories(e.target.value);
+        });
+        
+        // Keep Enter key functionality for server search if needed
         searchInput.addEventListener('keyup', (e) => {
             if (e.key === 'Enter') {
                 performSearch();
@@ -175,6 +204,59 @@ function setupEventListeners() {
             updateCharts();
         });
     }
+    
+    // Show/hide Merged/Raw tabs based on active main tab
+    const memoryTab = document.getElementById('memory-tab');
+    const chatTab = document.getElementById('chat-tab');
+    const memoryViewTabs = document.getElementById('memoryViewTabs');
+    
+    // Function to position the sub-tabs correctly under Memory Store
+    function positionMemoryViewTabs() {
+        if (!memoryTab || !memoryViewTabs) return;
+        
+        const memoryTabRect = memoryTab.getBoundingClientRect();
+        const parentRect = memoryTab.parentElement.parentElement.getBoundingClientRect();
+        const tabsContainer = memoryViewTabs.querySelector('.memory-view-tabs-container');
+        
+        if (tabsContainer) {
+            // Calculate the exact position without any offset
+            const leftOffset = memoryTabRect.left - parentRect.left;
+            const width = memoryTabRect.width;
+            
+            // Apply styles directly without additional margins
+            tabsContainer.style.marginLeft = `${leftOffset}px`;
+            tabsContainer.style.width = `${width}px`;
+            tabsContainer.style.marginRight = '0';
+            tabsContainer.style.paddingLeft = '0';
+            tabsContainer.style.paddingRight = '0';
+        }
+    }
+    
+    if (memoryTab && memoryViewTabs) {
+        memoryTab.addEventListener('shown.bs.tab', () => {
+            memoryViewTabs.style.display = 'block';
+            positionMemoryViewTabs();
+        });
+    }
+    
+    if (chatTab && memoryViewTabs) {
+        chatTab.addEventListener('shown.bs.tab', () => {
+            memoryViewTabs.style.display = 'none';
+        });
+    }
+    
+    if (analyticsTab && memoryViewTabs) {
+        analyticsTab.addEventListener('shown.bs.tab', () => {
+            memoryViewTabs.style.display = 'none';
+        });
+    }
+    
+    // Reposition on window resize
+    window.addEventListener('resize', () => {
+        if (memoryViewTabs && memoryViewTabs.style.display === 'block') {
+            positionMemoryViewTabs();
+        }
+    });
 }
 
 // Chat functionality with query type detection
@@ -528,138 +610,299 @@ async function loadMemoriesOriginal() {
     }
 }
 
-function displayMemories() {
-    console.log('=== displayMemories TRY ===');
-    try {
-        console.log('=== displayMemories START ===');
-        console.log('allMemories length:', allMemories.length);
-        console.log('currentPage:', currentPage, 'itemsPerPage:', itemsPerPage);
-        
-        const tbody = document.getElementById('memoryTableBody');
-        console.log('tbody element:', tbody);
-        
-        if (!tbody) {
-            console.log('ERROR: memoryTableBody not found!');
+// Enhanced memory display with sorting and pagination from memory-pagination.js
+function createMemoryRow(memory, includeAll = false) {
+    const row = document.createElement('tr');
+    row.style.cursor = 'pointer';
+    row.classList.add('memory-row');
+    row.setAttribute('data-memory-id', memory.id);
+    
+    // Add click handler for the entire row
+    row.addEventListener('click', function(e) {
+        // Don't trigger if clicking on a button or icon
+        if (e.target.closest('button') || e.target.closest('i')) {
             return;
         }
         
-        const startIdx = (currentPage - 1) * itemsPerPage;
-        const endIdx = startIdx + itemsPerPage;
-        const pageMemories = allMemories.slice(startIdx, endIdx);
-        console.log('Slicing from', startIdx, 'to', endIdx);
-        console.log('pageMemories length:', pageMemories.length);
-        
-        if (pageMemories.length === 0) {
-            console.log('WARNING: No memories to display on this page');
-            tbody.innerHTML = '<tr><td colspan="9" class="text-center">No memories to display</td></tr>';
-            return;
+        // Call viewMemoryDetails directly
+        if (window.viewMemoryDetails) {
+            window.viewMemoryDetails(memory.id);
         }
-        
-        tbody.innerHTML = '';
-        
-        pageMemories.forEach((memory, index) => {
-            const row = document.createElement('tr');
-            
-            // Debug log for first memory
-            if (index === 0) {
-                console.log('Processing first memory:', memory);
-                console.log('five_w1h:', memory.five_w1h);
-            }
-            
-            // Get residual indicator  
-            const residualIndicator = getResidualIndicator(memory);
-            
-            // Handle potentially empty fields - prioritize five_w1h for raw view
-            const who = memory.five_w1h?.who || memory.who || '';
-            const what = memory.five_w1h?.what || memory.what || '';
-            const when = memory.five_w1h?.when || memory.when || memory.timestamp || '';
-            const where = memory.five_w1h?.where || memory.where || '';
-            const why = memory.five_w1h?.why || memory.why || '';
-            const how = memory.five_w1h?.how || memory.how || '';
-            
-            // Debug log extracted values
-            if (index === 0) {
-                console.log('Extracted values:', { who, what, when, where, why, how });
-            }
-            
-            const whatDisplay = what.length > 40 ? what.substring(0, 40) + '...' : what;
-            const whereDisplay = where.length > 20 ? where.substring(0, 20) + '...' : where;
-            const whyDisplay = why.length > 30 ? why.substring(0, 30) + '...' : why;
-            const howDisplay = how.length > 25 ? how.substring(0, 25) + '...' : how;
-            
-            // Add merge indicator for merged events or raw view
-            let mergeIndicator = '';
-            if (memory.merge_count && memory.merge_count > 1) {
-                // This is a merged event
-                mergeIndicator = `<span class="badge bg-success ms-1" title="Merged event with ${memory.merge_count} components">
-                    ${memory.merge_count}
-                </span>`;
-            } else if (memory.is_merged) {
-                // This is marked as merged from the backend
-                mergeIndicator = `<span class="badge bg-success ms-1" title="Merged event">
-                    <i class="bi bi-layers-fill"></i> M
-                </span>`;
-            } else if (memory.type === 'raw' && memory.merged_id) {
-                // This is a raw event that's part of a merge group
-                const mergeGroup = window.mergeGroups?.[memory.merged_id];
-                const groupSize = mergeGroup ? mergeGroup.length : 1;
-                mergeIndicator = `<span class="badge bg-info ms-1" title="Part of merged group ${memory.merged_id.substring(0, 8)}">
-                    ${groupSize}
-                </span>`;
-            }
-            
-            // Calculate space weight for this memory
-            const memorySpaceWeight = calculateMemorySpaceWeight(memory);
-            
-            row.innerHTML = `
-            <td>${escapeHtml(who)}</td>
-            <td title="${escapeHtml(what)}">${escapeHtml(whatDisplay)}${mergeIndicator}</td>
-            <td>${formatDate(when)}</td>
-            <td>${escapeHtml(whereDisplay)}</td>
-            <td title="${escapeHtml(why)}">${escapeHtml(whyDisplay)}</td>
-            <td title="${escapeHtml(how)}">${escapeHtml(howDisplay)}</td>
-            <td>${memorySpaceWeight}</td>
-            <td>${residualIndicator}</td>
-            <td>
-                <button class="btn btn-sm btn-outline-info" onclick="window.viewMemoryDetails('${memory.id}')" title="View Details">
-                    <i class="bi bi-eye"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-primary" onclick="window.showMemoryInGraph('${memory.id}')" title="Show in Graph">
-                    <i class="bi bi-diagram-3"></i>
-                </button>
-                ${memory.type === 'raw' && memory.merged_id ? 
-                    `<button class="btn btn-sm btn-outline-warning" onclick="window.showMergeGroup('${memory.merged_id}')" title="Show Merge Group">
-                        <i class="bi bi-collection"></i>
-                    </button>` : 
-                    `<button class="btn btn-sm btn-outline-danger" onclick="window.deleteMemory('${memory.id}')" title="Delete">
-                        <i class="bi bi-trash"></i>
-                    </button>`
-                }
-            </td>
-            `;
-            
-            // Make row clickable
-            row.style.cursor = 'pointer';
-            row.title = 'Click to view details';
-            row.addEventListener('click', (e) => {
-                // Don't trigger if clicking on a button or within the actions cell
-                if (!e.target.closest('button') && !e.target.closest('td:last-child')) {
-                    window.viewMemoryDetails(memory.id);
-                }
-            });
-            
-            tbody.appendChild(row);
-        });
-        
-        // Update pagination
-        updatePagination();
-        console.log('=== displayMemories END - Success ===');
-    } catch (error) {
-        console.error('=== displayMemories ERROR ===');
-        console.error('Error:', error);
-        console.error('Stack:', error.stack);
+    });
+    
+    // Get residual indicator  
+    const residualIndicator = getResidualIndicator(memory);
+    
+    // Handle potentially empty fields
+    const who = memory.who || '';
+    const what = memory.what || '';
+    const when = memory.when || '';
+    const where = memory.where || '';
+    const why = memory.why || '';
+    const how = memory.how || '';
+    const whatDisplay = what.length > 40 ? what.substring(0, 40) + '...' : what;
+    const whereDisplay = where.length > 20 ? where.substring(0, 20) + '...' : where;
+    const whyDisplay = why.length > 30 ? why.substring(0, 30) + '...' : why;
+    const howDisplay = how.length > 25 ? how.substring(0, 25) + '...' : how;
+    
+    // Calculate space weight for this memory
+    const memorySpaceWeight = calculateMemorySpaceWeight(memory);
+    
+    // Helper to escape attributes (handles quotes)
+    const escapeAttr = (text) => {
+        if (!text) return '';
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    };
+    
+    // Add merge indicator for raw view
+    let mergeIndicator = '';
+    if (memory.type === 'raw' && memory.merged_id && window.mergeGroups) {
+        const mergeGroup = window.mergeGroups[memory.merged_id];
+        const groupSize = mergeGroup ? mergeGroup.length : 1;
+        mergeIndicator = `<span class="badge bg-info ms-1" title="Part of merged group ${memory.merged_id.substring(0, 8)}">
+            ${groupSize}
+        </span>`;
     }
+    
+    row.innerHTML = `
+        <td>${escapeHtml(who)}</td>
+        <td title="${escapeAttr(what)}">${escapeHtml(whatDisplay)}${mergeIndicator}</td>
+        <td>${formatDate(when)}</td>
+        <td>${escapeHtml(whereDisplay)}</td>
+        <td title="${escapeAttr(why)}">${escapeHtml(whyDisplay)}</td>
+        <td title="${escapeAttr(how)}">${escapeHtml(howDisplay)}</td>
+        <td>${memorySpaceWeight}</td>
+        <td>${residualIndicator}</td>
+        <td>
+            <button class="btn btn-sm btn-outline-info" onclick="window.viewMemoryDetails('${memory.id}')" title="View Details">
+                <i class="bi bi-eye"></i>
+            </button>
+            ${memory.type !== 'raw' ? 
+                `<button class="btn btn-sm btn-outline-primary" onclick="window.showMemoryInGraph('${memory.id}')" title="Show in Graph">
+                    <i class="bi bi-diagram-3"></i>
+                </button>` : ''
+            }
+            ${memory.type === 'raw' && memory.merged_id ? 
+                `<button class="btn btn-sm btn-outline-warning" onclick="window.showMergeGroup('${memory.merged_id}')" title="Show Merge Group">
+                    <i class="bi bi-collection"></i>
+                </button>` : 
+                `<button class="btn btn-sm btn-outline-danger" onclick="window.deleteMemory('${memory.id}')" title="Delete">
+                    <i class="bi bi-trash"></i>
+                </button>`
+            }
+        </td>
+    `;
+    
+    return row;
 }
+
+// Sort memories array
+function sortMemories() {
+    paginationFilteredMemories.sort((a, b) => {
+        let aVal = a[paginationCurrentSort.field] || '';
+        let bVal = b[paginationCurrentSort.field] || '';
+        
+        // Handle date sorting
+        if (paginationCurrentSort.field === 'when') {
+            aVal = new Date(aVal).getTime() || 0;
+            bVal = new Date(bVal).getTime() || 0;
+        }
+        
+        // Handle string comparison
+        if (typeof aVal === 'string') {
+            aVal = aVal.toLowerCase();
+            bVal = bVal.toLowerCase();
+        }
+        
+        if (paginationCurrentSort.direction === 'asc') {
+            return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+        } else {
+            return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+        }
+    });
+}
+
+// Display memories with pagination
+function displayMemoriesWithPaging() {
+    const tableBody = document.getElementById('memoryTableBody');
+    if (!tableBody) return;
+    
+    tableBody.innerHTML = '';
+    
+    // Calculate pagination
+    const startIndex = (paginationCurrentPage - 1) * paginationItemsPerPage;
+    const endIndex = Math.min(startIndex + paginationItemsPerPage, paginationFilteredMemories.length);
+    const pageMemories = paginationFilteredMemories.slice(startIndex, endIndex);
+    
+    // Display memories with all columns
+    pageMemories.forEach(memory => {
+        const row = createMemoryRow(memory, true); // true = includeAll columns
+        tableBody.appendChild(row);
+    });
+    
+    // Update pagination info if elements exist
+    const showingStart = document.getElementById('showingStart');
+    const showingEnd = document.getElementById('showingEnd');
+    const totalMemories = document.getElementById('totalMemories');
+    const totalMemoriesInfo = document.getElementById('totalMemoriesInfo');
+    
+    if (showingStart) showingStart.textContent = paginationFilteredMemories.length > 0 ? startIndex + 1 : 0;
+    if (showingEnd) showingEnd.textContent = endIndex;
+    if (totalMemories) totalMemories.textContent = paginationFilteredMemories.length;
+    if (totalMemoriesInfo) totalMemoriesInfo.textContent = paginationFilteredMemories.length;
+    
+    // Restore sort icons based on current sort state
+    document.querySelectorAll('.sortable .sort-icon').forEach(icon => {
+        icon.className = 'bi bi-arrow-down-up sort-icon';
+    });
+    
+    if (paginationCurrentSort && paginationCurrentSort.field) {
+        const currentHeader = document.querySelector(`[data-field="${paginationCurrentSort.field}"] .sort-icon`);
+        if (currentHeader) {
+            currentHeader.className = paginationCurrentSort.direction === 'asc' 
+                ? 'bi bi-arrow-up sort-icon text-cyan' 
+                : 'bi bi-arrow-down sort-icon text-cyan';
+        }
+    }
+    
+    // Create pagination controls
+    createPaginationControls();
+}
+
+// Create pagination controls
+function createPaginationControls() {
+    // Try both possible IDs for pagination controls
+    let paginationControls = document.getElementById('paginationControls');
+    if (!paginationControls) {
+        paginationControls = document.getElementById('memoryPagination');
+    }
+    if (!paginationControls) return;
+    
+    paginationControls.innerHTML = '';
+    
+    const totalPages = Math.ceil(paginationFilteredMemories.length / paginationItemsPerPage);
+    
+    // Previous button
+    const prevLi = document.createElement('li');
+    prevLi.className = `page-item ${paginationCurrentPage === 1 ? 'disabled' : ''}`;
+    prevLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${paginationCurrentPage - 1}); return false;">Previous</a>`;
+    paginationControls.appendChild(prevLi);
+    
+    // Page numbers
+    const maxButtons = 5;
+    let startPage = Math.max(1, paginationCurrentPage - Math.floor(maxButtons / 2));
+    let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+    
+    if (endPage - startPage < maxButtons - 1) {
+        startPage = Math.max(1, endPage - maxButtons + 1);
+    }
+    
+    // First page if not shown
+    if (startPage > 1) {
+        const firstLi = document.createElement('li');
+        firstLi.className = 'page-item';
+        firstLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(1); return false;">1</a>`;
+        paginationControls.appendChild(firstLi);
+        
+        if (startPage > 2) {
+            const ellipsisLi = document.createElement('li');
+            ellipsisLi.className = 'page-item disabled';
+            ellipsisLi.innerHTML = '<span class="page-link">...</span>';
+            paginationControls.appendChild(ellipsisLi);
+        }
+    }
+    
+    // Page number buttons
+    for (let i = startPage; i <= endPage; i++) {
+        const li = document.createElement('li');
+        li.className = `page-item ${i === paginationCurrentPage ? 'active' : ''}`;
+        li.innerHTML = `<a class="page-link" href="#" onclick="changePage(${i}); return false;">${i}</a>`;
+        paginationControls.appendChild(li);
+    }
+    
+    // Last page if not shown
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            const ellipsisLi = document.createElement('li');
+            ellipsisLi.className = 'page-item disabled';
+            ellipsisLi.innerHTML = '<span class="page-link">...</span>';
+            paginationControls.appendChild(ellipsisLi);
+        }
+        
+        const lastLi = document.createElement('li');
+        lastLi.className = 'page-item';
+        lastLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${totalPages}); return false;">${totalPages}</a>`;
+        paginationControls.appendChild(lastLi);
+    }
+    
+    // Next button
+    const nextLi = document.createElement('li');
+    nextLi.className = `page-item ${paginationCurrentPage === totalPages || totalPages === 0 ? 'disabled' : ''}`;
+    nextLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${paginationCurrentPage + 1}); return false;">Next</a>`;
+    paginationControls.appendChild(nextLi);
+}
+
+// Filter memories based on search
+function filterMemories(searchTerm = '') {
+    const term = searchTerm.toLowerCase();
+    
+    // Use allMemories directly (it's already an array)
+    const memoriesArray = Array.isArray(allMemories) ? allMemories : [];
+    
+    if (!term) {
+        paginationFilteredMemories = [...memoriesArray];
+    } else {
+        paginationFilteredMemories = memoriesArray.filter(memory => {
+            return (
+                (memory.who || '').toLowerCase().includes(term) ||
+                (memory.what || '').toLowerCase().includes(term) ||
+                (memory.where || '').toLowerCase().includes(term) ||
+                (memory.why || '').toLowerCase().includes(term) ||
+                (memory.how || '').toLowerCase().includes(term) ||
+                (memory.type || '').toLowerCase().includes(term)
+            );
+        });
+    }
+    
+    sortMemories();
+    paginationCurrentPage = 1;
+    displayMemoriesWithPaging();
+}
+
+// Override the displayMemories function
+function displayMemories() {
+    // Check if we're in raw view or merged view
+    const isRawView = document.getElementById('rawView') && document.getElementById('rawView').checked;
+    
+    // Use allMemories directly (it's already an array)
+    const memoriesArray = Array.isArray(allMemories) ? allMemories : [];
+    
+    // Initialize filtered memories
+    paginationFilteredMemories = [...memoriesArray];
+    
+    // Preserve current sort if it exists, otherwise default to when desc
+    if (!paginationCurrentSort || !paginationCurrentSort.field) {
+        paginationCurrentSort = { field: 'when', direction: 'desc' };
+    }
+    
+    // Apply current sort
+    sortMemories();
+    
+    // Display with pagination (preserving current page if valid)
+    const totalPages = Math.ceil(paginationFilteredMemories.length / paginationItemsPerPage);
+    if (paginationCurrentPage > totalPages) {
+        paginationCurrentPage = 1;
+    }
+    displayMemoriesWithPaging();
+}
+
+// Make createMemoryRow globally accessible
+window.createMemoryRow = createMemoryRow;
 
 function calculateMemorySpaceWeight(memory) {
     // Use real space weights from the backend if available
@@ -2877,7 +3120,7 @@ window.performSearch = async function() {
         
         const data = await response.json();
         allMemories = data.results || [];
-        currentPage = 1;
+        paginationCurrentPage = 1;
         displayMemories();
         
     } catch (error) {
@@ -2887,95 +3130,65 @@ window.performSearch = async function() {
 
 // Utility functions
 function updatePagination() {
-    const totalPages = Math.ceil(allMemories.length / itemsPerPage);
-    const pagination = document.getElementById('memoryPagination');
-    
-    if (!pagination) return;
-    
-    pagination.innerHTML = '';
-    
-    // Previous button
-    const prevLi = document.createElement('li');
-    prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
-    prevLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${currentPage - 1})">Previous</a>`;
-    pagination.appendChild(prevLi);
-    
-    // Page numbers
-    for (let i = 1; i <= totalPages; i++) {
-        const li = document.createElement('li');
-        li.className = `page-item ${i === currentPage ? 'active' : ''}`;
-        li.innerHTML = `<a class="page-link" href="#" onclick="changePage(${i})">${i}</a>`;
-        pagination.appendChild(li);
-    }
-    
-    // Next button
-    const nextLi = document.createElement('li');
-    nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
-    nextLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${currentPage + 1})">Next</a>`;
-    pagination.appendChild(nextLi);
+    // This function is now replaced by createPaginationControls
+    createPaginationControls();
 }
 
-function changePage(page) {
-    const totalPages = Math.ceil(allMemories.length / itemsPerPage);
+// Change page - globally accessible
+window.changePage = function(page) {
+    // Track user interaction
+    paginationLastUserInteraction = Date.now();
+    window.lastUserInteraction = paginationLastUserInteraction;
+    
+    const totalPages = Math.ceil(paginationFilteredMemories.length / paginationItemsPerPage);
+    
     if (page < 1 || page > totalPages) return;
     
-    currentPage = page;
-    displayMemories();
+    paginationCurrentPage = page;
+    displayMemoriesWithPaging();
 }
 
-function sortTable(field) {
-    // Determine new sort state
-    if (sortField === field) {
-        // Same field clicked - cycle through states
-        if (sortDirection === 'asc') {
-            sortDirection = 'desc';
-        } else if (sortDirection === 'desc') {
-            // Remove sort - restore original order
-            sortField = null;
-            sortDirection = null;
-            allMemories = [...originalMemoryOrder];
-        } else {
-            // Should not happen, but default to asc
-            sortDirection = 'asc';
-        }
+// Make sortTable globally accessible
+window.sortTable = function(field) {
+    // Track user interaction
+    paginationLastUserInteraction = Date.now();
+    window.lastUserInteraction = paginationLastUserInteraction;
+    
+    // Toggle direction if same field
+    if (paginationCurrentSort.field === field) {
+        paginationCurrentSort.direction = paginationCurrentSort.direction === 'asc' ? 'desc' : 'asc';
     } else {
-        // Different field clicked - start with ascending
-        sortField = field;
-        sortDirection = 'asc';
+        paginationCurrentSort.field = field;
+        paginationCurrentSort.direction = 'asc';
     }
     
-    // Apply sort if needed
-    if (sortField && sortDirection) {
-        allMemories.sort((a, b) => {
-            let aVal, bVal;
-            
-            // Special handling for space weight - sort by euclidean percentage
-            if (sortField === 'spaceWeight') {
-                // Calculate euclidean percentage for each memory
-                const aEuclidean = calculateEuclideanPercentage(a);
-                const bEuclidean = calculateEuclideanPercentage(b);
-                aVal = aEuclidean;
-                bVal = bEuclidean;
-            } else {
-                aVal = a[sortField] || '';
-                bVal = b[sortField] || '';
-            }
-            
-            // Handle null/undefined values
-            if (aVal === '' && bVal === '') return 0;
-            if (aVal === '') return 1;
-            if (bVal === '') return -1;
-            
-            // Compare values
-            let comparison = 0;
-            if (aVal < bVal) comparison = -1;
-            if (aVal > bVal) comparison = 1;
-            
-            // Apply direction
-            return sortDirection === 'asc' ? comparison : -comparison;
-        });
+    // Update sort icons
+    document.querySelectorAll('.sortable .sort-icon').forEach(icon => {
+        icon.className = 'bi bi-arrow-down-up sort-icon';
+    });
+    
+    const currentHeader = document.querySelector(`[data-field="${field}"] .sort-icon`);
+    if (currentHeader) {
+        currentHeader.className = paginationCurrentSort.direction === 'asc' 
+            ? 'bi bi-arrow-up sort-icon text-cyan' 
+            : 'bi bi-arrow-down sort-icon text-cyan';
     }
     
+    // Sort memories
+    sortMemories();
+    
+    // Reset to first page after sorting
+    paginationCurrentPage = 1;
+    displayMemoriesWithPaging();
+}
+
+// Legacy sortTable function for backwards compatibility
+function sortTable(field) {
+    window.sortTable(field);
+}
+
+// Keep the old sorting visualization code for compatibility
+function updateSortVisualIndicators() {
     // Update visual indicators
     updateSortIndicators(sortField, sortDirection);
     
@@ -3147,6 +3360,9 @@ async function loadMergeDimensions() {
 
 async function switchMergeDimension(dimension) {
     currentMergeDimension = dimension;
+    
+    // Reset pagination when switching dimensions
+    paginationCurrentPage = 1;
     
     // Update nav-link active classes
     document.querySelectorAll('.merge-dimension-selector .nav-link').forEach(btn => {

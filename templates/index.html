@@ -87,6 +87,25 @@
                         </button>
                     </li>
                 </ul>
+                <!-- Raw/Merged View Toggle (positioned below Memory Store tab) -->
+                <div id="memoryViewTabs" style="display: none; padding: 0; background: transparent;">
+                    <div class="memory-view-tabs-container" style="transition: all 0.3s ease; display: inline-block;">
+                        <ul class="nav" role="tablist" style="border: none; display: flex;">
+                            <li class="nav-item" role="presentation" style="width: 50%;">
+                                <input type="radio" class="btn-check" name="viewMode" id="mergedView" autocomplete="off" checked>
+                                <label class="nav-link active rounded-0" for="mergedView" style="cursor: pointer; padding: 0.5rem 0.75rem; text-align: center; width: 100%; font-size: 0.9rem; border: 1px solid var(--bs-nav-tabs-border-color); border-top: none;">
+                                    <i class="bi bi-layers"></i> Merged
+                                </label>
+                            </li>
+                            <li class="nav-item" role="presentation" style="width: 50%;">
+                                <input type="radio" class="btn-check" name="viewMode" id="rawView" autocomplete="off">
+                                <label class="nav-link rounded-0" for="rawView" style="cursor: pointer; padding: 0.5rem 0.75rem; text-align: center; width: 100%; font-size: 0.9rem; border: 1px solid var(--bs-nav-tabs-border-color); border-top: none;">
+                                    <i class="bi bi-file-earmark"></i> Raw <span class="badge bg-secondary ms-1" id="rawCount" style="font-size: 0.7rem;">0</span>
+                                </label>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
             </div>
             <div class="card-body">
                 <div class="tab-content" id="mainTabContent">
@@ -124,23 +143,6 @@
                     <!-- Memory Tab -->
                     <div class="tab-pane fade" id="memory" role="tabpanel">
                         <div class="memory-container">
-                            <!-- Raw/Merged View Toggle (styled like primary nav) -->
-                            <div class="view-mode-toggle mb-3">
-                                <ul class="nav nav-tabs nav-fill" role="tablist" style="max-width: 400px;">
-                                    <li class="nav-item" role="presentation">
-                                        <input type="radio" class="btn-check" name="viewMode" id="mergedView" autocomplete="off" checked>
-                                        <label class="nav-link active rounded-0" for="mergedView" style="cursor: pointer; padding: 0.5rem 1rem;">
-                                            <i class="bi bi-layers"></i> Merged <!-- <span class="badge bg-secondary ms-1" id="mergedCount">0</span> -->
-                                        </label>
-                                    </li>
-                                    <li class="nav-item" role="presentation">
-                                        <input type="radio" class="btn-check" name="viewMode" id="rawView" autocomplete="off">
-                                        <label class="nav-link rounded-0" for="rawView" style="cursor: pointer; padding: 0.5rem 1rem;">
-                                            <i class="bi bi-file-earmark"></i> Raw <span class="badge bg-secondary ms-1" id="rawCount">0</span>
-                                        </label>
-                                    </li>
-                                </ul>
-                            </div>
                             
                             <!-- Merge Dimension Selector (styled like view toggle but smaller) -->
                             <div class="merge-dimension-selector mb-3">
@@ -187,12 +189,12 @@
                                         </div>
                                     </div>
                                     <div class="col-md-2">
-                                        <button class="btn btn-accent w-100" onclick="showCreateMemoryModal()">
+                                        <button class="btn btn-outline-info w-100" onclick="showCreateMemoryModal()">
                                             <i class="bi bi-plus-circle"></i> New Memory
                                         </button>
                                     </div>
                                     <div class="col-md-2">
-                                        <button class="btn btn-info w-100" onclick="showMemoryGraph()">
+                                        <button class="btn btn-outline-info w-100" onclick="showMemoryGraph()">
                                             <i class="bi bi-diagram-3"></i> Graph View
                                         </button>
                                     </div>
@@ -528,8 +530,7 @@
     <!-- Required libraries for enhanced features -->
     <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Load enhanced JS directly -->
+    <!-- Load enhanced JS directly (now includes pagination functionality) -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/memory-pagination.js') }}"></script>
 </body>
 </html>

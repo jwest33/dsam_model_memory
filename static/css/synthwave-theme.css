@@ -35,6 +35,48 @@ body {
     min-height: 100vh;
 }
 
+/* Memory View Tabs - Sub-tabs below Memory Store */
+#memoryViewTabs {
+    background: transparent !important;
+}
+
+#memoryViewTabs .nav {
+    margin: 0;
+    padding: 0;
+}
+
+#memoryViewTabs .nav-item {
+    margin: 0;
+    padding: 0;
+}
+
+#memoryViewTabs .nav-link {
+    background-color: var(--synth-card-bg);
+    border: 1px solid var(--synth-border) !important;
+    border-top: none !important;
+    border-radius: 0;
+    color: var(--synth-text-muted);
+    transition: all 0.3s ease;
+    margin: 0;
+    position: relative;
+}
+
+#memoryViewTabs .nav-link:hover {
+    background-color: rgba(111, 66, 193, 0.15);
+    border-color: var(--synth-purple) !important;
+    color: var(--synth-text);
+}
+
+#memoryViewTabs .nav-link.active {
+    background: linear-gradient(135deg, rgba(111, 66, 193, 0.25) 0%, rgba(255, 16, 240, 0.1) 100%);
+    border-color: var(--synth-purple) !important;
+    border-width: 1px !important;
+    border-top: none !important;
+    color: var(--synth-cyan);
+    border-bottom: 2px solid var(--synth-purple);
+    margin: 0;
+}
+
 .btn {
     color: #7c7c7c;
 }
@@ -169,7 +211,7 @@ h6 { font-size: 0.60rem; }
 
 /* Tab Content */
 .tab-content {
-    padding-top: 2rem;
+    padding-top: 1rem;
 }
 
 .tab-pane {
