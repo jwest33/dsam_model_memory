@@ -25,6 +25,13 @@ let originalMemoryOrder = [];  // Store original order of memories
 let currentMergeDimension = null;  // Current merge dimension being viewed (null = not initialized)
 let mergeGroups = {};  // Cache of merge groups by dimension
 
+// Pagination state for merge groups
+let mergeGroupsCurrentPage = 1;
+let mergeGroupsItemsPerPage = 20;
+let mergeGroupsFilteredData = [];
+let mergeGroupsSortField = 'when';
+let mergeGroupsSortDirection = 'desc';
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOMContentLoaded fired');
@@ -118,6 +125,8 @@ function initializeApp() {
             if (dimensionSelector) {
                 dimensionSelector.style.display = 'none';
             }
+            // Reset pagination for raw view
+            paginationCurrentPage = 1;
             loadMemories();
             // Reposition tabs after state change
             setTimeout(() => {
@@ -830,6 +839,15 @@ function createPaginationControls() {
     paginationControls.innerHTML = '';
     
     const totalPages = Math.ceil(paginationFilteredMemories.length / paginationItemsPerPage);
+    
+    // If only 1 page or no pages, hide pagination
+    if (totalPages <= 1) {
+        paginationControls.style.display = 'none';
+        return;
+    }
+    
+    // Show pagination controls
+    paginationControls.style.display = 'flex';
     
     // Previous button
     const prevLi = document.createElement('li');
@@ -3664,36 +3682,67 @@ window.changePage = function(page) {
 
 // Make sortTable globally accessible
 window.sortTable = function(field) {
-    // Track user interaction
-    paginationLastUserInteraction = Date.now();
-    window.lastUserInteraction = paginationLastUserInteraction;
+    // Check if we're in merged view
+    const isMergedView = document.getElementById('mergedView') && document.getElementById('mergedView').checked;
     
-    // Toggle direction if same field
-    if (paginationCurrentSort.field === field) {
-        paginationCurrentSort.direction = paginationCurrentSort.direction === 'asc' ? 'desc' : 'asc';
+    if (isMergedView) {
+        // Handle sorting for merged view
+        if (mergeGroupsSortField === field) {
+            mergeGroupsSortDirection = mergeGroupsSortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            mergeGroupsSortField = field;
+            mergeGroupsSortDirection = 'asc';
+        }
+        
+        // Update sort icons
+        document.querySelectorAll('.sortable .sort-icon').forEach(icon => {
+            icon.className = 'bi bi-arrow-down-up sort-icon';
+        });
+        
+        const currentHeader = document.querySelector(`[data-field="${field}"] .sort-icon`);
+        if (currentHeader) {
+            currentHeader.className = mergeGroupsSortDirection === 'asc' 
+                ? 'bi bi-arrow-up sort-icon text-cyan' 
+                : 'bi bi-arrow-down sort-icon text-cyan';
+        }
+        
+        // Apply sorting and reset to first page
+        mergeGroupsCurrentPage = 1;
+        sortMergeGroups();
+        displayMergeGroupsPage();
     } else {
-        paginationCurrentSort.field = field;
-        paginationCurrentSort.direction = 'asc';
+        // Original sorting logic for raw view
+        // Track user interaction
+        paginationLastUserInteraction = Date.now();
+        window.lastUserInteraction = paginationLastUserInteraction;
+        
+        // Toggle direction if same field
+        if (paginationCurrentSort.field === field) {
+            paginationCurrentSort.direction = paginationCurrentSort.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            paginationCurrentSort.field = field;
+            paginationCurrentSort.direction = 'asc';
+        }
+        
+        // Update sort icons
+        document.querySelectorAll('.sortable .sort-icon').forEach(icon => {
+            icon.className = 'bi bi-arrow-down-up sort-icon';
+        });
+        
+        const currentHeader = document.querySelector(`[data-field="${field}"] .sort-icon`);
+        if (currentHeader) {
+            currentHeader.className = paginationCurrentSort.direction === 'asc' 
+                ? 'bi bi-arrow-up sort-icon text-cyan' 
+                : 'bi bi-arrow-down sort-icon text-cyan';
+        }
+        
+        // Sort memories
+        sortMemories();
+        
+        // Reset to first page after sorting
+        paginationCurrentPage = 1;
+        displayMemoriesWithPaging();
     }
-    
-    // Update sort icons
-    document.querySelectorAll('.sortable .sort-icon').forEach(icon => {
-        icon.className = 'bi bi-arrow-down-up sort-icon';
-    });
-    
-    const currentHeader = document.querySelector(`[data-field="${field}"] .sort-icon`);
-    if (currentHeader) {
-        currentHeader.className = paginationCurrentSort.direction === 'asc' 
-            ? 'bi bi-arrow-up sort-icon text-cyan' 
-            : 'bi bi-arrow-down sort-icon text-cyan';
-    }
-    
-    // Sort memories
-    sortMemories();
-    
-    // Reset to first page after sorting
-    paginationCurrentPage = 1;
-    displayMemoriesWithPaging();
 }
 
 // Legacy sortTable function for backwards compatibility
@@ -3876,7 +3925,7 @@ async function switchMergeDimension(dimension) {
     currentMergeDimension = dimension;
     
     // Reset pagination when switching dimensions
-    paginationCurrentPage = 1;
+    mergeGroupsCurrentPage = 1;
     
     // Update nav-link active classes
     document.querySelectorAll('.merge-dimension-selector .nav-link').forEach(btn => {
@@ -3928,18 +3977,36 @@ function displayMergeGroups(groups) {
     if (memoryList) memoryList.style.display = 'none';
     if (memoryTableContainer) memoryTableContainer.style.display = 'block';
     
+    // Store groups for pagination
+    mergeGroupsFilteredData = groups;
+    
+    // Apply sorting if needed
+    sortMergeGroups();
+    
+    // Display page with pagination
+    displayMergeGroupsPage();
+}
+
+function displayMergeGroupsPage() {
     const tbody = document.getElementById('memoryTableBody');
     if (!tbody) return;
     
     tbody.innerHTML = '';
     
-    if (groups.length === 0) {
+    if (mergeGroupsFilteredData.length === 0) {
         tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No merge groups found for this dimension</td></tr>';
+        updateMergeGroupsPaginationInfo();
+        createMergeGroupsPaginationControls();
         return;
     }
     
+    // Calculate pagination
+    const startIndex = (mergeGroupsCurrentPage - 1) * mergeGroupsItemsPerPage;
+    const endIndex = Math.min(startIndex + mergeGroupsItemsPerPage, mergeGroupsFilteredData.length);
+    const pageGroups = mergeGroupsFilteredData.slice(startIndex, endIndex);
+    
     // Display merge groups in table format
-    groups.forEach(group => {
+    pageGroups.forEach(group => {
         const row = document.createElement('tr');
         const latest = group.latest_state || {};
         
@@ -3993,8 +4060,168 @@ function displayMergeGroups(groups) {
         tbody.appendChild(row);
     });
     
-    // Update pagination for merged view
-    updatePagination();
+    // Update pagination info and controls
+    updateMergeGroupsPaginationInfo();
+    createMergeGroupsPaginationControls();
+}
+
+function sortMergeGroups() {
+    if (!mergeGroupsFilteredData || mergeGroupsFilteredData.length === 0) return;
+    
+    mergeGroupsFilteredData.sort((a, b) => {
+        let aValue, bValue;
+        
+        // Get values based on field
+        switch(mergeGroupsSortField) {
+            case 'who':
+                aValue = (a.latest_state?.who || a.key || '').toLowerCase();
+                bValue = (b.latest_state?.who || b.key || '').toLowerCase();
+                break;
+            case 'what':
+                aValue = (a.latest_state?.what || '').toLowerCase();
+                bValue = (b.latest_state?.what || '').toLowerCase();
+                break;
+            case 'when':
+                aValue = a.last_updated || '';
+                bValue = b.last_updated || '';
+                break;
+            case 'where':
+                aValue = (a.latest_state?.where || '').toLowerCase();
+                bValue = (b.latest_state?.where || '').toLowerCase();
+                break;
+            case 'why':
+                aValue = (a.latest_state?.why || '').toLowerCase();
+                bValue = (b.latest_state?.why || '').toLowerCase();
+                break;
+            case 'how':
+                aValue = (a.latest_state?.how || '').toLowerCase();
+                bValue = (b.latest_state?.how || '').toLowerCase();
+                break;
+            case 'spaceWeight':
+                aValue = a.dominant_pattern === 'abstract' ? 1 : 0;
+                bValue = b.dominant_pattern === 'abstract' ? 1 : 0;
+                break;
+            default:
+                aValue = 0;
+                bValue = 0;
+        }
+        
+        // Compare values
+        if (aValue < bValue) return mergeGroupsSortDirection === 'asc' ? -1 : 1;
+        if (aValue > bValue) return mergeGroupsSortDirection === 'asc' ? 1 : -1;
+        return 0;
+    });
+}
+
+function updateMergeGroupsPaginationInfo() {
+    const totalItems = mergeGroupsFilteredData.length;
+    const startIndex = Math.min((mergeGroupsCurrentPage - 1) * mergeGroupsItemsPerPage + 1, totalItems);
+    const endIndex = Math.min(mergeGroupsCurrentPage * mergeGroupsItemsPerPage, totalItems);
+    
+    // Update pagination info displays
+    const showingStart = document.getElementById('showingStart');
+    const showingEnd = document.getElementById('showingEnd');
+    const totalMemoriesInfo = document.getElementById('totalMemoriesInfo');
+    const totalMemoriesCount = document.getElementById('totalMemories');
+    
+    if (showingStart) showingStart.textContent = totalItems > 0 ? startIndex : 0;
+    if (showingEnd) showingEnd.textContent = endIndex;
+    if (totalMemoriesInfo) totalMemoriesInfo.textContent = totalItems;
+    if (totalMemoriesCount) totalMemoriesCount.textContent = totalItems;
+}
+
+function createMergeGroupsPaginationControls() {
+    const paginationControls = document.getElementById('memoryPagination');
+    if (!paginationControls) return;
+    
+    paginationControls.innerHTML = '';
+    
+    const totalPages = Math.ceil(mergeGroupsFilteredData.length / mergeGroupsItemsPerPage);
+    
+    if (totalPages <= 1) {
+        paginationControls.style.display = 'none';
+        return;
+    }
+    
+    paginationControls.style.display = 'flex';
+    
+    // Previous button
+    const prevLi = document.createElement('li');
+    prevLi.className = `page-item ${mergeGroupsCurrentPage === 1 ? 'disabled' : ''}`;
+    prevLi.innerHTML = `
+        <a class="page-link" href="#" onclick="changeMergeGroupsPage(${mergeGroupsCurrentPage - 1}); return false;">
+            <i class="bi bi-chevron-left"></i>
+        </a>
+    `;
+    paginationControls.appendChild(prevLi);
+    
+    // Page numbers with ellipsis
+    const maxVisible = 5;
+    let startPage = Math.max(1, mergeGroupsCurrentPage - Math.floor(maxVisible / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+    
+    if (endPage - startPage < maxVisible - 1) {
+        startPage = Math.max(1, endPage - maxVisible + 1);
+    }
+    
+    // First page + ellipsis
+    if (startPage > 1) {
+        const firstLi = document.createElement('li');
+        firstLi.className = 'page-item';
+        firstLi.innerHTML = `<a class="page-link" href="#" onclick="changeMergeGroupsPage(1); return false;">1</a>`;
+        paginationControls.appendChild(firstLi);
+        
+        if (startPage > 2) {
+            const ellipsisLi = document.createElement('li');
+            ellipsisLi.className = 'page-item disabled';
+            ellipsisLi.innerHTML = '<span class="page-link">...</span>';
+            paginationControls.appendChild(ellipsisLi);
+        }
+    }
+    
+    // Visible page numbers
+    for (let i = startPage; i <= endPage; i++) {
+        const li = document.createElement('li');
+        li.className = `page-item ${i === mergeGroupsCurrentPage ? 'active' : ''}`;
+        li.innerHTML = `
+            <a class="page-link" href="#" onclick="changeMergeGroupsPage(${i}); return false;">${i}</a>
+        `;
+        paginationControls.appendChild(li);
+    }
+    
+    // Last page + ellipsis
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            const ellipsisLi = document.createElement('li');
+            ellipsisLi.className = 'page-item disabled';
+            ellipsisLi.innerHTML = '<span class="page-link">...</span>';
+            paginationControls.appendChild(ellipsisLi);
+        }
+        
+        const lastLi = document.createElement('li');
+        lastLi.className = 'page-item';
+        lastLi.innerHTML = `<a class="page-link" href="#" onclick="changeMergeGroupsPage(${totalPages}); return false;">${totalPages}</a>`;
+        paginationControls.appendChild(lastLi);
+    }
+    
+    // Next button
+    const nextLi = document.createElement('li');
+    nextLi.className = `page-item ${mergeGroupsCurrentPage === totalPages ? 'disabled' : ''}`;
+    nextLi.innerHTML = `
+        <a class="page-link" href="#" onclick="changeMergeGroupsPage(${mergeGroupsCurrentPage + 1}); return false;">
+            <i class="bi bi-chevron-right"></i>
+        </a>
+    `;
+    paginationControls.appendChild(nextLi);
+}
+
+window.changeMergeGroupsPage = function(page) {
+    const totalPages = Math.ceil(mergeGroupsFilteredData.length / mergeGroupsItemsPerPage);
+    
+    if (page < 1 || page > totalPages) return;
+    
+    mergeGroupsCurrentPage = page;
+    displayMergeGroupsPage();
 }
 
 function createMergeGroupCard(group) {
@@ -4205,6 +4432,13 @@ window.loadMemories = async function() {
         // Raw view - show table, hide cards
         if (memoryList) memoryList.style.display = 'none';
         if (memoryTableContainer) memoryTableContainer.style.display = 'block';
+        
+        // Ensure pagination element is visible (may have been hidden by merge view)
+        const paginationElement = document.getElementById('memoryPagination');
+        if (paginationElement) {
+            paginationElement.style.display = '';
+        }
+        
         await loadMemoriesOriginal();
     } else if (isMergedView) {
         // Merged view - show table (will be handled by displayMergeGroups)
