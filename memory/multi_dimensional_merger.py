@@ -552,6 +552,60 @@ class MultiDimensionalMerger:
         
         return merges
     
+    def get_merge_groups_details_for_event(self, event_id: str) -> Dict[str, Dict]:
+        """
+        Get detailed information about all merge groups a raw event belongs to.
+        
+        Args:
+            event_id: ID of the raw event (can be with or without 'raw_' prefix)
+            
+        Returns:
+            Dictionary mapping merge type strings to group details
+        """
+        # Handle both raw_XXX and XXX formats
+        raw_event_id = event_id if event_id.startswith('raw_') else f"raw_{event_id}"
+        alt_event_id = event_id.replace('raw_', '') if event_id.startswith('raw_') else event_id
+        
+        details = {}
+        
+        # Try both IDs
+        for test_id in [raw_event_id, alt_event_id, event_id]:
+            merge_groups = self.tracker.get_merge_groups_for_raw(test_id)
+            
+            for merge_type, merge_id in merge_groups:
+                if merge_type in self.merge_groups and merge_id in self.merge_groups[merge_type]:
+                    group = self.merge_groups[merge_type][merge_id]
+                    merged_event = group.get('merged_event')
+                    
+                    if merged_event:
+                        # Get all raw events in this merge group
+                        raw_events_in_group = list(merged_event.raw_event_ids)
+                        
+                        details[merge_type.value] = {
+                            'merge_id': merge_id,
+                            'merge_type': merge_type.value,
+                            'merge_count': merged_event.merge_count,
+                            'raw_event_ids': raw_events_in_group,
+                            'latest_state': merged_event.get_latest_state() if hasattr(merged_event, 'get_latest_state') else {},
+                            'who_variants': {k: len(v) for k, v in merged_event.who_variants.items()},
+                            'what_variants': {k: len(v) for k, v in merged_event.what_variants.items()},
+                            'when_timeline': [
+                                {'timestamp': tp.timestamp.isoformat(), 'description': tp.description}
+                                for tp in merged_event.when_timeline
+                            ],
+                            'where_locations': merged_event.where_locations if hasattr(merged_event, 'where_locations') else {},
+                            'why_variants': {k: len(v) for k, v in merged_event.why_variants.items()},
+                            'how_variants': merged_event.how_methods if hasattr(merged_event, 'how_methods') else {},
+                            'created_at': group.get('created_at', datetime.utcnow()).isoformat() if 'created_at' in group else '',
+                            'last_updated': group.get('last_updated', datetime.utcnow()).isoformat() if 'last_updated' in group else ''
+                        }
+            
+            # If we found any groups, don't continue checking other IDs
+            if details:
+                break
+        
+        return details
+    
     def get_all_merge_groups(self) -> Dict[str, Dict]:
         """
         Get all merge groups across all dimensions.

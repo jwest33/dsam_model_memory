@@ -407,5 +407,4 @@ python clear_memories.py
 ## TODO:
   * Update chat interface to get merge groups instead of raw
   * Memory block graph terminal context vectors/pointers
-  * Consolidate `.js` files
   * Consolidate data model modules

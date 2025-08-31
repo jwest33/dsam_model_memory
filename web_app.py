@@ -385,6 +385,43 @@ def get_memory_merge_groups(memory_id):
         logger.error(f"Error getting merge groups for memory: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/raw-event/<event_id>/merge-groups', methods=['GET'])
+def get_raw_event_merge_groups(event_id):
+    """Get all multi-dimensional merge groups a raw event belongs to"""
+    try:
+        # Get merge groups from the multi-dimensional merger
+        if hasattr(memory_agent.memory_store, 'multi_merger') and memory_agent.memory_store.multi_merger:
+            merge_groups = memory_agent.memory_store.multi_merger.get_merge_groups_details_for_event(event_id)
+            
+            # Add standard merge group if exists (for backwards compatibility)
+            merged_id = None
+            if event_id.startswith('raw_'):
+                base_id = event_id.replace('raw_', '')
+                if base_id in memory_agent.memory_store.raw_to_merged:
+                    merged_id = memory_agent.memory_store.raw_to_merged[base_id]
+                elif event_id in memory_agent.memory_store.raw_to_merged:
+                    merged_id = memory_agent.memory_store.raw_to_merged[event_id]
+            
+            return jsonify({
+                'event_id': event_id,
+                'multi_dimensional_groups': merge_groups,
+                'standard_merged_id': merged_id,
+                'total_groups': len(merge_groups)
+            })
+        else:
+            return jsonify({
+                'event_id': event_id,
+                'multi_dimensional_groups': {},
+                'standard_merged_id': None,
+                'total_groups': 0
+            })
+            
+    except Exception as e:
+        logger.error(f"Error getting merge groups for raw event {event_id}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/memory/<memory_id>/raw', methods=['GET'])
 def get_memory_raw_events(memory_id):
     """Get all raw events for a merged memory"""
@@ -650,7 +687,7 @@ def get_multi_merge_details(merge_type, merge_id):
             'who_variants': {},
             'what_variants': {},
             'when_variants': {},
-            'where_variants': {},
+            'where_locations': {},
             'why_variants': {},
             'how_variants': {},
             
@@ -702,7 +739,7 @@ def get_multi_merge_details(merge_type, merge_id):
         
         # Format WHERE locations (different structure)
         if hasattr(merged_event, 'where_locations') and merged_event.where_locations:
-            response['where_variants']['locations'] = [
+            response['where_locations']['locations'] = [
                 {
                     'value': location,
                     'timestamp': datetime.utcnow().isoformat(),
@@ -751,8 +788,8 @@ def get_multi_merge_details(merge_type, merge_id):
         
         # Determine the primary context/location
         locations = set()
-        if hasattr(merged_event, 'where_variants'):
-            for variants in merged_event.where_variants.values():
+        if hasattr(merged_event, 'where_locations'):
+            for variants in merged_event.where_locations.values():
                 for v in variants:
                     locations.add(v.value)
         elif hasattr(merged_event, 'where_locations'):

@@ -687,9 +687,9 @@ function createMemoryRow(memory, includeAll = false) {
                     <i class="bi bi-diagram-3"></i>
                 </button>` : ''
             }
-            ${memory.type === 'raw' && memory.merged_id ? 
-                `<button class="btn btn-sm btn-outline-warning" onclick="window.showMergeGroup('${memory.merged_id}')" title="Show Merge Group">
-                    <i class="bi bi-collection"></i>
+            ${memory.type === 'raw' ? 
+                `<button class="btn btn-sm btn-outline-warning" onclick="window.showMergeGroup('${memory.id}')" title="Show Multi-Dimensional Merge Groups">
+                    <i class="bi bi-diagram-3-fill"></i>
                 </button>` : 
                 `<button class="btn btn-sm btn-outline-danger" onclick="window.deleteMemory('${memory.id}')" title="Delete">
                     <i class="bi bi-trash"></i>
@@ -1930,8 +1930,224 @@ function updateExpectedSpaceUsage() {
     }
 }
 
+// Function to show multi-dimensional merge groups for a raw event
+async function showRawEventMergeGroups(eventId) {
+    try {
+        const response = await fetch(`/api/raw-event/${eventId}/merge-groups`);
+        const data = await response.json();
+        
+        const mergeTypes = ['actor', 'temporal', 'conceptual', 'spatial'];
+        const mergeTypeLabels = {
+            'actor': { label: 'Actor (WHO)', icon: 'person-fill', color: 'primary' },
+            'temporal': { label: 'Temporal (WHEN)', icon: 'clock-history', color: 'success' },
+            'conceptual': { label: 'Conceptual (WHY/HOW)', icon: 'lightbulb-fill', color: 'warning' },
+            'spatial': { label: 'Spatial (WHERE)', icon: 'geo-alt-fill', color: 'info' }
+        };
+        
+        // Create tabs for each merge dimension - use flex-nowrap to keep them on one row
+        let tabsHtml = '<ul class="nav nav-tabs flex-nowrap" id="mergeGroupTabs" role="tablist" style="overflow-x: auto; white-space: nowrap;">';
+        let contentHtml = '<div class="tab-content mt-3" id="mergeGroupTabContent">';
+        
+        mergeTypes.forEach((type, index) => {
+            const isActive = index === 0;
+            const groupData = data.multi_dimensional_groups[type];
+            const hasData = groupData && groupData.merge_id;
+            const tabClass = hasData ? '' : 'disabled';
+            const badge = hasData ? `<span class="badge bg-secondary ms-1">${groupData.merge_count}</span>` : '';
+            
+            tabsHtml += `
+                <li class="nav-item flex-shrink-0" role="presentation">
+                    <button class="nav-link ${isActive ? 'active' : ''} ${tabClass}" 
+                            id="${type}-tab" 
+                            data-bs-toggle="tab" 
+                            data-bs-target="#${type}-panel" 
+                            type="button" 
+                            role="tab"
+                            style="white-space: nowrap;"
+                            ${!hasData ? 'disabled' : ''}>
+                        <i class="bi bi-${mergeTypeLabels[type].icon}"></i> 
+                        <span class="d-none d-md-inline">${mergeTypeLabels[type].label}</span>
+                        <span class="d-inline d-md-none">${type.charAt(0).toUpperCase() + type.slice(1)}</span>
+                        ${badge}
+                    </button>
+                </li>
+            `;
+            
+            if (hasData) {
+                contentHtml += `
+                    <div class="tab-pane fade ${isActive ? 'show active' : ''}" 
+                         id="${type}-panel" 
+                         role="tabpanel" 
+                         aria-labelledby="${type}-tab">
+                        ${renderMergeGroupContent(groupData, type)}
+                    </div>
+                `;
+            } else {
+                contentHtml += `
+                    <div class="tab-pane fade ${isActive ? 'show active' : ''}" 
+                         id="${type}-panel" 
+                         role="tabpanel" 
+                         aria-labelledby="${type}-tab">
+                        <div class="text-center text-muted p-4">
+                            <i class="bi bi-${mergeTypeLabels[type].icon} fs-1"></i>
+                            <p class="mt-2">This event is not part of any ${type} merge group</p>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+        
+        tabsHtml += '</ul>';
+        contentHtml += '</div>';
+        
+        // Create modal
+        const modalHtml = `
+            <div class="modal fade" id="rawEventMergeGroupsModal" tabindex="-1">
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content bg-dark border-cyan">
+                        <div class="modal-header border-cyan">
+                            <h5 class="modal-title text-cyan">
+                                <i class="bi bi-diagram-3-fill text-warning"></i> Multi-Dimensional Merge Groups
+                                <span class="badge bg-purple ms-2">${eventId}</span>
+                                <span class="badge bg-info ms-2">${data.total_groups} groups</span>
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <small class="text-muted">
+                                    This raw event belongs to ${data.total_groups} different merge groups across multiple dimensions.
+                                    Each dimension groups events based on different aspects of the 5W1H structure.
+                                </small>
+                            </div>
+                            ${tabsHtml}
+                            ${contentHtml}
+                        </div>
+                        <div class="modal-footer border-cyan">
+                            <button type="button" class="btn btn-outline-cyan" data-bs-dismiss="modal">
+                                <i class="bi bi-x-circle"></i> Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove existing modal if any
+        const existingModal = document.getElementById('rawEventMergeGroupsModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Add modal to body
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('rawEventMergeGroupsModal'));
+        modal.show();
+        
+    } catch (error) {
+        console.error('Error loading raw event merge groups:', error);
+        alert('Failed to load merge group details');
+    }
+}
+
+// Helper function to render merge group content
+function renderMergeGroupContent(groupData, type) {
+    let html = `
+        <div class="p-3">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <h6 class="text-cyan">Merge Information</h6>
+                    <div class="small">
+                        <div><span class="text-warning">Merge ID:</span> <code class="text-white">${groupData.merge_id}</code></div>
+                        <div><span class="text-warning">Total Events:</span> <span class="text-white">${groupData.merge_count}</span></div>
+                        <div><span class="text-warning">Created:</span> <span class="text-white">${formatDate(groupData.created_at)}</span></div>
+                        <div><span class="text-warning">Last Updated:</span> <span class="text-white">${formatDate(groupData.last_updated)}</span></div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="text-cyan">Latest State</h6>
+                    <div class="small bg-darker p-2 rounded">
+                        ${groupData.latest_state ? `
+                            <div><span class="text-info">Who:</span> <span class="text-white">${escapeHtml(groupData.latest_state.who || '—')}</span></div>
+                            <div><span class="text-info">What:</span> <span class="text-white">${escapeHtml((groupData.latest_state.what || '—').substring(0, 100))}...</span></div>
+                            <div><span class="text-info">Why:</span> <span class="text-white">${escapeHtml(groupData.latest_state.why || '—')}</span></div>
+                        ` : '<em>No state available</em>'}
+                    </div>
+                </div>
+            </div>
+    `;
+    
+    // Show variants based on merge type
+    if (type === 'actor' && groupData.who_variants && Object.keys(groupData.who_variants).length > 0) {
+        html += renderVariants('Who Variants', groupData.who_variants);
+    }
+    
+    if (type === 'temporal' && groupData.when_timeline && groupData.when_timeline.length > 0) {
+        html += `
+            <div class="mb-3">
+                <h6 class="text-cyan">Timeline</h6>
+                <div class="timeline small bg-darker p-2 rounded" style="max-height: 200px; overflow-y: auto;">
+        `;
+        groupData.when_timeline.forEach(point => {
+            html += `
+                <div class="mb-2">
+                    <span class="badge bg-secondary me-2">${formatDate(point.timestamp)}</span>
+                    ${escapeHtml(point.description || '')}
+                </div>
+            `;
+        });
+        html += '</div></div>';
+    }
+    
+    if (type === 'conceptual') {
+        if (groupData.why_variants && Object.keys(groupData.why_variants).length > 0) {
+            html += renderVariants('Why Variants', groupData.why_variants);
+        }
+        if (groupData.how_variants && Object.keys(groupData.how_variants).length > 0) {
+            html += renderVariants('How Variants', groupData.how_variants);
+        }
+    }
+    
+    if (type === 'spatial' && groupData.where_locations && Object.keys(groupData.where_locations).length > 0) {
+        html += renderVariants('Where Variants', groupData.where_locations);
+    }
+    
+    // Removed 'Other Events in This Group' section as requested
+    
+    html += '</div>';
+    return html;
+}
+
+// Helper function to render variants
+function renderVariants(title, variants) {
+    let html = `
+        <div class="mb-3">
+            <h6 class="text-cyan">${title}</h6>
+            <div class="small bg-darker p-2 rounded" style="max-height: 150px; overflow-y: auto;">
+    `;
+    
+    for (const [variant, count] of Object.entries(variants)) {
+        html += `
+            <div class="mb-1">
+                <span class="badge bg-secondary me-2">${count}x</span>
+                <span class="text-white">${escapeHtml(variant)}</span>
+            </div>
+        `;
+    }
+    
+    html += '</div></div>';
+    return html;
+}
+
 window.showMergeGroup = async function(mergedId) {
     try {
+        // Check if this is a raw event ID - if so, show multi-dimensional groups
+        if (mergedId.startsWith('raw_')) {
+            return showRawEventMergeGroups(mergedId);
+        }
+        
         const response = await fetch(`/api/memory/${mergedId}/raw`);
         const data = await response.json();
         
@@ -2597,7 +2813,7 @@ function createMergedOverviewTab(mergedEvent, latest) {
                         <tbody>
                             ${createComponentRows('WHO - Actors', mergedEvent.who_variants)}
                             ${createComponentRows('WHAT - Actions', mergedEvent.what_variants)}
-                            ${createComponentRows('WHERE - Locations', mergedEvent.where_variants || (mergedEvent.where_locations ? {'locations': Object.entries(mergedEvent.where_locations).map(([loc, count]) => ({value: loc, timestamp: new Date()}))} : {}))}
+                            ${createComponentRows('WHERE - Locations', mergedEvent.where_locations || (mergedEvent.where_locations ? {'locations': Object.entries(mergedEvent.where_locations).map(([loc, count]) => ({value: loc, timestamp: new Date()}))} : {}))}
                             ${createComponentRows('WHY - Reasons', mergedEvent.why_variants)}
                             ${createComponentRows('HOW - Methods', mergedEvent.how_variants || (mergedEvent.how_methods ? {'methods': Object.entries(mergedEvent.how_methods).map(([method, count]) => ({value: method, timestamp: new Date()}))} : {}))}
                         </tbody>
