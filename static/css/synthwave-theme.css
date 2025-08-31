@@ -417,6 +417,12 @@ h6 { font-size: 0.60rem; }
     color: var(--synth-text);
 }
 
+.table-secondary {
+    --bs-table-bg: var(--synth-card-bg);
+    --bs-table-border-color: var(--synth-border);
+    color: var(--synth-text);
+}
+
 .table-dark th {
     background: var(--synth-surface);
     color: var(--synth-cyan);

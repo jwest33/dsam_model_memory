@@ -47,6 +47,55 @@
             max-height: 100%;
             overflow-y: auto;
         }
+        
+        /* Dimension weight visualization styles */
+        .dimension-weight {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.25rem;
+            min-width: 120px;
+        }
+        
+        .dimension-weight i {
+            color: var(--cyan);
+            font-size: 0.9rem;
+        }
+        
+        .dimension-bar {
+            flex: 1;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .dimension-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--cyan), var(--purple));
+            transition: width 0.3s ease;
+            border-radius: 2px;
+        }
+        
+        .dimension-value {
+            font-size: 0.75rem;
+            color: var(--cyan);
+            min-width: 35px;
+            text-align: right;
+        }
+        
+        #actorWeight .dimension-fill { background: linear-gradient(90deg, #ff6b6b, #ff8787); }
+        #temporalWeight .dimension-fill { background: linear-gradient(90deg, #4ecdc4, #6ee7de); }
+        #conceptualWeight .dimension-fill { background: linear-gradient(90deg, #f7b731, #ffd93d); }
+        #spatialWeight .dimension-fill { background: linear-gradient(90deg, #5f27cd, #8854d0); }
+        
+        .dominant-dimension {
+            border: 1px solid var(--cyan);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        }
     </style>
 </head>
 <body>
@@ -118,6 +167,40 @@
                                     <div class="query-type-indicator">
                                         <small class="text-muted">Query Type:</small>
                                         <span id="queryTypeIndicator" class="badge bg-secondary ms-2">Balanced</span>
+                                    </div>
+                                </div>
+                                <!-- Dimension Weights Display -->
+                                <div id="dimensionWeightsContainer" class="mt-2" style="display: none;">
+                                    <small class="text-muted">Dimension Focus:</small>
+                                    <div class="d-flex gap-2 mt-1">
+                                        <div class="dimension-weight" id="actorWeight" title="Actor dimension">
+                                            <i class="bi bi-person-circle"></i>
+                                            <div class="dimension-bar">
+                                                <div class="dimension-fill" style="width: 0%"></div>
+                                            </div>
+                                            <span class="dimension-value">0%</span>
+                                        </div>
+                                        <div class="dimension-weight" id="temporalWeight" title="Temporal dimension">
+                                            <i class="bi bi-clock-history"></i>
+                                            <div class="dimension-bar">
+                                                <div class="dimension-fill" style="width: 0%"></div>
+                                            </div>
+                                            <span class="dimension-value">0%</span>
+                                        </div>
+                                        <div class="dimension-weight" id="conceptualWeight" title="Conceptual dimension">
+                                            <i class="bi bi-lightbulb"></i>
+                                            <div class="dimension-bar">
+                                                <div class="dimension-fill" style="width: 0%"></div>
+                                            </div>
+                                            <span class="dimension-value">0%</span>
+                                        </div>
+                                        <div class="dimension-weight" id="spatialWeight" title="Spatial dimension">
+                                            <i class="bi bi-geo-alt"></i>
+                                            <div class="dimension-bar">
+                                                <div class="dimension-fill" style="width: 0%"></div>
+                                            </div>
+                                            <span class="dimension-value">0%</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

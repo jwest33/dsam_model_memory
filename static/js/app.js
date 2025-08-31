@@ -300,8 +300,15 @@ async function handleChatSubmit(e) {
         addChatMessage(data.response, 'assistant', {
             memories_used: data.memories_used,
             memory_details: data.memory_details,
-            space_weights: data.space_weights
+            space_weights: data.space_weights,
+            dimension_weights: data.dimension_weights,
+            dominant_dimension: data.dominant_dimension
         });
+        
+        // Update dimension weights display if present
+        if (data.dimension_weights) {
+            updateDimensionWeights(data.dimension_weights, data.dominant_dimension);
+        }
         
     } catch (error) {
         console.error('Chat error:', error);
@@ -351,6 +358,43 @@ function updateQueryTypeIndicator(queryType) {
                 indicator.className += 'bg-secondary';
         }
     }
+}
+
+function updateDimensionWeights(dimensionWeights, dominantDimension) {
+    const container = document.getElementById('dimensionWeightsContainer');
+    if (!container || !dimensionWeights) return;
+    
+    // Show the container
+    container.style.display = 'block';
+    
+    // Update each dimension weight
+    const dimensions = ['actor', 'temporal', 'conceptual', 'spatial'];
+    dimensions.forEach(dim => {
+        const weight = dimensionWeights[dim] || 0;
+        const percentage = Math.round(weight * 100);
+        
+        const element = document.getElementById(`${dim}Weight`);
+        if (element) {
+            // Update the fill bar
+            const fillBar = element.querySelector('.dimension-fill');
+            if (fillBar) {
+                fillBar.style.width = `${percentage}%`;
+            }
+            
+            // Update the value text
+            const valueText = element.querySelector('.dimension-value');
+            if (valueText) {
+                valueText.textContent = `${percentage}%`;
+            }
+            
+            // Highlight dominant dimension
+            if (dominantDimension === dim) {
+                element.classList.add('dominant-dimension');
+            } else {
+                element.classList.remove('dominant-dimension');
+            }
+        }
+    });
 }
 
 function addChatMessage(message, sender, metadata = {}) {
@@ -2616,14 +2660,20 @@ async function viewMergedEventDetails(memoryId) {
 function createMergedEventModal(mergedEvent) {
     const latest = mergedEvent.latest_state || {};
     
+    // Determine if this is a multi-dimensional merge
+    const isMultiDimensional = mergedEvent.merge_type && mergedEvent.merge_key;
+    const title = isMultiDimensional 
+        ? `${mergedEvent.merge_type.charAt(0).toUpperCase() + mergedEvent.merge_type.slice(1)} Merge Group`
+        : 'Merged Event Details';
+    
     return `
         <div class="modal fade" id="mergedEventModal" tabindex="-1">
             <div class="modal-dialog modal-xl">
                 <div class="modal-content" style="background-color: #1a1a2e;">
                     <div class="modal-header">
                         <h5 class="modal-title text-cyan">
-                            <i class="bi bi-layers"></i> Merged Event Details
-                            <span class="badge bg-info ms-2">${mergedEvent.merge_count} events</span>
+                            <i class="bi bi-layers"></i> ${title}
+                            <span class="badge bg-info ms-2">${mergedEvent.merge_count || mergedEvent.event_count || 0} events</span>
                         </h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
@@ -2707,7 +2757,9 @@ function createMergedOverviewTab(mergedEvent, latest) {
                         lastUpdated: variant.timestamp
                     };
                 }
-                aggregated[value].count++;
+                // Use the variant's count if available, otherwise increment by 1
+                const variantCount = variant.count || 1;
+                aggregated[value].count += variantCount;
                 if (variant.timestamp > aggregated[value].lastUpdated) {
                     aggregated[value].lastUpdated = variant.timestamp;
                 }
@@ -2761,7 +2813,9 @@ function createMergedOverviewTab(mergedEvent, latest) {
                         lastUpdated: variant.timestamp
                     };
                 }
-                aggregated[value].count++;
+                // Use the variant's count if available, otherwise increment by 1
+                const variantCount = variant.count || 1;
+                aggregated[value].count += variantCount;
                 if (variant.timestamp > aggregated[value].lastUpdated) {
                     aggregated[value].lastUpdated = variant.timestamp;
                 }
@@ -2803,17 +2857,10 @@ function createMergedOverviewTab(mergedEvent, latest) {
                 <h5 class="text-purple mb-3">Component Summary</h5>
                 <div class="table-responsive">
                     <table class="table table-sm table-dark table-hover">
-                        <thead>
-                            <tr>
-                                <th>Value</th>
-                                <th style="width: 100px;">Count</th>
-                                <th style="width: 200px;">Last Updated</th>
-                            </tr>
-                        </thead>
                         <tbody>
                             ${createComponentRows('WHO - Actors', mergedEvent.who_variants)}
                             ${createComponentRows('WHAT - Actions', mergedEvent.what_variants)}
-                            ${createComponentRows('WHERE - Locations', mergedEvent.where_locations || (mergedEvent.where_locations ? {'locations': Object.entries(mergedEvent.where_locations).map(([loc, count]) => ({value: loc, timestamp: new Date()}))} : {}))}
+                            ${createComponentRows('WHERE - Locations', mergedEvent.where_locations)}
                             ${createComponentRows('WHY - Reasons', mergedEvent.why_variants)}
                             ${createComponentRows('HOW - Methods', mergedEvent.how_variants || (mergedEvent.how_methods ? {'methods': Object.entries(mergedEvent.how_methods).map(([method, count]) => ({value: method, timestamp: new Date()}))} : {}))}
                         </tbody>
@@ -2857,6 +2904,237 @@ function createMergedOverviewTab(mergedEvent, latest) {
     `;
 }
 
+// Create enhanced LLM context display
+function createEnhancedLLMContextDisplay(llmContext) {
+    if (!llmContext || Object.keys(llmContext).length === 0) {
+        return '<p class="text-muted text-center">No LLM context available</p>';
+    }
+    
+    let html = '<div class="llm-context-display">';
+    
+    // Display narrative summary
+    if (llmContext.narrative_summary) {
+        html += `
+            <div class="mb-3">
+                <h6 class="text-cyan mb-2"><i class="bi bi-file-text"></i> Summary</h6>
+                <div class="p-2 bg-dark bg-opacity-50 rounded">
+                    <p class="mb-0">${escapeHtml(llmContext.narrative_summary)}</p>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Display key information
+    if (llmContext.key_information && Object.keys(llmContext.key_information).length > 0) {
+        html += `
+            <div class="mb-3">
+                <h6 class="text-cyan mb-2"><i class="bi bi-info-square"></i> Key Information</h6>
+                <div class="p-2 bg-dark bg-opacity-50 rounded">
+                    <dl class="row mb-0">
+        `;
+        
+        for (const [key, value] of Object.entries(llmContext.key_information)) {
+            const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            let displayValue = value;
+            
+            if (Array.isArray(value)) {
+                // Handle arrays of objects or strings
+                if (value.length > 0) {
+                    if (typeof value[0] === 'object') {
+                        // Extract a meaningful property from objects
+                        displayValue = value.map(v => v.value || v.name || JSON.stringify(v)).join(', ');
+                    } else {
+                        displayValue = value.join(', ');
+                    }
+                } else {
+                    displayValue = 'None';
+                }
+            } else if (typeof value === 'object' && value !== null) {
+                displayValue = JSON.stringify(value);
+            }
+            
+            html += `
+                <dt class="col-sm-4 text-muted">${escapeHtml(displayKey)}:</dt>
+                <dd class="col-sm-8">${escapeHtml(String(displayValue))}</dd>
+            `;
+        }
+        
+        html += `
+                    </dl>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Display patterns
+    if (llmContext.patterns && llmContext.patterns.length > 0) {
+        html += `
+            <div class="mb-3">
+                <h6 class="text-cyan mb-2"><i class="bi bi-diagram-3"></i> Patterns Identified</h6>
+                <div class="p-2 bg-dark bg-opacity-50 rounded">
+                    <ul class="mb-0">
+                        ${llmContext.patterns.map(pattern => `<li>${escapeHtml(pattern)}</li>`).join('')}
+                    </ul>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Display relationships
+    if (llmContext.relationships && llmContext.relationships.length > 0) {
+        html += `
+            <div class="mb-3">
+                <h6 class="text-cyan mb-2"><i class="bi bi-people"></i> Relationships</h6>
+                <div class="p-2 bg-dark bg-opacity-50 rounded">
+                    <ul class="mb-0">
+                        ${llmContext.relationships.map(rel => `<li>${escapeHtml(rel)}</li>`).join('')}
+                    </ul>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Display timeline summary (not the full events, just a summary)
+    if (llmContext.timeline && llmContext.timeline.length > 0) {
+        const timelinePreview = llmContext.timeline.slice(0, 3);
+        html += `
+            <div class="mb-3">
+                <h6 class="text-cyan mb-2"><i class="bi bi-clock-history"></i> Recent Events</h6>
+                <div class="p-2 bg-dark bg-opacity-50 rounded">
+                    <div class="small">
+        `;
+        
+        timelinePreview.forEach((entry, idx) => {
+            html += `
+                <div class="mb-2 pb-2 ${idx < timelinePreview.length - 1 ? 'border-bottom border-secondary' : ''}">
+                    <div class="text-muted">Event ${idx + 1}</div>
+                    <div class="text-white small">${escapeHtml(entry.formatted)}</div>
+                </div>
+            `;
+        });
+        
+        if (llmContext.timeline.length > 3) {
+            html += `<div class="text-muted text-center">... and ${llmContext.timeline.length - 3} more events</div>`;
+        }
+        
+        html += `
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+// Create raw events timeline for multi-dimensional merge groups
+function createRawEventsTimeline(rawEvents) {
+    if (!rawEvents || rawEvents.length === 0) {
+        return '<p class="text-muted text-center">No events in this merge group</p>';
+    }
+    
+    return `
+        <div class="raw-events-timeline">
+            <div class="mb-3">
+                <small class="text-muted">
+                    This merge group contains ${rawEvents.length} events that form a coherent conversation or workflow.
+                </small>
+            </div>
+            <div class="accordion accordion-flush" id="rawEventsAccordion">
+                ${rawEvents.map((event, idx) => {
+                    const eventId = event.id || `event_${idx}`;
+                    const isFirst = idx === 0;
+                    const five_w1h = event.five_w1h || {};
+                    
+                    return `
+                    <div class="accordion-item bg-dark border-secondary mb-2">
+                        <h2 class="accordion-header" id="heading${idx}">
+                            <button class="accordion-button ${!isFirst ? 'collapsed' : ''} bg-dark text-white" 
+                                    type="button" 
+                                    data-bs-toggle="collapse" 
+                                    data-bs-target="#collapse${idx}" 
+                                    aria-expanded="${isFirst}" 
+                                    aria-controls="collapse${idx}">
+                                <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                                    <div>
+                                        <span class="badge bg-primary me-2">Event ${idx + 1}</span>
+                                        <span class="badge bg-${event.event_type === 'user_input' ? 'info' : 
+                                                         event.event_type === 'assistant_response' ? 'success' : 
+                                                         event.event_type === 'action' ? 'warning' :
+                                                         'secondary'} me-2">
+                                            ${event.event_type || 'observation'}
+                                        </span>
+                                        <small class="text-info">${escapeHtml(five_w1h.who || 'Unknown')}</small>
+                                    </div>
+                                    <small class="text-muted">${formatDate(five_w1h.when || event.timestamp)}</small>
+                                </div>
+                            </button>
+                        </h2>
+                        <div id="collapse${idx}" 
+                             class="accordion-collapse collapse ${isFirst ? 'show' : ''}" 
+                             aria-labelledby="heading${idx}" 
+                             data-bs-parent="#rawEventsAccordion">
+                            <div class="accordion-body bg-darker">
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <div class="card bg-dark border-secondary">
+                                            <div class="card-body">
+                                                <h6 class="text-cyan mb-3">
+                                                    <i class="bi bi-info-circle"></i> Event Context (5W1H)
+                                                </h6>
+                                                <div class="row g-2">
+                                                    <div class="col-md-6">
+                                                        <small class="text-muted d-block">Who</small>
+                                                        <div class="text-white">${escapeHtml(five_w1h.who || '—')}</div>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <small class="text-muted d-block">What</small>
+                                                        <div class="text-white bg-darker p-2 rounded mt-1" style="max-height: 200px; overflow-y: auto;">
+                                                            ${escapeHtml(five_w1h.what || '—')}
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <small class="text-muted d-block">When</small>
+                                                        <div class="text-white">${formatDate(five_w1h.when || event.timestamp)}</div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <small class="text-muted d-block">Where</small>
+                                                        <div class="text-white">${escapeHtml(five_w1h.where || '—')}</div>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <small class="text-muted d-block">Why</small>
+                                                        <div class="text-white">${escapeHtml(five_w1h.why || '—')}</div>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <small class="text-muted d-block">How</small>
+                                                        <div class="text-white">${escapeHtml(five_w1h.how || '—')}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="d-flex gap-2">
+                                            <small class="text-muted">Episode:</small>
+                                            <code class="text-cyan">${event.episode_id || 'N/A'}</code>
+                                        </div>
+                                        <div class="d-flex gap-2">
+                                            <small class="text-muted">Event ID:</small>
+                                            <code class="text-warning">${eventId}</code>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+}
+
 // Create timeline tab content
 function createMergedTimelineTab(mergedEvent) {
     if (!mergedEvent.when_timeline || mergedEvent.when_timeline.length === 0) {
@@ -2883,9 +3161,15 @@ function createMergedTimelineTab(mergedEvent) {
     return html;
 }
 
-// Create variations tab content
+// Create variations tab content (also handles raw events for multi-dimensional merges)
 function createMergedVariationsTab(mergedEvent) {
-    // Check if there are any variations
+    // Check if we have raw_events (for multi-dimensional merge groups)
+    if (mergedEvent.raw_events && mergedEvent.raw_events.length > 0) {
+        // Display raw events as timeline
+        return createRawEventsTimeline(mergedEvent.raw_events);
+    }
+    
+    // Check if there are any variations (for standard merges)
     const hasVariations = 
         Object.keys(mergedEvent.who_variants || {}).length > 0 ||
         Object.keys(mergedEvent.what_variants || {}).length > 0 ||
@@ -2910,20 +3194,20 @@ function createMergedVariationsTab(mergedEvent) {
     }
     
     // WHERE locations
-    if (Object.keys(mergedEvent.where_locations || {}).length > 0) {
+    if (mergedEvent.where_locations && mergedEvent.where_locations.locations && mergedEvent.where_locations.locations.length > 0) {
+        const locations = mergedEvent.where_locations.locations;
         html += `
             <div class="accordion-item bg-dark border-secondary">
                 <h2 class="accordion-header">
                     <button class="accordion-button collapsed bg-dark text-white" type="button" data-bs-toggle="collapse" data-bs-target="#whereVariations">
-                        <span class="text-cyan">Where</span> <span class="badge bg-info ms-2">${Object.keys(mergedEvent.where_locations).length} locations</span>
+                        <span class="text-cyan">Where</span> <span class="badge bg-info ms-2">${locations.length}</span>
                     </button>
                 </h2>
                 <div id="whereVariations" class="accordion-collapse collapse" data-bs-parent="#variationsAccordion">
                     <div class="accordion-body bg-dark">
-                        ${Object.entries(mergedEvent.where_locations).map(([location, count]) => `
+                        ${locations.map(loc => `
                             <div class="mb-2">
-                                <span class="text-white">${escapeHtml(location)}</span>
-                                <span class="badge bg-secondary ms-2">${count}x</span>
+                                <span class="text-white">${escapeHtml(loc.value || 'Unknown')}</span>
                             </div>
                         `).join('')}
                     </div>
@@ -2937,21 +3221,22 @@ function createMergedVariationsTab(mergedEvent) {
         html += createVariationAccordionItem('why', 'Why', mergedEvent.why_variants);
     }
     
-    // HOW methods
-    if (Object.keys(mergedEvent.how_methods || {}).length > 0) {
+    // HOW methods - handle both how_variants.methods and how_methods formats
+    const howMethods = mergedEvent.how_variants?.methods || 
+                      (mergedEvent.how_methods ? Object.entries(mergedEvent.how_methods).map(([method, count]) => ({value: method, count})) : []);
+    if (howMethods.length > 0) {
         html += `
             <div class="accordion-item bg-dark border-secondary">
                 <h2 class="accordion-header">
                     <button class="accordion-button collapsed bg-dark text-white" type="button" data-bs-toggle="collapse" data-bs-target="#howVariations">
-                        <span class="text-cyan">How</span> <span class="badge bg-info ms-2">${Object.keys(mergedEvent.how_methods).length} methods</span>
+                        <span class="text-cyan">How</span> <span class="badge bg-info ms-2">${howMethods.length}</span>
                     </button>
                 </h2>
                 <div id="howVariations" class="accordion-collapse collapse" data-bs-parent="#variationsAccordion">
                     <div class="accordion-body bg-dark">
-                        ${Object.entries(mergedEvent.how_methods).map(([method, count]) => `
+                        ${howMethods.map(method => `
                             <div class="mb-2">
-                                <span class="text-white">${escapeHtml(method)}</span>
-                                <span class="badge bg-secondary ms-2">${count}x</span>
+                                <span class="text-white">${escapeHtml(method.value || 'Unknown')}</span>
                             </div>
                         `).join('')}
                     </div>
@@ -3004,6 +3289,12 @@ function createVariationAccordionItem(id, label, variants) {
 
 // Create context tab content
 function createMergedContextTab(mergedEvent) {
+    // Check if we have enhanced LLM context (for multi-dimensional merges)
+    if (mergedEvent.llm_context && Object.keys(mergedEvent.llm_context).length > 0) {
+        return createEnhancedLLMContextDisplay(mergedEvent.llm_context);
+    }
+    
+    // Fall back to old context_preview format
     const context = mergedEvent.context_preview || {};
     
     return `
@@ -3029,6 +3320,13 @@ function initializeMergedEventModal(mergedEvent) {
 
 // Enhanced function to check if memory is merged and display accordingly
 window.viewMemoryDetails = async function(memoryId) {
+    // Check if this is a multi-dimensional merge ID (e.g., temporal_xxx, actor_xxx, etc.)
+    const multiDimPattern = /^(temporal|actor|conceptual|spatial)_/;
+    if (multiDimPattern.test(memoryId)) {
+        // This is a multi-dimensional merge group, use the unified merged event viewer
+        return viewMergedEventDetails(memoryId);
+    }
+    
     // Check if this is a raw event (raw events have IDs starting with 'raw_')
     if (memoryId.startsWith('raw_')) {
         // Raw events should use the original details viewer
