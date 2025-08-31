@@ -261,18 +261,20 @@ class DualSpaceEncoder:
         base_embedding = self.model.encode(text, convert_to_numpy=True)
         base_embedding = base_embedding.astype(np.float32)
         
-        # Project to Euclidean space
-        euclidean_embedding = self.euclidean_projector(torch.from_numpy(base_embedding).unsqueeze(0))
-        euclidean_embedding = euclidean_embedding.squeeze(0).detach().numpy()
+        # Project to Euclidean space and L2 normalize
+        euclidean_embedding = np.dot(base_embedding, self.euclidean_head)
+        euclidean_embedding = euclidean_embedding / (np.linalg.norm(euclidean_embedding) + 1e-8)
         
-        # Project to Hyperbolic space
-        hyperbolic_embedding = self.hyperbolic_projector(torch.from_numpy(base_embedding).unsqueeze(0))
-        hyperbolic_embedding = hyperbolic_embedding.squeeze(0).detach().numpy()
-        hyperbolic_embedding = HyperbolicOperations.exp_map(
-            np.zeros(self.hyperbolic_dim), 
-            hyperbolic_embedding, 
-            c=1.0
-        )
+        # Project to Hyperbolic space (tangent space then exp map)
+        tangent_vec = np.dot(base_embedding, self.hyperbolic_head)
+        # Map from origin to Poincaré ball with stability
+        tangent_norm = np.linalg.norm(tangent_vec)
+        if tangent_norm > 0:
+            # Use tanh to map naturally to (0,1), scaled down to avoid boundary
+            scale = np.tanh(tangent_norm)
+            hyperbolic_embedding = scale * tangent_vec / tangent_norm
+        else:
+            hyperbolic_embedding = np.zeros(self.hyperbolic_dim)
         
         return euclidean_embedding, hyperbolic_embedding
     
