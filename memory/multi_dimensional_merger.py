@@ -220,8 +220,8 @@ class MultiDimensionalMerger:
                                     self.merge_groups[merge_type] = {}
                                 
                                 # Debug: Check if we're overwriting
-                                if merge_id in self.merge_groups[merge_type]:
-                                    logger.warning(f"Overwriting existing {merge_type.value} group: {merge_id}")
+                                #if merge_id in self.merge_groups[merge_type]:
+                                #    logger.warning(f"Overwriting existing {merge_type.value} group: {merge_id}")
                                 
                                 self.merge_groups[merge_type][merge_id] = {
                                     'key': metadata.get('merge_key', ''),

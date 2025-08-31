@@ -23,6 +23,7 @@ from config import get_config
 from llm.llm_interface import LLMInterface
 from memory.dual_space_encoder import DualSpaceEncoder
 from memory.multi_dimensional_merger import MultiDimensionalMerger
+from memory.dimension_attention_retriever import DimensionAttentionRetriever
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -39,6 +40,7 @@ llm_interface = None
 config = None
 encoder = None
 multi_merger = None
+dimension_retriever = None
 
 # Track analytics data
 analytics_data = {
@@ -46,9 +48,197 @@ analytics_data = {
     'space_usage_history': []
 }
 
+def generate_enhanced_llm_context(merged_event, merge_type, merge_id, response_data):
+    """Generate enhanced context for LLM consumption"""
+    logger.info(f"Generating LLM context - event_count: {response_data.get('event_count')}, merge_count: {response_data.get('merge_count')}")
+    logger.info(f"What variants keys: {list(response_data.get('what_variants', {}).keys())}")
+    
+    context = {
+        'key_information': {},
+        'timeline': [],
+        'patterns': [],
+        'relationships': []
+    }
+    
+    # Extract key actors, concepts, and locations from variants
+    actors = set()
+    concepts = set()
+    locations = set()
+    methods = set()
+    
+    # Extract from WHO variants
+    for who_key, variants in response_data.get('who_variants', {}).items():
+        if isinstance(variants, list):
+            for v in variants:
+                actors.add(v.get('value', who_key))
+        else:
+            actors.add(who_key)
+    
+    # Extract from WHERE locations
+    for where_key, variants in response_data.get('where_locations', {}).items():
+        if isinstance(variants, list):
+            for v in variants:
+                locations.add(v.get('value', where_key))
+        else:
+            locations.add(where_key)
+    
+    # Extract from WHY variants
+    for why_key, variants in response_data.get('why_variants', {}).items():
+        if isinstance(variants, list):
+            for v in variants:
+                concepts.add(v.get('value', why_key))
+        else:
+            concepts.add(why_key)
+    
+    # Extract from HOW variants
+    for how_key, variants in response_data.get('how_variants', {}).items():
+        if isinstance(variants, list):
+            for v in variants:
+                methods.add(v.get('value', how_key))
+        else:
+            methods.add(how_key)
+    
+    # Also add from latest state
+    latest = response_data.get('latest_state', {})
+    if latest.get('who'):
+        actors.add(latest['who'])
+    if latest.get('where'):
+        locations.add(latest['where'])
+    if latest.get('why'):
+        concepts.add(latest['why'])
+    if latest.get('how'):
+        methods.add(latest['how'])
+    
+    # Get event count from response data or what_variants
+    event_count = response_data.get('event_count', 0)
+    if event_count == 0:
+        # Count from what_variants if event_count is 0
+        for variants in response_data.get('what_variants', {}).values():
+            if isinstance(variants, list):
+                event_count += len(variants)
+            else:
+                event_count += 1
+    
+    # Build key information based on merge type
+    if merge_type == 'actor':
+        context['key_information'] = {
+            'primary_focus': f"Actor-based memory group tracking interactions",
+            'main_actors': list(actors),
+            'interaction_count': event_count,
+            'locations': list(locations),
+            'key_concepts': list(concepts)[:5],  # Top 5 concepts
+            'methods_used': list(methods)[:5]
+        }
+    elif merge_type == 'temporal':
+        context['key_information'] = {
+            'primary_focus': f"Temporal conversation thread",
+            'thread_length': event_count,
+            'participants': list(actors),
+            'main_topics': list(concepts)[:5],
+            'locations': list(locations)
+        }
+    elif merge_type == 'conceptual':
+        context['key_information'] = {
+            'primary_focus': f"Conceptual memory group",
+            'core_concepts': list(concepts),
+            'related_events': event_count,
+            'involved_actors': list(actors),
+            'implementation_methods': list(methods),
+            'relevant_locations': list(locations)
+        }
+    elif merge_type == 'spatial':
+        context['key_information'] = {
+            'primary_focus': f"Location-based memory group",
+            'primary_location': list(locations)[0] if locations else "Unknown",
+            'events_at_location': event_count,
+            'actors_present': list(actors),
+            'activities': list(concepts)[:5],
+            'methods': list(methods)[:5]
+        }
+    
+    # Build timeline from what_variants
+    what_events = []
+    for what_key, variants in response_data.get('what_variants', {}).items():
+        if isinstance(variants, list):
+            for v in variants:
+                what_events.append({
+                    'what': v.get('value', what_key),
+                    'timestamp': v.get('timestamp', ''),
+                    'event_id': v.get('event_id', '')
+                })
+    
+    # Sort by timestamp (newest first)
+    what_events.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+    
+    # Format timeline with properly ordered 5W1H using latest state and what_variants
+    for idx, event in enumerate(what_events[:10]):  # Limit to 10 most recent
+        timeline_entry = []
+        
+        # Build entry using latest state as template and specific event data
+        timeline_entry.append(f"Who: {latest.get('who', 'User')}")
+        timeline_entry.append(f"What: {event['what'][:100]}...")  # Truncate long entries
+        timeline_entry.append(f"When: {event['timestamp']}")
+        timeline_entry.append(f"Where: {latest.get('where', 'unspecified')}")
+        timeline_entry.append(f"Why: {latest.get('why', 'unspecified')}")
+        timeline_entry.append(f"How: {latest.get('how', 'unspecified')}")
+        
+        context['timeline'].append({
+            'event_id': event.get('event_id', ''),
+            'formatted': ' | '.join(timeline_entry),
+            'components': {
+                'who': latest.get('who', 'User'),
+                'what': event['what'],
+                'when': event['timestamp'],
+                'where': latest.get('where', ''),
+                'why': latest.get('why', ''),
+                'how': latest.get('how', '')
+            }
+        })
+    
+    # Identify patterns and relationships
+    if len(what_events) > 1:
+        # Check for recurring patterns
+        what_counts = {}
+        for event in what_events:
+            what = event.get('what', '')
+            if what:
+                # Simplify by taking first 50 chars for comparison
+                what_key = what[:50]
+                what_counts[what_key] = what_counts.get(what_key, 0) + 1
+        
+        # Find repeated activities
+        repeated = [what for what, count in what_counts.items() if count > 1]
+        if repeated:
+            context['patterns'].append(f"Repeated activities: {', '.join(repeated[:3])}")
+        
+        # Actor relationships
+        if len(actors) > 1:
+            context['relationships'].append(f"Multi-actor interaction between: {', '.join(list(actors)[:3])}")
+        
+        # Temporal patterns
+        if merge_type == 'temporal' and what_events:
+            context['patterns'].append(f"Conversation thread with {len(what_events)} exchanges")
+    
+    # Generate narrative summary
+    summary_parts = []
+    summary_parts.append(f"This {merge_type} memory group contains {event_count} related events.")
+    
+    if actors:
+        summary_parts.append(f"Primary actors involved: {', '.join(list(actors)[:3])}.")
+    
+    if concepts:
+        summary_parts.append(f"Key concepts: {', '.join(list(concepts)[:3])}.")
+    
+    if locations and list(locations)[0] != 'unspecified':
+        summary_parts.append(f"Locations: {', '.join(list(locations)[:2])}.")
+    
+    context['narrative_summary'] = ' '.join(summary_parts)
+    
+    return context
+
 def initialize_system():
     """Initialize the memory system and LLM"""
-    global memory_agent, llm_interface, config, encoder, multi_merger
+    global memory_agent, llm_interface, config, encoder, multi_merger, dimension_retriever
     
     config = get_config()
     memory_agent = MemoryAgent(config)
@@ -62,6 +252,14 @@ def initialize_system():
     
     # Attach multi-merger to memory store for access in API endpoints
     memory_agent.memory_store.multi_merger = multi_merger
+    
+    # Initialize dimension attention retriever
+    dimension_retriever = DimensionAttentionRetriever(
+        encoder=encoder,
+        multi_merger=multi_merger,
+        similarity_cache=memory_agent.memory_store.similarity_cache if hasattr(memory_agent.memory_store, 'similarity_cache') else None,
+        chromadb_store=memory_agent.memory_store.chromadb if hasattr(memory_agent.memory_store, 'chromadb') else None
+    )
     
     # Load existing merge groups from ChromaDB
     try:
@@ -87,9 +285,10 @@ def index():
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    """Handle chat messages with space weight calculation"""
+    """Handle chat messages with multi-dimensional attention-based retrieval"""
     data = request.json
     user_message = data.get('message', '').strip()
+    use_dimension_attention = data.get('use_dimension_attention', True)  # Allow toggling
 
     if not user_message:
         return jsonify({'error': 'No message provided'}), 400
@@ -106,15 +305,35 @@ def chat():
         )
 
         # Calculate query space weights
-        query_fields = {'what': user_message}
+        query_fields = {'what': user_message, 'who': 'User'}
         lambda_e, lambda_h = encoder.compute_query_weights(query_fields)
 
-        # Retrieve relevant memories with enhanced context
-        relevant_memories = memory_agent.memory_store.retrieve_memories_with_context(
-            {'what': user_message},
-            k=5,
-            context_format='detailed'
-        )
+        # Choose retrieval method based on flag
+        dimension_weights = None
+        dominant_dimension = None
+        
+        if use_dimension_attention and dimension_retriever:
+            # NEW: Use dimension-aware retrieval
+            dimension_results, dimension_weights = dimension_retriever.retrieve_with_dimension_attention(
+                query_fields,
+                k=5
+            )
+            
+            # Convert dimension results to memory context
+            relevant_memories = dimension_retriever.get_context_from_dimension_results(
+                dimension_results,
+                memory_agent.memory_store.chromadb
+            )
+            
+            # Find dominant dimension
+            dominant_dimension = max(dimension_weights, key=dimension_weights.get) if dimension_weights else None
+        else:
+            # Fallback to standard retrieval
+            relevant_memories = memory_agent.memory_store.retrieve_memories_with_context(
+                {'what': user_message},
+                k=5,
+                context_format='detailed'
+            )
 
         # Build context and track memory details
         context = ""
@@ -183,7 +402,8 @@ def chat():
             event_type="action"
         )
 
-        return jsonify({
+        # Build response with dimension information
+        response_data = {
             'response': llm_response,
             'memories_used': len(relevant_memories),
             'memory_details': memory_details,
@@ -191,7 +411,16 @@ def chat():
                 'euclidean': float(lambda_e),
                 'hyperbolic': float(lambda_h)
             }
-        })
+        }
+        
+        # Add dimension weights if using attention-based retrieval
+        if dimension_weights:
+            response_data['dimension_weights'] = {
+                dim.value: float(weight) for dim, weight in dimension_weights.items()
+            }
+            response_data['dominant_dimension'] = dominant_dimension.value if dominant_dimension else None
+        
+        return jsonify(response_data)
 
     except Exception as e:
         logger.error(f"Chat error: {e}")
@@ -626,15 +855,8 @@ def get_merged_event_details(memory_id):
                 for v in variants
             ]
         
-        # Generate context preview
-        context_generator = memory_agent.memory_store.context_generator
-        context_summary = context_generator.generate_context(merged_event, None, 'summary')
-        context_detailed = context_generator.generate_context(merged_event, None, 'detailed')
-        
-        response['context_preview'] = {
-            'summary': context_summary,
-            'detailed': context_detailed
-        }
+        # Generate enhanced LLM context
+        response['llm_context'] = generate_enhanced_llm_context(merged_event, merge_type, merge_id, timeline_events)
         
         return jsonify(response)
         
@@ -672,13 +894,85 @@ def get_multi_merge_details(merge_type, merge_id):
         # Get latest state from merged event
         latest_state = merged_event.get_latest_state()
         
+        # Get actual events from ChromaDB for timeline
+        timeline_events = []
+        
+        # First check if we have raw_event_ids
+        logger.info(f"Checking for raw_event_ids in merged_event...")
+        if hasattr(merged_event, 'raw_event_ids'):
+            logger.info(f"Found raw_event_ids: {merged_event.raw_event_ids}")
+        else:
+            # Try to get from group_data
+            raw_ids = group_data.get('raw_event_ids', [])
+            logger.info(f"No raw_event_ids attribute, checking group_data: {raw_ids}")
+            if raw_ids:
+                merged_event.raw_event_ids = raw_ids
+        
+        if hasattr(merged_event, 'raw_event_ids') and merged_event.raw_event_ids:
+            # Get raw events from ChromaDB
+            chromadb = memory_agent.memory_store.chromadb if hasattr(memory_agent.memory_store, 'chromadb') else None
+            if chromadb:
+                for event_id in merged_event.raw_event_ids:
+                    # Try to get from raw events collection
+                    try:
+                        clean_id = event_id.replace('raw_', '').replace('merged_', '').replace('synthetic_', '')
+                        
+                        # Try raw events first
+                        raw_results = chromadb.raw_events_collection.get(
+                            ids=[f"raw_{clean_id}", clean_id, event_id],
+                            include=['metadatas']
+                        )
+                        
+                        if raw_results and raw_results['metadatas']:
+                            for i, metadata in enumerate(raw_results['metadatas']):
+                                if metadata:
+                                    timeline_events.append({
+                                        'id': raw_results['ids'][i],
+                                        'who': metadata.get('who', ''),
+                                        'what': metadata.get('what', ''),
+                                        'when': metadata.get('when', ''),
+                                        'where': metadata.get('where', ''),
+                                        'why': metadata.get('why', ''),
+                                        'how': metadata.get('how', ''),
+                                        'event_type': metadata.get('event_type', '')
+                                    })
+                                    break  # Only add once per event_id
+                        
+                        # If not found in raw, try regular events collection
+                        if not any(e['id'] == event_id for e in timeline_events):
+                            results = chromadb.events_collection.get(
+                                ids=[clean_id, event_id],
+                                include=['metadatas']
+                            )
+                            if results and results['metadatas']:
+                                for i, metadata in enumerate(results['metadatas']):
+                                    if metadata:
+                                        timeline_events.append({
+                                            'id': results['ids'][i],
+                                            'who': metadata.get('who', ''),
+                                            'what': metadata.get('what', ''),
+                                            'when': metadata.get('when', ''),
+                                            'where': metadata.get('where', ''),
+                                            'why': metadata.get('why', ''),
+                                            'how': metadata.get('how', ''),
+                                            'event_type': metadata.get('event_type', '')
+                                        })
+                                        break
+                    except Exception as e:
+                        logger.debug(f"Could not retrieve event {event_id}: {e}")
+        
+        # Sort timeline by when field (newest first for latest state at top)
+        timeline_events.sort(key=lambda x: x.get('when', ''), reverse=True)
+        
         # Format response similar to standard merged event
         response = {
             'id': merge_id,
             'merge_type': merge_type,
             'merge_key': group_data.get('key', ''),
-            'base_event_id': merged_event.base_event_id,
-            'merge_count': len(merged_event.raw_event_ids),
+            'base_event_id': merged_event.base_event_id if hasattr(merged_event, 'base_event_id') else '',
+            # Count events from available data
+            'merge_count': len(merged_event.raw_event_ids) if hasattr(merged_event, 'raw_event_ids') else len(merged_event.when_timeline) if hasattr(merged_event, 'when_timeline') else 0,
+            'event_count': len(merged_event.raw_event_ids) if hasattr(merged_event, 'raw_event_ids') else len(merged_event.when_timeline) if hasattr(merged_event, 'when_timeline') else 0,
             
             # Latest state
             'latest_state': latest_state,
@@ -691,8 +985,8 @@ def get_multi_merge_details(merge_type, merge_id):
             'why_variants': {},
             'how_variants': {},
             
-            # Raw events  
-            'raw_event_ids': list(merged_event.raw_event_ids),
+            # Add formatted timeline events for frontend
+            'raw_events': timeline_events,
             
             # Metadata
             'created_at': group_data.get('created_at', datetime.utcnow()).isoformat(),
@@ -702,15 +996,19 @@ def get_multi_merge_details(merge_type, merge_id):
         # Format WHO variants
         if hasattr(merged_event, 'who_variants') and merged_event.who_variants:
             for who, variants in merged_event.who_variants.items():
-                response['who_variants'][who] = [
-                    {
-                        'value': v.value,
-                        'timestamp': v.timestamp.isoformat() if hasattr(v.timestamp, 'isoformat') else str(v.timestamp),
-                        'event_id': v.event_id,
-                        'relationship': v.relationship.value if hasattr(v.relationship, 'value') else str(v.relationship),
-                    }
-                    for v in variants
-                ]
+                if isinstance(variants, list):
+                    response['who_variants'][who] = [
+                        {
+                            'value': v.value if hasattr(v, 'value') else str(v),
+                            'timestamp': v.timestamp.isoformat() if hasattr(v, 'timestamp') and hasattr(v.timestamp, 'isoformat') else '',
+                            'event_id': v.event_id if hasattr(v, 'event_id') else '',
+                            'relationship': v.relationship.value if hasattr(v, 'relationship') and hasattr(v.relationship, 'value') else 'unknown',
+                        }
+                        for v in variants
+                    ]
+                else:
+                    # Handle non-list variants
+                    response['who_variants'][who] = [{'value': str(variants), 'timestamp': '', 'event_id': '', 'relationship': 'unknown'}]
         
         # Format WHAT variants
         if hasattr(merged_event, 'what_variants') and merged_event.what_variants:
@@ -725,17 +1023,25 @@ def get_multi_merge_details(merge_type, merge_id):
                     for v in variants
                 ]
         
-        # Format WHEN timeline
+        # Format WHEN timeline - check for timeline or raw events
+        timeline_items = []
         if hasattr(merged_event, 'when_timeline') and merged_event.when_timeline:
-            response['when_variants']['timeline'] = [
-                {
-                    'value': tp.semantic_time or tp.timestamp.isoformat() if hasattr(tp, 'semantic_time') else str(tp),
+            for tp in merged_event.when_timeline:
+                timeline_items.append({
+                    'value': tp.semantic_time if hasattr(tp, 'semantic_time') else (tp.timestamp.isoformat() if hasattr(tp, 'timestamp') else str(tp)),
                     'timestamp': tp.timestamp.isoformat() if hasattr(tp, 'timestamp') and hasattr(tp.timestamp, 'isoformat') else str(tp),
                     'event_id': tp.event_id if hasattr(tp, 'event_id') else '',
                     'relationship': 'temporal'
-                }
-                for tp in merged_event.when_timeline
-            ]
+                })
+        elif latest_state.get('when'):
+            # Fallback to latest state if no timeline
+            timeline_items.append({
+                'value': latest_state['when'],
+                'timestamp': latest_state['when'],
+                'event_id': merge_id,
+                'relationship': 'temporal'
+            })
+        response['when_variants']['timeline'] = timeline_items
         
         # Format WHERE locations (different structure)
         if hasattr(merged_event, 'where_locations') and merged_event.where_locations:
@@ -776,131 +1082,40 @@ def get_multi_merge_details(merge_type, merge_id):
                 for method, count in merged_event.how_methods.items()
             ]
         
-        # Generate functional context model for LLM
-        # Build a coherent narrative rather than separated components
+        # We'll add LLM context after response is fully built
         
-        # Determine the primary actor(s)
-        actors = set()
-        for variants in merged_event.who_variants.values():
-            for v in variants:
-                actors.add(v.value)
-        primary_actor = list(actors)[0] if actors else "Unknown"
+        # Add timeline events if we retrieved them
+        if 'timeline_events' not in response:
+            response['timeline_events'] = timeline_events if 'timeline_events' in locals() else []
+        else:
+            response['timeline_events'] = timeline_events if 'timeline_events' in locals() else response['timeline_events']
         
-        # Determine the primary context/location
-        locations = set()
-        if hasattr(merged_event, 'where_locations'):
-            for variants in merged_event.where_locations.values():
-                for v in variants:
-                    locations.add(v.value)
-        elif hasattr(merged_event, 'where_locations'):
-            locations = set(merged_event.where_locations.keys())
-        primary_location = list(locations)[0] if locations else "unspecified location"
-        
-        # Build context summary
-        context_summary = f"## Context Model for {merge_type.title()} Memory Group\n\n"
-        
-        if merge_type == 'actor':
-            context_summary += f"This memory group tracks all interactions involving {primary_actor}. "
-            context_summary += f"There have been {len(merged_event.raw_event_ids)} recorded events "
-            context_summary += f"primarily occurring in {primary_location}.\n\n"
-        elif merge_type == 'temporal':
-            context_summary += f"This memory group represents a temporal sequence of {len(merged_event.raw_event_ids)} related events "
-            context_summary += f"that form a coherent conversation or workflow thread.\n\n"
-        elif merge_type == 'conceptual':
-            # Extract the main concept from why/how
-            concepts = []
-            for variants in merged_event.why_variants.values():
-                for v in variants[:2]:
-                    concepts.append(v.value)
-            main_concept = concepts[0] if concepts else "a specific concept"
-            context_summary += f"This memory group captures events related to {main_concept}. "
-            context_summary += f"It contains {len(merged_event.raw_event_ids)} events that share this conceptual theme.\n\n"
-        elif merge_type == 'spatial':
-            context_summary += f"This memory group contains all {len(merged_event.raw_event_ids)} events "
-            context_summary += f"that occurred in {primary_location}.\n\n"
-        
-        # Build detailed functional context
-        context_detailed = "## Interaction Pattern\n\n"
-        
-        # Create a coherent narrative from the variations
-        if merged_event.what_variants:
-            # Group interactions by actor pairs
-            interactions = []
-            for key, variants in merged_event.what_variants.items():
-                for v in variants[:10]:  # Get up to 10 most relevant
-                    # Get the who for this event
-                    who = "User"  # Default
-                    for who_variants in merged_event.who_variants.values():
-                        for who_v in who_variants:
-                            if who_v.event_id == v.event_id:
-                                who = who_v.value
-                                break
-                    
-                    # Format as conversational context
-                    what_text = v.value[:200] + "..." if len(v.value) > 200 else v.value
-                    interactions.append(f"{who}: {what_text}")
+        # Format raw_events for the frontend (similar to standard merged event)
+        if timeline_events:
+            response['raw_events'] = []
+            response['total_raw'] = len(timeline_events)
             
-            if interactions:
-                context_detailed += "### Key Interactions:\n\n"
-                for interaction in interactions[:8]:  # Limit to 8 for context window
-                    context_detailed += f"{interaction}\n\n"
+            for event_data in timeline_events:
+                formatted_event = {
+                    'id': event_data['id'],
+                    'event_type': event_data.get('event_type', 'observation'),
+                    'timestamp': event_data.get('when', ''),
+                    'episode_id': f"episode_{merge_type}_{merge_id[:8]}",
+                    'five_w1h': {
+                        'who': event_data.get('who', ''),
+                        'what': event_data.get('what', ''),
+                        'when': event_data.get('when', ''),
+                        'where': event_data.get('where', ''),
+                        'why': event_data.get('why', ''),
+                        'how': event_data.get('how', '')
+                    }
+                }
+                response['raw_events'].append(formatted_event)
         
-        # Add pattern analysis
-        context_detailed += "### Behavioral Patterns:\n\n"
-        
-        # Analyze the why/how patterns
-        intents = set()
-        methods = set()
-        
-        # Handle why_variants if present
-        if hasattr(merged_event, 'why_variants') and merged_event.why_variants:
-            for variants in merged_event.why_variants.values():
-                for v in variants:
-                    if v.value:
-                        intents.add(v.value.split(':')[0] if ':' in v.value else v.value[:30])
-        
-        # Handle how - could be how_variants or how_methods
-        if hasattr(merged_event, 'how_variants') and merged_event.how_variants:
-            for variants in merged_event.how_variants.values():
-                for v in variants:
-                    if v.value:
-                        methods.add(v.value)
-        elif hasattr(merged_event, 'how_methods') and merged_event.how_methods:
-            # how_methods is a dict of method->count
-            methods = set(merged_event.how_methods.keys())
-        
-        if intents:
-            context_detailed += f"**Primary Intents:** {', '.join(list(intents)[:5])}\n"
-        if methods:
-            context_detailed += f"**Interaction Methods:** {', '.join(list(methods)[:3])}\n"
-        
-        # Add temporal context if available
-        if hasattr(merged_event, 'when_timeline') and merged_event.when_timeline:
-            all_times = []
-            for tp in merged_event.when_timeline:
-                if hasattr(tp, 'timestamp'):
-                    all_times.append(tp.timestamp)
-            if all_times:
-                context_detailed += f"\n**Temporal Span:** This group spans interactions from {min(all_times)} to {max(all_times)}\n"
-        elif hasattr(merged_event, 'when_variants') and merged_event.when_variants:
-            all_times = []
-            for variants in merged_event.when_variants.values():
-                for v in variants:
-                    all_times.append(v.timestamp if hasattr(v, 'timestamp') else v.value)
-            if all_times:
-                context_detailed += f"\n**Temporal Span:** This group spans interactions from {min(all_times)} to {max(all_times)}\n"
-        
-        context_detailed += "\n### Usage Guidance:\n"
-        context_detailed += "When referencing this memory group, consider:\n"
-        context_detailed += f"1. The primary context is {merge_type} clustering\n"
-        context_detailed += f"2. Events share common {group_data.get('key', 'patterns')}\n"
-        context_detailed += f"3. Use this group to understand patterns in {primary_actor}'s interactions\n"
-        
-        # Add context preview to response
-        response['context_preview'] = {
-            'summary': context_summary,
-            'detailed': context_detailed
-        }
+        # Generate enhanced LLM context after response is fully built
+        llm_context = generate_enhanced_llm_context(merged_event, merge_type, merge_id, response)
+        response['llm_context'] = llm_context
+        response['functional_context_model'] = llm_context.get('narrative_summary', '')  # For backwards compatibility
         
         return jsonify(response)
         
@@ -2074,6 +2289,42 @@ def get_merge_group_detail(merge_type, group_id):
                 }
                 for v in variants
             ]
+        
+        # Generate context preview for LLM tab
+        context_summary = f"## Merged Event Summary\n\n"
+        context_summary += f"This merged event contains {merged_event.merge_count} similar events.\n"
+        latest = merged_event.get_latest_state()
+        if latest.get('who'):
+            context_summary += f"Primary actor: {latest['who']}\n"
+        if latest.get('what'):
+            context_summary += f"Latest action: {latest['what'][:100]}...\n" if len(latest.get('what', '')) > 100 else f"Latest action: {latest['what']}\n"
+        if merged_event.dominant_pattern:
+            context_summary += f"Dominant pattern: {merged_event.dominant_pattern}\n"
+        
+        context_detailed = "### Detailed Context\n\n"
+        context_detailed += "**Latest State:**\n"
+        for key, value in latest.items():
+            if value:
+                if key == 'what' and len(str(value)) > 200:
+                    context_detailed += f"- **{key.title()}:** {str(value)[:200]}...\n"
+                else:
+                    context_detailed += f"- **{key.title()}:** {value}\n"
+        
+        context_detailed += f"\n**Merge Statistics:**\n"
+        context_detailed += f"- Total merged events: {merged_event.merge_count}\n"
+        context_detailed += f"- Created: {merged_event.created_at.isoformat()}\n"
+        context_detailed += f"- Last updated: {merged_event.last_updated.isoformat()}\n"
+        
+        if merged_event.who_variants:
+            context_detailed += f"\n**Actors involved:** {', '.join(merged_event.who_variants.keys())}\n"
+        
+        if merged_event.where_locations:
+            context_detailed += f"\n**Locations:** {', '.join(merged_event.where_locations.keys())}\n"
+        
+        response['context_preview'] = {
+            'summary': context_summary,
+            'detailed': context_detailed
+        }
         
         return jsonify(response)
     except Exception as e:

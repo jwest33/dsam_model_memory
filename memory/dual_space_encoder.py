@@ -249,6 +249,33 @@ class DualSpaceEncoder:
         
         return euclidean_composed, hyperbolic_composed
     
+    def encode_dual(self, text: str) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Encode a single text string into dual-space representation.
+        Returns tuple of (euclidean_embedding, hyperbolic_embedding).
+        """
+        if not text or not text.strip():
+            return np.zeros(self.euclidean_dim), np.zeros(self.hyperbolic_dim)
+        
+        # Get base embedding
+        base_embedding = self.model.encode(text, convert_to_numpy=True)
+        base_embedding = base_embedding.astype(np.float32)
+        
+        # Project to Euclidean space
+        euclidean_embedding = self.euclidean_projector(torch.from_numpy(base_embedding).unsqueeze(0))
+        euclidean_embedding = euclidean_embedding.squeeze(0).detach().numpy()
+        
+        # Project to Hyperbolic space
+        hyperbolic_embedding = self.hyperbolic_projector(torch.from_numpy(base_embedding).unsqueeze(0))
+        hyperbolic_embedding = hyperbolic_embedding.squeeze(0).detach().numpy()
+        hyperbolic_embedding = HyperbolicOperations.exp_map(
+            np.zeros(self.hyperbolic_dim), 
+            hyperbolic_embedding, 
+            c=1.0
+        )
+        
+        return euclidean_embedding, hyperbolic_embedding
+    
     def encode(self, five_w1h: Dict[str, str]) -> Dict[str, np.ndarray]:
         """
         Encode 5W1H fields into dual-space representation.
