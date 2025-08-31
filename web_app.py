@@ -314,9 +314,10 @@ def chat():
         
         if use_dimension_attention and dimension_retriever:
             # NEW: Use dimension-aware retrieval
+            # Get top 2 memory groups based on attention scores
             dimension_results, dimension_weights = dimension_retriever.retrieve_with_dimension_attention(
                 query_fields,
-                k=5
+                k=2  # Only get top 2 memory groups
             )
             
             # Convert dimension results to memory context
@@ -328,10 +329,10 @@ def chat():
             # Find dominant dimension
             dominant_dimension = max(dimension_weights, key=dimension_weights.get) if dimension_weights else None
         else:
-            # Fallback to standard retrieval
+            # Fallback to standard retrieval (also limit to 2 for consistency)
             relevant_memories = memory_agent.memory_store.retrieve_memories_with_context(
                 {'what': user_message},
-                k=5,
+                k=2,  # Limit to 2 memory groups
                 context_format='detailed'
             )
 
@@ -339,50 +340,45 @@ def chat():
         context = ""
         memory_details = []
         if relevant_memories:
-            context_lines = ["Relevant memories:"]
-            for memory_obj, score, context_str in relevant_memories:
-                # Add the generated context
-                context_lines.append(f"\n[Score: {score:.2f}]")
+            # For memory groups, present them clearly to the LLM
+            context_lines = ["Retrieved Memory Groups (choose the most relevant):"]
+            
+            for i, (memory_obj, score, context_str) in enumerate(relevant_memories, 1):
+                # Add the memory group context with clear labeling
+                context_lines.append(f"\n--- Memory Group {i} (Relevance: {score:.2f}) ---")
                 context_lines.append(context_str)
                 
                 # Collect memory details for frontend
-                # Check if it's a merged event or regular event
-                from models.merged_event import MergedEvent
-                if isinstance(memory_obj, MergedEvent):
-                    latest_state = memory_obj.get_latest_state()
-                    memory_details.append({
-                        'id': memory_obj.id,
-                        'who': latest_state.get('who', ''),
-                        'what': latest_state.get('what', ''),
-                        'when': latest_state.get('when', ''),
-                        'where': latest_state.get('where', ''),
-                        'why': latest_state.get('why', ''),
-                        'how': latest_state.get('how', ''),
-                        'score': float(score),
-                        'merge_count': memory_obj.merge_count,
-                        'is_merged': True
-                    })
-                else:
-                    memory_details.append({
-                        'id': memory_obj.id,
-                        'who': memory_obj.five_w1h.who or '',
-                        'what': memory_obj.five_w1h.what or '',
-                        'when': memory_obj.five_w1h.when or '',
-                        'where': memory_obj.five_w1h.where or '',
-                        'why': memory_obj.five_w1h.why or '',
-                        'how': memory_obj.five_w1h.how or '',
-                        'score': float(score),
-                        'is_merged': False
-                    })
+                # The memory_obj is a synthetic Event from merge group metadata
+                # context_str contains the actual context provided to LLM
+                memory_details.append({
+                    'id': memory_obj.id if hasattr(memory_obj, 'id') else '',
+                    'who': memory_obj.five_w1h.who if hasattr(memory_obj, 'five_w1h') and memory_obj.five_w1h.who else '',
+                    'what': memory_obj.five_w1h.what if hasattr(memory_obj, 'five_w1h') and memory_obj.five_w1h.what else '',
+                    'when': memory_obj.five_w1h.when if hasattr(memory_obj, 'five_w1h') and memory_obj.five_w1h.when else '',
+                    'where': memory_obj.five_w1h.where if hasattr(memory_obj, 'five_w1h') and memory_obj.five_w1h.where else '',
+                    'why': memory_obj.five_w1h.why if hasattr(memory_obj, 'five_w1h') and memory_obj.five_w1h.why else '',
+                    'how': memory_obj.five_w1h.how if hasattr(memory_obj, 'five_w1h') and memory_obj.five_w1h.how else '',
+                    'score': float(score),
+                    'context': context_str,  # Include the actual context shown to LLM
+                    'is_merged': True  # These are all from merge groups now
+                })
             context = "\n".join(context_lines) + "\n\n"
 
-        # Generate LLM response
+        # Generate LLM response with current timestamp
+        from datetime import datetime
+        current_time = datetime.utcnow().isoformat() + 'Z'
+        
         prompt = (
-            "You are a helpful AI assistant with access to conversation history.\n"
-            "Use the relevant memories below to inform your answer.\n"
-            "Answer directly and concisely.\n\n"
+            "You are a helpful AI assistant with access to conversation history stored in memory groups.\n"
+            f"Current time: {current_time}\n"
+            "Use the memory groups below to understand context and answer the user's question.\n"
+            "The memory groups show consolidated information from multiple related events.\n"
+            "Each group's timeframe shows when those events occurred.\n"
+            "Answer based on the information provided in the memory groups.\n"
+            "Be direct and concise.\n\n"
             f"{context}"
-            "Current question:\n"
+            "\nCurrent question:\n"
             f"User: {user_message}\n"
             "Assistant:"
         )

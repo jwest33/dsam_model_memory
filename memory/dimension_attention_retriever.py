@@ -279,18 +279,26 @@ class DimensionAttentionRetriever:
             # Combine embeddings with space weights
             euclidean_emb, hyperbolic_emb = query_embedding
             
-            # Weight and concatenate embeddings for search
-            weighted_embedding = np.concatenate([
-                euclidean_emb * float(lambda_e),
-                hyperbolic_emb * float(lambda_h)
-            ])
+            # Use only Euclidean embedding for ChromaDB search
+            # (ChromaDB collections are created with 768-dim Euclidean embeddings only)
+            weighted_embedding = euclidean_emb
             
-            # Query the collection
-            query_results = collection.query(
-                query_embeddings=[weighted_embedding.tolist()],
-                n_results=k,
-                include=['metadatas', 'distances', 'embeddings']
-            )
+            # Query the collection (handle empty collections gracefully)
+            try:
+                query_results = collection.query(
+                    query_embeddings=[weighted_embedding.tolist()],
+                    n_results=k,
+                    include=['metadatas', 'distances', 'embeddings']
+                )
+            except Exception as query_error:
+                # Handle empty collections or other query errors
+                if "Nothing found on disk" in str(query_error):
+                    # Collection exists but is empty - not an error, just no results
+                    logger.debug(f"{dimension.value} collection is empty")
+                    return results
+                else:
+                    # Re-raise other errors
+                    raise query_error
             
             if query_results and query_results['ids']:
                 for i, merge_id in enumerate(query_results['ids'][0]):
@@ -306,8 +314,15 @@ class DimensionAttentionRetriever:
                         'dimension': dimension.value,
                         'metadata': metadata,
                         'merge_key': metadata.get('merge_key', ''),
-                        'event_count': int(metadata.get('event_count', 1)),
-                        'raw_event_ids': metadata.get('raw_event_ids', '').split(',') if metadata.get('raw_event_ids') else []
+                        'event_count': int(metadata.get('merge_count', metadata.get('event_count', 1))),
+                        'raw_event_ids': metadata.get('raw_event_ids', '').split(',') if metadata.get('raw_event_ids') else [],
+                        # Include the latest state fields
+                        'latest_who': metadata.get('latest_who', ''),
+                        'latest_what': metadata.get('latest_what', ''),
+                        'latest_when': metadata.get('latest_when', ''),
+                        'latest_where': metadata.get('latest_where', ''),
+                        'latest_why': metadata.get('latest_why', ''),
+                        'latest_how': metadata.get('latest_how', '')
                     }
                     
                     results.append((result_obj, score))
@@ -381,27 +396,75 @@ class DimensionAttentionRetriever:
         
         for result_obj, score in results:
             try:
-                # Get the raw events for this merge group
-                raw_event_ids = result_obj.get('raw_event_ids', [])
+                # Build context from the merge group metadata
+                context_lines = []
+                dimension = result_obj.get('dimension', 'unknown')
+                merge_key = result_obj.get('merge_key', 'Group')
+                event_count = result_obj.get('event_count', 1)
                 
-                if raw_event_ids and chromadb_store:
-                    # Get the first/most representative raw event for context
-                    raw_events = chromadb_store.get_raw_events(raw_event_ids[:3])  # Get up to 3 for context
-                    
-                    if raw_events:
-                        # Build context from the merge group
-                        context_lines = []
-                        context_lines.append(f"[{result_obj['dimension'].title()} Dimension - {result_obj.get('merge_key', 'Group')}]")
-                        context_lines.append(f"This group contains {result_obj['event_count']} related events.")
-                        
-                        # Add sample events from the group
-                        for event in raw_events[:2]:  # Show first 2 events as examples
-                            context_lines.append(f"• {event.five_w1h.who}: {event.five_w1h.what[:100]}")
-                        
-                        context_str = '\n'.join(context_lines)
-                        
-                        # Use first event as representative
-                        contextualized_results.append((raw_events[0], score, context_str))
+                # Get all metadata fields for comprehensive context
+                metadata = result_obj.get('metadata', {})
+                
+                context_lines.append(f"[{dimension.title()} Memory Group - {merge_key}]")
+                context_lines.append(f"Contains {event_count} events")
+                
+                # Extract key information from metadata
+                # These represent the consolidated state of the memory group
+                who = metadata.get('latest_who', '')
+                what = metadata.get('latest_what', '')
+                when = metadata.get('latest_when', '')
+                where = metadata.get('latest_where', '')
+                why = metadata.get('latest_why', '')
+                how = metadata.get('latest_how', '')
+                
+                # Show all events with their timestamps
+                context_lines.append("\nEvents in this group:")
+                
+                # The metadata contains the latest state - show it as a summary
+                if who and what:
+                    context_lines.append(f"• {who}: {what}")
+                    if when:
+                        context_lines.append(f"  When: {when}")
+                    if why:
+                        context_lines.append(f"  Why: {why}")
+                    if how:
+                        context_lines.append(f"  How: {how}")
+                    if where:
+                        context_lines.append(f"  Where: {where}")
+                
+                context_str = '\n'.join(context_lines)
+                
+                # Create a synthetic Event from the merge group metadata for the LLM
+                # This represents the merged/summarized state of the group
+                from models.event import Event, FiveW1H, EventType
+                from datetime import datetime
+                
+                # Parse created_at if available
+                created_at_str = result_obj.get('created_at', datetime.utcnow().isoformat())
+                if created_at_str:
+                    try:
+                        created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                    except:
+                        created_at = datetime.utcnow()
+                else:
+                    created_at = datetime.utcnow()
+                
+                synthetic_event = Event(
+                    id=result_obj.get('id', ''),
+                    event_type=EventType.OBSERVATION,  # Default type
+                    five_w1h=FiveW1H(
+                        who=who,
+                        what=what,
+                        when=when,
+                        where=where,
+                        why=why,
+                        how=how
+                    ),
+                    episode_id=result_obj.get('episode_id', ''),
+                    created_at=created_at
+                )
+                
+                contextualized_results.append((synthetic_event, score, context_str))
                 
             except Exception as e:
                 logger.error(f"Error getting context for result {result_obj.get('id')}: {e}")

@@ -206,10 +206,13 @@ function setupEventListeners() {
         });
     }
     
-    // Tab change listeners
+    // Tab change listeners with data refresh
     const analyticsTab = document.getElementById('analytics-tab');
     if (analyticsTab) {
         analyticsTab.addEventListener('shown.bs.tab', () => {
+            // Refresh analytics data when tab is shown
+            loadStats();
+            loadMergeStats();
             updateCharts();
         });
     }
@@ -217,6 +220,15 @@ function setupEventListeners() {
     // Show/hide Merged/Raw tabs based on active main tab
     const memoryTab = document.getElementById('memory-tab');
     const chatTab = document.getElementById('chat-tab');
+    
+    // Add refresh for Chat Interface tab
+    if (chatTab) {
+        chatTab.addEventListener('shown.bs.tab', () => {
+            // Refresh stats when chat tab is shown
+            loadStats();
+            loadMergeStats();
+        });
+    }
     const memoryViewTabs = document.getElementById('memoryViewTabs');
     
     // Function to position the sub-tabs correctly under Memory Store
@@ -245,6 +257,10 @@ function setupEventListeners() {
         memoryTab.addEventListener('shown.bs.tab', () => {
             memoryViewTabs.style.display = 'block';
             positionMemoryViewTabs();
+            // Refresh memory data when tab is shown
+            loadMemories();
+            loadStats();
+            loadMergeStats();
         });
     }
     
@@ -482,7 +498,7 @@ function toggleMemoryDetails(messageId) {
         let detailsHtml = `
             <div class="mt-3 p-3 bg-dark rounded">
                 <h6 class="text-cyan mb-3">
-                    <i class="bi bi-database"></i> Retrieved Memories Used for This Response:
+                    <i class="bi bi-database"></i> Memory Groups & Context Provided to LLM:
                 </h6>
                 <div class="memories-list">
         `;
@@ -492,26 +508,22 @@ function toggleMemoryDetails(messageId) {
                 <div class="memory-item mb-3 p-2 border border-secondary rounded">
                     <div class="d-flex justify-content-between align-items-start">
                         <div class="flex-grow-1">
-                            <div class="row small">
-                                <div class="col-md-6">
-                                    <strong class="text-info">Who:</strong> ${escapeHtml(mem.who || '—')}
+                            ${mem.context ? `
+                                <div class="memory-context mb-2">
+                                    <strong class="text-cyan">Memory Group Context:</strong>
+                                    <pre class="text-light small mb-2" style="white-space: pre-wrap; background: transparent; border: none; padding: 0;">${escapeHtml(mem.context)}</pre>
                                 </div>
-                                <div class="col-md-6">
-                                    <strong class="text-info">When:</strong> ${escapeHtml(mem.when || '—')}
+                            ` : ''}
+                            <div class="memory-metadata">
+                                <div class="row small">
+                                    ${mem.who ? `<div class="col-md-6"><strong class="text-info">Who:</strong> ${escapeHtml(mem.who)}</div>` : ''}
+                                    ${mem.when ? `<div class="col-md-6"><strong class="text-info">When:</strong> ${escapeHtml(mem.when)}</div>` : ''}
                                 </div>
-                            </div>
-                            <div class="mt-1">
-                                <strong class="text-info">What:</strong> ${escapeHtml(mem.what || '—')}
-                            </div>
-                            <div class="row small mt-1">
-                                <div class="col-md-4">
-                                    <strong class="text-muted">Where:</strong> ${escapeHtml(mem.where || '—')}
-                                </div>
-                                <div class="col-md-4">
-                                    <strong class="text-muted">Why:</strong> ${escapeHtml(mem.why || '—')}
-                                </div>
-                                <div class="col-md-4">
-                                    <strong class="text-muted">How:</strong> ${escapeHtml(mem.how || '—')}
+                                ${mem.what ? `<div class="mt-1"><strong class="text-info">What:</strong> ${escapeHtml(mem.what)}</div>` : ''}
+                                <div class="row small mt-1">
+                                    ${mem.where ? `<div class="col-md-4"><strong class="text-muted">Where:</strong> ${escapeHtml(mem.where)}</div>` : ''}
+                                    ${mem.why ? `<div class="col-md-4"><strong class="text-muted">Why:</strong> ${escapeHtml(mem.why)}</div>` : ''}
+                                    ${mem.how ? `<div class="col-md-4"><strong class="text-muted">How:</strong> ${escapeHtml(mem.how)}</div>` : ''}
                                 </div>
                             </div>
                         </div>
