@@ -25,6 +25,7 @@ from memory.dual_space_encoder import DualSpaceEncoder, HyperbolicOperations, mo
 from memory.temporal_query import integrate_temporal_with_dual_space
 from memory.hopfield import ModernHopfieldNetwork
 from memory.smart_merger import SmartMerger
+from memory.temporal_manager import TemporalManager
 from memory.temporal_chain import TemporalChain
 from memory.context_generator import MergedEventContextGenerator
 from config import get_config
@@ -56,7 +57,21 @@ class MemoryStore:
         
         # New merging components
         self.smart_merger = SmartMerger(similarity_threshold=0.85)
-        self.temporal_chain = TemporalChain()
+        
+        # Multi-dimensional merger for handling all dimensional grouping
+        from memory.multi_dimensional_merger import MultiDimensionalMerger
+        self.multi_merger = MultiDimensionalMerger(chromadb_store=self.chromadb)
+        
+        # Unified temporal manager
+        self.temporal_manager = TemporalManager(
+            encoder=None,  # Will be set after encoder is initialized
+            chromadb_store=self.chromadb,
+            similarity_cache=None  # Will be set after similarity cache is initialized
+        )
+        
+        # Legacy temporal chain reference for backward compatibility
+        self.temporal_chain = self.temporal_manager.temporal_chain
+        
         self.context_generator = MergedEventContextGenerator(self.temporal_chain)
         self.merged_events_cache = {}  # merged_event_id -> MergedEvent
         
@@ -116,6 +131,11 @@ class MemoryStore:
         
         # Statistics - initialize from existing data
         self._initialize_statistics()
+        
+        # Update temporal manager with encoder and similarity cache
+        self.temporal_manager.encoder = self.encoder
+        if hasattr(self, 'similarity_cache'):
+            self.temporal_manager.similarity_cache = self.similarity_cache
         
         logger.info("Enhanced memory store initialized with dual-space encoding")
     
@@ -343,93 +363,12 @@ class MemoryStore:
                 except Exception as e:
                     logger.warning(f"Could not store raw event in ChromaDB: {e}")
             
-            # Check for duplicates based on product distance
-            similar_events = self._find_similar_events(embeddings, k=5)
+            # NO MERGING/DEDUPLICATION HERE!
+            # The MultiDimensionalMerger handles all grouping
+            # We just store events individually and let the merger organize them
             
-            merged_event_id = None
-            if similar_events:
-                for similar_event, distance in similar_events:
-                    # Check if should merge using smart merger
-                    event_data = event.five_w1h.to_dict()
-                    event_data['timestamp'] = event.created_at
-                    
-                    similar_data = similar_event.five_w1h.to_dict()
-                    similar_data['timestamp'] = similar_event.created_at
-                    
-                    if self.smart_merger.should_merge(
-                        embeddings['euclidean_anchor'], 
-                        self.embedding_cache.get(similar_event.id, {}).get('euclidean_anchor', embeddings['euclidean_anchor']),
-                        event_data, similar_data, distance
-                    ):
-                        # Check if similar event is already part of a merged event
-                        merged_event = None
-                        merged_event_id = None
-                        
-                        # First check if the similar event is already merged
-                        if similar_event.id in self.raw_to_merged:
-                            merged_event_id = self.raw_to_merged[similar_event.id]
-                        elif f"merged_{similar_event.id}" in self.merged_events_cache:
-                            merged_event_id = f"merged_{similar_event.id}"
-                        
-                        # Get or create merged event
-                        if merged_event_id and merged_event_id in self.merged_events_cache:
-                            merged_event = self.merged_events_cache[merged_event_id]
-                        else:
-                            # Create new merged event from the similar event
-                            merged_event = MergedEvent(
-                                id=f"merged_{similar_event.id}",
-                                base_event_id=similar_event.id
-                            )
-                            # Use the raw event ID if it exists, otherwise use the original ID
-                            similar_raw_id = f"raw_{similar_event.id}" if f"raw_{similar_event.id}" in self.raw_events else similar_event.id
-                            merged_event.add_raw_event(similar_raw_id, similar_data)
-                            merged_event_id = merged_event.id
-                        
-                        # Use smart merger to merge the new event
-                        # Create a copy of the event with the raw_event_id as its ID for consistency
-                        event_for_merge = Event(
-                            id=raw_event_id if preserve_raw else event.id,
-                            five_w1h=event.five_w1h,
-                            event_type=event.event_type,
-                            episode_id=event.episode_id
-                        )
-                        merged_event = self.smart_merger.merge_events(
-                            merged_event, event_for_merge, 
-                            {'euclidean_weight': euclidean_weight, 'hyperbolic_weight': hyperbolic_weight}
-                        )
-                        
-                        # Update centroid embedding
-                        self._update_merged_embeddings(merged_event.id, embeddings)
-                        
-                        # Store merged event in ChromaDB
-                        centroid_embedding = self._compute_centroid_embedding(merged_event)
-                        self.chromadb.store_merged_event(merged_event, centroid_embedding)
-                        
-                        # Cache the merged event
-                        self.merged_events_cache[merged_event.id] = merged_event
-                        
-                        # Track raw-to-merged mapping
-                        if preserve_raw:
-                            self.raw_to_merged[raw_event_id] = merged_event.id
-                            if merged_event.id not in self.merged_to_raw:
-                                self.merged_to_raw[merged_event.id] = set()
-                            self.merged_to_raw[merged_event.id].add(raw_event_id)
-                            
-                            # Update merged_id in ChromaDB
-                            try:
-                                raw_collection = self.chromadb.client.get_collection('raw_events')
-                                raw_collection.update(
-                                    ids=[raw_event_id],
-                                    metadatas=[{'merged_id': merged_event.id}]
-                                )
-                            except Exception as e:
-                                logger.warning(f"Could not update merge mapping in ChromaDB: {e}")
-                        
-                        # Add to temporal chain
-                        chain_context = {'merged_event_id': merged_event.id}
-                        self.temporal_chain.add_event(event, chain_context)
-                        
-                        return True, f"Merged into event {merged_event.id[:8]} ({merged_event.merge_count} total)"
+            # Add to temporal chain (for conversation tracking)
+            self.temporal_manager.add_event_to_temporal_chain(event, {})
             
             # Store immutable anchors in ChromaDB
             # Calculate actual space weights from embeddings
@@ -487,6 +426,25 @@ class MemoryStore:
             if event.episode_id not in self.episode_map:
                 self.episode_map[event.episode_id] = []
             self.episode_map[event.episode_id].append(event.id)
+            
+            # Process with multi-dimensional merger for dimensional grouping
+            # This handles actor, temporal, conceptual, and spatial grouping
+            try:
+                # Prepare embeddings for multi-merger (needs euclidean_anchor and hyperbolic_anchor)
+                merger_embeddings = {
+                    'euclidean_anchor': embeddings['euclidean_anchor'],
+                    'hyperbolic_anchor': embeddings['hyperbolic_anchor']
+                }
+                
+                # Process the event through all dimensional mergers
+                merge_assignments = self.multi_merger.process_new_event(event, merger_embeddings)
+                
+                # Log the dimensional assignments
+                if merge_assignments:
+                    logger.debug(f"Event {event.id[:8]} assigned to dimensions: {list(merge_assignments.keys())}")
+            except Exception as e:
+                # Don't fail the whole storage if dimensional merging fails
+                logger.warning(f"Multi-dimensional merging failed for event {event.id[:8]}: {e}")
             
             # Update statistics
             self.total_events += 1

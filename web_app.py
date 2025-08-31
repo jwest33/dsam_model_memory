@@ -176,7 +176,7 @@ def generate_enhanced_llm_context(merged_event, merge_type, merge_id, response_d
         
         # Build entry using latest state as template and specific event data
         timeline_entry.append(f"Who: {latest.get('who', 'User')}")
-        timeline_entry.append(f"What: {event['what'][:100]}...")  # Truncate long entries
+        timeline_entry.append(f"What: {event['what']}...")  # Truncate long entries
         timeline_entry.append(f"When: {event['timestamp']}")
         timeline_entry.append(f"Where: {latest.get('where', 'unspecified')}")
         timeline_entry.append(f"Why: {latest.get('why', 'unspecified')}")
@@ -787,15 +787,15 @@ def get_merged_event_details(memory_id):
             'how_methods': merged_event.how_methods,
             
             # Latest state
-            'latest_state': merged_event.get_latest_state(),
-            'dominant_pattern': merged_event.dominant_pattern,
+            'latest_state': merged_event.get_latest_state() if hasattr(merged_event, 'get_latest_state') else {},
+            'dominant_pattern': getattr(merged_event, 'dominant_pattern', None),
             
-            # Relationships
-            'temporal_chain': merged_event.temporal_chain,
-            'supersedes': merged_event.supersedes,
-            'superseded_by': merged_event.superseded_by,
-            'depends_on': list(merged_event.depends_on),
-            'enables': list(merged_event.enables),
+            # Relationships (with safe attribute access)
+            'temporal_chain': getattr(merged_event, 'temporal_chain', None),
+            'supersedes': getattr(merged_event, 'supersedes', None),
+            'superseded_by': getattr(merged_event, 'superseded_by', None),
+            'depends_on': list(getattr(merged_event, 'depends_on', [])),
+            'enables': list(getattr(merged_event, 'enables', [])),
             
             # Raw events
             'raw_event_ids': list(merged_event.raw_event_ids)
@@ -851,8 +851,44 @@ def get_merged_event_details(memory_id):
                 for v in variants
             ]
         
+        # Build timeline events from raw event IDs if available
+        timeline_events = []
+        if merged_event and hasattr(merged_event, 'raw_event_ids') and merged_event.raw_event_ids:
+            # Try to get raw events for timeline
+            chromadb = memory_agent.memory_store.chromadb if hasattr(memory_agent.memory_store, 'chromadb') else None
+            if chromadb:
+                for event_id in list(merged_event.raw_event_ids)[:10]:  # Limit to 10 for performance
+                    try:
+                        # Try to get from raw events collection
+                        clean_id = event_id.replace('raw_', '').replace('merged_', '')
+                        raw_results = chromadb.raw_events_collection.get(
+                            ids=[f"raw_{clean_id}", clean_id, event_id],
+                            include=['metadatas']
+                        )
+                        if raw_results and raw_results['metadatas']:
+                            for i, metadata in enumerate(raw_results['metadatas']):
+                                if metadata:
+                                    timeline_events.append({
+                                        'id': raw_results['ids'][i],
+                                        'who': metadata.get('who', ''),
+                                        'what': metadata.get('what', ''),
+                                        'when': metadata.get('when', ''),
+                                        'where': metadata.get('where', ''),
+                                        'why': metadata.get('why', ''),
+                                        'how': metadata.get('how', ''),
+                                        'event_type': metadata.get('event_type', '')
+                                    })
+                                    break
+                    except Exception as e:
+                        logger.debug(f"Could not retrieve event {event_id}: {e}")
+        
         # Generate enhanced LLM context
-        response['llm_context'] = generate_enhanced_llm_context(merged_event, merge_type, merge_id, timeline_events)
+        response['llm_context'] = generate_enhanced_llm_context(
+            merged_event, 
+            merge_type='standard',  # Default to standard merge type
+            merge_id=merged_event.id if merged_event else memory_id,
+            timeline_events=timeline_events
+        )
         
         return jsonify(response)
         
@@ -957,6 +993,36 @@ def get_multi_merge_details(merge_type, merge_id):
                     except Exception as e:
                         logger.debug(f"Could not retrieve event {event_id}: {e}")
         
+        # For temporal groups, also check temporal chain for additional events
+        if merge_type == 'temporal' and hasattr(memory_agent.memory_store, 'temporal_manager'):
+            temporal_chain = memory_agent.memory_store.temporal_manager.temporal_chain
+            # Try to find the corresponding chain
+            for chain_id, chain_events in temporal_chain.chains.items():
+                # Check if this temporal group corresponds to this chain
+                if chain_id.startswith('episode_') or chain_id.startswith('topic_'):
+                    # Get chain metadata
+                    chain_metadata = temporal_chain.chain_metadata.get(chain_id, {})
+                    # Check if any events in the chain match our raw_event_ids
+                    if hasattr(merged_event, 'raw_event_ids'):
+                        matching_events = set(chain_events) & set(merged_event.raw_event_ids)
+                        if matching_events:
+                            # This chain corresponds to our temporal group
+                            # Add any missing events from the chain
+                            for event_id in chain_events:
+                                if not any(e['id'] == event_id for e in timeline_events):
+                                    # Create placeholder event with minimal info
+                                    timeline_events.append({
+                                        'id': event_id,
+                                        'who': '',
+                                        'what': f'[Event {event_id[:8]}... from temporal chain]',
+                                        'when': chain_metadata.get('last_updated', ''),
+                                        'where': '',
+                                        'why': '',
+                                        'how': '',
+                                        'event_type': 'temporal_chain_event'
+                                    })
+                            break
+        
         # Sort timeline by when field (newest first for latest state at top)
         timeline_events.sort(key=lambda x: x.get('when', ''), reverse=True)
         
@@ -966,9 +1032,9 @@ def get_multi_merge_details(merge_type, merge_id):
             'merge_type': merge_type,
             'merge_key': group_data.get('key', ''),
             'base_event_id': merged_event.base_event_id if hasattr(merged_event, 'base_event_id') else '',
-            # Count events from available data
-            'merge_count': len(merged_event.raw_event_ids) if hasattr(merged_event, 'raw_event_ids') else len(merged_event.when_timeline) if hasattr(merged_event, 'when_timeline') else 0,
-            'event_count': len(merged_event.raw_event_ids) if hasattr(merged_event, 'raw_event_ids') else len(merged_event.when_timeline) if hasattr(merged_event, 'when_timeline') else 0,
+            # Count actual timeline events for accurate count
+            'merge_count': len(timeline_events) if timeline_events else len(merged_event.raw_event_ids) if hasattr(merged_event, 'raw_event_ids') else 0,
+            'event_count': len(timeline_events) if timeline_events else len(merged_event.raw_event_ids) if hasattr(merged_event, 'raw_event_ids') else 0,
             
             # Latest state
             'latest_state': latest_state,
@@ -989,8 +1055,27 @@ def get_multi_merge_details(merge_type, merge_id):
             'last_updated': group_data.get('last_updated', datetime.utcnow()).isoformat()
         }
         
-        # Format WHO variants
-        if hasattr(merged_event, 'who_variants') and merged_event.who_variants:
+        # Format WHO variants - collect from timeline events if available
+        if timeline_events and merge_type != 'actor':
+            # For non-actor merge types, collect WHO from all timeline events
+            who_counts = {}
+            for event in timeline_events:
+                who_value = event.get('who', '')
+                if who_value:
+                    if who_value not in who_counts:
+                        who_counts[who_value] = []
+                    who_counts[who_value].append({
+                        'value': who_value,
+                        'timestamp': event.get('when', ''),
+                        'event_id': event.get('id', ''),
+                        'relationship': 'participant'
+                    })
+            
+            # Add all collected WHO variants
+            for who, events in who_counts.items():
+                response['who_variants'][who] = events
+        elif hasattr(merged_event, 'who_variants') and merged_event.who_variants:
+            # Fall back to merged event's who_variants for actor merge type
             for who, variants in merged_event.who_variants.items():
                 if isinstance(variants, list):
                     response['who_variants'][who] = [
@@ -1006,8 +1091,29 @@ def get_multi_merge_details(merge_type, merge_id):
                     # Handle non-list variants
                     response['who_variants'][who] = [{'value': str(variants), 'timestamp': '', 'event_id': '', 'relationship': 'unknown'}]
         
-        # Format WHAT variants
-        if hasattr(merged_event, 'what_variants') and merged_event.what_variants:
+        # Format WHAT variants - collect from timeline events if available for non-actor types
+        if timeline_events and merge_type != 'actor':
+            # For non-actor merge types, collect WHAT from all timeline events
+            what_counts = {}
+            for event in timeline_events:
+                what_value = event.get('what', '')
+                if what_value:
+                    # Use a truncated version as key to group similar whats
+                    what_key = what_value[:50] + '...' if len(what_value) > 50 else what_value
+                    if what_key not in what_counts:
+                        what_counts[what_key] = []
+                    what_counts[what_key].append({
+                        'value': what_value,
+                        'timestamp': event.get('when', ''),
+                        'event_id': event.get('id', ''),
+                        'relationship': 'action'
+                    })
+            
+            # Add all collected WHAT variants
+            for what, events in what_counts.items():
+                response['what_variants'][what] = events
+        elif hasattr(merged_event, 'what_variants') and merged_event.what_variants:
+            # Fall back to merged event's what_variants
             for what, variants in merged_event.what_variants.items():
                 response['what_variants'][what] = [
                     {
@@ -1039,8 +1145,30 @@ def get_multi_merge_details(merge_type, merge_id):
             })
         response['when_variants']['timeline'] = timeline_items
         
-        # Format WHERE locations (different structure)
-        if hasattr(merged_event, 'where_locations') and merged_event.where_locations:
+        # Format WHERE locations - collect from timeline events if available for non-actor types
+        if timeline_events and merge_type != 'actor':
+            # For non-actor merge types, collect WHERE from all timeline events
+            where_counts = {}
+            for event in timeline_events:
+                where_value = event.get('where', '')
+                if where_value:
+                    if where_value not in where_counts:
+                        where_counts[where_value] = 0
+                    where_counts[where_value] += 1
+            
+            # Format as locations list
+            response['where_locations']['locations'] = [
+                {
+                    'value': location,
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'event_id': '',
+                    'relationship': 'location',
+                    'count': count
+                }
+                for location, count in where_counts.items()
+            ]
+        elif hasattr(merged_event, 'where_locations') and merged_event.where_locations:
+            # Fall back to merged event's where_locations
             response['where_locations']['locations'] = [
                 {
                     'value': location,
@@ -1052,8 +1180,27 @@ def get_multi_merge_details(merge_type, merge_id):
                 for location, count in merged_event.where_locations.items()
             ]
         
-        # Format WHY variants
-        if hasattr(merged_event, 'why_variants') and merged_event.why_variants:
+        # Format WHY variants - collect from timeline events if available for non-actor types
+        if timeline_events and merge_type != 'actor':
+            # For non-actor merge types, collect WHY from all timeline events
+            why_counts = {}
+            for event in timeline_events:
+                why_value = event.get('why', '')
+                if why_value:
+                    if why_value not in why_counts:
+                        why_counts[why_value] = []
+                    why_counts[why_value].append({
+                        'value': why_value,
+                        'timestamp': event.get('when', ''),
+                        'event_id': event.get('id', ''),
+                        'relationship': 'reason'
+                    })
+            
+            # Add all collected WHY variants
+            for why, events in why_counts.items():
+                response['why_variants'][why] = events
+        elif hasattr(merged_event, 'why_variants') and merged_event.why_variants:
+            # Fall back to merged event's why_variants
             for why, variants in merged_event.why_variants.items():
                 response['why_variants'][why] = [
                     {
@@ -1065,8 +1212,30 @@ def get_multi_merge_details(merge_type, merge_id):
                     for v in variants
                 ]
         
-        # Format HOW methods (different structure)
-        if hasattr(merged_event, 'how_methods') and merged_event.how_methods:
+        # Format HOW methods - collect from timeline events if available for non-actor types
+        if timeline_events and merge_type != 'actor':
+            # For non-actor merge types, collect HOW from all timeline events
+            how_counts = {}
+            for event in timeline_events:
+                how_value = event.get('how', '')
+                if how_value:
+                    if how_value not in how_counts:
+                        how_counts[how_value] = 0
+                    how_counts[how_value] += 1
+            
+            # Format as methods list
+            response['how_variants']['methods'] = [
+                {
+                    'value': method,
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'event_id': '',
+                    'relationship': 'method',
+                    'count': count
+                }
+                for method, count in how_counts.items()
+            ]
+        elif hasattr(merged_event, 'how_methods') and merged_event.how_methods:
+            # Fall back to merged event's how_methods
             response['how_variants']['methods'] = [
                 {
                     'value': method,
@@ -1722,6 +1891,51 @@ def search_memories():
         logger.error(f"Search error: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/temporal-summary', methods=['GET'])
+def get_temporal_summary():
+    """Get comprehensive temporal system summary"""
+    try:
+        if not hasattr(memory_agent.memory_store, 'temporal_manager'):
+            return jsonify({'error': 'Temporal manager not available'}), 404
+        
+        temporal_manager = memory_agent.memory_store.temporal_manager
+        
+        # Get temporal chains summary
+        chains_summary = temporal_manager.get_temporal_chains_summary()
+        
+        # Get temporal merge groups
+        temporal_groups = temporal_manager.get_temporal_merge_groups()
+        
+        # Create summary response
+        response = {
+            'chains': chains_summary,
+            'temporal_groups': {
+                'total': len(temporal_groups),
+                'groups': temporal_groups[:10]  # Top 10 groups
+            },
+            'temporal_indicators': temporal_manager.get_temporal_indicators_dict()
+        }
+        
+        return jsonify(response)
+    except Exception as e:
+        logger.error(f"Error getting temporal summary: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/temporal-context/<event_id>', methods=['GET'])
+def get_temporal_context(event_id):
+    """Get temporal context for a specific event"""
+    try:
+        if not hasattr(memory_agent.memory_store, 'temporal_manager'):
+            return jsonify({'error': 'Temporal manager not available'}), 404
+        
+        temporal_manager = memory_agent.memory_store.temporal_manager
+        context = temporal_manager.get_temporal_context_for_event(event_id)
+        
+        return jsonify(context)
+    except Exception as e:
+        logger.error(f"Error getting temporal context: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
     """Get enhanced system statistics"""
@@ -2171,7 +2385,7 @@ def get_merge_groups(merge_type):
                         'last_updated': group_data.get('last_updated', datetime.utcnow()).isoformat() if 'last_updated' in group_data else '',
                         'latest_state': latest_state,
                         'raw_event_ids': list(merged_event.raw_event_ids),
-                        'events_count': len(group_data.get('events', []))
+                        'events_count': merged_event.merge_count  # Use merge_count for consistency
                     })
         
         # Sort by merge count (largest groups first)
@@ -2221,15 +2435,15 @@ def get_merge_group_detail(merge_type, group_id):
             'how_methods': merged_event.how_methods,
             
             # Latest state
-            'latest_state': merged_event.get_latest_state(),
-            'dominant_pattern': merged_event.dominant_pattern,
+            'latest_state': merged_event.get_latest_state() if hasattr(merged_event, 'get_latest_state') else {},
+            'dominant_pattern': getattr(merged_event, 'dominant_pattern', None),
             
-            # Relationships
-            'temporal_chain': merged_event.temporal_chain,
-            'supersedes': merged_event.supersedes,
-            'superseded_by': merged_event.superseded_by,
-            'depends_on': list(merged_event.depends_on),
-            'enables': list(merged_event.enables),
+            # Relationships (with safe attribute access)
+            'temporal_chain': getattr(merged_event, 'temporal_chain', None),
+            'supersedes': getattr(merged_event, 'supersedes', None),
+            'superseded_by': getattr(merged_event, 'superseded_by', None),
+            'depends_on': list(getattr(merged_event, 'depends_on', [])),
+            'enables': list(getattr(merged_event, 'enables', [])),
             
             # Raw events
             'raw_event_ids': list(merged_event.raw_event_ids),

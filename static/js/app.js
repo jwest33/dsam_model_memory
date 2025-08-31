@@ -455,7 +455,6 @@ function addChatMessage(message, sender, metadata = {}) {
         <div class="message-header">
             <strong>${sender === 'user' ? 'You' : 'Assistant'}</strong>
             <span class="text-muted ms-2">${new Date().toLocaleTimeString()}</span>
-            ${metadata.memories_used ? `<span class="badge bg-dark ms-2">${metadata.memories_used} memories</span>` : ''}
             ${clickIndicator}
         </div>
         <div class="message-content" ${sender === 'assistant' && metadata.memories_used > 0 ? 'style="cursor: pointer;"' : ''}>${escapeHtml(message)}</div>
@@ -2805,7 +2804,6 @@ function createMergedOverviewTab(mergedEvent, latest) {
                     <td class="text-truncate" style="max-width: 300px;" title="${escapeHtml(value)}">
                         ${escapeHtml(value.substring(0, 100))}
                     </td>
-                    <td><span class="badge bg-secondary">${data.count}</span></td>
                     <td class="text-muted small">${formatDate(data.lastUpdated)}</td>
                 </tr>`;
         }
@@ -2866,7 +2864,6 @@ function createMergedOverviewTab(mergedEvent, latest) {
                     <td class="text-truncate ps-4" style="max-width: 400px;" title="${escapeHtml(value)}">
                         ${escapeHtml(value.substring(0, 100))}
                     </td>
-                    <td style="width: 100px;"><span class="badge bg-secondary">${data.count}</span></td>
                     <td style="width: 200px;" class="text-muted small">${formatDate(data.lastUpdated)}</td>
                 </tr>`;
         }
@@ -3294,7 +3291,7 @@ function createVariationAccordionItem(id, label, variants) {
                 <div class="accordion-body bg-dark">
                     ${Object.entries(variants).map(([key, variantList]) => `
                         <div class="mb-3">
-                            <h6 class="text-info">${escapeHtml(key.substring(0, 50))}</h6>
+                            <h6 class="text-info">${escapeHtml(key)}</h6>
                             ${variantList.map(v => `
                                 <div class="ms-3 mb-2 p-2 bg-dark rounded">
                                     <div class="d-flex justify-content-between align-items-start">

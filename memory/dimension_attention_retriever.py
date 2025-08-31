@@ -114,20 +114,36 @@ class DimensionAttentionRetriever:
     
     def _compute_temporal_attention(self, query_fields: Dict[str, str], query_text: str) -> float:
         """Compute attention weight for temporal dimension."""
+        # Use the temporal manager if available
+        if hasattr(self, 'temporal_manager'):
+            return self.temporal_manager.compute_temporal_attention_weight(query_fields)
+        
+        # Fallback to original implementation
         score = 0.0
         
         # Check if 'when' field is specified
         if query_fields.get('when'):
             score += 0.5
         
-        # Check for temporal keywords
+        # Strong temporal indicators - highest priority
+        strong_temporal_indicators = [
+            'last thing', 'just discussed', 'just talked', 'most recent',
+            'latest', 'what did we just', 'last time', 'previous message',
+            'before this', 'earlier today', 'a moment ago'
+        ]
+        for indicator in strong_temporal_indicators:
+            if indicator in query_text:
+                score += 0.7  # Strong boost for explicit temporal phrases
+                break
+        
+        # Check for temporal keywords with enhanced weighting
         temporal_matches = sum(1 for keyword in self.temporal_keywords if keyword in query_text)
-        score += min(temporal_matches * 0.25, 0.5)
+        score += min(temporal_matches * 0.35, 0.6)  # Increased from 0.25 to 0.35
         
         # Check for date/time patterns
         date_pattern = r'\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{2,4}|ago|minutes?|hours?|days?|weeks?|months?'
         if re.search(date_pattern, query_text):
-            score += 0.3
+            score += 0.4  # Increased from 0.3
         
         # Check for conversation/thread context
         if any(word in query_text for word in ['conversation', 'thread', 'discussion', 'chat']):

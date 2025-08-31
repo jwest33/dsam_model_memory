@@ -36,8 +36,10 @@ def main():
         from web_app import app, initialize_system
         print("\n  Loading enhanced dual-space interface...")
         print("   Features: Space indicators, residual tracking, analytics")
-    except ImportError:
-        print("\nError: Enhanced interface not available")
+    except ImportError as e:
+        print(f"\nError: Enhanced interface not available - {e}")
+        print("Please check that web_app.py is properly configured.")
+        sys.exit(1)
     
     print("\nStarting Flask server...")
     print("The web interface will open in your browser.")

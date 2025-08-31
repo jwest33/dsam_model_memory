@@ -37,9 +37,6 @@ chromadb/
 *.sqlite
 *.sqlite3
 
-# Benchmark data
-benchmark_datasets/
-evaluation_results/
 
 # IDE
 .vscode/
