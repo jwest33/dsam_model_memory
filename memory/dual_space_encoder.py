@@ -1,6 +1,5 @@
 """
 Dual-space encoder with Euclidean and Hyperbolic heads for field-aware composition.
-Replaces adaptive_embeddings.py with a more sophisticated encoding system.
 """
 
 import torch

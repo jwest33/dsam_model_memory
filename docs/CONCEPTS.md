@@ -1,323 +1,255 @@
-# Mathematical Foundations of the Dual-Space Memory System
+# DSAM Technical Architecture
 
-## Overview
+## System Overview
 
-This document provides a technical explanation of the mathematical concepts underlying the Dual-Space Memory System, which combines Euclidean and Hyperbolic geometries for enhanced memory representation and retrieval in AI systems.
+DSAM implements a content-addressable memory system using dual geometric spaces (Euclidean + Hyperbolic) for semantic retrieval without explicit memory addresses. The system adaptively weights between spaces based on query characteristics.
 
-## 1. Dual-Space Architecture
+## Core Mathematical Framework
 
-The system employs two complementary geometric spaces:
+### Dual-Space Representation
 
-### 1.1 Euclidean Space (ℝ^768)
-A 768-dimensional real vector space using standard L2 (Euclidean) distance metric for capturing lexical and syntactic similarity.
+**Euclidean Space (ℝ^768)**
+- Direct embeddings from sentence-transformers/all-MiniLM-L6-v2
+- L2 distance metric: `d_E(x, y) = ||x - y||_2`
+- Optimized for lexical/syntactic similarity
+- Example: "Python error" matches "Python exception"
 
-**Why 768 dimensions?** We use the all-mpnet-base-v2 model which natively produces 768-dimensional embeddings. This provides superior semantic understanding compared to smaller models, with each dimension capturing different linguistic features (syntax, semantics, style, domain). No additional projection is needed - we directly use the model's high-quality embeddings for the Euclidean space.
+**Hyperbolic Space (𝔹^64)**  
+- Poincaré ball model with radius < 1
+- Hyperbolic distance: `d_H(x, y) = arcosh(1 + 2||x - y||²/((1 - ||x||²)(1 - ||y||²)))`
+- Captures hierarchical/abstract relationships
+- Example: "authentication" relates to "login", "security", "sessions"
 
-**Distance metric:**
-```
-d_E(x, y) = ||x - y||_2 = √(Σᵢ(xᵢ - yᵢ)²)
-```
-
-**Example:** 
-- Query: "Python TypeError in login.py line 42"
-- High similarity: "Python error in login.py", "TypeError at line 42"
-- Low similarity: "JavaScript authentication flow"
-
-### 1.2 Hyperbolic Space (𝔹^64)
-A 64-dimensional Poincaré ball model for representing hierarchical and semantic relationships.
-
-**Why Poincaré ball for hierarchies?** Hyperbolic space has exponentially growing volume with radius, naturally matching tree structures where nodes have exponentially more descendants at each level. Near the origin represents abstract/general concepts, while the boundary represents specific instances. This geometry preserves tree distances with minimal distortion - a binary tree of depth k needs only O(k) hyperbolic dimensions but O(2^k) Euclidean dimensions for isometric embedding.
-
-**Distance metric:**
-```
-d_H(x, y) = arcosh(1 + 2||x - y||²/((1 - ||x||²)(1 - ||y||²)))
-```
-
-where points x, y ∈ 𝔹^n = {x ∈ ℝ^n : ||x|| < 1}
-
-**Example:**
-- Query: "How does authentication work?"
-- High similarity: "User login flow", "Security protocols", "Session management"
-- These are hierarchically related even if lexically different
-
-## 2. Embedding Generation
-
-### 2.1 Base Embeddings
-We use the pre-trained sentence transformer `all-mpnet-base-v2` to generate 768-dimensional embeddings:
-
-**Why this architecture?** The all-mpnet-base-v2 model provides state-of-the-art semantic representations, outperforming smaller models like MiniLM. Since it natively produces 768-dimensional embeddings, we use them directly for the Euclidean space, while projecting down to 64 dimensions for the Hyperbolic space where the curved geometry provides additional representational power.
-
-**Euclidean embeddings (direct use):**
-```python
-e_euclidean = base_embedding 
-```
-
-**Hyperbolic projection with exponential map:**
-```python
-W_H ∈ ℝ^(64×768)   # Learned projection matrix (from 768-dim base)
-v = W_H @ base_embedding + b_H
-e_hyperbolic = exp_0(v) = tanh(||v||/2) * (v/||v||)
-```
-
-The exponential map exp_0 projects from tangent space at origin to the Poincaré ball.
-
-### 2.2 Field-Aware Gating
-Different 5W1H fields contribute differently to each space:
+### Embedding Pipeline
 
 ```python
-g_E = σ(W_gate_E @ field_indicators + b_gate_E)  # Euclidean gates
-g_H = σ(W_gate_H @ field_indicators + b_gate_H)  # Hyperbolic gates
+# Base embedding generation
+base_embedding = sentence_transformer.encode(text)  # 768-dim
 
-final_euclidean = g_E ⊙ e_euclidean
-final_hyperbolic = g_H ⊙ e_hyperbolic
+# Euclidean: Use directly
+e_euclidean = base_embedding
+
+# Hyperbolic: Project and map to Poincaré ball
+v = W_H @ base_embedding + b_H  # W_H ∈ ℝ^(64×768)
+e_hyperbolic = tanh(||v||/2) * (v/||v||)  # Exponential map
 ```
 
-**Example field weights (learned):**
-- "what" field: g_E = 0.85, g_H = 0.60 (more Euclidean-focused)
-- "why" field: g_E = 0.45, g_H = 0.90 (more Hyperbolic-focused)
+### Query-Adaptive Weighting
 
-## 3. Query-Adaptive Space Weighting
+The system dynamically computes space weights λ_E and λ_H:
 
-The system dynamically computes space weights λ_E and λ_H based on query characteristics:
-
-### 3.1 Weight Computation
 ```python
-# Feature extraction from query
+# Feature extraction
 f_concrete = count(technical_terms) + count(specific_entities)
-f_abstract = count(conceptual_terms) + count(relationship_words)
+f_abstract = count(conceptual_terms) + count(relationships)
 
 # Softmax normalization
 λ_E = exp(β * f_concrete) / (exp(β * f_concrete) + exp(β * f_abstract))
 λ_H = 1 - λ_E
 ```
 
-where β is a temperature parameter (typically β = 2.0)
-
-**Example weight distributions:**
-- Query: "Fix null pointer exception in user.py" → λ_E = 0.78, λ_H = 0.22
-- Query: "Explain the authentication architecture" → λ_E = 0.31, λ_H = 0.69
-- Query: "How does the login system handle errors?" → λ_E = 0.52, λ_H = 0.48
-
-## 4. Product Distance Metric
-
-The final distance combines both spaces using a weighted product:
-
+Product distance metric:
 ```
 D(q, m) = d_E(q, m)^λ_E × d_H(q, m)^λ_H
 ```
 
-**Why product over sum?** Product metrics better handle the different scales of the two spaces. Unlike weighted sums (αd_E + βd_H), products naturally accommodate that hyperbolic distances grow exponentially while Euclidean distances grow linearly. The exponential weighting (d^λ) provides smooth interpolation between pure Euclidean (λ_E=1) and pure Hyperbolic (λ_H=1) retrieval.
+## Adaptive Learning
 
-This formulation ensures:
-- When λ_E → 1: Euclidean distance dominates
-- When λ_H → 1: Hyperbolic distance dominates  
-- When λ_E = λ_H = 0.5: Equal contribution
+### Bounded Residual Adaptation
 
-**Numerical example:**
-```
-Query: "database connection error"
-Memory 1: d_E = 0.3, d_H = 0.8
-Memory 2: d_E = 0.7, d_H = 0.4
-
-With λ_E = 0.7, λ_H = 0.3:
-D(q, m1) = 0.3^0.7 × 0.8^0.3 = 0.42 × 0.93 = 0.39
-D(q, m2) = 0.7^0.7 × 0.4^0.3 = 0.77 × 0.74 = 0.57
-
-Memory 1 is ranked higher despite worse hyperbolic distance.
-```
-
-## 5. Bounded Residual Adaptation
-
-### 5.1 Residual Update Mechanism
-The system maintains adaptive residuals r_E and r_H that modify base embeddings:
+Memories maintain adaptive residuals that modify base embeddings:
 
 ```python
-# Gradient computation from user feedback
-∇r_E = η_E * Σᵢ (y_i - ŷ_i) * ∂D/∂r_E
-∇r_H = η_H * Σᵢ (y_i - ŷ_i) * ∂D/∂r_H
+# Update with momentum
+v_E = μ * v_E + (1 - μ) * ∇r_E  # μ = 0.9
+r_E = clip(r_E + α * v_E, -B_E, B_E)  # B_E = 0.35
 
-# Momentum update
-v_E = μ * v_E + (1 - μ) * ∇r_E
-v_H = μ * v_H + (1 - μ) * ∇r_H
+# Temporal decay
+r_E(t) = r_E(t-1) * γ  # γ = 0.995
 ```
 
-**Why momentum?** Momentum (μ=0.9) smooths updates by accumulating gradients over time, preventing oscillations from noisy feedback and ensuring stable convergence. This is especially important in dual-space systems where gradients from different geometries might conflict. The high momentum value creates "heavy ball" dynamics that roll through local minima.
+Bounds prevent catastrophic drift:
+- Euclidean: ±0.35 (tighter for lexical stability)
+- Hyperbolic: ±0.75 (looser for hierarchical flexibility)
 
-# Bounded update
-r_E_new = clip(r_E + v_E, -B_E, B_E)
-r_H_new = project_to_ball(r_H + v_H, B_H)
-```
+### Field-Level Adaptation
 
-Parameters:
-- η_E = η_H = 0.01 (learning rate)
-- μ = 0.9 (momentum coefficient)
-- B_E = 0.35 (Euclidean bound)
-- B_H = 0.75 (Hyperbolic bound)
+Per-field limits in 5W1H structure:
+- `who`: 0.2 (entity stability)
+- `what`: 0.5 (content flexibility)
+- `when`: 0.3 (temporal consistency)
+- `where`: 0.4 (spatial context)
+- `why`: 0.5 (reasoning adaptation)
+- `how`: 0.5 (method variation)
 
-### 5.2 Temporal Decay
-Residuals decay exponentially over time:
+## Multi-Dimensional Merging
+
+### Event Deduplication
+
+Automatic merging when similarity > 0.85:
+1. Detect similar events using product distance
+2. Create merged representation preserving latest values
+3. Maintain bidirectional raw↔merged mappings
+4. Track merge statistics and provenance
+
+### Merge Dimensions
+
+**Actor Dimension**
+- Groups by participants (who field)
+- Tracks conversation participants
+- Maintains speaker relationships
+
+**Temporal Dimension**
+- Groups by conversation threads
+- Detects temporal patterns (Strong/Moderate/Weak)
+- Links sequential events
+
+**Conceptual Dimension**
+- Groups by semantic concepts
+- Clusters related ideas
+- Preserves goal relationships
+
+**Spatial Dimension**
+- Groups by location context
+- Maintains spatial relationships
+- Tracks environment changes
+
+## Storage Architecture
+
+### ChromaDB Collections
 
 ```python
-r_E(t) = r_E(t-1) * γ
-r_H(t) = r_H(t-1) * γ
+collections = {
+    'events': merged_events,        # Deduplicated events
+    'raw_events': original_events,   # All original events
+    'blocks': memory_blocks,         # HDBSCAN clusters
+    'metadata': system_state,        # Configuration/stats
+    'similarity_cache': similarities # Pre-computed scores
+}
 ```
 
-where γ = 0.995 (decay factor)
+### Similarity Cache
 
-**Example evolution:**
-- Initial residual: ||r_E|| = 0.30
-- After 100 iterations: ||r_E|| = 0.30 × 0.995^100 ≈ 0.18
-- After 500 iterations: ||r_E|| = 0.30 × 0.995^500 ≈ 0.02
+Pre-computed pairwise similarities:
+- Sparse storage (threshold: 0.2)
+- O(1) lookup vs O(n²) computation
+- Persistent across restarts
+- Hit rate typically >99% after warmup
 
-## 6. HDBSCAN Clustering
+## Performance Characteristics
 
-Hierarchical Density-Based Spatial Clustering of Applications with Noise groups memories dynamically:
+### Computational Complexity
+- Embedding generation: O(1) per query
+- Distance computation: O(n) for n memories
+- Product metric: O(d_E + d_H) = O(768 + 64)
+- Cache lookup: O(1) amortized
 
-**Why HDBSCAN over k-means or DBSCAN?** HDBSCAN excels at finding clusters of varying densities without requiring the number of clusters a priori. Unlike k-means, it handles non-spherical clusters and identifies outliers. Unlike DBSCAN, it automatically adapts to varying density levels through its hierarchical approach. This is crucial for memories that naturally form groups of different sizes and densities (e.g., many memories about common tasks, few about edge cases).
+### Memory Requirements
+Per event:
+- Euclidean embedding: 3KB (768 × 4 bytes)
+- Hyperbolic embedding: 256B (64 × 4 bytes)
+- Residuals: 3.3KB (832 × 4 bytes)
+- Metadata: ~500B
+- Total: ~7KB per memory
 
-### 6.1 Algorithm Parameters
+### Latency Benchmarks
+For 1000 memories:
+- Embedding: ~20ms
+- Retrieval: ~50ms with cache
+- Graph generation: ~100ms
+- Merge computation: ~30ms
+
+## Implementation Details
+
+### Numerical Stability
+
+**Hyperbolic Operations**
+```python
+# Prevent boundary issues
+x = clip_norm(x, max_norm=0.999)
+
+# Stable distance computation
+epsilon = 1e-5
+d = arcosh(max(1 + delta, 1 + epsilon))
+```
+
+**Möbius Addition**
+```python
+# Gyrovector addition in Poincaré ball
+x ⊕ y = ((1 + 2⟨x,y⟩ + ||y||²)x + (1 - ||x||²)y) / 
+         (1 + 2⟨x,y⟩ + ||x||²||y||²)
+```
+
+### HDBSCAN Clustering
+
 ```python
 clusterer = HDBSCAN(
-    min_cluster_size=3,      # Minimum points to form cluster
-    min_samples=2,            # Conservative density requirement
-    metric='euclidean',       # Uses combined embedding
+    min_cluster_size=5,
+    min_samples=3,
+    metric='precomputed',  # Uses similarity cache
     cluster_selection_epsilon=0.3
 )
 ```
 
-### 6.2 Clustering Process
-1. Compute mutual reachability distance matrix
-2. Construct minimum spanning tree
-3. Build cluster hierarchy
-4. Extract flat clustering using stability
+Benefits over alternatives:
+- No fixed cluster count (vs k-means)
+- Varying density support (vs DBSCAN)
+- Automatic outlier detection
+- Hierarchical structure preservation
 
-**Example clustering outcome:**
-```
-Memories about "authentication":
-- Cluster 0: [login_endpoint, user_validation, session_creation]
-- Cluster 1: [password_hashing, salt_generation, bcrypt_config]
-- Noise: [oauth_redirect]  # Too different from others
-```
+## Usage Examples
 
-## 7. Hyperbolic Operations
+### Content-Addressable Retrieval
 
-### 7.1 Möbius Addition
-For combining hyperbolic vectors:
-
-```
-x ⊕ y = ((1 + 2⟨x,y⟩ + ||y||²)x + (1 - ||x||²)y) / (1 + 2⟨x,y⟩ + ||x||²||y||²)
-```
-
-### 7.2 Exponential and Logarithmic Maps
-**Exponential map** (tangent space to Poincaré ball):
-```
-exp_x(v) = x ⊕ (tanh(λ_x||v||/2) * v/||v||)
-```
-
-**Why these maps?** The exponential map preserves the Riemannian metric, ensuring that operations in tangent space (where we can use familiar linear algebra) correctly translate to the curved hyperbolic space. The tanh function naturally bounds points within the unit ball while preserving differentiability for gradient-based learning.
-
-**Logarithmic map** (Poincaré ball to tangent space):
-```
-log_x(y) = (2/λ_x) * arctanh(||-x ⊕ y||) * (-x ⊕ y)/||-x ⊕ y||
-```
-
-where λ_x = 2/(1 - ||x||²) is the conformal factor.
-
-### 7.3 Parallel Transport
-For moving vectors between tangent spaces:
-
-```
-PT_{x→y}(v) = (λ_x/λ_y) * gyration[y, -x](v)
-```
-
-## 8. Performance Characteristics
-
-### 8.1 Computational Complexity
-- Euclidean distance: O(d) where d = 768
-- Hyperbolic distance: O(d) where d = 64, but with higher constant factor
-- Product distance: O(d_E + d_H)
-- HDBSCAN: O(n² log n) worst case, O(n log n) average
-
-### 8.2 Memory Requirements
-Per stored event:
-- Euclidean: 768 × 4 bytes = 3,072 bytes
-- Hyperbolic: 64 × 4 bytes = 256 bytes
-- Residuals: (768 + 64) × 4 bytes = 3,328 bytes
-- Metadata: ~500 bytes
-- Total: ~7KB per memory
-
-### 8.3 Retrieval Latency
-For n = 1000 memories:
-- Embedding generation: ~20ms
-- Distance computation: ~5ms
-- Sorting: ~1ms
-- Total: <30ms for top-k retrieval
-
-## 9. Mathematical Justification
-
-### 9.1 Why Hyperbolic Space?
-Hyperbolic geometry naturally embeds trees with low distortion. For a tree with n nodes:
-- Euclidean space requires Ω(log n) dimensions
-- Hyperbolic space requires only 2 dimensions (theoretically)
-
-### 9.2 Why Product Metric?
-The product metric satisfies:
-1. **Identity**: D(x,x) = 0
-2. **Symmetry**: D(x,y) = D(y,x)
-3. **Distinguishability**: D(x,y) = 0 ⟺ x = y
-4. **Weighted triangle inequality** (approximate)
-
-### 9.3 Why Bounded Residuals?
-Unbounded adaptation leads to:
-- Catastrophic forgetting
-- Embedding drift
-- Loss of semantic coherence
-
-Bounds ensure ||e_adapted - e_base|| ≤ B, maintaining semantic stability.
-
-**Why different bounds (0.35 vs 0.75)?** Euclidean space requires tighter bounds (0.35) because changes directly affect lexical matching - too much drift would make "login error" match unrelated errors. Hyperbolic space allows larger bounds (0.75) because its hierarchical nature is more robust to local changes - moving within the hierarchy preserves relationships even with larger adjustments.
-
-## 10. Implementation Examples
-
-### 10.1 Storing a Memory
 ```python
-# Input event
-event = Event(
-    five_w1h=FiveW1H(
-        who="user123",
-        what="implemented binary search algorithm",
-        where="search_module.py",
-        when="2024-01-15T10:30:00",
-        why="optimize lookup performance",
-        how="divide-and-conquer approach"
-    )
+# Store without explicit address
+memory_agent.remember(
+    who="Alice",
+    what="implemented caching",
+    how="Redis with LRU"
 )
 
-# Generate embeddings
-e_base = sentence_transformer.encode(concatenate_fields(event))
-e_euclidean = project_euclidean(e_base)  # → ℝ^768
-e_hyperbolic = project_hyperbolic(e_base)  # → 𝔹^64
-
-# Store with residuals initialized to zero
-store(event_id, e_euclidean, e_hyperbolic, r_E=0, r_H=0)
+# Retrieve by content similarity
+results = memory_agent.recall(
+    what="cache",  # Partial content
+    k=5
+)
+# Returns semantically similar memories
 ```
 
-### 10.2 Retrieving Memories
+### Adaptive Learning
+
 ```python
-# Query processing
-query = "how to optimize search performance"
-λ_E, λ_H = compute_weights(query)  # → (0.35, 0.65)
+# System adapts from co-retrieval patterns
+query = "authentication flow"
+results = retrieve(query)
 
-# Compute distances
-for memory in all_memories:
-    d_E = euclidean_distance(q_euclidean, m.e_euclidean + m.r_E)
-    d_H = hyperbolic_distance(q_hyperbolic, m.e_hyperbolic ⊕ m.r_H)
-    score = d_E^λ_E × d_H^λ_H
-    
-# Return top-k
-return sorted(memories, key=lambda m: m.score)[:k]
+# Positive feedback strengthens associations
+adapt_residuals(query, results, positive=True)
+
+# Future queries benefit from adaptation
 ```
 
-## Summary
+## Configuration
 
-The dual-space architecture leverages the complementary strengths of Euclidean geometry (precise lexical matching) and Hyperbolic geometry (hierarchical semantic relationships). Through adaptive residuals with bounds, momentum-based updates, and query-dependent space weighting, the system provides robust and flexible memory retrieval that improves with usage while maintaining stability.
+Key parameters in `config.py`:
+
+```python
+DualSpaceConfig:
+    euclidean_dim: 768
+    hyperbolic_dim: 64
+    euclidean_bound: 0.35
+    hyperbolic_bound: 0.75
+    momentum: 0.9
+    decay_factor: 0.995
+    learning_rate: 0.01
+    similarity_threshold: 0.85
+```
+
+## Future Enhancements
+
+- Graph neural networks for relationship modeling
+- Attention mechanisms for field weighting
+- Distributed storage for scaling
+- Real-time stream processing
+- Hierarchical memory consolidation

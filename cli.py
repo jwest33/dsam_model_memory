@@ -300,7 +300,6 @@ class MemoryCLI:
         print("7. System statistics:")
         stats = self.agent.get_statistics()
         print(f"   Total memories: {stats['raw_count'] + stats['processed_count']}")
-        print(f"   Hopfield utilization: {stats['hopfield']['utilization']:.1%}")
         print(f"   Current episode: {stats['current_episode']}")
         
         print("\nDemonstration complete!")
