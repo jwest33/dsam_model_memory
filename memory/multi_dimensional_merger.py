@@ -636,7 +636,10 @@ class MultiDimensionalMerger:
         timestamp = event.created_at  # Default to created_at
         if event.five_w1h.when:
             try:
-                timestamp = datetime.fromisoformat(event.five_w1h.when.replace('Z', '+00:00'))
+                from dateutil import parser as date_parser
+                timestamp = date_parser.parse(event.five_w1h.when)
+                if timestamp.tzinfo is None:
+                    timestamp = timestamp.replace(tzinfo=timezone.utc)
             except:
                 pass  # Keep using created_at if when doesn't parse
         
@@ -647,7 +650,8 @@ class MultiDimensionalMerger:
             'where': event.five_w1h.where,
             'why': event.five_w1h.why,
             'how': event.five_w1h.how,
-            'timestamp': timestamp
+            'episode_id': event.episode_id,
+            'timestamp': timestamp  # Parsed timestamp for sorting/comparisons
         }
     
     def get_merges_for_event(self, event_id: str) -> Dict[MergeType, MergedEvent]:
