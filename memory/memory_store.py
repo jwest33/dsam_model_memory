@@ -66,7 +66,8 @@ class MemoryStore:
         self.temporal_manager = TemporalManager(
             encoder=None,  # Will be set after encoder is initialized
             chromadb_store=self.chromadb,
-            similarity_cache=None  # Will be set after similarity cache is initialized
+            similarity_cache=None,  # Will be set after similarity cache is initialized
+            config=self.config
         )
         
         # Legacy temporal chain reference for backward compatibility
@@ -193,17 +194,10 @@ class MemoryStore:
                         raw_ids_for_mapping = set()
                         for raw_id in merged_event.raw_event_ids:
                             # Check which format exists in raw_events
+                            # Just use the ID as-is, no prefix handling needed
                             if raw_id in self.raw_events:
                                 self.raw_to_merged[raw_id] = merged_id
                                 raw_ids_for_mapping.add(raw_id)
-                            elif f"raw_{raw_id}" in self.raw_events:
-                                prefixed_id = f"raw_{raw_id}"
-                                self.raw_to_merged[prefixed_id] = merged_id
-                                raw_ids_for_mapping.add(prefixed_id)
-                            elif raw_id.startswith("raw_") and raw_id[4:] in self.raw_events:
-                                unprefixed_id = raw_id[4:]
-                                self.raw_to_merged[unprefixed_id] = merged_id
-                                raw_ids_for_mapping.add(unprefixed_id)
                         
                         # Rebuild merged_to_raw mapping with the correct IDs
                         self.merged_to_raw[merged_id] = raw_ids_for_mapping
@@ -325,8 +319,8 @@ class MemoryStore:
             Tuple of (success, message)
         """
         try:
-            # Generate unique raw event ID if not present
-            raw_event_id = f"raw_{event.id}" if preserve_raw else event.id
+            # Use the event's original ID without any prefix
+            raw_event_id = event.id
             
             # Generate dual-space embeddings first
             embeddings = self.encoder.encode(event.five_w1h.to_dict())
@@ -1041,19 +1035,9 @@ class MemoryStore:
             # Some IDs in merged_to_raw have the prefix, some in raw_event_ids don't
             found = False
             
-            # Try as-is first
+            # Just look up the ID directly without prefix manipulation
             if rid in self.raw_events:
                 event = self.raw_events[rid]
-                events.append(event)
-                found = True
-            # Try with raw_ prefix
-            elif f"raw_{rid}" in self.raw_events:
-                event = self.raw_events[f"raw_{rid}"]
-                events.append(event)
-                found = True
-            # Try removing raw_ prefix if it exists
-            elif rid.startswith("raw_") and rid[4:] in self.raw_events:
-                event = self.raw_events[rid[4:]]
                 events.append(event)
                 found = True
             

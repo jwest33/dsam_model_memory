@@ -48,10 +48,79 @@ analytics_data = {
     'space_usage_history': []
 }
 
+def generate_llm_text_block(context, merge_type, merge_id):
+    """
+    Generate the exact text block that will be sent to the LLM.
+    This is used for both display in the UI and actual LLM queries.
+    """
+    llm_text_lines = []
+    llm_text_lines.append("=" * 60)
+    llm_text_lines.append(f"{merge_type.upper()} MEMORY GROUP - {merge_id}")
+    llm_text_lines.append("=" * 60)
+    llm_text_lines.append("")
+    
+    # Summary section
+    if 'narrative_summary' in context:
+        llm_text_lines.append("SUMMARY:")
+        llm_text_lines.append(context['narrative_summary'])
+        llm_text_lines.append("")
+    
+    # Key Information section
+    if context.get('key_information'):
+        llm_text_lines.append("KEY INFORMATION:")
+        for key, value in context['key_information'].items():
+            if isinstance(value, list):
+                value_str = ', '.join(str(v) for v in value[:10]) if value else 'None'
+            else:
+                value_str = str(value)
+            llm_text_lines.append(f"  - {key.replace('_', ' ').title()}: {value_str}")
+        llm_text_lines.append("")
+    
+    # Patterns section
+    if context.get('patterns'):
+        llm_text_lines.append("PATTERNS IDENTIFIED:")
+        for pattern in context['patterns']:
+            llm_text_lines.append(f"  • {pattern}")
+        llm_text_lines.append("")
+    
+    # Relationships section
+    if context.get('relationships'):
+        llm_text_lines.append("RELATIONSHIPS:")
+        for relationship in context['relationships']:
+            llm_text_lines.append(f"  • {relationship}")
+        llm_text_lines.append("")
+    
+    # Timeline/Events section - show ALL events in chronological order
+    if context.get('timeline'):
+        # Sort events chronologically (oldest first)
+        sorted_timeline = sorted(context['timeline'], key=lambda x: x.get('components', {}).get('when', '') or '')
+        
+        llm_text_lines.append(f"TIMELINE ({len(sorted_timeline)} events):")
+        for i, event in enumerate(sorted_timeline, 1):  # Show ALL events
+            components = event.get('components', {})
+            llm_text_lines.append(f"\n  Event {i}:")
+            llm_text_lines.append(f"    Who: {components.get('who', 'Unknown')}")
+            llm_text_lines.append(f"    What: {components.get('what', '')}")
+            when_str = components.get('when', '')
+            # Add UTC label if timestamp looks like ISO format
+            if when_str and ('T' in when_str or 'Z' in when_str):
+                llm_text_lines.append(f"    When: {when_str} (UTC)")
+            else:
+                llm_text_lines.append(f"    When: {when_str}")
+            llm_text_lines.append(f"    Where: {components.get('where', 'unspecified')}")
+            llm_text_lines.append(f"    Why: {components.get('why', 'unspecified')}")
+            llm_text_lines.append(f"    How: {components.get('how', 'unspecified')}")
+    
+    llm_text_lines.append("")
+    llm_text_lines.append("=" * 60)
+    
+    return '\n'.join(llm_text_lines)
+
 def generate_enhanced_llm_context(merged_event, merge_type, merge_id, response_data):
     """Generate enhanced context for LLM consumption"""
     logger.info(f"Generating LLM context - event_count: {response_data.get('event_count')}, merge_count: {response_data.get('merge_count')}")
     logger.info(f"What variants keys: {list(response_data.get('what_variants', {}).keys())}")
+    logger.info(f"Raw events count: {len(response_data.get('raw_events', []))}")
     
     context = {
         'key_information': {},
@@ -156,42 +225,163 @@ def generate_enhanced_llm_context(merged_event, merge_type, merge_id, response_d
             'methods': list(methods)[:5]
         }
     
-    # Build timeline from what_variants
+    # Build timeline from all available sources
     what_events = []
-    for what_key, variants in response_data.get('what_variants', {}).items():
-        if isinstance(variants, list):
-            for v in variants:
-                what_events.append({
-                    'what': v.get('value', what_key),
-                    'timestamp': v.get('timestamp', ''),
-                    'event_id': v.get('event_id', '')
-                })
+    
+    # The Timeline tab successfully uses variants, so we should too!
+    # Don't bother with raw_events since they're not loading from ChromaDB
+    # Just use the variants directly like the Timeline does
+    
+    raw_events = []  # We'll build from variants instead
+    
+    # Check if we have raw_events from the response (contains all timeline events with complete 5W1H)
+    if 'raw_events' in response_data and response_data['raw_events']:
+        raw_events = response_data['raw_events']
+        logger.info(f"Using {len(raw_events)} raw events for timeline")
+        # Log the actors found in raw events
+        actors_in_raw = set()
+        for event in raw_events:
+            # Handle both new nested structure and old flat structure
+            five_w1h = event.get('five_w1h', {})
+            who = five_w1h.get('who') or event.get('who', 'Unknown')
+            what = five_w1h.get('what') or event.get('what', '')
+            actors_in_raw.add(who)
+            logger.info(f"Raw event: who={who}, what={what[:50]}...")
+        logger.info(f"Actors found in raw_events: {actors_in_raw}")
+        
+        # Use raw_events directly as they have complete 5W1H for each event
+        for event in raw_events:
+            # Handle both new nested structure and old flat structure
+            five_w1h = event.get('five_w1h', {})
+            what_events.append({
+                'what': five_w1h.get('what') or event.get('what', ''),
+                'timestamp': five_w1h.get('when') or event.get('when', ''),  # Use WHEN field for timestamp
+                'event_id': event.get('id', ''),
+                'who': five_w1h.get('who') or event.get('who', 'Unknown'),
+                'when': five_w1h.get('when') or event.get('when', ''),
+                'where': five_w1h.get('where') or event.get('where', 'unspecified'),
+                'why': five_w1h.get('why') or event.get('why', 'unspecified'),
+                'how': five_w1h.get('how') or event.get('how', 'unspecified')
+            })
+    else:
+        logger.info("No raw_events found, falling back to variants")
+        # Fall back to building from variants if raw_events not available
+        # First collect all component information by event_id
+        event_who_map = {}  # Map event_id to who value
+        event_when_map = {}  # Map event_id to when value (the actual WHEN field)
+        event_where_map = {}  # Map event_id to where value
+        event_why_map = {}  # Map event_id to why value
+        event_how_map = {}  # Map event_id to how value
+        
+        # Collect WHO
+        for who_key, variants in response_data.get('who_variants', {}).items():
+            if isinstance(variants, list):
+                for v in variants:
+                    event_id = v.get('event_id', '')
+                    if event_id:
+                        event_who_map[event_id] = v.get('value', who_key)
+        
+        # Collect WHEN from when_timeline or when_variants
+        when_data = response_data.get('when_timeline', [])
+        if when_data:
+            for tp in when_data:
+                event_id = tp.get('event_id', '')
+                if event_id:
+                    # Use semantic_time if available, otherwise timestamp
+                    when_value = tp.get('semantic_time') or tp.get('timestamp', '')
+                    event_when_map[event_id] = when_value
+        
+        # Also check when_variants if available
+        when_variants = response_data.get('when_variants', {})
+        if isinstance(when_variants, dict):
+            for when_key, variants in when_variants.items():
+                if isinstance(variants, list):
+                    for v in variants:
+                        event_id = v.get('event_id', '')
+                        if event_id and event_id not in event_when_map:
+                            event_when_map[event_id] = v.get('value', when_key)
+        
+        # Collect WHERE
+        for where_key, variants in response_data.get('where_locations', {}).items():
+            if isinstance(variants, list):
+                for v in variants:
+                    event_id = v.get('event_id', '')
+                    if event_id:
+                        event_where_map[event_id] = v.get('value', where_key)
+        
+        # Collect WHY
+        for why_key, variants in response_data.get('why_variants', {}).items():
+            if isinstance(variants, list):
+                for v in variants:
+                    event_id = v.get('event_id', '')
+                    if event_id:
+                        event_why_map[event_id] = v.get('value', why_key)
+        
+        # Collect HOW
+        for how_key, variants in response_data.get('how_variants', {}).items():
+            if isinstance(variants, list):
+                for v in variants:
+                    event_id = v.get('event_id', '')
+                    if event_id:
+                        event_how_map[event_id] = v.get('value', how_key)
+        
+        # Now build timeline with complete 5W1H values
+        for what_key, variants in response_data.get('what_variants', {}).items():
+            if isinstance(variants, list):
+                for v in variants:
+                    event_id = v.get('event_id', '')
+                    # Use WHEN value for timestamp, fallback to internal timestamp if not available
+                    when_value = event_when_map.get(event_id, v.get('timestamp', ''))
+                    what_events.append({
+                        'what': v.get('value', what_key),
+                        'timestamp': when_value,  # Use WHEN field value
+                        'event_id': event_id,
+                        'who': event_who_map.get(event_id, latest.get('who', 'Unknown')),
+                        'when': when_value,  # Store WHEN separately too
+                        'where': event_where_map.get(event_id, latest.get('where', 'unspecified')),
+                        'why': event_why_map.get(event_id, latest.get('why', 'unspecified')),
+                        'how': event_how_map.get(event_id, latest.get('how', 'unspecified'))
+                    })
     
     # Sort by timestamp (newest first)
     what_events.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
     
-    # Format timeline with properly ordered 5W1H using latest state and what_variants
-    for idx, event in enumerate(what_events[:10]):  # Limit to 10 most recent
+    # Log what we're about to add to timeline
+    logger.info(f"Building timeline from {len(what_events)} what_events")
+    actors_in_timeline = set()
+    for event in what_events[:5]:  # Log first 5
+        who = event.get('who', 'Unknown')
+        actors_in_timeline.add(who)
+        logger.info(f"Timeline event: who={who}, what={event.get('what', '')[:50]}...")
+    logger.info(f"Actors in timeline: {actors_in_timeline}")
+    
+    # Format timeline with properly ordered 5W1H using actual event data - include ALL events
+    for idx, event in enumerate(what_events):  # Include ALL events, no limit
         timeline_entry = []
         
-        # Build entry using latest state as template and specific event data
-        timeline_entry.append(f"Who: {latest.get('who', 'User')}")
-        timeline_entry.append(f"What: {event['what']}...")  # Truncate long entries
-        timeline_entry.append(f"When: {event['timestamp']}")
-        timeline_entry.append(f"Where: {latest.get('where', 'unspecified')}")
-        timeline_entry.append(f"Why: {latest.get('why', 'unspecified')}")
-        timeline_entry.append(f"How: {latest.get('how', 'unspecified')}")
+        # Build entry using actual 5W1H values from event
+        timeline_entry.append(f"Who: {event.get('who', 'Unknown')}")
+        timeline_entry.append(f"What: {event['what'][:100]}...")  # Truncate long entries
+        when_str = event.get('when', event.get('timestamp', ''))
+        # Add UTC label if timestamp looks like ISO format
+        if when_str and ('T' in when_str or 'Z' in when_str):
+            timeline_entry.append(f"When: {when_str} (UTC)")
+        else:
+            timeline_entry.append(f"When: {when_str}")
+        timeline_entry.append(f"Where: {event.get('where', 'unspecified')}")
+        timeline_entry.append(f"Why: {event.get('why', 'unspecified')}")
+        timeline_entry.append(f"How: {event.get('how', 'unspecified')}")
         
         context['timeline'].append({
             'event_id': event.get('event_id', ''),
             'formatted': ' | '.join(timeline_entry),
             'components': {
-                'who': latest.get('who', 'User'),
+                'who': event.get('who', 'Unknown'),
                 'what': event['what'],
-                'when': event['timestamp'],
-                'where': latest.get('where', ''),
-                'why': latest.get('why', ''),
-                'how': latest.get('how', '')
+                'when': event.get('when', event.get('timestamp', '')),  # Use WHEN field
+                'where': event.get('where', 'unspecified'),
+                'why': event.get('why', 'unspecified'),
+                'how': event.get('how', 'unspecified')
             }
         })
     
@@ -234,6 +424,9 @@ def generate_enhanced_llm_context(merged_event, merge_type, merge_id, response_d
     
     context['narrative_summary'] = ' '.join(summary_parts)
     
+    # Generate the exact LLM text block (this will be used for both display AND actual LLM queries)
+    context['llm_text_block'] = generate_llm_text_block(context, merge_type, merge_id)
+    
     return context
 
 def initialize_system():
@@ -258,7 +451,8 @@ def initialize_system():
         encoder=encoder,
         multi_merger=multi_merger,
         similarity_cache=memory_agent.memory_store.similarity_cache if hasattr(memory_agent.memory_store, 'similarity_cache') else None,
-        chromadb_store=memory_agent.memory_store.chromadb if hasattr(memory_agent.memory_store, 'chromadb') else None
+        chromadb_store=memory_agent.memory_store.chromadb if hasattr(memory_agent.memory_store, 'chromadb') else None,
+        temporal_manager=memory_agent.memory_store.temporal_manager if hasattr(memory_agent.memory_store, 'temporal_manager') else None
     )
     
     # Load existing merge groups from ChromaDB
@@ -294,17 +488,7 @@ def chat():
         return jsonify({'error': 'No message provided'}), 400
 
     try:
-        # Store user input as memory
-        success, msg, user_event = memory_agent.remember(
-            who="User",
-            what=user_message,
-            where="web_chat",
-            why="User query",
-            how="Chat interface",
-            event_type="user_input"
-        )
-
-        # Calculate query space weights
+        # Calculate query space weights BEFORE storing the query
         query_fields = {'what': user_message, 'who': 'User'}
         lambda_e, lambda_h = encoder.compute_query_weights(query_fields)
 
@@ -315,9 +499,10 @@ def chat():
         if use_dimension_attention and dimension_retriever:
             # NEW: Use dimension-aware retrieval
             # Get top 2 memory groups based on attention scores
+            # NOTE: This happens BEFORE storing the current query to avoid retrieving it
             dimension_results, dimension_weights = dimension_retriever.retrieve_with_dimension_attention(
                 query_fields,
-                k=2  # Only get top 2 memory groups
+                k=2  # Get top 2 memory groups
             )
             
             # Convert dimension results to memory context
@@ -337,20 +522,39 @@ def chat():
             )
 
         # Build context and track memory details
+        # NOTE: We do NOT store the user query yet - wait until after response generation
         context = ""
         memory_details = []
         if relevant_memories:
-            # For memory groups, present them clearly to the LLM
-            context_lines = ["Retrieved Memory Groups (choose the most relevant):"]
+            # Build context using our exact LLM text block format
+            context_lines = []
             
             for i, (memory_obj, score, context_str) in enumerate(relevant_memories, 1):
-                # Add the memory group context with clear labeling
-                context_lines.append(f"\n--- Memory Group {i} (Relevance: {score:.2f}) ---")
-                context_lines.append(context_str)
+                # For tracing: Use the EXACT format from generate_llm_text_block if available
+                # The context_str should already be in our exact format from the retrieval
+                # But we'll ensure consistency by regenerating if needed
+                
+                # Try to get merge type and ID from memory_obj
+                merge_type = 'unknown'
+                merge_id = memory_obj.id if hasattr(memory_obj, 'id') else f'group_{i}'
+                
+                # If context_str starts with our delimiter, it's already in the right format
+                if context_str and context_str.startswith("=" * 60):
+                    # Use the exact formatted text block
+                    context_lines.append(context_str)
+                else:
+                    # Fallback: add basic formatting
+                    context_lines.append("=" * 60)
+                    context_lines.append(f"MEMORY GROUP {i} (Relevance: {score:.2f})")
+                    context_lines.append("=" * 60)
+                    context_lines.append(context_str)
+                    context_lines.append("=" * 60)
+                
+                # Add spacing between groups
+                if i < len(relevant_memories):
+                    context_lines.append("\n")
                 
                 # Collect memory details for frontend
-                # The memory_obj is a synthetic Event from merge group metadata
-                # context_str contains the actual context provided to LLM
                 memory_details.append({
                     'id': memory_obj.id if hasattr(memory_obj, 'id') else '',
                     'who': memory_obj.five_w1h.who if hasattr(memory_obj, 'five_w1h') and memory_obj.five_w1h.who else '',
@@ -388,7 +592,18 @@ def chat():
         if not llm_response:
             llm_response = "I'm processing your request. Could you provide more details?"
 
-        # Store assistant response
+        # NOW store BOTH user query and assistant response (after generation to avoid self-retrieval)
+        # Store user input first
+        memory_agent.remember(
+            who="User",
+            what=user_message,
+            where="web_chat",
+            why="User query",
+            how="Chat interface",
+            event_type="user_input"
+        )
+        
+        # Then store assistant response
         memory_agent.remember(
             who="Assistant",
             what=llm_response,
@@ -398,11 +613,13 @@ def chat():
             event_type="action"
         )
 
-        # Build response with dimension information
+        # Build response with dimension information and full LLM prompt for tracing
         response_data = {
             'response': llm_response,
             'memories_used': len(relevant_memories),
             'memory_details': memory_details,
+            'memory_context': context,  # The actual memory group context sent to LLM
+            'llm_prompt': prompt,  # The EXACT prompt sent to the LLM for tracing
             'space_weights': {
                 'euclidean': float(lambda_e),
                 'hyperbolic': float(lambda_h)
@@ -446,9 +663,7 @@ def get_memories():
                     raw_id = raw_results['ids'][i]
                     metadata = raw_results['metadatas'][i]
                     
-                    # Skip if this is not actually a raw event
-                    if not raw_id.startswith('raw_'):
-                        continue
+                    # Include all events from raw_events collection
                     
                     memories.append({
                         'id': raw_id,
@@ -505,23 +720,42 @@ def get_memories():
                 # Check if this is a merged event
                 is_merged = False
                 merge_count = 1
+                merged_event = None
                 if event_id in memory_agent.memory_store.merged_events_cache:
-                    merged = memory_agent.memory_store.merged_events_cache[event_id]
+                    merged_event = memory_agent.memory_store.merged_events_cache[event_id]
                     is_merged = True
-                    merge_count = merged.merge_count
+                    merge_count = merged_event.merge_count
                 elif f"merged_{event_id}" in memory_agent.memory_store.merged_events_cache:
-                    merged = memory_agent.memory_store.merged_events_cache[f"merged_{event_id}"]
+                    merged_event = memory_agent.memory_store.merged_events_cache[f"merged_{event_id}"]
                     is_merged = True
-                    merge_count = merged.merge_count
+                    merge_count = merged_event.merge_count
+                
+                # Get the latest state for merged events to get the latest WHEN
+                if is_merged and merged_event:
+                    latest_state = merged_event.get_latest_state()
+                    when_value = latest_state.get('when', metadata.get('when', ''))
+                    who_value = latest_state.get('who', metadata.get('who', ''))
+                    what_value = latest_state.get('what', metadata.get('what', ''))
+                    where_value = latest_state.get('where', metadata.get('where', ''))
+                    why_value = latest_state.get('why', metadata.get('why', ''))
+                    how_value = latest_state.get('how', metadata.get('how', ''))
+                else:
+                    # For non-merged events, use metadata directly
+                    when_value = metadata.get('when', '')
+                    who_value = metadata.get('who', '')
+                    what_value = metadata.get('what', '')
+                    where_value = metadata.get('where', '')
+                    why_value = metadata.get('why', '')
+                    how_value = metadata.get('how', '')
                 
                 memories.append({
                     'id': event_id,
-                    'who': metadata.get('who', ''),
-                    'what': metadata.get('what', ''),
-                    'when': metadata.get('when', ''),
-                    'where': metadata.get('where', ''),
-                    'why': metadata.get('why', ''),
-                    'how': metadata.get('how', ''),
+                    'who': who_value,
+                    'what': what_value,
+                    'when': when_value,  # Now uses latest state for merged events
+                    'where': where_value,
+                    'why': why_value,
+                    'how': how_value,
                     'type': metadata.get('event_type', 'observation'),
                     'episode_id': metadata.get('episode_id', ''),
                     'has_residual': has_residual,
@@ -565,8 +799,8 @@ def get_memory_merge_groups(memory_id):
         
         # Check if this is a raw event in standard merges
         for merged_id, raw_ids in standard_merges.items():
-            clean_id = memory_id.replace('raw_', '')
-            if clean_id in raw_ids or f"raw_{clean_id}" in raw_ids:
+            # Check if this memory is in the raw IDs
+            if memory_id in raw_ids:
                 merge_groups.append({
                     'type': 'standard',
                     'id': merged_id,
@@ -580,9 +814,6 @@ def get_memory_merge_groups(memory_id):
         if multi_merger:
             from models.merge_types import MergeType
             
-            # Clean the ID for comparison
-            clean_id = memory_id.replace('raw_', '').replace('merged_', '')
-            
             # Check each merge type
             for merge_type in [MergeType.ACTOR, MergeType.TEMPORAL, MergeType.CONCEPTUAL, MergeType.SPATIAL]:
                 groups = multi_merger.merge_groups.get(merge_type, {})
@@ -591,7 +822,7 @@ def get_memory_merge_groups(memory_id):
                     merged_event = group_data.get('merged_event')
                     if merged_event:
                         # Check if our event is in this group
-                        if clean_id in merged_event.raw_event_ids or memory_id in merged_event.raw_event_ids:
+                        if memory_id in merged_event.raw_event_ids:
                             merge_groups.append({
                                 'type': merge_type.value,
                                 'id': group_id,
@@ -618,14 +849,10 @@ def get_raw_event_merge_groups(event_id):
         if hasattr(memory_agent.memory_store, 'multi_merger') and memory_agent.memory_store.multi_merger:
             merge_groups = memory_agent.memory_store.multi_merger.get_merge_groups_details_for_event(event_id)
             
-            # Add standard merge group if exists (for backwards compatibility)
+            # Add standard merge group if exists
             merged_id = None
-            if event_id.startswith('raw_'):
-                base_id = event_id.replace('raw_', '')
-                if base_id in memory_agent.memory_store.raw_to_merged:
-                    merged_id = memory_agent.memory_store.raw_to_merged[base_id]
-                elif event_id in memory_agent.memory_store.raw_to_merged:
-                    merged_id = memory_agent.memory_store.raw_to_merged[event_id]
+            if event_id in memory_agent.memory_store.raw_to_merged:
+                merged_id = memory_agent.memory_store.raw_to_merged[event_id]
             
             return jsonify({
                 'event_id': event_id,
@@ -693,7 +920,7 @@ def get_memory_raw_events(memory_id):
                 logger.info(f"First raw event 5W1H: {five_w1h_dict}")
             
             formatted_raw.append({
-                'id': f"raw_{event.id}",
+                'id': event.id,  # Use original ID without prefix
                 'five_w1h': five_w1h_dict,
                 'event_type': event.event_type.value,
                 'timestamp': event.created_at.isoformat() if hasattr(event, 'created_at') else event.timestamp,
@@ -777,6 +1004,8 @@ def get_merged_event_details(memory_id):
             'merge_count': merged_event.merge_count,
             'created_at': merged_event.created_at.isoformat(),
             'last_updated': merged_event.last_updated.isoformat(),
+            'system_created_at': merged_event.created_at.isoformat(),  # For now, use same until we have system timestamps in MergedEvent
+            'system_last_updated': merged_event.last_updated.isoformat(),  # For now, use same until we have system timestamps
             
             # Component variations
             'who_variants': {},
@@ -860,9 +1089,9 @@ def get_merged_event_details(memory_id):
                 for event_id in list(merged_event.raw_event_ids)[:10]:  # Limit to 10 for performance
                     try:
                         # Try to get from raw events collection
-                        clean_id = event_id.replace('raw_', '').replace('merged_', '')
+                        # Just query with the event ID directly
                         raw_results = chromadb.raw_events_collection.get(
-                            ids=[f"raw_{clean_id}", clean_id, event_id],
+                            ids=[event_id],
                             include=['metadatas']
                         )
                         if raw_results and raw_results['metadatas']:
@@ -870,13 +1099,16 @@ def get_merged_event_details(memory_id):
                                 if metadata:
                                     timeline_events.append({
                                         'id': raw_results['ids'][i],
-                                        'who': metadata.get('who', ''),
-                                        'what': metadata.get('what', ''),
-                                        'when': metadata.get('when', ''),
-                                        'where': metadata.get('where', ''),
-                                        'why': metadata.get('why', ''),
-                                        'how': metadata.get('how', ''),
-                                        'event_type': metadata.get('event_type', '')
+                                        'event_type': metadata.get('event_type', 'observation'),
+                                        'timestamp': metadata.get('when', metadata.get('created_at', '')),
+                                        'five_w1h': {
+                                            'who': metadata.get('who', ''),
+                                            'what': metadata.get('what', ''),
+                                            'when': metadata.get('when', ''),
+                                            'where': metadata.get('where', ''),
+                                            'why': metadata.get('why', ''),
+                                            'how': metadata.get('how', '')
+                                        }
                                     })
                                     break
                     except Exception as e:
@@ -931,12 +1163,16 @@ def get_multi_merge_details(merge_type, merge_id):
         
         # First check if we have raw_event_ids
         logger.info(f"Checking for raw_event_ids in merged_event...")
+        logger.info(f"merged_event type: {type(merged_event)}")
+        logger.info(f"merged_event attributes: {dir(merged_event) if merged_event else 'None'}")
+        
         if hasattr(merged_event, 'raw_event_ids'):
-            logger.info(f"Found raw_event_ids: {merged_event.raw_event_ids}")
+            logger.info(f"Found raw_event_ids attribute: {merged_event.raw_event_ids}")
         else:
             # Try to get from group_data
             raw_ids = group_data.get('raw_event_ids', [])
             logger.info(f"No raw_event_ids attribute, checking group_data: {raw_ids}")
+            logger.info(f"group_data keys: {list(group_data.keys())}")
             if raw_ids:
                 merged_event.raw_event_ids = raw_ids
         
@@ -947,33 +1183,49 @@ def get_multi_merge_details(merge_type, merge_id):
                 for event_id in merged_event.raw_event_ids:
                     # Try to get from raw events collection
                     try:
-                        clean_id = event_id.replace('raw_', '').replace('merged_', '').replace('synthetic_', '')
+                        # Skip events that are placeholders or generated
+                        if 'temporal_' in event_id or 'actor_' in event_id or 'conceptual_' in event_id or 'spatial_' in event_id:
+                            logger.debug(f"Skipping synthetic event: {event_id}")
+                            continue
                         
                         # Try raw events first
+                        # Simply query with the event ID
+                        logger.debug(f"Querying raw_events_collection with ID: {event_id}")
+                        
                         raw_results = chromadb.raw_events_collection.get(
-                            ids=[f"raw_{clean_id}", clean_id, event_id],
+                            ids=[event_id],
                             include=['metadatas']
                         )
+                        logger.debug(f"Raw results found: {len(raw_results.get('ids', []))} events")
                         
+                        found_event = False
                         if raw_results and raw_results['metadatas']:
                             for i, metadata in enumerate(raw_results['metadatas']):
                                 if metadata:
                                     timeline_events.append({
                                         'id': raw_results['ids'][i],
-                                        'who': metadata.get('who', ''),
-                                        'what': metadata.get('what', ''),
-                                        'when': metadata.get('when', ''),
-                                        'where': metadata.get('where', ''),
-                                        'why': metadata.get('why', ''),
-                                        'how': metadata.get('how', ''),
-                                        'event_type': metadata.get('event_type', '')
+                                        'event_type': metadata.get('event_type', 'observation'),
+                                        'timestamp': metadata.get('when', metadata.get('created_at', '')),
+                                        'five_w1h': {
+                                            'who': metadata.get('who', ''),
+                                            'what': metadata.get('what', ''),
+                                            'when': metadata.get('when', ''),
+                                            'where': metadata.get('where', ''),
+                                            'why': metadata.get('why', ''),
+                                            'how': metadata.get('how', '')
+                                        }
                                     })
+                                    found_event = True
+                                    logger.debug(f"Found event in raw_events: {raw_results['ids'][i]}")
                                     break  # Only add once per event_id
+                        
+                        if not found_event:
+                            logger.debug(f"Event not found in raw_events: {event_id}")
                         
                         # If not found in raw, try regular events collection
                         if not any(e['id'] == event_id for e in timeline_events):
                             results = chromadb.events_collection.get(
-                                ids=[clean_id, event_id],
+                                ids=[event_id],
                                 include=['metadatas']
                             )
                             if results and results['metadatas']:
@@ -981,13 +1233,16 @@ def get_multi_merge_details(merge_type, merge_id):
                                     if metadata:
                                         timeline_events.append({
                                             'id': results['ids'][i],
-                                            'who': metadata.get('who', ''),
-                                            'what': metadata.get('what', ''),
-                                            'when': metadata.get('when', ''),
-                                            'where': metadata.get('where', ''),
-                                            'why': metadata.get('why', ''),
-                                            'how': metadata.get('how', ''),
-                                            'event_type': metadata.get('event_type', '')
+                                            'event_type': metadata.get('event_type', 'observation'),
+                                            'timestamp': metadata.get('when', metadata.get('created_at', '')),
+                                            'five_w1h': {
+                                                'who': metadata.get('who', ''),
+                                                'what': metadata.get('what', ''),
+                                                'when': metadata.get('when', ''),
+                                                'where': metadata.get('where', ''),
+                                                'why': metadata.get('why', ''),
+                                                'how': metadata.get('how', '')
+                                            }
                                         })
                                         break
                     except Exception as e:
@@ -1023,8 +1278,19 @@ def get_multi_merge_details(merge_type, merge_id):
                                     })
                             break
         
-        # Sort timeline by when field (newest first for latest state at top)
-        timeline_events.sort(key=lambda x: x.get('when', ''), reverse=True)
+        # Sort timeline chronologically (oldest first)
+        timeline_events.sort(key=lambda x: x.get('timestamp') or x.get('five_w1h', {}).get('when', '') or '')
+        
+        # Debug log the timeline events
+        logger.info(f"Timeline events loaded: {len(timeline_events)} total")
+        timeline_actors = set()
+        for evt in timeline_events:
+            five_w1h = evt.get('five_w1h', {})
+            timeline_actors.add(five_w1h.get('who', 'Unknown'))
+        logger.info(f"Actors in timeline_events from DB: {timeline_actors}")
+        for evt in timeline_events[:5]:  # Log first 5 events
+            five_w1h = evt.get('five_w1h', {})
+            logger.info(f"  Event from DB: who={five_w1h.get('who')}, what={five_w1h.get('what', '')[:50]}...")
         
         # Format response similar to standard merged event
         response = {
@@ -1060,13 +1326,14 @@ def get_multi_merge_details(merge_type, merge_id):
             # For non-actor merge types, collect WHO from all timeline events
             who_counts = {}
             for event in timeline_events:
-                who_value = event.get('who', '')
+                five_w1h = event.get('five_w1h', {})
+                who_value = five_w1h.get('who', '')
                 if who_value:
                     if who_value not in who_counts:
                         who_counts[who_value] = []
                     who_counts[who_value].append({
                         'value': who_value,
-                        'timestamp': event.get('when', ''),
+                        'timestamp': five_w1h.get('when', ''),
                         'event_id': event.get('id', ''),
                         'relationship': 'participant'
                     })
@@ -1096,7 +1363,8 @@ def get_multi_merge_details(merge_type, merge_id):
             # For non-actor merge types, collect WHAT from all timeline events
             what_counts = {}
             for event in timeline_events:
-                what_value = event.get('what', '')
+                five_w1h = event.get('five_w1h', {})
+                what_value = five_w1h.get('what', '')
                 if what_value:
                     # Use a truncated version as key to group similar whats
                     what_key = what_value[:50] + '...' if len(what_value) > 50 else what_value
@@ -1104,7 +1372,7 @@ def get_multi_merge_details(merge_type, merge_id):
                         what_counts[what_key] = []
                     what_counts[what_key].append({
                         'value': what_value,
-                        'timestamp': event.get('when', ''),
+                        'timestamp': five_w1h.get('when', ''),
                         'event_id': event.get('id', ''),
                         'relationship': 'action'
                     })
@@ -1150,7 +1418,8 @@ def get_multi_merge_details(merge_type, merge_id):
             # For non-actor merge types, collect WHERE from all timeline events
             where_counts = {}
             for event in timeline_events:
-                where_value = event.get('where', '')
+                five_w1h = event.get('five_w1h', {})
+                where_value = five_w1h.get('where', '')
                 if where_value:
                     if where_value not in where_counts:
                         where_counts[where_value] = 0
@@ -1185,13 +1454,14 @@ def get_multi_merge_details(merge_type, merge_id):
             # For non-actor merge types, collect WHY from all timeline events
             why_counts = {}
             for event in timeline_events:
-                why_value = event.get('why', '')
+                five_w1h = event.get('five_w1h', {})
+                why_value = five_w1h.get('why', '')
                 if why_value:
                     if why_value not in why_counts:
                         why_counts[why_value] = []
                     why_counts[why_value].append({
                         'value': why_value,
-                        'timestamp': event.get('when', ''),
+                        'timestamp': five_w1h.get('when', ''),
                         'event_id': event.get('id', ''),
                         'relationship': 'reason'
                     })
@@ -1217,7 +1487,8 @@ def get_multi_merge_details(merge_type, merge_id):
             # For non-actor merge types, collect HOW from all timeline events
             how_counts = {}
             for event in timeline_events:
-                how_value = event.get('how', '')
+                five_w1h = event.get('five_w1h', {})
+                how_value = five_w1h.get('how', '')
                 if how_value:
                     if how_value not in how_counts:
                         how_counts[how_value] = 0
@@ -1255,9 +1526,13 @@ def get_multi_merge_details(merge_type, merge_id):
         else:
             response['timeline_events'] = timeline_events if 'timeline_events' in locals() else response['timeline_events']
         
-        # Format raw_events for the frontend (similar to standard merged event)
+        # Keep original timeline_events in raw_events for LLM context
+        # The raw_events was already set to timeline_events at line 1159
+        # We should NOT overwrite it here
+        
+        # Format raw_events for the frontend display in a separate field
         if timeline_events:
-            response['raw_events'] = []
+            response['formatted_raw_events'] = []
             response['total_raw'] = len(timeline_events)
             
             for event_data in timeline_events:
@@ -1275,9 +1550,15 @@ def get_multi_merge_details(merge_type, merge_id):
                         'how': event_data.get('how', '')
                     }
                 }
-                response['raw_events'].append(formatted_event)
+                response['formatted_raw_events'].append(formatted_event)
+            
+            # Ensure raw_events still has the original timeline_events
+            if not response.get('raw_events'):
+                response['raw_events'] = timeline_events
         
         # Generate enhanced LLM context after response is fully built
+        logger.info(f"Before LLM context - timeline_events count: {len(timeline_events) if timeline_events else 0}")
+        logger.info(f"Before LLM context - response raw_events count: {len(response.get('raw_events', [])) if response.get('raw_events') else 0}")
         llm_context = generate_enhanced_llm_context(merged_event, merge_type, merge_id, response)
         response['llm_context'] = llm_context
         response['functional_context_model'] = llm_context.get('narrative_summary', '')  # For backwards compatibility
@@ -1402,7 +1683,7 @@ def get_graph():
                 raw_event_ids_to_include = []
                 
                 # Check if it's a multi-dimensional merge group ID (e.g., temporal_xxx, actor_xxx, etc.)
-                if '_' in center_node_id and not center_node_id.startswith('merged_') and not center_node_id.startswith('raw_'):
+                if '_' in center_node_id and (center_node_id.startswith('temporal_') or center_node_id.startswith('actor_') or center_node_id.startswith('conceptual_') or center_node_id.startswith('spatial_')):
                     # Try to parse as multi-dimensional merge group
                     parts = center_node_id.split('_', 1)
                     logger.info(f"Checking multi-dimensional merge: parts={parts}")
@@ -1469,15 +1750,16 @@ def get_graph():
                 elif center_metadata is None:
                     # Regular event ID - check both with and without raw_ prefix
                     actual_center_id = center_node_id
-                    if not center_node_id.startswith('raw_'):
+                    # Check raw_events collection
+                    if True:  # Always check
                         # Try with raw_ prefix first
                         collection = memory_agent.memory_store.chromadb.client.get_collection("raw_events")
                         test_result = collection.get(
-                            ids=[f"raw_{center_node_id}"],
+                            ids=[center_node_id],
                             include=["metadatas"]
                         )
                         if test_result['ids']:
-                            actual_center_id = f"raw_{center_node_id}"
+                            actual_center_id = center_node_id
                 
                 # If we haven't found metadata yet, try the collections
                 if center_metadata is None:
@@ -2383,6 +2665,8 @@ def get_merge_groups(merge_type):
                         'merge_count': merged_event.merge_count,
                         'created_at': group_data.get('created_at', datetime.utcnow()).isoformat() if 'created_at' in group_data else '',
                         'last_updated': group_data.get('last_updated', datetime.utcnow()).isoformat() if 'last_updated' in group_data else '',
+                        'system_created_at': group_data.get('system_created_at', datetime.utcnow()).isoformat() if 'system_created_at' in group_data else '',
+                        'system_last_updated': group_data.get('system_last_updated', datetime.utcnow()).isoformat() if 'system_last_updated' in group_data else '',
                         'latest_state': latest_state,
                         'raw_event_ids': list(merged_event.raw_event_ids),
                         'events_count': merged_event.merge_count  # Use merge_count for consistency

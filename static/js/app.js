@@ -325,6 +325,8 @@ async function handleChatSubmit(e) {
         addChatMessage(data.response, 'assistant', {
             memories_used: data.memories_used,
             memory_details: data.memory_details,
+            memory_context: data.memory_context,  // The actual memory group context
+            llm_prompt: data.llm_prompt,  // The exact prompt sent to LLM
             space_weights: data.space_weights,
             dimension_weights: data.dimension_weights,
             dominant_dimension: data.dominant_dimension
@@ -465,6 +467,8 @@ function addChatMessage(message, sender, metadata = {}) {
     // Add click handler for assistant messages
     if (sender === 'assistant' && metadata.memory_details && metadata.memory_details.length > 0) {
         messageDiv.dataset.memoryDetails = JSON.stringify(metadata.memory_details);
+        messageDiv.dataset.memoryContext = metadata.memory_context || '';
+        messageDiv.dataset.llmPrompt = metadata.llm_prompt || '';
         
         const contentDiv = messageDiv.querySelector('.message-content');
         contentDiv.addEventListener('click', function() {
@@ -491,54 +495,75 @@ function toggleMemoryDetails(messageId) {
     
     const detailsContainer = messageDiv.querySelector('.memory-details-container');
     const memoryDetails = JSON.parse(messageDiv.dataset.memoryDetails || '[]');
+    const memoryContext = messageDiv.dataset.memoryContext || '';
+    const llmPrompt = messageDiv.dataset.llmPrompt || '';
     
     if (detailsContainer.style.display === 'none') {
         // Show memory details
         let detailsHtml = `
             <div class="mt-3 p-3 bg-dark rounded">
-                <h6 class="text-cyan mb-3">
-                    <i class="bi bi-database"></i> Memory Groups & Context Provided to LLM:
-                </h6>
-                <div class="memories-list">
         `;
         
-        memoryDetails.forEach((mem, index) => {
+        // Show the actual memory group context that was sent to LLM
+        if (memoryContext) {
             detailsHtml += `
-                <div class="memory-item mb-3 p-2 border border-secondary rounded">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="flex-grow-1">
-                            ${mem.context ? `
-                                <div class="memory-context mb-2">
-                                    <strong class="text-cyan">Memory Group Context:</strong>
-                                    <pre class="text-light small mb-2" style="white-space: pre-wrap; background: transparent; border: none; padding: 0;">${escapeHtml(mem.context)}</pre>
-                                </div>
-                            ` : ''}
-                            <div class="memory-metadata">
-                                <div class="row small">
-                                    ${mem.who ? `<div class="col-md-6"><strong class="text-info">Who:</strong> ${escapeHtml(mem.who)}</div>` : ''}
-                                    ${mem.when ? `<div class="col-md-6"><strong class="text-info">When:</strong> ${escapeHtml(mem.when)}</div>` : ''}
-                                </div>
-                                ${mem.what ? `<div class="mt-1"><strong class="text-info">What:</strong> ${escapeHtml(mem.what)}</div>` : ''}
-                                <div class="row small mt-1">
-                                    ${mem.where ? `<div class="col-md-4"><strong class="text-muted">Where:</strong> ${escapeHtml(mem.where)}</div>` : ''}
-                                    ${mem.why ? `<div class="col-md-4"><strong class="text-muted">Why:</strong> ${escapeHtml(mem.why)}</div>` : ''}
-                                    ${mem.how ? `<div class="col-md-4"><strong class="text-muted">How:</strong> ${escapeHtml(mem.how)}</div>` : ''}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="ms-3">
-                            <span class="badge bg-success">Score: ${mem.score.toFixed(2)}</span>
-                            <button class="btn btn-sm btn-outline-info mt-2" onclick="window.showMemoryInGraph('${mem.id}')">
-                                <i class="bi bi-diagram-3"></i>
-                            </button>
-                        </div>
-                    </div>
+                <div class="mb-4">
+                    <h6 class="text-cyan mb-2">
+                        <i class="bi bi-database"></i> Memory Groups Context (as sent to LLM):
+                    </h6>
+                    <pre class="text-light small p-2 bg-black rounded" style="white-space: pre-wrap; max-height: 300px; overflow-y: auto;">${escapeHtml(memoryContext)}</pre>
                 </div>
             `;
-        });
+        }
+        
+        // Show the exact LLM prompt for tracing
+        if (llmPrompt) {
+            detailsHtml += `
+                <div class="mb-4">
+                    <h6 class="text-warning mb-2">
+                        <i class="bi bi-terminal"></i> Exact LLM System Message (for tracing):
+                    </h6>
+                    <pre class="text-light small p-2 bg-black rounded" style="white-space: pre-wrap; max-height: 400px; overflow-y: auto;">${escapeHtml(llmPrompt)}</pre>
+                </div>
+            `;
+        }
+        
+        // Show individual memory details if needed (collapsed by default)
+        if (memoryDetails.length > 0) {
+            detailsHtml += `
+                <details>
+                    <summary class="text-info mb-2" style="cursor: pointer;">
+                        <i class="bi bi-list"></i> Individual Memory Details (${memoryDetails.length} items)
+                    </summary>
+                    <div class="memories-list mt-2">
+            `;
+            
+            memoryDetails.forEach((mem, index) => {
+                detailsHtml += `
+                    <div class="memory-item mb-2 p-2 border border-secondary rounded small">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="row">
+                                    ${mem.who ? `<div class="col-md-6"><strong>Who:</strong> ${escapeHtml(mem.who)}</div>` : ''}
+                                    ${mem.when ? `<div class="col-md-6"><strong>When:</strong> ${formatDate(mem.when)}</div>` : ''}
+                                </div>
+                                ${mem.what ? `<div class="mt-1"><strong>What:</strong> ${escapeHtml(mem.what.substring(0, 100))}${mem.what.length > 100 ? '...' : ''}</div>` : ''}
+                            </div>
+                            <div class="ms-2">
+                                <span class="badge bg-success">Score: ${mem.score.toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            detailsHtml += `
+                    </div>
+                </details>
+            `;
+        }
         
         detailsHtml += `
-                </div>
             </div>
         `;
         
@@ -2080,7 +2105,7 @@ async function showRawEventMergeGroups(eventId) {
                     <div class="modal-content bg-dark border-cyan">
                         <div class="modal-header border-cyan">
                             <h5 class="modal-title text-cyan">
-                                <i class="bi bi-diagram-3-fill text-warning"></i> Multi-Dimensional Merge Groups
+                                <i class="bi bi-diagram-3-fill text-warning"></i> Multi-Dimensional Memory Groups
                                 <span class="badge bg-purple ms-2">${eventId}</span>
                                 <span class="badge bg-info ms-2">${data.total_groups} groups</span>
                             </h5>
@@ -2089,7 +2114,7 @@ async function showRawEventMergeGroups(eventId) {
                         <div class="modal-body">
                             <div class="mb-3">
                                 <small class="text-muted">
-                                    This raw event belongs to ${data.total_groups} different merge groups across multiple dimensions.
+                                    This raw event belongs to ${data.total_groups} different memory groups across multiple dimensions.
                                     Each dimension groups events based on different aspects of the 5W1H structure.
                                 </small>
                             </div>
@@ -2214,6 +2239,66 @@ function renderVariants(title, variants) {
     return html;
 }
 
+// Toggle expand/collapse for merge group sections
+window.toggleMergeGroupSection = function(sectionId) {
+    const rows = document.querySelectorAll(`tr[data-section="${sectionId}"]`);
+    const link = document.querySelector(`a[data-section="${sectionId}"]`);
+    
+    if (!link) return;
+    
+    const isExpanded = link.dataset.expanded === 'true';
+    const icon = link.querySelector('i');
+    const text = link.querySelector('.expand-text');
+    
+    rows.forEach(row => {
+        row.style.display = isExpanded ? 'none' : '';
+    });
+    
+    // Update link state
+    link.dataset.expanded = !isExpanded;
+    
+    // Update icon
+    if (icon) {
+        icon.className = isExpanded ? 'bi bi-chevron-down me-1' : 'bi bi-chevron-up me-1';
+    }
+    
+    // Update text
+    if (text) {
+        const count = rows.length;
+        text.textContent = isExpanded ? `Show ${count} more` : `Hide ${count} items`;
+    }
+}
+
+// Toggle expand/collapse for timeline sections
+window.toggleTimelineSection = function(timelineId) {
+    const events = document.querySelectorAll(`div[data-timeline="${timelineId}"]`);
+    const link = document.querySelector(`a[data-timeline="${timelineId}"]`);
+    
+    if (!link) return;
+    
+    const isExpanded = link.dataset.expanded === 'true';
+    const icon = link.querySelector('i');
+    const text = link.querySelector('.expand-text');
+    
+    events.forEach(event => {
+        event.style.display = isExpanded ? 'none' : '';
+    });
+    
+    // Update link state
+    link.dataset.expanded = !isExpanded;
+    
+    // Update icon
+    if (icon) {
+        icon.className = isExpanded ? 'bi bi-chevron-down me-1' : 'bi bi-chevron-up me-1';
+    }
+    
+    // Update text
+    if (text) {
+        const count = events.length;
+        text.textContent = isExpanded ? `Show ${count} more events` : `Hide ${count} events`;
+    }
+}
+
 window.showMergeGroup = async function(mergedId) {
     try {
         // Check if this is a raw event ID - if so, show multi-dimensional groups
@@ -2231,7 +2316,7 @@ window.showMergeGroup = async function(mergedId) {
                     <div class="modal-content bg-dark border-cyan">
                         <div class="modal-header border-cyan">
                             <h5 class="modal-title text-cyan">
-                                <i class="bi bi-layers text-warning"></i> Merge Group Details
+                                <i class="bi bi-layers text-warning"></i> Memory Group Details
                                 <span class="badge bg-info ms-2">${data.total_raw} events</span>
                                 <span class="badge bg-purple ms-2">ID: ${mergedId.substring(0, 8)}...</span>
                             </h5>
@@ -2314,10 +2399,6 @@ window.showMergeGroup = async function(mergedId) {
                                                         </div>
                                                     </div>
                                                     <div class="col-12">
-                                                        <div class="d-flex gap-2">
-                                                            <small class="text-muted">Episode:</small>
-                                                            <code class="text-cyan">${event.episode_id}</code>
-                                                        </div>
                                                         <div class="d-flex gap-2">
                                                             <small class="text-muted">Raw Event ID:</small>
                                                             <code class="text-warning">${eventId}</code>
@@ -2692,8 +2773,8 @@ function createMergedEventModal(mergedEvent) {
     // Determine if this is a multi-dimensional merge
     const isMultiDimensional = mergedEvent.merge_type && mergedEvent.merge_key;
     const title = isMultiDimensional 
-        ? `${mergedEvent.merge_type.charAt(0).toUpperCase() + mergedEvent.merge_type.slice(1)} Merge Group`
-        : 'Merged Event Details';
+        ? `${mergedEvent.merge_type.charAt(0).toUpperCase() + mergedEvent.merge_type.slice(1)} Memory Group`
+        : 'Merged Memory Event Details';
     
     return `
         <div class="modal fade" id="mergedEventModal" tabindex="-1">
@@ -2853,12 +2934,16 @@ function createMergedOverviewTab(mergedEvent, latest) {
         // Sort by count descending
         const sorted = Object.entries(aggregated).sort((a, b) => b[1].count - a[1].count);
         
+        // Generate unique ID for this section
+        const sectionId = title.replace(/\W+/g, '_').toLowerCase() + '_' + Math.random().toString(36).substr(2, 9);
+        
         let rows = `
             <tr class="table-secondary">
                 <td colspan="3"><strong>${title}</strong></td>
             </tr>`;
         
-        for (const [value, data] of sorted.slice(0, 5)) { // Show top 5 per section
+        // Always show first 5
+        for (const [value, data] of sorted.slice(0, 5)) {
             rows += `
                 <tr>
                     <td class="text-truncate ps-4" style="max-width: 400px;" title="${escapeHtml(value)}">
@@ -2868,15 +2953,39 @@ function createMergedOverviewTab(mergedEvent, latest) {
                 </tr>`;
         }
         
+        // Add hidden rows for remaining items
         if (sorted.length > 5) {
+            // Add collapsed rows
+            for (const [value, data] of sorted.slice(5)) {
+                rows += `
+                    <tr class="merge-group-extra-row" data-section="${sectionId}" style="display: none;">
+                        <td class="text-truncate ps-4" style="max-width: 400px;" title="${escapeHtml(value)}">
+                            ${escapeHtml(value.substring(0, 100))}
+                        </td>
+                        <td style="width: 200px;" class="text-muted small">${formatDate(data.lastUpdated)}</td>
+                    </tr>`;
+            }
+            
+            // Add expand/collapse row
             rows += `
                 <tr>
-                    <td colspan="3" class="text-muted small ps-4">...and ${sorted.length - 5} more</td>
+                    <td colspan="3" class="text-muted small ps-4">
+                        <a href="#" class="text-decoration-none text-info merge-group-expand-link" 
+                           data-section="${sectionId}" 
+                           data-expanded="false"
+                           onclick="window.toggleMergeGroupSection('${sectionId}'); return false;">
+                            <i class="bi bi-chevron-down me-1"></i>
+                            <span class="expand-text">Show ${sorted.length - 5} more</span>
+                        </a>
+                    </td>
                 </tr>`;
         }
         
         return rows;
     };
+    
+    // Recent Events section removed - now only shown in LLM Context tab
+    let recentEventsHtml = '';
     
     return `
         <div class="row">
@@ -2895,6 +3004,7 @@ function createMergedOverviewTab(mergedEvent, latest) {
                 </div>
             </div>
         </div>
+        ${recentEventsHtml}
         <div class="row mt-4">
             <div class="col-md-12">
                 <h5 class="text-purple mb-3">Merge Statistics</h5>
@@ -2907,12 +3017,12 @@ function createMergedOverviewTab(mergedEvent, latest) {
                     <div class="text-white ms-3 font-monospace">${escapeHtml(mergedEvent.base_event_id)}</div>
                 </div>
                 <div class="mb-3">
-                    <div class="text-info small">Created</div>
-                    <div class="text-white ms-3">${formatDate(mergedEvent.created_at)}</div>
+                    <div class="text-info small">System Created</div>
+                    <div class="text-white ms-3">${formatDate(mergedEvent.system_created_at || mergedEvent.created_at)}</div>
                 </div>
                 <div class="mb-3">
-                    <div class="text-info small">Last Updated</div>
-                    <div class="text-white ms-3">${formatDate(mergedEvent.last_updated)}</div>
+                    <div class="text-info small">System Last Updated</div>
+                    <div class="text-white ms-3">${formatDate(mergedEvent.system_last_updated || mergedEvent.last_updated)}</div>
                 </div>
                 ${mergedEvent.supersedes ? `
                 <div class="mb-3">
@@ -3023,6 +3133,7 @@ function createEnhancedLLMContextDisplay(llmContext) {
     
     // Display timeline summary (not the full events, just a summary)
     if (llmContext.timeline && llmContext.timeline.length > 0) {
+        const timelineId = 'timeline_' + Math.random().toString(36).substr(2, 9);
         const timelinePreview = llmContext.timeline.slice(0, 3);
         html += `
             <div class="mb-3">
@@ -3031,6 +3142,7 @@ function createEnhancedLLMContextDisplay(llmContext) {
                     <div class="small">
         `;
         
+        // Show first 3 events
         timelinePreview.forEach((entry, idx) => {
             html += `
                 <div class="mb-2 pb-2 ${idx < timelinePreview.length - 1 ? 'border-bottom border-secondary' : ''}">
@@ -3040,12 +3152,45 @@ function createEnhancedLLMContextDisplay(llmContext) {
             `;
         });
         
+        // Add hidden events if there are more than 3
         if (llmContext.timeline.length > 3) {
-            html += `<div class="text-muted text-center">... and ${llmContext.timeline.length - 3} more events</div>`;
+            llmContext.timeline.slice(3).forEach((entry, idx) => {
+                html += `
+                    <div class="timeline-extra-event mb-2 pb-2 border-bottom border-secondary" 
+                         data-timeline="${timelineId}" style="display: none;">
+                        <div class="text-muted">Event ${idx + 4}</div>
+                        <div class="text-white small">${escapeHtml(entry.formatted)}</div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                <div class="text-center mt-2">
+                    <a href="#" class="text-decoration-none text-info timeline-expand-link" 
+                       data-timeline="${timelineId}" 
+                       data-expanded="false"
+                       onclick="window.toggleTimelineSection('${timelineId}'); return false;">
+                        <i class="bi bi-chevron-down me-1"></i>
+                        <span class="expand-text">Show ${llmContext.timeline.length - 3} more events</span>
+                    </a>
+                </div>`;
         }
         
         html += `
                     </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Add LLM Text Block section - the exact text provided to the LLM
+    if (llmContext.llm_text_block) {
+        html += `
+            <div class="mb-3">
+                <h6 class="text-cyan mb-2"><i class="bi bi-code-square"></i> LLM Text Block</h6>
+                <div class="p-2 bg-dark bg-opacity-50 rounded">
+                    <small class="text-muted d-block mb-2">This is the exact text format provided to the LLM for this memory group:</small>
+                    <pre class="text-white small mb-0" style="max-height: 400px; overflow-y: auto;">${escapeHtml(llmContext.llm_text_block)}</pre>
                 </div>
             </div>
         `;
@@ -3142,10 +3287,6 @@ function createRawEventsTimeline(rawEvents) {
                                         </div>
                                     </div>
                                     <div class="col-12">
-                                        <div class="d-flex gap-2">
-                                            <small class="text-muted">Episode:</small>
-                                            <code class="text-cyan">${event.episode_id || 'N/A'}</code>
-                                        </div>
                                         <div class="d-flex gap-2">
                                             <small class="text-muted">Event ID:</small>
                                             <code class="text-warning">${eventId}</code>
@@ -4022,7 +4163,8 @@ function displayMergeGroupsPage() {
         // Get the most recent values from the merged event
         const who = latest.who || group.key || '—';
         const what = latest.what || '—';
-        const when = latest.when || group.last_updated || '—';
+        // Use last_updated (most recent activity) instead of latest.when (which might be first event)
+        const when = group.last_updated || latest.when || '—';
         const where = latest.where || '—';
         const why = latest.why || '—';
         const how = latest.how || '—';
@@ -4091,8 +4233,9 @@ function sortMergeGroups() {
                 bValue = (b.latest_state?.what || '').toLowerCase();
                 break;
             case 'when':
-                aValue = a.last_updated || '';
-                bValue = b.last_updated || '';
+                // Parse dates for proper chronological sorting
+                aValue = a.last_updated ? new Date(a.last_updated).getTime() : 0;
+                bValue = b.last_updated ? new Date(b.last_updated).getTime() : 0;
                 break;
             case 'where':
                 aValue = (a.latest_state?.where || '').toLowerCase();

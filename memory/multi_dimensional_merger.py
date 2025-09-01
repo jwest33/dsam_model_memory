@@ -10,7 +10,7 @@ A single raw event can belong to multiple merge groups:
 
 import logging
 from typing import Dict, List, Optional, Tuple, Set
-from datetime import datetime
+from datetime import datetime, timezone
 import numpy as np
 import uuid
 
@@ -103,6 +103,8 @@ class MultiDimensionalMerger:
                                 merge_key = metadata.get('merge_key', '')
                                 
                                 # Parse the merge key to extract meaningful data
+                                # Use all_who if available for cross-actor groups
+                                all_who = metadata.get('all_who', '')
                                 who_val = metadata.get('latest_who', '')
                                 what_val = metadata.get('latest_what', '')
                                 where_val = metadata.get('latest_where', '')
@@ -119,21 +121,49 @@ class MultiDimensionalMerger:
                                 elif merge_type == MergeType.TEMPORAL and not what_val:
                                     what_val = merge_key.replace('temporal_', '')
                                 
-                                synthetic_event_data = {
-                                    'who': who_val or 'unknown',
-                                    'what': what_val or merge_key,
-                                    'when': metadata.get('latest_when', datetime.utcnow().isoformat()),
-                                    'where': where_val or 'unknown',
-                                    'why': why_val or merge_key,
-                                    'how': how_val or 'unknown',
-                                    'timestamp': datetime.utcnow()
-                                }
-                                # Add this as a synthetic event to populate the variants
-                                merged_event.add_raw_event(
-                                    f"synthetic_{merge_id}",
-                                    synthetic_event_data,
-                                    EventRelationship.INITIAL
-                                )
+                                # Parse the latest_when timestamp
+                                latest_when_str = metadata.get('latest_when', datetime.now(timezone.utc).isoformat())
+                                try:
+                                    event_timestamp = datetime.fromisoformat(latest_when_str.replace('Z', '+00:00'))
+                                except:
+                                    event_timestamp = datetime.now(timezone.utc)
+                                
+                                # For cross-actor groups, add synthetic events for each actor
+                                if all_who and ',' in all_who:
+                                    # Cross-actor group - add events for each actor
+                                    who_list = [w.strip() for w in all_who.split(',') if w.strip()]
+                                    for idx, who_actor in enumerate(who_list):
+                                        synthetic_event_data = {
+                                            'who': who_actor,
+                                            'what': what_val or merge_key,
+                                            'when': latest_when_str,
+                                            'where': where_val or 'unknown',
+                                            'why': why_val or merge_key,
+                                            'how': how_val or 'unknown',
+                                            'timestamp': event_timestamp
+                                        }
+                                        merged_event.add_raw_event(
+                                            f"{merge_id}_{idx}",  # Simplified ID without synthetic_ prefix
+                                            synthetic_event_data,
+                                            EventRelationship.INITIAL
+                                        )
+                                else:
+                                    # Single actor or no actor info
+                                    synthetic_event_data = {
+                                        'who': who_val or 'unknown',
+                                        'what': what_val or merge_key,
+                                        'when': latest_when_str,
+                                        'where': where_val or 'unknown',
+                                        'why': why_val or merge_key,
+                                        'how': how_val or 'unknown',
+                                        'timestamp': event_timestamp
+                                    }
+                                    # Add this event to populate the variants
+                                    merged_event.add_raw_event(
+                                        merge_id,  # Use merge_id directly without prefix
+                                        synthetic_event_data,
+                                        EventRelationship.INITIAL
+                                    )
                                 
                                 # Now try to load the actual raw events to build the full timeline
                                 if self.chromadb and merged_event.raw_event_ids:
@@ -187,15 +217,27 @@ class MultiDimensionalMerger:
                                             for i, raw_id in enumerate(raw_event_results['ids']):
                                                 if raw_event_results['metadatas'] is not None and i < len(raw_event_results['metadatas']):
                                                     raw_metadata = raw_event_results['metadatas'][i]
-                                                    # Parse timestamp
-                                                    timestamp_str = raw_metadata.get('timestamp', datetime.utcnow().isoformat())
-                                                    if isinstance(timestamp_str, str):
+                                                    # Parse timestamp - prefer 'when' field over 'timestamp' field
+                                                    when_str = raw_metadata.get('when', '')
+                                                    timestamp_str = raw_metadata.get('timestamp', '')
+                                                    
+                                                    # Try to parse 'when' field first as it contains the actual event time
+                                                    timestamp = None
+                                                    if when_str:
                                                         try:
-                                                            timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                                                            timestamp = datetime.fromisoformat(when_str.replace('Z', '+00:00'))
                                                         except:
-                                                            timestamp = datetime.utcnow()
-                                                    else:
-                                                        timestamp = timestamp_str if isinstance(timestamp_str, datetime) else datetime.utcnow()
+                                                            pass
+                                                    
+                                                    # Fall back to timestamp field if when didn't parse
+                                                    if timestamp is None:
+                                                        if isinstance(timestamp_str, str):
+                                                            try:
+                                                                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                                                            except:
+                                                                timestamp = datetime.now(timezone.utc)
+                                                        else:
+                                                            timestamp = timestamp_str if isinstance(timestamp_str, datetime) else datetime.now(timezone.utc)
                                                     
                                                     raw_event_data = {
                                                         'who': raw_metadata.get('who', ''),
@@ -208,7 +250,7 @@ class MultiDimensionalMerger:
                                                     }
                                                     # Add to merged event to build variations
                                                     merged_event.add_raw_event(
-                                                        raw_id.replace('raw_', ''),
+                                                        raw_id,  # Use ID as-is
                                                         raw_event_data,
                                                         EventRelationship.VARIATION
                                                     )
@@ -223,13 +265,25 @@ class MultiDimensionalMerger:
                                 #if merge_id in self.merge_groups[merge_type]:
                                 #    logger.warning(f"Overwriting existing {merge_type.value} group: {merge_id}")
                                 
+                                # Parse timestamps from metadata - use latest_when for timestamps
+                                latest_when = metadata.get('latest_when', '')
+                                if latest_when:
+                                    try:
+                                        event_timestamp = datetime.fromisoformat(latest_when.replace('Z', '+00:00'))
+                                    except:
+                                        event_timestamp = datetime.now(timezone.utc)
+                                else:
+                                    event_timestamp = datetime.now(timezone.utc)
+                                
                                 self.merge_groups[merge_type][merge_id] = {
                                     'key': metadata.get('merge_key', ''),
                                     'merged_event': merged_event,
                                     'events': [],  # Will be populated as needed
                                     'centroid_embedding': np.array(embedding) if embedding is not None else None,
-                                    'created_at': datetime.fromisoformat(metadata['created_at']) if 'created_at' in metadata else datetime.utcnow(),
-                                    'last_updated': datetime.fromisoformat(metadata['last_updated']) if 'last_updated' in metadata else datetime.utcnow()
+                                    'created_at': event_timestamp,  # Use event timestamp
+                                    'last_updated': event_timestamp,  # Use event timestamp
+                                    'system_created_at': datetime.fromisoformat(metadata['created_at']) if 'created_at' in metadata else datetime.now(timezone.utc),
+                                    'system_last_updated': datetime.fromisoformat(metadata['last_updated']) if 'last_updated' in metadata else datetime.now(timezone.utc)
                                 }
                                 
                                 # Update tracker
@@ -269,8 +323,8 @@ class MultiDimensionalMerger:
             
             if merge_id:
                 merge_assignments[merge_type] = merge_id
-                raw_event_id = f"raw_{event.id}" if not event.id.startswith("raw_") else event.id
-                self.tracker.add_merge_membership(raw_event_id, merge_type, merge_id)
+                # Use event ID directly without prefix
+                self.tracker.add_merge_membership(event.id, merge_type, merge_id)
                 
                 # Update the merge group in ChromaDB
                 if self.chromadb:
@@ -310,41 +364,39 @@ class MultiDimensionalMerger:
                     group_data['centroid_embedding']
                 )
                 
-                # For ACTOR type, check exact match first
+                # For ACTOR type ONLY, check actor compatibility
                 if merge_type == MergeType.ACTOR:
                     # Get the normalized actor types for comparison
                     event_actor = event_data.get('who', '').lower().strip()
                     
-                    # Check if any event in the group has the exact same actor
-                    exact_match = False
-                    for group_event in group_data.get('events', []):
-                        if group_event.get('who', '').lower().strip() == event_actor:
-                            exact_match = True
-                            distance = 0.0  # Perfect match
-                            break
+                    # Normalize to standard categories
+                    user_types = {'user', 'human', 'person', 'customer', 'client'}
+                    assistant_types = {'assistant', 'ai', 'agent', 'bot', 'system'}
                     
-                    if not exact_match:
-                        # Normalize both to standard categories
-                        user_types = {'user', 'human', 'person', 'customer', 'client'}
-                        assistant_types = {'assistant', 'ai', 'agent', 'bot', 'system'}
-                        
-                        # Determine event actor type
-                        if event_actor in user_types:
-                            event_actor_type = 'user'
-                        elif event_actor in assistant_types:
-                            event_actor_type = 'assistant'
+                    # Determine event actor type
+                    if event_actor in user_types:
+                        event_actor_type = 'user'
+                    elif event_actor in assistant_types:
+                        event_actor_type = 'assistant'
+                    else:
+                        event_actor_type = event_actor  # Keep raw value for unknown actors
+                    
+                    # Get the primary actor type of the group (first event's actor type)
+                    group_actor_type = None
+                    if group_data.get('events'):
+                        first_actor = group_data['events'][0].get('who', '').lower().strip()
+                        if first_actor in user_types:
+                            group_actor_type = 'user'
+                        elif first_actor in assistant_types:
+                            group_actor_type = 'assistant'
                         else:
-                            event_actor_type = event_actor
-                        
-                        # Check group actor type
-                        group_has_user = any(e.get('who', '').lower().strip() in user_types for e in group_data.get('events', []))
-                        group_has_assistant = any(e.get('who', '').lower().strip() in assistant_types for e in group_data.get('events', []))
-                        
-                        # Skip if incompatible types
-                        if event_actor_type == 'user' and group_has_assistant:
-                            continue
-                        elif event_actor_type == 'assistant' and group_has_user:
-                            continue
+                            group_actor_type = first_actor
+                    
+                    # Skip if incompatible actor types
+                    if group_actor_type and event_actor_type != group_actor_type:
+                        continue  # Don't merge different actor types
+                    
+                    # If same actor type, use similarity distance for merging
                 
                 # For SPATIAL type, check normalized location match
                 if merge_type == MergeType.SPATIAL:
@@ -401,21 +453,32 @@ class MultiDimensionalMerger:
             base_event_id=event.id
         )
         
-        # Add the event to the merged event (with raw_ prefix)
-        raw_event_id = f"raw_{event.id}" if not event.id.startswith("raw_") else event.id
-        merged_event.add_raw_event(raw_event_id, event_data, EventRelationship.INITIAL)
+        # Add the event to the merged event using its original ID
+        merged_event.add_raw_event(event.id, event_data, EventRelationship.INITIAL)
         
         # Store in memory
         if merge_type not in self.merge_groups:
             self.merge_groups[merge_type] = {}
+            
+        # Parse event's when timestamp for created_at and last_updated
+        event_when = event_data.get('when', '')
+        if event_when:
+            try:
+                event_timestamp = datetime.fromisoformat(event_when.replace('Z', '+00:00'))
+            except:
+                event_timestamp = datetime.now(timezone.utc)
+        else:
+            event_timestamp = datetime.now(timezone.utc)
             
         self.merge_groups[merge_type][merge_id] = {
             'key': merge_key,
             'merged_event': merged_event,
             'events': [event_data],
             'centroid_embedding': embeddings['euclidean_anchor'].copy(),
-            'created_at': datetime.utcnow(),
-            'last_updated': datetime.utcnow()
+            'created_at': event_timestamp,  # Use event's when timestamp
+            'last_updated': event_timestamp,  # Use event's when timestamp
+            'system_created_at': datetime.now(timezone.utc),  # Keep system time for merge stats
+            'system_last_updated': datetime.now(timezone.utc)  # Keep system time for merge stats
         }
         
         logger.info(f"Created new {merge_type.value} merge group: {merge_id}")
@@ -434,13 +497,50 @@ class MultiDimensionalMerger:
         # Determine relationship
         relationship = self.smart_merger._determine_relationship(merged_event, event)
         
-        # Add to merged event (with raw_ prefix)
-        raw_event_id = f"raw_{event.id}" if not event.id.startswith("raw_") else event.id
-        merged_event.add_raw_event(raw_event_id, event_data, relationship)
+        # Add to merged event using original ID
+        merged_event.add_raw_event(event.id, event_data, relationship)
         
         # Update group data
         group['events'].append(event_data)
-        group['last_updated'] = datetime.utcnow()
+        
+        # Update last_updated to the latest event's when timestamp
+        event_when = event_data.get('when', '')
+        if event_when:
+            try:
+                event_timestamp = datetime.fromisoformat(event_when.replace('Z', '+00:00'))
+                # Only update if this event is newer
+                # Use a very old date with timezone awareness as default
+                default_old = datetime(1970, 1, 1, tzinfo=timezone.utc)
+                last_updated = group.get('last_updated', default_old)
+                # Ensure timezone consistency
+                if event_timestamp.tzinfo is None:
+                    event_timestamp = event_timestamp.replace(tzinfo=timezone.utc)
+                if last_updated.tzinfo is None:
+                    last_updated = last_updated.replace(tzinfo=timezone.utc)
+                if event_timestamp > last_updated:
+                    group['last_updated'] = event_timestamp
+            except:
+                pass
+        
+        # Also update created_at if this event is older
+        if event_when:
+            try:
+                event_timestamp = datetime.fromisoformat(event_when.replace('Z', '+00:00'))
+                # Use a very future date with timezone awareness as default
+                default_future = datetime(2999, 12, 31, tzinfo=timezone.utc)
+                created_at = group.get('created_at', default_future)
+                # Ensure timezone consistency
+                if event_timestamp.tzinfo is None:
+                    event_timestamp = event_timestamp.replace(tzinfo=timezone.utc)
+                if created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=timezone.utc)
+                if event_timestamp < created_at:
+                    group['created_at'] = event_timestamp
+            except:
+                pass
+                
+        # Always update system timestamps
+        group['system_last_updated'] = datetime.now(timezone.utc)
         
         # Update centroid (simple average for now)
         n = len(group['events'])
@@ -469,6 +569,13 @@ class MultiDimensionalMerger:
         # Get latest state
         latest_state = merged_event.get_latest_state()
         
+        # Get all unique WHO values for cross-actor support
+        all_who_values = []
+        for who_key, variants in merged_event.who_variants.items():
+            for variant in variants:
+                if variant.value and variant.value not in all_who_values:
+                    all_who_values.append(variant.value)
+        
         # Prepare metadata
         metadata = {
             'merge_type': merge_type.value,
@@ -478,6 +585,9 @@ class MultiDimensionalMerger:
             'last_updated': group['last_updated'].isoformat(),
             'raw_event_ids': ','.join(merged_event.raw_event_ids),
             'base_event_id': merged_event.base_event_id,
+            
+            # Store ALL who values for cross-actor groups
+            'all_who': ','.join(all_who_values) if all_who_values else '',
             
             # Latest state of components with explicit keys
             'latest_who': latest_state.get('who', ''),
@@ -522,6 +632,14 @@ class MultiDimensionalMerger:
     
     def _event_to_dict(self, event: Event) -> Dict:
         """Convert event to dictionary for processing"""
+        # Parse the 'when' field to get the actual event timestamp
+        timestamp = event.created_at  # Default to created_at
+        if event.five_w1h.when:
+            try:
+                timestamp = datetime.fromisoformat(event.five_w1h.when.replace('Z', '+00:00'))
+            except:
+                pass  # Keep using created_at if when doesn't parse
+        
         return {
             'who': event.five_w1h.who,
             'what': event.five_w1h.what,
@@ -529,7 +647,7 @@ class MultiDimensionalMerger:
             'where': event.five_w1h.where,
             'why': event.five_w1h.why,
             'how': event.five_w1h.how,
-            'timestamp': event.created_at
+            'timestamp': timestamp
         }
     
     def get_merges_for_event(self, event_id: str) -> Dict[MergeType, MergedEvent]:
@@ -562,14 +680,11 @@ class MultiDimensionalMerger:
         Returns:
             Dictionary mapping merge type strings to group details
         """
-        # Handle both raw_XXX and XXX formats
-        raw_event_id = event_id if event_id.startswith('raw_') else f"raw_{event_id}"
-        alt_event_id = event_id.replace('raw_', '') if event_id.startswith('raw_') else event_id
-        
+        # Use event ID directly
         details = {}
         
-        # Try both IDs
-        for test_id in [raw_event_id, alt_event_id, event_id]:
+        # Look up event ID
+        for test_id in [event_id]:
             merge_groups = self.tracker.get_merge_groups_for_raw(test_id)
             
             for merge_type, merge_id in merge_groups:
@@ -596,8 +711,8 @@ class MultiDimensionalMerger:
                             'where_locations': merged_event.where_locations if hasattr(merged_event, 'where_locations') else {},
                             'why_variants': {k: len(v) for k, v in merged_event.why_variants.items()},
                             'how_variants': merged_event.how_methods if hasattr(merged_event, 'how_methods') else {},
-                            'created_at': group.get('created_at', datetime.utcnow()).isoformat() if 'created_at' in group else '',
-                            'last_updated': group.get('last_updated', datetime.utcnow()).isoformat() if 'last_updated' in group else ''
+                            'created_at': group.get('created_at', datetime.now(timezone.utc)).isoformat() if 'created_at' in group else '',
+                            'last_updated': group.get('last_updated', datetime.now(timezone.utc)).isoformat() if 'last_updated' in group else ''
                         }
             
             # If we found any groups, don't continue checking other IDs
@@ -624,8 +739,8 @@ class MultiDimensionalMerger:
                         'raw_event_ids': list(merged_event.raw_event_ids),
                         'merge_count': merged_event.merge_count,
                         'key': group_data.get('key', ''),
-                        'created_at': group_data.get('created_at', datetime.utcnow()).isoformat() if 'created_at' in group_data else '',
-                        'last_updated': group_data.get('last_updated', datetime.utcnow()).isoformat() if 'last_updated' in group_data else ''
+                        'created_at': group_data.get('created_at', datetime.now(timezone.utc)).isoformat() if 'created_at' in group_data else '',
+                        'last_updated': group_data.get('last_updated', datetime.now(timezone.utc)).isoformat() if 'last_updated' in group_data else ''
                     }
         
         return all_groups

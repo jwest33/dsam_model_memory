@@ -77,7 +77,7 @@ class TemporalManager:
         'moment', 'recently', 'previously', 'subsequently'
     ]
     
-    def __init__(self, encoder=None, chromadb_store=None, similarity_cache=None):
+    def __init__(self, encoder=None, chromadb_store=None, similarity_cache=None, config=None):
         """
         Initialize the temporal manager.
         
@@ -85,16 +85,25 @@ class TemporalManager:
             encoder: Dual-space encoder for embeddings
             chromadb_store: ChromaDB store for persistence
             similarity_cache: Similarity cache for performance
+            config: Optional Config object with temporal settings
         """
         self.encoder = encoder
         self.chromadb = chromadb_store
         self.similarity_cache = similarity_cache
         
-        # Initialize components
+        # Load config
+        if config:
+            self.config = config
+        else:
+            from config import Config
+            self.config = Config.from_env()
+        
+        # Initialize components with config
         self.temporal_chain = TemporalChain(
             chromadb_store=chromadb_store,
             encoder=encoder,
-            similarity_cache=similarity_cache
+            similarity_cache=similarity_cache,
+            config=self.config
         )
         self.temporal_query_handler = TemporalQueryHandler(
             encoder=encoder,
@@ -252,13 +261,12 @@ class TemporalManager:
                 'raw_event_ids': []
             }
         
-        # Add event to group
-        raw_event_id = f"raw_{event.id}" if not event.id.startswith("raw_") else event.id
-        if raw_event_id not in self.temporal_merge_groups[merge_id]['raw_event_ids']:
-            self.temporal_merge_groups[merge_id]['raw_event_ids'].append(raw_event_id)
+        # Add event to group using original ID
+        if event.id not in self.temporal_merge_groups[merge_id]['raw_event_ids']:
+            self.temporal_merge_groups[merge_id]['raw_event_ids'].append(event.id)
             self.temporal_merge_groups[merge_id]['merge_count'] += 1
             self.temporal_merge_groups[merge_id]['last_updated'] = datetime.utcnow().isoformat()
-            self.event_to_temporal_group[raw_event_id] = merge_id
+            self.event_to_temporal_group[event.id] = merge_id
             
             # Persist to ChromaDB
             self._save_temporal_merge_group(merge_id)

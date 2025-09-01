@@ -42,13 +42,14 @@ class TemporalChain:
     Integrated with ChromaDB and multi-dimensional merging system.
     """
     
-    def __init__(self, chromadb_store=None, encoder=None, similarity_cache=None):
+    def __init__(self, chromadb_store=None, encoder=None, similarity_cache=None, config=None):
         """Initialize the temporal chain manager
         
         Args:
             chromadb_store: Optional ChromaDB store for persistence
             encoder: Optional dual-space encoder for chain similarity
             similarity_cache: Optional similarity cache for efficient analysis
+            config: Optional Config object with temporal settings
         """
         self.chains: Dict[str, List[str]] = {}  # chain_id -> ordered list of event IDs
         self.chain_types: Dict[str, ChainType] = {}  # chain_id -> chain type
@@ -65,6 +66,16 @@ class TemporalChain:
         self.chromadb = chromadb_store
         self.encoder = encoder
         self.similarity_cache = similarity_cache
+        
+        # Load config for temporal settings
+        if config:
+            self.config = config
+        else:
+            # Use default config if not provided
+            from config import Config
+            self.config = Config.from_env()
+        
+        self.temporal_config = self.config.temporal
         
         # Track raw vs merged events in chains
         self.raw_event_chains: Dict[str, List[str]] = {}  # chain_id -> raw event IDs
@@ -151,66 +162,92 @@ class TemporalChain:
     
     def _identify_chain(self, event: Event, context: Optional[Dict]) -> str:
         """
-        Identify which chain this event belongs to.
+        Identify which chain this event belongs to based on TEMPORAL PROXIMITY.
         
-        Uses various heuristics including episode ID, conversation context,
-        semantic similarity to existing chains, and dual-space embeddings.
+        For temporal groups, time proximity is the PRIMARY factor, not episode ID.
+        This ensures temporal groups actually represent events that happened close in time.
         """
-        # Priority 1: Explicit chain ID in context
+        # Priority 1: Explicit chain ID in context (for specific use cases)
         if context and context.get('chain_id'):
             return context['chain_id']
         
-        # Priority 2: Episode-based chaining
-        if event.episode_id:
-            # Check if this episode already has a chain
+        # Priority 2: TIME-BASED GROUPING (This is the key change!)
+        # Find chains within the temporal window
+        best_temporal_chain = None
+        min_time_diff = timedelta(hours=999)  # Large initial value
+        
+        for chain_id, events in self.chains.items():
+            if events:
+                # Get the latest event time from this chain
+                last_event_time = self.latest_state.get(chain_id, {}).get('timestamp')
+                if last_event_time:
+                    try:
+                        last_time = datetime.fromisoformat(last_event_time)
+                        time_diff = abs(event.created_at - last_time)
+                        
+                        # Check if within temporal group window
+                        if time_diff < timedelta(minutes=self.temporal_config.temporal_group_window):
+                            # This event is within the temporal window
+                            if time_diff < min_time_diff:
+                                min_time_diff = time_diff
+                                best_temporal_chain = chain_id
+                        
+                        # Check for max temporal gap - force new chain if gap is too large
+                        elif time_diff > timedelta(minutes=self.temporal_config.max_temporal_gap):
+                            # Gap is too large, this chain is not a candidate
+                            continue
+                            
+                    except (ValueError, TypeError):
+                        # Invalid timestamp, skip this chain
+                        continue
+        
+        # If we found a chain within the temporal window, use it
+        if best_temporal_chain:
+            return best_temporal_chain
+        
+        # Priority 3: Episode-based ONLY if configured to use it for temporal
+        if self.temporal_config.use_episode_for_temporal and event.episode_id:
+            # Check if this episode already has a RECENT chain
             for existing_chain_id, metadata in self.chain_metadata.items():
                 if metadata.get('episode_id') == event.episode_id:
-                    return existing_chain_id
-            
-            # Create new chain for this episode
-            return f"episode_{event.episode_id}"
+                    # But still check time gap!
+                    last_event_time = self.latest_state.get(existing_chain_id, {}).get('timestamp')
+                    if last_event_time:
+                        try:
+                            last_time = datetime.fromisoformat(last_event_time)
+                            time_diff = abs(event.created_at - last_time)
+                            # Only reuse episode chain if within max gap
+                            if time_diff < timedelta(minutes=self.temporal_config.max_temporal_gap):
+                                return existing_chain_id
+                        except:
+                            pass
         
-        # Priority 3: Conversation continuation (for chat interfaces)
-        if event.five_w1h.where == "web_chat":
-            # Look for recent chat chains
+        # Priority 4: Conversation continuation (for chat interfaces)
+        if event.five_w1h.where in ["web_chat", "chat", "slack", "teams"]:
+            # Look for recent chat chains within conversation window
             for chain_id, events in self.chains.items():
                 if self.chain_types.get(chain_id) == ChainType.CONVERSATION_CHAIN:
                     if events:
-                        # Check if this is a continuation (within 5 minutes)
                         last_event_time = self.latest_state.get(chain_id, {}).get('timestamp')
                         if last_event_time:
-                            time_diff = event.created_at - datetime.fromisoformat(last_event_time)
-                            if time_diff < timedelta(minutes=5):
-                                return chain_id
-            
-            # Create new conversation chain
-            return f"conversation_{event.created_at.strftime('%Y%m%d_%H%M%S')}"
+                            try:
+                                time_diff = event.created_at - datetime.fromisoformat(last_event_time)
+                                # Use configured conversation window
+                                if time_diff < timedelta(minutes=self.temporal_config.conversation_window):
+                                    return chain_id
+                            except:
+                                pass
         
-        # Priority 4: Similarity-based chaining (if encoder available)
+        # Priority 5: Similarity-based ONLY within time window
         if self.encoder and self.chain_embeddings:
-            best_chain = self._find_similar_chain(event)
+            best_chain = self._find_similar_chain_within_window(event)
             if best_chain:
                 return best_chain
-        
-        # Priority 5: Topic-based chaining
-        if event.five_w1h.what:
-            topic_key = self._extract_topic_key(event.five_w1h.what)
             
-            # Check existing chains for similar topics
-            for chain_id, metadata in self.chain_metadata.items():
-                if topic_key in metadata.get('topics', set()):
-                    # Check temporal proximity
-                    last_update = metadata.get('last_updated')
-                    if last_update:
-                        time_diff = event.created_at - datetime.fromisoformat(last_update)
-                        if time_diff < timedelta(hours=1):
-                            return chain_id
-            
-            # Create new topic-based chain
-            return f"topic_{topic_key}_{event.created_at.strftime('%Y%m%d_%H%M')}"
         
-        # Default: Create unique chain for this event
-        return f"unique_{event.id}"
+        # Create new temporal chain with timestamp-based ID
+        # This ensures each distinct time period gets its own temporal group
+        return f"temporal_{event.created_at.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
     
     def _determine_chain_type(self, event: Event, context: Optional[Dict]) -> ChainType:
         """Determine the type of chain based on the event and context"""
@@ -513,6 +550,74 @@ class TemporalChain:
             if combined_sim > best_similarity and combined_sim > threshold:
                 best_similarity = combined_sim
                 best_chain = chain_id
+        
+        return best_chain
+    
+    def _find_similar_chain_within_window(self, event: Event, threshold: float = 0.7) -> Optional[str]:
+        """
+        Find the most similar existing chain using dual-space embeddings,
+        but ONLY consider chains within the temporal window.
+        
+        Args:
+            event: The event to match
+            threshold: Similarity threshold for chain matching
+            
+        Returns:
+            Chain ID of best match or None
+        """
+        if not self.encoder or not self.chain_embeddings:
+            return None
+            
+        # First filter chains by temporal window
+        candidate_chains = []
+        for chain_id, events in self.chains.items():
+            if events:
+                last_event_time = self.latest_state.get(chain_id, {}).get('timestamp')
+                if last_event_time:
+                    try:
+                        last_time = datetime.fromisoformat(last_event_time)
+                        time_diff = abs(event.created_at - last_time)
+                        # Only consider chains within the max temporal gap
+                        if time_diff < timedelta(minutes=self.temporal_config.max_temporal_gap):
+                            candidate_chains.append(chain_id)
+                    except:
+                        pass
+        
+        if not candidate_chains:
+            return None
+            
+        # Encode the event
+        event_embedding = self.encoder.encode({
+            'who': event.five_w1h.who,
+            'what': event.five_w1h.what,
+            'why': event.five_w1h.why
+        })
+        
+        best_chain = None
+        best_similarity = 0.0
+        
+        # Only check candidate chains within temporal window
+        for chain_id in candidate_chains:
+            if chain_id in self.chain_embeddings:
+                chain_emb = self.chain_embeddings[chain_id]
+                
+                # Compute dual-space similarity
+                euc_sim = self._cosine_similarity(
+                    event_embedding['euclidean_anchor'],
+                    chain_emb['euclidean']
+                )
+                
+                hyp_sim = self._hyperbolic_distance_similarity(
+                    event_embedding['hyperbolic_anchor'],
+                    chain_emb['hyperbolic']
+                )
+                
+                # Combine similarities (equal weight for chain matching)
+                combined_sim = 0.5 * euc_sim + 0.5 * hyp_sim
+                
+                if combined_sim > best_similarity and combined_sim > threshold:
+                    best_similarity = combined_sim
+                    best_chain = chain_id
         
         return best_chain
     

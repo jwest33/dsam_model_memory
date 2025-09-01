@@ -4,15 +4,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Dual-Space Memory System v2.0 with sophisticated encoding, adaptive learning, raw event preservation, and interactive visualization for AI agents.
+This is a Dual-Space Memory System v2.1 with sophisticated encoding, adaptive learning, raw event preservation, unified temporal management, and interactive visualization for AI agents.
 
 **Core Architecture:**
 - **Dual-Space Encoding**: Euclidean (768-dim) for concrete/lexical similarity + Hyperbolic (64-dim) for abstract/hierarchical relationships
 - **Multi-Dimensional Merging**: Events organized by Actor, Temporal, Conceptual, and Spatial dimensions
+- **Unified Temporal Management**: Consolidated temporal operations with strength-based query detection
 - **Immutable Anchors**: Base embeddings preserved with bounded residual adaptation
 - **Raw Memory Preservation**: All original events preserved alongside merged/deduplicated views
 - **ChromaDB Backend**: Scalable vector storage with full 5W1H metadata + raw events collection
-- **Enhanced Web Interface**: Real-time visualization, analytics, multi-dimensional views, and graph exploration
+- **Enhanced Web Interface**: Real-time chat with memory groups, visualization, analytics, and graph exploration
+
+**Recent Enhancements (v2.1):**
+- Unified temporal manager consolidating all temporal logic
+- Enhanced chat interface with memory group routing
+- Improved merge group details and navigation
+- Temporal strength detection (Strong/Moderate/Weak)
+- Better pagination support for large datasets
+- Streamlined JS modules with consolidated functionality
+- Event-based timestamps for memory groups (created_at/last_updated use event 'when' values)
+- System timestamps preserved separately for merge statistics
+- LLM-powered benchmark dataset generation with realistic conversations
+- Timestamp preservation when loading historical datasets
 
 ## Key Commands
 
@@ -104,16 +117,27 @@ python cli.py load
    - Spatial merging: Groups by location context
    - Tracks merge memberships across dimensions
    - Persists merge groups to ChromaDB
+   - Event-based timestamps: `created_at` uses earliest event's 'when', `last_updated` uses latest event's 'when'
+   - System timestamps (`system_created_at`, `system_last_updated`) track actual merge operations
 
-5. **Enhanced Web App** (`web_app.py`, `run_web.py`)
+5. **Temporal Manager** (`memory/temporal_manager.py`)
+   - Unified temporal operations management
+   - Temporal chain tracking for conversation threads
+   - Temporal query detection with strength levels (Strong/Moderate/Weak)
+   - Temporal merge group creation and management
+   - Temporal dimension attention computation
+   - Episode and conversation thread management
+
+6. **Enhanced Web App** (`web_app.py`, `run_web.py`)
    - Flask backend with enhanced endpoints
+   - Chat interface with memory group routing
    - Space weight calculation for queries
    - Graph generation with optional center node and interactive controls
    - Analytics data aggregation with merge statistics
    - Raw/Merged view toggle support
    - Auto-browser opening and graceful shutdown
 
-6. **Frontend** (`static/js/app.js`, `templates/index.html`)
+7. **Frontend** (`static/js/app.js`, `templates/index.html`)
    - Bootstrap 5 + custom synthwave theme + Bootstrap Icons
    - vis.js for graph visualization with individual memory focus
    - Chart.js for analytics (residuals, space usage, lambda weights)
@@ -122,8 +146,11 @@ python cli.py load
    - Merged/Raw view toggle with counts
    - Simplified graph controls with layout slider
    - Unified component tables with aligned columns
+   - Chat interface with memory group selection
+   - Memory group details modal
+   - Pagination support for large datasets
 
-6. **Similarity Cache** (`memory/similarity_cache.py`)
+8. **Similarity Cache** (`memory/similarity_cache.py`)
    - Pre-computed pairwise similarity scores
    - Sparse storage (threshold: 0.2 for graph edges)
    - Batch computation for efficiency
@@ -294,11 +321,28 @@ def new_endpoint():
 ### Key API Endpoints
 
 ```python
-# Get memories with view mode
-GET /api/memories?view=raw|merged
+# Chat interface with memory groups
+POST /api/chat
+{
+    "message": "user message",
+    "merge_dimension": "temporal|actor|conceptual|spatial",
+    "merge_group_id": "optional_group_id"
+}
+
+# Get memories with view mode and pagination
+GET /api/memories?view=raw|merged&page=1&per_page=50
 
 # Get raw events for a merged memory
 GET /api/memory/<id>/raw
+
+# Get merge groups for a memory
+GET /api/memory/<memory_id>/merge-groups
+
+# Get merge groups for a raw event
+GET /api/raw-event/<event_id>/merge-groups
+
+# Get merged details for a memory
+GET /api/memory/<memory_id>/merged-details
 
 # Get merge statistics
 GET /api/merge-stats
@@ -306,11 +350,33 @@ GET /api/merge-stats
 # Get merge dimensions info
 GET /api/merge-dimensions
 
+# Get merge types
+GET /api/merge-types
+
 # Get merge groups by type
 GET /api/merge-groups/<type>  # type: actor|temporal|conceptual|spatial
 
+# Get specific merge group
+GET /api/merge-group/<type>/<group_id>
+
 # Get multi-dimensional merge details
 GET /api/multi-merge/<type>/<id>/details
+
+# Get event merges
+GET /api/event-merges/<event_id>
+
+# Search memories
+POST /api/search
+{
+    "query": "search text",
+    "k": 10
+}
+
+# Get temporal summary
+GET /api/temporal-summary
+
+# Get temporal context for an event
+GET /api/temporal-context/<event_id>
 
 # Get analytics data
 GET /api/analytics
@@ -357,6 +423,13 @@ metadata = {
 - View toggle: Switch between Merged and Raw views in UI
 - Statistics: Track merge ratios, average merge sizes, raw counts
 
+### Timestamp Management
+- Event timestamps: Memory groups use earliest/latest event 'when' values for created_at/last_updated
+- System timestamps: Actual merge operation times stored as system_created_at/system_last_updated
+- UI display: Event timestamps shown everywhere except Merge Statistics section
+- Memory Store tab: Shows latest event 'when' value for merged events
+- Historical data: Original timestamps preserved when loading datasets with `load_llm_dataset.py`
+
 ### Frontend Event Handling
 All interactive functions must be exposed to window:
 ```javascript
@@ -371,18 +444,29 @@ window.functionName = async function(...) {
 # Test basic functionality
 python test_offline.py
 
+# Test temporal updates and manager
+python test_temporal_updates.py
+
+# Test merge groups functionality
+python test_merge_groups.py
+
 # Generate test conversations
 python generate_conversations.py
 
 # Test API endpoints
 python test_api.py
 
+# Test chat with memory groups
+python test_chat.py "Your message" --merge-dimension temporal --merge-group-id <group_id>
+
 # Manual testing
 python -c "
 from memory.memory_store import MemoryStore
 from memory.dual_space_encoder import DualSpaceEncoder
+from memory.temporal_manager import TemporalManager
 store = MemoryStore()
 encoder = DualSpaceEncoder()
+temporal_mgr = TemporalManager(encoder, store.chromadb, store.similarity_cache)
 # Test operations...
 "
 ```
@@ -419,24 +503,15 @@ python benchmark_similarity_performance.py
 
 ### Dataset Generation
 
-#### Standard Conversations (`benchmark/generate_benchmark_dataset.py`)
-- Generates diverse technical conversations
-- Configurable conversation length and complexity
-- Multiple scenario types (debugging, learning, architecture)
-- Space preference modeling (Euclidean, Hyperbolic, Balanced)
-
-```bash
-# Generate standard benchmark dataset
-python benchmark/generate_benchmark_dataset.py
-# Interactive prompts for size and LLM options
-```
-
 #### Fast Dataset Generation (`benchmark/generate_benchmark_dataset_fast.py`)
-- Batch processing with configurable batch sizes (50-250)
+- LLM-powered conversation generation using llama.cpp server
+- Realistic timestamps with proper delays between messages
+- Mixed technical (60%) and casual (40%) conversations
+- Proper 5W1H structure for all events
 - Multi-threaded conversation generation (2-8 threads)
-- ~4-8x faster than sequential generation
 - Real-time progress tracking with time estimates
 - Supports datasets up to 5000+ conversations
+- Preserves timestamps when loading with `load_llm_dataset.py`
 
 ```bash
 # Generate benchmark dataset with fast mode
@@ -444,31 +519,13 @@ python benchmark/generate_benchmark_dataset_fast.py
 # Options: Small (100), Medium (500), Large (1000), Extra Large (2000), Massive (5000)
 ```
 
-#### Extended Conversations (`benchmark/generate_extended_conversations.py`)
-- Creates long-form conversations (15-40 exchanges)
-- Realistic multi-phase discussions
-- Single user-assistant model (no personas)
-- Pattern-based conversation flow:
-  - Debugging sessions (15-25 exchanges)
-  - Learning progressions (20-30 exchanges)
-  - Project development (25-40 exchanges)
-  - Architecture exploration (18-28 exchanges)
-
-```bash
-# Generate extended conversations
-python benchmark/generate_extended_conversations.py --conversations 10
-
-# With LLM enhancement
-python benchmark/generate_extended_conversations.py --conversations 50 --use-llm
-```
-
-#### Reload Existing Data (`benchmark/load_benchmark.py`)
+#### Reload Existing Data (`load_llm_dataset.py`)
 - Reload previously generated benchmark datasets
 - Useful for re-running tests with existing data
 
 ```bash
 # Reload existing benchmark data
-python benchmark/load_benchmark.py
+python load_llm_dataset.py
 ```
 
 ### Performance Metrics
@@ -522,8 +579,10 @@ python benchmark/load_benchmark.py
 - Benchmark performance: ~50ms avg response for 1000 events
 - Similarity cache: 100% hit rate after initial population
 - Cache threshold: 0.2 for graph edges (vs 0.85 for deduplication)
-- Dataset generation: ~4-8x faster with batching and parallelization
+- LLM dataset generation: ~0.3-0.5 conversations/sec with realistic content
+- Template dataset generation: ~100+ conversations/sec (non-LLM)
 - Similarity lookups: O(1) with cache vs O(n²) without
+- Temporal sorting: Proper chronological ordering with recency boost
 
 ## Windows-Specific Notes
 

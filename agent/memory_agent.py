@@ -6,7 +6,7 @@ Provides a simple API for memory operations with the 5W1H framework.
 
 import logging
 from typing import List, Dict, Any, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 
 from config import get_config
@@ -44,6 +44,7 @@ class MemoryAgent:
         where: Optional[str] = None,
         why: Optional[str] = None,
         how: Optional[str] = None,
+        when: Optional[str] = None,
         event_type: str = "action",
         tags: Optional[List[str]] = None,
         **kwargs
@@ -57,6 +58,7 @@ class MemoryAgent:
             where: Context or location
             why: Intent or trigger
             how: Mechanism used
+            when: Optional timestamp (ISO format with Z suffix)
             event_type: Type of event (action/observation/user_input/system_event)
             tags: Optional tags for categorization
             **kwargs: Additional metadata
@@ -72,7 +74,7 @@ class MemoryAgent:
             five_w1h=FiveW1H(
                 who=who,
                 what=what,
-                when=datetime.utcnow().isoformat() + "Z",
+                when=when or datetime.now(timezone.utc).isoformat(),
                 where=where or f"session:{self.current_episode_id}",
                 why=why or self.current_goal or "unknown",
                 how=how or "direct_input"

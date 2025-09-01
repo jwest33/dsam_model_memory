@@ -26,7 +26,7 @@ class DimensionAttentionRetriever:
     characteristics and retrieves the most relevant memories.
     """
     
-    def __init__(self, encoder, multi_merger, similarity_cache=None, chromadb_store=None):
+    def __init__(self, encoder, multi_merger, similarity_cache=None, chromadb_store=None, temporal_manager=None):
         """
         Initialize the dimension attention retriever.
         
@@ -35,11 +35,13 @@ class DimensionAttentionRetriever:
             multi_merger: Multi-dimensional merger instance
             similarity_cache: Optional similarity cache for fast lookups
             chromadb_store: ChromaDB store for retrieving merge groups
+            temporal_manager: Temporal manager for handling temporal queries
         """
         self.encoder = encoder
         self.multi_merger = multi_merger
         self.similarity_cache = similarity_cache
         self.chromadb = chromadb_store
+        self.temporal_manager = temporal_manager
         
         # Keywords for dimension detection
         self.actor_keywords = {
@@ -276,6 +278,22 @@ class DimensionAttentionRetriever:
         if not self.chromadb:
             return results
         
+        # Special handling for temporal dimension with strong temporal intent
+        if dimension == MergeType.TEMPORAL and self.temporal_manager:
+            # Detect temporal intent strength
+            from memory.temporal_manager import TemporalStrength
+            strength, confidence, params = self.temporal_manager.detect_temporal_intent(query_fields)
+            
+            logger.debug(f"Temporal intent detection for query: {query_fields}")
+            logger.debug(f"Temporal strength: {strength}, confidence: {confidence}")
+            
+            # For strong temporal queries (e.g., "last thing we discussed"), use recency-based retrieval
+            if strength == TemporalStrength.STRONG:
+                logger.info(f"Using recency-based retrieval for strong temporal query (confidence: {confidence})")
+                recent_results = self._get_recent_temporal_groups(k, params)
+                logger.info(f"Recency-based retrieval returned {len(recent_results)} results")
+                return recent_results
+        
         # Get the appropriate collection for this dimension
         collection_map = {
             MergeType.ACTOR: self.chromadb.actor_merges_collection,
@@ -348,6 +366,93 @@ class DimensionAttentionRetriever:
         
         return results
     
+    def _get_recent_temporal_groups(self, k: int, params: Dict) -> List[Tuple[Any, float]]:
+        """
+        Get the most recent temporal groups based on timestamps.
+        
+        Args:
+            k: Number of results to retrieve
+            params: Parameters from temporal intent detection
+        
+        Returns:
+            List of (memory, score) tuples ordered by recency
+        """
+        logger.info(f"_get_recent_temporal_groups called with k={k}, params={params}")
+        results = []
+        
+        if not self.chromadb or not self.chromadb.temporal_merges_collection:
+            logger.warning("ChromaDB or temporal_merges_collection not available")
+            return results
+        
+        try:
+            # Get all temporal groups
+            all_groups = self.chromadb.temporal_merges_collection.get(
+                include=['metadatas']
+            )
+            
+            if not all_groups or not all_groups['ids']:
+                return results
+            
+            # Sort by recency using last_updated (which contains latest event's 'when' value)
+            groups_with_time = []
+            for i, group_id in enumerate(all_groups['ids']):
+                metadata = all_groups['metadatas'][i] if all_groups['metadatas'] else {}
+                last_updated = metadata.get('last_updated', metadata.get('latest_when', ''))
+                
+                if last_updated:
+                    try:
+                        # Parse the timestamp
+                        from dateutil import parser as date_parser
+                        timestamp = date_parser.parse(last_updated)
+                        groups_with_time.append((group_id, metadata, timestamp))
+                    except:
+                        # If parsing fails, treat as very old
+                        groups_with_time.append((group_id, metadata, datetime.min))
+                else:
+                    # No timestamp, treat as very old
+                    groups_with_time.append((group_id, metadata, datetime.min))
+            
+            # Sort by timestamp (most recent first)
+            groups_with_time.sort(key=lambda x: x[2], reverse=True)
+            
+            # Take top k results and assign scores based on recency
+            for i, (group_id, metadata, timestamp) in enumerate(groups_with_time[:k]):
+                # Score based on recency rank (most recent = 1.0, declining)
+                score = 1.0 - (i * 0.1)  # Gradual decline in score
+                score = max(score, 0.1)  # Minimum score of 0.1
+                
+                # Apply decay based on params if provided
+                if params.get('decay_rate'):
+                    decay = params['decay_rate'] ** i
+                    score *= decay
+                
+                # Create result object
+                result_obj = {
+                    'id': group_id,
+                    'dimension': 'temporal',
+                    'metadata': metadata,
+                    'merge_key': metadata.get('merge_key', ''),
+                    'event_count': int(metadata.get('merge_count', metadata.get('event_count', 1))),
+                    'raw_event_ids': metadata.get('raw_event_ids', '').split(',') if metadata.get('raw_event_ids') else [],
+                    # Include the latest state fields
+                    'latest_who': metadata.get('latest_who', ''),
+                    'latest_what': metadata.get('latest_what', ''),
+                    'latest_when': metadata.get('latest_when', ''),
+                    'latest_where': metadata.get('latest_where', ''),
+                    'latest_why': metadata.get('latest_why', ''),
+                    'latest_how': metadata.get('latest_how', ''),
+                    'recency_based': True  # Flag to indicate this was retrieved by recency
+                }
+                
+                results.append((result_obj, score))
+                
+                logger.debug(f"Recent temporal group {i+1}: {group_id} (score: {score:.2f}, last_updated: {metadata.get('last_updated', 'unknown')})")
+            
+        except Exception as e:
+            logger.error(f"Error retrieving recent temporal groups: {e}")
+        
+        return results
+    
     def _combine_dimension_results(self, dimension_results: Dict[MergeType, Tuple[List, float]], 
                                   k: int) -> List[Tuple]:
         """
@@ -362,6 +467,9 @@ class DimensionAttentionRetriever:
         """
         combined_scores = {}
         result_objects = {}
+        
+        # Check if temporal dimension has high weight (for recency-based queries)
+        temporal_weight = dimension_results.get(MergeType.TEMPORAL, ([], 0))[1] if MergeType.TEMPORAL in dimension_results else 0
         
         # Aggregate scores across dimensions
         for dim_type, (results, dim_weight) in dimension_results.items():
@@ -386,6 +494,37 @@ class DimensionAttentionRetriever:
                     'weight': dim_weight,
                     'score': score
                 })
+        
+        # Apply temporal recency boost for high temporal weight queries
+        if temporal_weight > 0.4:  # If temporal dimension is dominant
+            from datetime import datetime
+            from dateutil import parser as date_parser
+            current_time = datetime.utcnow()
+            
+            for result_id, result_obj in result_objects.items():
+                # Get the latest timestamp from metadata
+                latest_when = result_obj.get('latest_when', '')
+                if latest_when:
+                    try:
+                        event_time = date_parser.parse(latest_when)
+                        # Normalize timezones
+                        if event_time.tzinfo is not None:
+                            event_time = event_time.replace(tzinfo=None)
+                        
+                        # Calculate recency boost (exponential decay)
+                        time_diff = current_time - event_time
+                        hours_diff = max(0, time_diff.total_seconds() / 3600)
+                        
+                        # Strong exponential decay for recency queries
+                        decay_rate = 0.5
+                        window_hours = 24.0
+                        recency_factor = np.exp(-hours_diff / (window_hours * decay_rate))
+                        
+                        # Apply recency boost proportional to temporal weight
+                        combined_scores[result_id] *= (1.0 + temporal_weight * recency_factor)
+                        
+                    except Exception as e:
+                        logger.debug(f"Could not parse timestamp for recency boost: {e}")
         
         # Sort by combined score
         sorted_results = sorted(
@@ -412,43 +551,117 @@ class DimensionAttentionRetriever:
         
         for result_obj, score in results:
             try:
-                # Build context from the merge group metadata
-                context_lines = []
+                # Get the full temporal group data to build proper context
                 dimension = result_obj.get('dimension', 'unknown')
+                merge_id = result_obj.get('id', '')
                 merge_key = result_obj.get('merge_key', 'Group')
                 event_count = result_obj.get('event_count', 1)
                 
-                # Get all metadata fields for comprehensive context
+                # Initialize 5W1H variables from result metadata (might be overridden later)
                 metadata = result_obj.get('metadata', {})
+                who = metadata.get('latest_who', result_obj.get('latest_who', ''))
+                what = metadata.get('latest_what', result_obj.get('latest_what', ''))
+                when = metadata.get('latest_when', result_obj.get('latest_when', ''))
+                where = metadata.get('latest_where', result_obj.get('latest_where', ''))
+                why = metadata.get('latest_why', result_obj.get('latest_why', ''))
+                how = metadata.get('latest_how', result_obj.get('latest_how', ''))
                 
-                context_lines.append(f"[{dimension.title()} Memory Group - {merge_key}]")
-                context_lines.append(f"Contains {event_count} events")
-                
-                # Extract key information from metadata
-                # These represent the consolidated state of the memory group
-                who = metadata.get('latest_who', '')
-                what = metadata.get('latest_what', '')
-                when = metadata.get('latest_when', '')
-                where = metadata.get('latest_where', '')
-                why = metadata.get('latest_why', '')
-                how = metadata.get('latest_how', '')
-                
-                # Show all events with their timestamps
-                context_lines.append("\nEvents in this group:")
-                
-                # The metadata contains the latest state - show it as a summary
-                if who and what:
-                    context_lines.append(f"• {who}: {what}")
-                    if when:
-                        context_lines.append(f"  When: {when}")
-                    if why:
-                        context_lines.append(f"  Why: {why}")
-                    if how:
-                        context_lines.append(f"  How: {how}")
-                    if where:
-                        context_lines.append(f"  Where: {where}")
-                
-                context_str = '\n'.join(context_lines)
+                # For temporal groups, get the full event timeline from ChromaDB
+                if dimension == 'temporal' and chromadb_store and merge_id:
+                    # Get the actual temporal merge group with all events
+                    try:
+                        # Query the temporal_merges collection for full group data
+                        temporal_result = chromadb_store.client.get_collection('temporal_merges').get(
+                            ids=[merge_id],
+                            include=['metadatas']
+                        )
+                        
+                        if temporal_result and temporal_result['metadatas']:
+                            group_metadata = temporal_result['metadatas'][0]
+                            raw_event_ids = group_metadata.get('raw_event_ids', '')
+                            
+                            # Parse the raw_event_ids (they might be comma-separated)
+                            if isinstance(raw_event_ids, str) and raw_event_ids:
+                                event_ids = [eid.strip() for eid in raw_event_ids.split(',')]
+                            elif isinstance(raw_event_ids, list):
+                                event_ids = raw_event_ids
+                            else:
+                                event_ids = []
+                            
+                            # Get all events from the raw_events collection
+                            timeline_events = []
+                            if event_ids:
+                                raw_events = chromadb_store.raw_events_collection.get(
+                                    ids=event_ids,
+                                    include=['metadatas']
+                                )
+                                
+                                for i, metadata in enumerate(raw_events.get('metadatas', [])):
+                                    if metadata:
+                                        timeline_events.append({
+                                            'id': raw_events['ids'][i],
+                                            'who': metadata.get('who', ''),
+                                            'what': metadata.get('what', ''),
+                                            'when': metadata.get('when', ''),
+                                            'where': metadata.get('where', ''),
+                                            'why': metadata.get('why', ''),
+                                            'how': metadata.get('how', ''),
+                                            'event_type': metadata.get('event_type', '')
+                                        })
+                            
+                            # Build proper LLM context using our format
+                            context_data = {
+                                'timeline': [
+                                    {
+                                        'components': {
+                                            'who': evt['who'],
+                                            'what': evt['what'],
+                                            'when': evt['when'],
+                                            'where': evt['where'],
+                                            'why': evt['why'],
+                                            'how': evt['how']
+                                        }
+                                    }
+                                    for evt in timeline_events
+                                ],
+                                'key_information': {},
+                                'patterns': [],
+                                'relationships': [],
+                                'narrative_summary': f"This temporal memory group contains {len(timeline_events)} related events."
+                            }
+                            
+                            # Import the function from web_app
+                            import sys
+                            if 'web_app' in sys.modules:
+                                from web_app import generate_llm_text_block
+                                context_str = generate_llm_text_block(context_data, dimension, merge_id)
+                            else:
+                                # Fallback to simple format
+                                context_str = f"[Temporal Memory Group - {merge_id}]\nContains {len(timeline_events)} events\n"
+                                for evt in timeline_events:
+                                    context_str += f"• {evt['who']}: {evt['what'][:100]}...\n"
+                                    
+                    except Exception as e:
+                        logger.error(f"Error getting full temporal group data: {e}")
+                        # Fall back to original simple format
+                        context_str = f"[{dimension.title()} Memory Group - {merge_key}]\nContains {event_count} events"
+                else:
+                    # For non-temporal or if no ChromaDB, use simple format
+                    context_lines = []
+                    context_lines.append(f"[{dimension.title()} Memory Group - {merge_key}]")
+                    context_lines.append(f"Contains {event_count} events")
+                    
+                    if who and what:
+                        context_lines.append(f"\nEvents in this group:")
+                        context_lines.append(f"• {who}: {what}")
+                        if when:
+                            # Add UTC label if timestamp looks like ISO format
+                            if 'T' in when or 'Z' in when:
+                                context_lines.append(f"  When: {when} (UTC)")
+                            else:
+                                context_lines.append(f"  When: {when}")
+                    
+                    context_str = '\n'.join(context_lines)
                 
                 # Create a synthetic Event from the merge group metadata for the LLM
                 # This represents the merged/summarized state of the group

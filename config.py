@@ -142,6 +142,23 @@ class AgentConfig:
     episode_timeout: int = 300  # Seconds before new episode
 
 @dataclass
+class TemporalConfig:
+    """Configuration for temporal grouping and chaining"""
+    
+    # Time window for temporal grouping (in minutes)
+    temporal_group_window: int = 30  # Events within 30 minutes are in same temporal group
+    max_temporal_gap: int = 60  # Maximum gap (minutes) before creating new temporal group
+    
+    # Conversation continuity (for chat interfaces)
+    conversation_window: int = 5  # Minutes to consider as same conversation
+    
+    # Time-based decay for similarity
+    temporal_decay_rate: float = 0.95  # Decay factor per hour for temporal relevance
+    
+    # Whether to use episode_id at all for temporal grouping
+    use_episode_for_temporal: bool = False  # If False, only use time proximity
+
+@dataclass
 class Config:
     """Main configuration container"""
     
@@ -151,6 +168,7 @@ class Config:
     embedding: EmbeddingConfig
     llm: LLMConfig
     agent: AgentConfig
+    temporal: TemporalConfig
     
     @classmethod
     def from_env(cls) -> 'Config':
@@ -161,7 +179,8 @@ class Config:
             storage=StorageConfig(),
             embedding=EmbeddingConfig(),
             llm=LLMConfig(),
-            agent=AgentConfig()
+            agent=AgentConfig(),
+            temporal=TemporalConfig()
         )
         
         # Override with environment variables

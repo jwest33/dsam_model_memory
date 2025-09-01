@@ -5,7 +5,7 @@ Every interaction is stored as a 5W1H tuple with episode linkage.
 """
 
 from dataclasses import dataclass, field, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 from enum import Enum
 import json
@@ -88,7 +88,7 @@ class Event:
     tags: List[str] = field(default_factory=list)
     
     # Tracking
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     accessed_count: int = 0
     last_accessed: Optional[datetime] = None
     
@@ -106,7 +106,12 @@ class Event:
     @property
     def age_seconds(self) -> float:
         """Get age of event in seconds"""
-        return (datetime.utcnow() - self.created_at).total_seconds()
+        # Ensure timezone consistency
+        now = datetime.now(timezone.utc)
+        created = self.created_at
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        return (now - created).total_seconds()
     
     @property
     def priority_score(self) -> float:
@@ -141,7 +146,7 @@ class Event:
             five_w1h=FiveW1H.from_dict(data.get("five_w1h", {})),
             confidence=data.get("confidence", 1.0),
             tags=data.get("tags", []),
-            created_at=datetime.fromisoformat(data["created_at"]) if "created_at" in data else datetime.utcnow(),
+            created_at=datetime.fromisoformat(data["created_at"]) if "created_at" in data else datetime.now(timezone.utc),
             accessed_count=data.get("accessed_count", 0),
             last_accessed=datetime.fromisoformat(data["last_accessed"]) if data.get("last_accessed") else None,
             full_content=data.get("full_content"),
@@ -173,7 +178,7 @@ class Event:
             five_w1h=FiveW1H(
                 who=who,
                 what=what,
-                when=datetime.utcnow().isoformat() + "Z",
+                when=datetime.now(timezone.utc).isoformat(),
                 where=where,
                 why=why,
                 how=how
@@ -199,7 +204,7 @@ class Event:
             five_w1h=FiveW1H(
                 who=who,
                 what=what,
-                when=datetime.utcnow().isoformat() + "Z",
+                when=datetime.now(timezone.utc).isoformat(),
                 where=where,
                 why=why or f"in response to episode {episode_id}",
                 how=how or "observation"
@@ -212,7 +217,7 @@ class Event:
     def update_access(self):
         """Update access tracking"""
         self.accessed_count += 1
-        self.last_accessed = datetime.utcnow()
+        self.last_accessed = datetime.now(timezone.utc)
     
     def matches_query(self, query: Dict[str, str], threshold: float = 0.8) -> bool:
         """Check if event matches a partial 5W1H query"""
