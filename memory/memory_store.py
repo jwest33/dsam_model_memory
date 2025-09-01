@@ -23,7 +23,6 @@ from models.merged_event import MergedEvent, EventRelationship
 from memory.chromadb_store import ChromaDBStore
 from memory.dual_space_encoder import DualSpaceEncoder, HyperbolicOperations, mobius_add
 from memory.temporal_query import integrate_temporal_with_dual_space
-from memory.hopfield import ModernHopfieldNetwork
 from memory.smart_merger import SmartMerger
 from memory.temporal_manager import TemporalManager
 from memory.temporal_chain import TemporalChain
@@ -97,9 +96,6 @@ class MemoryStore:
             max_norm=self.config.dual_space.max_norm,
             epsilon=self.config.dual_space.epsilon
         )
-        
-        # Hopfield network for associative memory
-        self.hopfield = ModernHopfieldNetwork()
         
         # Residual storage and momentum tracking
         self.residuals = {}  # event_id -> {'euclidean': np.array, 'hyperbolic': np.array}
@@ -408,13 +404,6 @@ class MemoryStore:
                 'euclidean': np.zeros_like(embeddings['euclidean_anchor']),
                 'hyperbolic': np.zeros_like(embeddings['hyperbolic_anchor'])
             }
-            
-            # Add to Hopfield network (use euclidean for now)
-            self.hopfield.store(
-                embeddings['euclidean_anchor'],
-                embeddings['euclidean_anchor'],
-                metadata=event.to_dict()
-            )
             
             # Track episode
             if event.episode_id not in self.episode_map:
@@ -1122,9 +1111,6 @@ class MemoryStore:
         self.embedding_cache.clear()
         self.total_events = 0
         self.total_queries = 0
-        
-        # Clear Hopfield network
-        self.hopfield = ModernHopfieldNetwork()
         
         logger.info("Cleared all memories")
     
