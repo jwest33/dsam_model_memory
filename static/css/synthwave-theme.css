@@ -13,6 +13,9 @@
     --synth-cyan: #00ffff;
     --synth-pink: #ff10f0;
     --synth-purple: #a855f7;
+    --synth-magenta: #ff00ff;
+    --synth-yellow: #ffff00;
+    --synth-green: #00ff00;
     --synth-dark-bg: #0a0814;
     --synth-card-bg: #14101f;
     --synth-surface: #1a1625;
@@ -643,6 +646,94 @@ h6 { font-size: 0.60rem; }
 .text-cyan {
     color: var(--synth-cyan) !important;
     font-weight: 600;
+}
+
+.text-magenta {
+    color: var(--synth-magenta) !important;
+    font-weight: 600;
+}
+
+.text-yellow {
+    color: var(--synth-yellow) !important;
+    font-weight: 600;
+}
+
+.text-green {
+    color: var(--synth-green) !important;
+    font-weight: 600;
+}
+
+.text-purple {
+    color: var(--synth-purple) !important;
+    font-weight: 600;
+}
+
+/* Border colors */
+.border-cyan {
+    border-color: var(--synth-cyan) !important;
+}
+
+.border-magenta {
+    border-color: var(--synth-magenta) !important;
+}
+
+.border-yellow {
+    border-color: var(--synth-yellow) !important;
+}
+
+.border-green {
+    border-color: var(--synth-green) !important;
+}
+
+.border-purple {
+    border-color: var(--synth-purple) !important;
+}
+
+/* Badge colors */
+.bg-cyan {
+    background-color: var(--synth-cyan) !important;
+    color: #000 !important;
+}
+
+.bg-magenta {
+    background-color: var(--synth-magenta) !important;
+    color: #000 !important;
+}
+
+.bg-yellow {
+    background-color: var(--synth-yellow) !important;
+    color: #000 !important;
+}
+
+.bg-green {
+    background-color: var(--synth-green) !important;
+    color: #000 !important;
+}
+
+/* Synthwave card styling */
+.synthwave-card {
+    background: linear-gradient(135deg, rgba(20, 16, 31, 0.95) 0%, rgba(26, 22, 37, 0.95) 100%);
+    border: 1px solid;
+    border-image: linear-gradient(135deg, var(--synth-cyan) 0%, var(--synth-magenta) 100%) 1;
+    position: relative;
+    overflow: hidden;
+}
+
+.synthwave-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(0, 255, 255, 0.02) 0%, rgba(255, 0, 255, 0.02) 100%);
+    pointer-events: none;
+}
+
+.synthwave-card:hover {
+    border-image: linear-gradient(135deg, var(--synth-magenta) 0%, var(--synth-cyan) 100%) 1;
+    transform: translateY(-2px);
+    transition: all 0.3s ease;
 }
 
 /* Scrollbar */

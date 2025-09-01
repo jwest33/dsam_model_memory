@@ -78,7 +78,3 @@ tmp/
 temp/
 *.tmp
 *.bak
-
-# Local
-.gitignore
-CLAUDE.md

@@ -78,6 +78,12 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
         console.log('Initializing charts...');
         initializeCharts();
+        // Load initial chart data
+        setTimeout(async () => {
+            await updateCharts();
+            await updateMergeStatsChart();
+            await updateTemporalChart();
+        }, 1000);
     } catch (error) {
         console.error('Error in initializeCharts:', error);
     }
@@ -209,11 +215,14 @@ function setupEventListeners() {
     // Tab change listeners with data refresh
     const analyticsTab = document.getElementById('analytics-tab');
     if (analyticsTab) {
-        analyticsTab.addEventListener('shown.bs.tab', () => {
+        analyticsTab.addEventListener('shown.bs.tab', async () => {
             // Refresh analytics data when tab is shown
             loadStats();
             loadMergeStats();
-            updateCharts();
+            await updateCharts();
+            // Explicitly update the new charts
+            await updateMergeStatsChart();
+            await updateTemporalChart();
         });
     }
     
@@ -1798,7 +1807,7 @@ async function loadStats() {
 }
 
 function initializeCharts() {
-    // Residual evolution chart
+    // Residual evolution chart with enhanced synthwave styling
     const residualCtx = document.getElementById('residualChart');
     if (residualCtx) {
         residualChart = new Chart(residualCtx, {
@@ -1808,15 +1817,25 @@ function initializeCharts() {
                 datasets: [{
                     label: 'Euclidean',
                     data: [],
-                    borderColor: '#00bcd4',
-                    backgroundColor: 'rgba(0, 188, 212, 0.1)',
-                    tension: 0.4
+                    borderColor: '#00fff0',
+                    backgroundColor: 'rgba(0, 255, 240, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#00fff0',
+                    pointBorderColor: '#000'
                 }, {
                     label: 'Hyperbolic',
                     data: [],
-                    borderColor: '#ae00c5ff',
-                    backgroundColor: 'rgba(255, 193, 7, 0.1)',
-                    tension: 0.4
+                    borderColor: '#ff00ff',
+                    backgroundColor: 'rgba(255, 0, 255, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#ff00ff',
+                    pointBorderColor: '#000'
                 }]
             },
             options: {
@@ -1872,7 +1891,19 @@ function initializeCharts() {
                 labels: ['Euclidean Space', 'Hyperbolic Space'],
                 datasets: [{
                     data: [50, 50],
-                    backgroundColor: ['#00bcd4', '#ffc107']
+                    backgroundColor: [
+                        'rgba(0, 255, 240, 0.8)',
+                        'rgba(255, 0, 255, 0.8)'
+                    ],
+                    borderColor: [
+                        '#00fff0',
+                        '#ff00ff'
+                    ],
+                    borderWidth: 2,
+                    hoverBackgroundColor: [
+                        'rgba(0, 255, 240, 1)',
+                        'rgba(255, 0, 255, 1)'
+                    ]
                 }]
             },
             options: {
@@ -1895,6 +1926,166 @@ function initializeCharts() {
                             label: function(context) {
                                 return context.label + ': ' + context.parsed.toFixed(1) + '%';
                             }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Merge Groups Distribution Chart
+    const mergeStatsCtx = document.getElementById('mergeStatsChart');
+    if (mergeStatsCtx) {
+        window.mergeStatsChart = new Chart(mergeStatsCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Actor', 'Temporal', 'Conceptual', 'Spatial'],
+                datasets: [{
+                    label: 'Merge Groups',
+                    data: [0, 0, 0, 0],
+                    backgroundColor: [
+                        'rgba(0, 255, 240, 0.6)',
+                        'rgba(255, 0, 255, 0.6)',
+                        'rgba(255, 255, 0, 0.6)',
+                        'rgba(0, 255, 0, 0.6)'
+                    ],
+                    borderColor: [
+                        '#00fff0',
+                        '#ff00ff',
+                        '#ffff00',
+                        '#00ff00'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 2,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                        titleColor: '#00fff0',
+                        bodyColor: '#ffffff',
+                        borderColor: '#ff00ff',
+                        borderWidth: 1,
+                        cornerRadius: 0,
+                        padding: 12
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: '#00fff0',
+                            padding: 8,
+                            stepSize: 1
+                        },
+                        grid: {
+                            color: 'rgba(255, 0, 255, 0.1)',
+                            borderColor: '#ff00ff',
+                            borderWidth: 2
+                        },
+                        title: {
+                            display: true,
+                            text: 'Number of Groups',
+                            color: '#ffffff'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#00fff0',
+                            padding: 8
+                        },
+                        grid: {
+                            color: 'rgba(255, 0, 255, 0.1)',
+                            borderColor: '#ff00ff',
+                            borderWidth: 2
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Temporal Distribution Chart
+    const temporalCtx = document.getElementById('temporalChart');
+    if (temporalCtx) {
+        window.temporalChart = new Chart(temporalCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Memories Over Time',
+                    data: [],
+                    borderColor: '#00fff0',
+                    backgroundColor: 'rgba(0, 255, 240, 0.2)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#00fff0',
+                    pointBorderColor: '#000'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 3,
+                interaction: {
+                    mode: 'nearest',
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                        titleColor: '#00fff0',
+                        bodyColor: '#ffffff',
+                        borderColor: '#ff00ff',
+                        borderWidth: 1,
+                        cornerRadius: 0,
+                        padding: 12
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: '#00fff0',
+                            padding: 8
+                        },
+                        grid: {
+                            color: 'rgba(255, 0, 255, 0.1)',
+                            borderColor: '#ff00ff',
+                            borderWidth: 2
+                        },
+                        title: {
+                            display: true,
+                            text: 'Memory Count',
+                            color: '#ffffff'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#00fff0',
+                            padding: 8
+                        },
+                        grid: {
+                            color: 'rgba(255, 0, 255, 0.1)',
+                            borderColor: '#ff00ff',
+                            borderWidth: 2
+                        },
+                        title: {
+                            display: true,
+                            text: 'Date',
+                            color: '#ffffff'
                         }
                     }
                 }
@@ -1939,8 +2130,112 @@ async function updateCharts() {
             }
         }
         
+        // Update merge stats chart
+        updateMergeStatsChart();
+        
+        // Update temporal distribution chart
+        updateTemporalChart();
+        
+        // Update performance metrics if available
+        if (data.performance) {
+            updatePerformanceMetrics(data.performance);
+        }
+        
     } catch (error) {
         console.error('Error updating charts:', error);
+    }
+}
+
+async function updateMergeStatsChart() {
+    try {
+        const response = await fetch('/api/merge-stats');
+        const data = await response.json();
+        
+        if (window.mergeStatsChart && data.merge_groups) {
+            const groupCounts = [
+                data.merge_groups.actor || 0,
+                data.merge_groups.temporal || 0,
+                data.merge_groups.conceptual || 0,
+                data.merge_groups.spatial || 0
+            ];
+            
+            window.mergeStatsChart.data.datasets[0].data = groupCounts;
+            window.mergeStatsChart.update();
+        }
+        
+        // Update deduplication and cache hit rate stats
+        if (data.stats) {
+            const dedupElement = document.getElementById('statDeduplicationRate');
+            if (dedupElement && data.stats.deduplication_rate !== undefined) {
+                dedupElement.textContent = `${(data.stats.deduplication_rate * 100).toFixed(1)}%`;
+            }
+            
+            const cacheElement = document.getElementById('statCacheHitRate');
+            if (cacheElement && data.stats.cache_hit_rate !== undefined) {
+                cacheElement.textContent = `${(data.stats.cache_hit_rate * 100).toFixed(1)}%`;
+            }
+        }
+    } catch (error) {
+        console.error('Error updating merge stats:', error);
+    }
+}
+
+async function updateTemporalChart() {
+    try {
+        const response = await fetch('/api/memories?view=raw');
+        const data = await response.json();
+        
+        if (!window.temporalChart || !data.memories) return;
+        
+        // Group memories by date
+        const dateGroups = {};
+        data.memories.forEach(memory => {
+            if (memory.when) {
+                const date = new Date(memory.when).toDateString();
+                dateGroups[date] = (dateGroups[date] || 0) + 1;
+            }
+        });
+        
+        // Sort dates and create cumulative data
+        const sortedDates = Object.keys(dateGroups).sort((a, b) => new Date(a) - new Date(b));
+        const labels = [];
+        const values = [];
+        let cumulative = 0;
+        
+        sortedDates.forEach(date => {
+            cumulative += dateGroups[date];
+            labels.push(date);
+            values.push(cumulative);
+        });
+        
+        window.temporalChart.data.labels = labels;
+        window.temporalChart.data.datasets[0].data = values;
+        window.temporalChart.update();
+        
+    } catch (error) {
+        console.error('Error updating temporal chart:', error);
+    }
+}
+
+function updatePerformanceMetrics(metrics) {
+    const updateMetric = (id, value, suffix = '') => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = value + suffix;
+        }
+    };
+
+    if (metrics.query_latency !== undefined) {
+        updateMetric('queryLatency', metrics.query_latency.toFixed(1), ' ms');
+    }
+    if (metrics.store_latency !== undefined) {
+        updateMetric('storeLatency', metrics.store_latency.toFixed(1), ' ms');
+    }
+    if (metrics.memory_usage !== undefined) {
+        updateMetric('memoryUsage', metrics.memory_usage.toFixed(1), ' MB');
+    }
+    if (metrics.active_sessions !== undefined) {
+        updateMetric('activeSessions', metrics.active_sessions);
     }
 }
 

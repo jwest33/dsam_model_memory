@@ -399,75 +399,177 @@
                         </div>
                     </div>
 
-                    <!-- New Analytics Tab -->
+                    <!-- Enhanced Analytics Tab -->
                     <div class="tab-pane fade" id="analytics" role="tabpanel">
                         <div class="analytics-container" style="max-height: calc(100vh - 200px); overflow-y: auto; overflow-x: hidden;">
-                            <div class="row mb-3">
-                                <div class="col-lg-3 col-md-6 mb-2">
-                                    <div class="card bg-dark border-info">
-                                        <div class="card-body">
-                                            <h6 class="card-title text-info">Total Events</h6>
-                                            <h3 class="text-white" id="statTotalEvents">0</h3>
+                            <!-- Summary Stats Row -->
+                            <div class="row mb-4">
+                                <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                                    <div class="card bg-dark border-cyan synthwave-card">
+                                        <div class="card-body p-3">
+                                            <h6 class="card-title text-cyan mb-1" style="font-size: 0.9rem;">
+                                                <i class="bi bi-database"></i> Total Events
+                                            </h6>
+                                            <h3 class="text-white mb-0" id="statTotalEvents" style="font-family: 'Courier New', monospace;">0</h3>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-lg-3 col-md-6 mb-2">
-                                    <div class="card bg-dark border-warning">
-                                        <div class="card-body">
-                                            <h6 class="card-title text-warning">Total Queries</h6>
-                                            <h3 class="text-white" id="statTotalQueries">0</h3>
+                                <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                                    <div class="card bg-dark border-magenta synthwave-card">
+                                        <div class="card-body p-3">
+                                            <h6 class="card-title text-magenta mb-1" style="font-size: 0.9rem;">
+                                                <i class="bi bi-search"></i> Total Queries
+                                            </h6>
+                                            <h3 class="text-white mb-0" id="statTotalQueries" style="font-family: 'Courier New', monospace;">0</h3>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-lg-3 col-md-6 mb-2">
-                                    <div class="card bg-dark border-success">
-                                        <div class="card-body">
-                                            <h6 class="card-title text-success">Avg Euclidean Residual</h6>
-                                            <h3 class="text-white" id="statAvgEuclidean">0.000</h3>
+                                <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                                    <div class="card bg-dark border-cyan synthwave-card">
+                                        <div class="card-body p-3">
+                                            <h6 class="card-title text-cyan mb-1" style="font-size: 0.9rem;">
+                                                <i class="bi bi-arrow-down-right"></i> Euclidean Res.
+                                            </h6>
+                                            <h3 class="text-white mb-0" id="statAvgEuclidean" style="font-family: 'Courier New', monospace;">0.000</h3>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-lg-3 col-md-6 mb-2">
-                                    <div class="card bg-dark border-purple">
-                                        <div class="card-body">
-                                            <h6 class="card-title text-purple">Avg Hyperbolic Residual</h6>
-                                            <h3 class="text-white" id="statAvgHyperbolic">0.000</h3>
+                                <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                                    <div class="card bg-dark border-magenta synthwave-card">
+                                        <div class="card-body p-3">
+                                            <h6 class="card-title text-magenta mb-1" style="font-size: 0.9rem;">
+                                                <i class="bi bi-bezier2"></i> Hyperbolic Res.
+                                            </h6>
+                                            <h3 class="text-white mb-0" id="statAvgHyperbolic" style="font-family: 'Courier New', monospace;">0.000</h3>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                                    <div class="card bg-dark border-yellow synthwave-card">
+                                        <div class="card-body p-3">
+                                            <h6 class="card-title text-yellow mb-1" style="font-size: 0.9rem;">
+                                                <i class="bi bi-layers"></i> Dedup Rate
+                                            </h6>
+                                            <h3 class="text-white mb-0" id="statDeduplicationRate" style="font-family: 'Courier New', monospace;">0.0%</h3>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                                    <div class="card bg-dark border-green synthwave-card">
+                                        <div class="card-body p-3">
+                                            <h6 class="card-title text-green mb-1" style="font-size: 0.9rem;">
+                                                <i class="bi bi-lightning"></i> Cache Hit
+                                            </h6>
+                                            <h3 class="text-white mb-0" id="statCacheHitRate" style="font-family: 'Courier New', monospace;">0.0%</h3>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="row">
+                            <!-- Primary Charts Row -->
+                            <div class="row mb-4">
                                 <div class="col-lg-6 mb-3">
-                                    <div class="card bg-dark">
-                                        <div class="card-header">
-                                            <h6 class="mb-0 text-cyan">Residual Evolution</h6>
+                                    <div class="card bg-dark synthwave-card">
+                                        <div class="card-header bg-transparent border-cyan">
+                                            <h6 class="mb-0 text-cyan" style="font-family: 'Courier New', monospace;">
+                                                <i class="bi bi-graph-up"></i> Residual Evolution
+                                            </h6>
                                         </div>
-                                        <div class="card-body" style="padding: 10px;">
-                                            <div style="max-height: 250px; position: relative; display: flex; justify-content: center; align-items: center;">
+                                        <div class="card-body" style="padding: 15px;">
+                                            <div style="height: 250px; position: relative;">
                                                 <canvas id="residualChart"></canvas>
-                                            </div>
-                                            <div class="mt-2 text-center">
-                                                <!-- Empty spacer to match pie chart height -->
-                                                <small class="text-muted">&nbsp;</small><br>
-                                                <span style="visibility: hidden;">&nbsp;</span>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="col-lg-6 mb-3">
-                                    <div class="card bg-dark">
-                                        <div class="card-header">
-                                            <h6 class="mb-0 text-cyan">Space Usage Distribution</h6>
+                                    <div class="card bg-dark synthwave-card">
+                                        <div class="card-header bg-transparent border-magenta">
+                                            <h6 class="mb-0 text-magenta" style="font-family: 'Courier New', monospace;">
+                                                <i class="bi bi-pie-chart"></i> Space Usage Distribution
+                                            </h6>
                                         </div>
-                                        <div class="card-body" style="padding: 10px;">
-                                            <div style="max-height: 250px; position: relative; display: flex; justify-content: center; align-items: center;">
+                                        <div class="card-body" style="padding: 15px;">
+                                            <div style="height: 250px; position: relative;">
                                                 <canvas id="spaceUsageChart"></canvas>
                                             </div>
-                                            <div class="mt-2 text-center" id="spaceWeightAverages">
+                                            <div class="mt-3 text-center" id="spaceWeightAverages">
                                                 <small class="text-muted">Average Space Weights:</small><br>
-                                                <span class="badge bg-info">Euclidean: <span id="avgLambdaE">0.50</span></span>
-                                                <span class="badge bg-warning">Hyperbolic: <span id="avgLambdaH">0.50</span></span>
+                                                <span class="badge bg-cyan mx-1">λ_E: <span id="avgLambdaE">0.50</span></span>
+                                                <span class="badge bg-magenta mx-1">λ_H: <span id="avgLambdaH">0.50</span></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Secondary Charts Row -->
+                            <div class="row mb-4">
+                                <div class="col-lg-6 mb-3">
+                                    <div class="card bg-dark synthwave-card">
+                                        <div class="card-header bg-transparent border-yellow">
+                                            <h6 class="mb-0 text-yellow" style="font-family: 'Courier New', monospace;">
+                                                <i class="bi bi-diagram-3"></i> Merge Groups Distribution
+                                            </h6>
+                                        </div>
+                                        <div class="card-body" style="padding: 15px;">
+                                            <div style="height: 250px; position: relative;">
+                                                <canvas id="mergeStatsChart"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-6 mb-3">
+                                    <div class="card bg-dark synthwave-card">
+                                        <div class="card-header bg-transparent border-green">
+                                            <h6 class="mb-0 text-green" style="font-family: 'Courier New', monospace;">
+                                                <i class="bi bi-calendar-range"></i> Temporal Distribution
+                                            </h6>
+                                        </div>
+                                        <div class="card-body" style="padding: 15px;">
+                                            <div style="height: 250px; position: relative;">
+                                                <canvas id="temporalChart"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- System Performance Row -->
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="card bg-dark synthwave-card">
+                                        <div class="card-header bg-transparent border-cyan">
+                                            <h6 class="mb-0 text-cyan" style="font-family: 'Courier New', monospace;">
+                                                <i class="bi bi-speedometer2"></i> System Performance Metrics
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-3">
+                                                    <div class="text-center mb-3">
+                                                        <small class="text-muted d-block">Query Latency</small>
+                                                        <h4 class="text-cyan mb-0" id="queryLatency">- ms</h4>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="text-center mb-3">
+                                                        <small class="text-muted d-block">Store Latency</small>
+                                                        <h4 class="text-magenta mb-0" id="storeLatency">- ms</h4>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="text-center mb-3">
+                                                        <small class="text-muted d-block">Memory Usage</small>
+                                                        <h4 class="text-yellow mb-0" id="memoryUsage">- MB</h4>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="text-center mb-3">
+                                                        <small class="text-muted d-block">Active Sessions</small>
+                                                        <h4 class="text-green mb-0" id="activeSessions">1</h4>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -644,6 +746,7 @@
     <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Load enhanced JS directly (now includes pagination functionality) -->
+    <!-- Use original app.js with enhanced analytics -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

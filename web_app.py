@@ -12,6 +12,8 @@ import uuid
 import logging
 import numpy as np
 from collections import defaultdict
+import time
+import psutil
 
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent))
@@ -45,7 +47,10 @@ dimension_retriever = None
 # Track analytics data
 analytics_data = {
     'residual_history': defaultdict(list),
-    'space_usage_history': []
+    'space_usage_history': [],
+    'query_latencies': [],
+    'store_latencies': [],
+    'active_sessions': set()
 }
 
 def generate_llm_text_block(context, merge_type, merge_id):
@@ -2317,7 +2322,7 @@ def get_similarity_cache_stats():
 
 @app.route('/api/analytics', methods=['GET'])
 def get_analytics():
-    """Get analytics data for charts"""
+    """Get enhanced analytics data for charts"""
     try:
         # Get actual residual history if available
         residual_history = {
@@ -2434,9 +2439,25 @@ def get_analytics():
         space_distribution['avg_lambda_e'] = euclidean_percentage / 100.0
         space_distribution['avg_lambda_h'] = hyperbolic_percentage / 100.0
         
+        # Calculate performance metrics
+        # Track this session
+        if session.get('session_id'):
+            analytics_data['active_sessions'].add(session['session_id'])
+        else:
+            session['session_id'] = str(uuid.uuid4())
+            analytics_data['active_sessions'].add(session['session_id'])
+        
+        performance_metrics = {
+            'query_latency': np.mean(analytics_data['query_latencies'][-100:]) if analytics_data['query_latencies'] else 0,
+            'store_latency': np.mean(analytics_data['store_latencies'][-100:]) if analytics_data['store_latencies'] else 0,
+            'memory_usage': psutil.Process().memory_info().rss / 1024 / 1024,  # MB
+            'active_sessions': max(1, len(analytics_data['active_sessions']))  # At least 1 (current session)
+        }
+        
         return jsonify({
             'residual_history': residual_history,
-            'space_distribution': space_distribution
+            'space_distribution': space_distribution,
+            'performance': performance_metrics
         })
         
     except Exception as e:
