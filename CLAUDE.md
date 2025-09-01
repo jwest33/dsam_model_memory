@@ -4,11 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
+<<<<<<< HEAD
 This is a Dual-Space Memory System v2.1 with sophisticated encoding, adaptive learning, raw event preservation, unified temporal management, and interactive visualization for AI agents.
+=======
+This is a Dual-Space Memory System v2.0 with sophisticated encoding, adaptive learning, raw event preservation, and interactive visualization for AI agents.
+>>>>>>> 592e91b67bc5d7e9207c23ad123f482137168f02
 
 **Core Architecture:**
 - **Dual-Space Encoding**: Euclidean (768-dim) for concrete/lexical similarity + Hyperbolic (64-dim) for abstract/hierarchical relationships
 - **Multi-Dimensional Merging**: Events organized by Actor, Temporal, Conceptual, and Spatial dimensions
+<<<<<<< HEAD
 - **Unified Temporal Management**: Consolidated temporal operations with strength-based query detection
 - **Immutable Anchors**: Base embeddings preserved with bounded residual adaptation
 - **Raw Memory Preservation**: All original events preserved alongside merged/deduplicated views
@@ -26,6 +31,12 @@ This is a Dual-Space Memory System v2.1 with sophisticated encoding, adaptive le
 - System timestamps preserved separately for merge statistics
 - LLM-powered benchmark dataset generation with realistic conversations
 - Timestamp preservation when loading historical datasets
+=======
+- **Immutable Anchors**: Base embeddings preserved with bounded residual adaptation
+- **Raw Memory Preservation**: All original events preserved alongside merged/deduplicated views
+- **ChromaDB Backend**: Scalable vector storage with full 5W1H metadata + raw events collection
+- **Enhanced Web Interface**: Real-time visualization, analytics, multi-dimensional views, and graph exploration
+>>>>>>> 592e91b67bc5d7e9207c23ad123f482137168f02
 
 ## Key Commands
 
@@ -117,6 +128,7 @@ python cli.py load
    - Spatial merging: Groups by location context
    - Tracks merge memberships across dimensions
    - Persists merge groups to ChromaDB
+<<<<<<< HEAD
    - Event-based timestamps: `created_at` uses earliest event's 'when', `last_updated` uses latest event's 'when'
    - System timestamps (`system_created_at`, `system_last_updated`) track actual merge operations
 
@@ -131,13 +143,22 @@ python cli.py load
 6. **Enhanced Web App** (`web_app.py`, `run_web.py`)
    - Flask backend with enhanced endpoints
    - Chat interface with memory group routing
+=======
+
+5. **Enhanced Web App** (`web_app.py`, `run_web.py`)
+   - Flask backend with enhanced endpoints
+>>>>>>> 592e91b67bc5d7e9207c23ad123f482137168f02
    - Space weight calculation for queries
    - Graph generation with optional center node and interactive controls
    - Analytics data aggregation with merge statistics
    - Raw/Merged view toggle support
    - Auto-browser opening and graceful shutdown
 
+<<<<<<< HEAD
 7. **Frontend** (`static/js/app.js`, `templates/index.html`)
+=======
+6. **Frontend** (`static/js/app.js`, `templates/index.html`)
+>>>>>>> 592e91b67bc5d7e9207c23ad123f482137168f02
    - Bootstrap 5 + custom synthwave theme + Bootstrap Icons
    - vis.js for graph visualization with individual memory focus
    - Chart.js for analytics (residuals, space usage, lambda weights)
@@ -146,11 +167,16 @@ python cli.py load
    - Merged/Raw view toggle with counts
    - Simplified graph controls with layout slider
    - Unified component tables with aligned columns
+<<<<<<< HEAD
    - Chat interface with memory group selection
    - Memory group details modal
    - Pagination support for large datasets
 
 8. **Similarity Cache** (`memory/similarity_cache.py`)
+=======
+
+6. **Similarity Cache** (`memory/similarity_cache.py`)
+>>>>>>> 592e91b67bc5d7e9207c23ad123f482137168f02
    - Pre-computed pairwise similarity scores
    - Sparse storage (threshold: 0.2 for graph edges)
    - Batch computation for efficiency
@@ -321,6 +347,7 @@ def new_endpoint():
 ### Key API Endpoints
 
 ```python
+<<<<<<< HEAD
 # Chat interface with memory groups
 POST /api/chat
 {
@@ -331,10 +358,15 @@ POST /api/chat
 
 # Get memories with view mode and pagination
 GET /api/memories?view=raw|merged&page=1&per_page=50
+=======
+# Get memories with view mode
+GET /api/memories?view=raw|merged
+>>>>>>> 592e91b67bc5d7e9207c23ad123f482137168f02
 
 # Get raw events for a merged memory
 GET /api/memory/<id>/raw
 
+<<<<<<< HEAD
 # Get merge groups for a memory
 GET /api/memory/<memory_id>/merge-groups
 
@@ -344,12 +376,15 @@ GET /api/raw-event/<event_id>/merge-groups
 # Get merged details for a memory
 GET /api/memory/<memory_id>/merged-details
 
+=======
+>>>>>>> 592e91b67bc5d7e9207c23ad123f482137168f02
 # Get merge statistics
 GET /api/merge-stats
 
 # Get merge dimensions info
 GET /api/merge-dimensions
 
+<<<<<<< HEAD
 # Get merge types
 GET /api/merge-types
 
@@ -378,6 +413,14 @@ GET /api/temporal-summary
 # Get temporal context for an event
 GET /api/temporal-context/<event_id>
 
+=======
+# Get merge groups by type
+GET /api/merge-groups/<type>  # type: actor|temporal|conceptual|spatial
+
+# Get multi-dimensional merge details
+GET /api/multi-merge/<type>/<id>/details
+
+>>>>>>> 592e91b67bc5d7e9207c23ad123f482137168f02
 # Get analytics data
 GET /api/analytics
 
@@ -423,6 +466,7 @@ metadata = {
 - View toggle: Switch between Merged and Raw views in UI
 - Statistics: Track merge ratios, average merge sizes, raw counts
 
+<<<<<<< HEAD
 ### Timestamp Management
 - Event timestamps: Memory groups use earliest/latest event 'when' values for created_at/last_updated
 - System timestamps: Actual merge operation times stored as system_created_at/system_last_updated
@@ -430,6 +474,8 @@ metadata = {
 - Memory Store tab: Shows latest event 'when' value for merged events
 - Historical data: Original timestamps preserved when loading datasets with `load_llm_dataset.py`
 
+=======
+>>>>>>> 592e91b67bc5d7e9207c23ad123f482137168f02
 ### Frontend Event Handling
 All interactive functions must be exposed to window:
 ```javascript

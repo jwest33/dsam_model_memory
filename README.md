@@ -161,7 +161,14 @@ The web interface provides:
 ### Generate Dataset
 
 ```bash
+<<<<<<< HEAD
 # Dataset generation 
+=======
+# Standard dataset generation (sequential)
+python benchmark\generate_benchmark_dataset.py
+
+# Fast dataset generation (batched and parallel, 4-8x faster)
+>>>>>>> 592e91b67bc5d7e9207c23ad123f482137168f02
 python benchmark\generate_benchmark_dataset_fast.py
 # Options: Small (100), Medium (500), Large (1000), Extra Large (2000), Massive (5000)
 
