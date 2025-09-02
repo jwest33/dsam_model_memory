@@ -4410,27 +4410,22 @@ function updateSortIndicators(field, direction) {
 }
 
 function showTypingIndicator() {
-    const id = 'typing-' + Date.now();
-    const messagesDiv = document.getElementById('chatMessages');
-    const typingDiv = document.createElement('div');
-    typingDiv.id = id;
-    typingDiv.className = 'typing-indicator';
-    typingDiv.innerHTML = `
-        <div class="typing-dots">
-            <span></span>
-            <span></span>
-            <span></span>
-        </div>
-    `;
-    messagesDiv.appendChild(typingDiv);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    return id;
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    if (loadingIndicator) {
+        loadingIndicator.style.display = 'block';
+        // Scroll to show the loading indicator
+        const chatContainer = document.getElementById('chatContainer');
+        if (chatContainer) {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    }
+    return 'loadingIndicator';
 }
 
 function removeTypingIndicator(id) {
-    const element = document.getElementById(id);
-    if (element) {
-        element.remove();
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    if (loadingIndicator) {
+        loadingIndicator.style.display = 'none';
     }
 }
 

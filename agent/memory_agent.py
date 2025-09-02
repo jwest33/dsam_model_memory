@@ -23,9 +23,13 @@ class MemoryAgent:
         """Initialize the memory agent"""
         self.config = config or get_config()
         
-        # Core components
-        self.memory_store = MemoryStore()
+        # Initialize LLM interface first
         self.llm = LLMInterface(self.config.llm)
+        
+        # Core components - pass LLM client to memory store
+        # Extract the actual client from LLMInterface
+        llm_client = self.llm.client if hasattr(self.llm, 'client') else self.llm
+        self.memory_store = MemoryStore(llm_client=llm_client)
         
         # Episode management
         self.current_episode_id = None

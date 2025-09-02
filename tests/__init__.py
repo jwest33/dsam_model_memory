@@ -1,10 +1,23 @@
 """Memory system for 5W1H framework"""
 
 import test_api
+import test_collections
+import test_conceptual_retrieval
 import test_dual_space
-import test_model
-import test_chromadb
-import test_similarity_cache
-import test_temporal
+import test_field_generation
+import test_size_based_regeneration
+import test_temporal_detection
+import test_temporal_grouping 
+import test_temporal_query
 
-__all__ = ['test_dual_space', 'test_api', 'test_model', 'test_chromadb', 'test_similarity_cache', 'test_temporal']
+__all__ = [
+    'test_dual_space', 
+    'test_api', 
+    'test_temporal_detection', 
+    'test_collections', 
+    'test_conceptual_retrieval', 
+    'test_field_generation', 
+    'test_size_based_regeneration', 
+    'test_temporal_grouping', 
+    'test_temporal_query'
+    ]

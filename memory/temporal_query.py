@@ -1,12 +1,13 @@
 """
 Temporal query detection and handling for the memory system.
 
+Enhanced with LLM integration, expanded pattern matching, and regex-based time extraction.
 Uses probabilistic matching via embeddings to detect temporal intent and
 applies smooth time-based weighting that integrates with the dual-space system.
-Enhanced for integration with similarity cache, multi-dimensional merging,
-and ChromaDB metadata-based filtering.
 """
 
+import re
+import json
 import numpy as np
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Optional, Any, Union
@@ -18,17 +19,19 @@ logger = logging.getLogger(__name__)
 
 class TemporalQueryHandler:
     """
-    Detects temporal intent using semantic similarity and applies time-aware weighting.
+    Enhanced temporal query handler with LLM integration and expanded patterns.
     
-    This integrates seamlessly with the dual-space system by:
-    1. Using embeddings to detect temporal intent probabilistically
-    2. Computing smooth temporal weight factors
-    3. Preserving semantic relevance while adding temporal awareness
+    Provides intelligent temporal intent detection through:
+    - LLM-based contextual understanding when available (primary)
+    - Expanded semantic matching with comprehensive reference patterns (fallback)
+    - Regex-based time expression extraction
+    - Smooth probabilistic weighting functions
     """
     
-    # Temporal reference examples for semantic matching
+    # Comprehensive temporal reference examples for semantic matching
     TEMPORAL_REFERENCES = {
         'strong_recency': [
+            # Original patterns
             "last thing we discussed",
             "what did we just talk about",
             "most recent conversation",
@@ -38,9 +41,26 @@ class TemporalQueryHandler:
             "the previous message",
             "our last exchange",
             "the last point you made",
-            "right before this"
+            "right before this",
+            # Enhanced patterns
+            "what were we just discussing",
+            "remind me what we just covered",
+            "the thing we just mentioned",
+            "what did you just say",
+            "what was that last bit",
+            "going back to what we just said",
+            "that last part",
+            "the most recent thing",
+            "what we were just talking about",
+            "latest thing we covered",
+            "very last topic",
+            "immediately before this",
+            "right before now",
+            "just a second ago",
+            "literally just now"
         ],
         'moderate_recency': [
+            # Original patterns
             "recent memories",
             "recently mentioned",
             "earlier today",
@@ -50,9 +70,26 @@ class TemporalQueryHandler:
             "something you said earlier",
             "from a little bit ago",
             "earlier in the day",
-            "what we touched on recently"
+            "what we touched on recently",
+            # Enhanced patterns
+            "a few minutes ago",
+            "several minutes back",
+            "within the last hour",
+            "in the past hour",
+            "sometime recently",
+            "not too long ago",
+            "a little while ago",
+            "fairly recently",
+            "somewhat recently",
+            "in recent memory",
+            "from earlier",
+            "a bit ago",
+            "some time ago today",
+            "earlier this session",
+            "previously today"
         ],
         'session_based': [
+            # Original patterns
             "today's conversation",
             "this session",
             "current discussion",
@@ -62,9 +99,25 @@ class TemporalQueryHandler:
             "our ongoing conversation",
             "what we've covered so far",
             "discussion from earlier in this session",
-            "the thread of today"
+            "the thread of today",
+            # Enhanced patterns
+            "during this chat",
+            "in our current talk",
+            "throughout this discussion",
+            "over the course of this conversation",
+            "since we started talking",
+            "from when we began",
+            "in this exchange",
+            "during our dialogue",
+            "this particular conversation",
+            "our discussion today",
+            "everything we've discussed",
+            "all we've talked about",
+            "the full conversation",
+            "complete discussion so far"
         ],
         'historical': [
+            # Original patterns
             "previous discussions",
             "earlier conversations", 
             "before this",
@@ -74,9 +127,25 @@ class TemporalQueryHandler:
             "what we discussed previously",
             "prior discussions",
             "old conversations",
-            "in the past"
+            "in the past",
+            # Enhanced patterns
+            "from before",
+            "historical context",
+            "way back when",
+            "long ago",
+            "ages ago",
+            "from way earlier",
+            "ancient history",
+            "from the archives",
+            "old topics",
+            "bygone discussions",
+            "former conversations",
+            "past exchanges",
+            "previous sessions",
+            "older chats"
         ],
         'ordered': [
+            # Original patterns
             "first thing we discussed",
             "how this started",
             "beginning of conversation",
@@ -86,9 +155,28 @@ class TemporalQueryHandler:
             "the second thing we talked about",
             "middle of our chat",
             "toward the end",
-            "the final point we discussed"
+            "the final point we discussed",
+            # Enhanced patterns
+            "at the start",
+            "when we first began",
+            "the opening topic",
+            "how we kicked off",
+            "the starting point",
+            "chronologically",
+            "in order",
+            "sequentially",
+            "the progression",
+            "step by step",
+            "the third thing",
+            "after that",
+            "following that",
+            "subsequently",
+            "penultimate topic",
+            "second to last",
+            "near the end"
         ],
         'long_term': [
+            # Original patterns
             "conversations from last week",
             "chats from last month",
             "a while back",
@@ -99,13 +187,79 @@ class TemporalQueryHandler:
             "old session memories",
             "earlier history",
             "long-term memory"
+        ],
+        'specific_time': [
+            # Patterns for specific time references
+            "5 minutes ago",
+            "10 minutes back",
+            "half an hour ago",
+            "an hour ago",
+            "2 hours ago",
+            "3 hours back",
+            "yesterday",
+            "last night",
+            "this morning",
+            "yesterday morning",
+            "yesterday afternoon",
+            "last Monday",
+            "last week",
+            "two weeks ago",
+            "last month",
+            "couple days ago",
+            "few days back",
+            "other day"
+        ],
+        'relative_position': [
+            # Relative positioning in conversation
+            "before we talked about",
+            "after we discussed",
+            "around the time we mentioned",
+            "when we were talking about",
+            "during the discussion of",
+            "while covering",
+            "in the context of",
+            "related to when",
+            "connected to our talk about",
+            "tied to the discussion of"
         ]
     }
+    
+    # Regex patterns for time extraction
+    TIME_PATTERNS = [
+        # Relative time with units
+        (r'(\d+)\s*(second|minute|hour|day|week|month)s?\s*ago', 'relative_past'),
+        (r'(\d+)\s*(second|minute|hour|day|week|month)s?\s*back', 'relative_past'),
+        (r'last\s+(\d+)\s*(second|minute|hour|day|week|month)s?', 'relative_past'),
+        (r'past\s+(\d+)\s*(second|minute|hour|day|week|month)s?', 'relative_past'),
+        (r'previous\s+(\d+)\s*(second|minute|hour|day|week|month)s?', 'relative_past'),
+        
+        # Specific relative times
+        (r'yesterday\s*(morning|afternoon|evening|night)?', 'yesterday'),
+        (r'today\s*(morning|afternoon|evening|night)?', 'today'),
+        (r'this\s+(morning|afternoon|evening)', 'today_part'),
+        (r'last\s+(night|evening)', 'last_night'),
+        (r'last\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)', 'last_weekday'),
+        
+        # Approximate times
+        (r'(a|an)\s+(moment|minute|second)\s+ago', 'very_recent'),
+        (r'just\s+now', 'immediate'),
+        (r'right\s+now', 'immediate'),
+        (r'(a\s+)?few\s+(seconds|minutes|hours)\s*(ago|back)', 'approximate_recent'),
+        (r'(a\s+)?couple\s+(of\s+)?(minutes|hours|days)\s*(ago|back)', 'approximate_recent'),
+        
+        # ISO timestamps
+        (r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}', 'iso_timestamp'),
+        (r'\d{4}-\d{2}-\d{2}', 'iso_date'),
+        
+        # Time ranges
+        (r'between\s+(\d+)\s+and\s+(\d+)\s+(minute|hour|day)s?\s*ago', 'time_range'),
+        (r'within\s+(the\s+)?(last|past)\s+(\d+)\s+(minute|hour|day)s?', 'within_time'),
+    ]
 
     def __init__(self, encoder=None, decay_factor: float = 0.9, window_hours: float = 24.0,
-                 similarity_cache=None, chromadb_store=None):
+                 similarity_cache=None, chromadb_store=None, llm_client=None):
         """
-        Initialize temporal handler.
+        Initialize enhanced temporal handler.
         
         Args:
             encoder: The dual-space encoder for computing embeddings
@@ -113,14 +267,17 @@ class TemporalQueryHandler:
             window_hours: Time window for "recent" queries (in hours)
             similarity_cache: Optional similarity cache for faster prototype matching
             chromadb_store: Optional ChromaDB store for metadata-based filtering
+            llm_client: Optional LLM client for intelligent temporal analysis
         """
         self.encoder = encoder
         self.decay_factor = decay_factor
         self.window_hours = window_hours
         self.similarity_cache = similarity_cache
         self.chromadb_store = chromadb_store
+        self.llm_client = llm_client
         self._temporal_embeddings = None
         self._temporal_embedding_ids = {}  # Maps temporal_type to virtual IDs for cache
+        self._compiled_patterns = [(re.compile(p, re.IGNORECASE), t) for p, t in self.TIME_PATTERNS]
         
     def _ensure_temporal_embeddings(self):
         """Lazily compute and cache temporal reference embeddings using dual-space encoder."""
@@ -202,6 +359,220 @@ class TemporalQueryHandler:
         
         return best_type, best_similarity, temporal_strength
     
+    def detect_temporal_intent_with_llm(self, query: Dict[str, str], 
+                                       lambda_e: float = 0.5, 
+                                       lambda_h: float = 0.5) -> Tuple[str, float, float, Optional[Dict]]:
+        """
+        Detect temporal intent using LLM when available, with fallback to embeddings.
+        
+        Args:
+            query: Query fields dictionary
+            lambda_e: Weight for Euclidean space
+            lambda_h: Weight for Hyperbolic space
+        
+        Returns:
+            (temporal_type, similarity_score, temporal_strength, extracted_context)
+            extracted_context includes any parsed time references
+        """
+        # Try LLM-based detection first if available
+        if self.llm_client and hasattr(self.llm_client, 'is_available') and self.llm_client.is_available():
+            try:
+                llm_result = self._analyze_with_llm(query)
+                if llm_result:
+                    return llm_result
+            except Exception as e:
+                logger.warning(f"LLM temporal analysis failed, falling back to embeddings: {e}")
+        
+        # Fallback to embedding-based detection
+        temporal_type, similarity, strength = self.detect_temporal_intent(query, lambda_e, lambda_h)
+        
+        # Try to extract time references with regex
+        extracted_context = self._extract_time_references(query)
+        
+        return temporal_type, similarity, strength, extracted_context
+    
+    def _analyze_with_llm(self, query: Dict[str, str]) -> Optional[Tuple[str, float, float, Dict]]:
+        """
+        Use LLM to analyze temporal intent in the query.
+        
+        Returns:
+            Tuple of (temporal_type, similarity, strength, extracted_context) or None
+        """
+        if not self.llm_client:
+            return None
+        
+        # Build prompt for LLM
+        query_text = ' '.join([str(v) for v in query.values() if v])
+        
+        prompt = f"""Analyze the temporal intent in this query and extract any time references.
+
+Query: "{query_text}"
+
+Identify:
+1. Temporal type (one of: strong_recency, moderate_recency, session_based, historical, ordered, specific_time, relative_position, none)
+2. Confidence score (0.0 to 1.0)
+3. Any specific time references (e.g., "5 minutes ago", "yesterday", "last week")
+4. Relative time in hours from now (if applicable)
+
+Respond in JSON format:
+{{
+    "temporal_type": "type_here",
+    "confidence": 0.0,
+    "time_reference": "extracted reference or null",
+    "hours_ago": null or number,
+    "explanation": "brief explanation"
+}}
+
+Examples:
+- "what did we just discuss" -> strong_recency, high confidence
+- "remind me what we talked about 5 minutes ago" -> specific_time, high confidence, 5 minutes = 0.083 hours
+- "our conversation from yesterday" -> specific_time, high confidence, ~24 hours ago
+- "how did this discussion start" -> ordered, high confidence
+"""
+        
+        try:
+            # Get LLM response
+            response = self.llm_client.generate(
+                prompt,
+                max_tokens=200,
+                temperature=0.1  # Low temperature for consistency
+            )
+            
+            # Parse JSON response
+            result = self._parse_llm_response(response)
+            if result:
+                temporal_type = result.get('temporal_type', 'none')
+                confidence = float(result.get('confidence', 0.0))
+                
+                # Map confidence to strength using our sigmoid function
+                strength = self._similarity_to_strength(confidence, temporal_type)
+                
+                # Build extracted context
+                extracted_context = {
+                    'time_reference': result.get('time_reference'),
+                    'hours_ago': result.get('hours_ago'),
+                    'explanation': result.get('explanation'),
+                    'llm_analyzed': True
+                }
+                
+                # Calculate approximate datetime if hours_ago provided
+                if extracted_context['hours_ago'] is not None:
+                    try:
+                        reference_time = datetime.utcnow() - timedelta(hours=float(extracted_context['hours_ago']))
+                        extracted_context['reference_time'] = reference_time.isoformat()
+                    except:
+                        pass
+                
+                return temporal_type, confidence, strength, extracted_context
+                
+        except Exception as e:
+            logger.debug(f"LLM temporal analysis error: {e}")
+            return None
+    
+    def _parse_llm_response(self, response: str) -> Optional[Dict]:
+        """Parse LLM response to extract temporal analysis."""
+        try:
+            # Try to extract JSON from response
+            json_match = re.search(r'\{[^}]+\}', response, re.DOTALL)
+            if json_match:
+                return json.loads(json_match.group())
+            
+            # Try parsing entire response as JSON
+            return json.loads(response)
+        except:
+            logger.debug(f"Could not parse LLM response as JSON: {response[:200]}")
+            return None
+    
+    def _extract_time_references(self, query: Dict[str, str]) -> Dict:
+        """
+        Extract time references from query using regex patterns.
+        
+        Args:
+            query: Query fields dictionary
+            
+        Returns:
+            Dictionary with extracted time information
+        """
+        query_text = ' '.join([str(v) for v in query.values() if v]).lower()
+        extracted = {
+            'time_references': [],
+            'has_time_reference': False
+        }
+        
+        for pattern, pattern_type in self._compiled_patterns:
+            matches = pattern.finditer(query_text)
+            for match in matches:
+                extracted['has_time_reference'] = True
+                reference = {
+                    'text': match.group(0),
+                    'type': pattern_type,
+                    'groups': match.groups()
+                }
+                
+                # Try to convert to approximate hours ago
+                hours_ago = self._convert_to_hours(reference)
+                if hours_ago is not None:
+                    reference['hours_ago'] = hours_ago
+                    reference['reference_time'] = (datetime.utcnow() - timedelta(hours=hours_ago)).isoformat()
+                
+                extracted['time_references'].append(reference)
+        
+        return extracted
+    
+    def _convert_to_hours(self, reference: Dict) -> Optional[float]:
+        """
+        Convert extracted time reference to hours ago.
+        
+        Args:
+            reference: Extracted time reference dict
+            
+        Returns:
+            Number of hours ago, or None if cannot convert
+        """
+        pattern_type = reference['type']
+        groups = reference['groups']
+        
+        if pattern_type == 'relative_past' and len(groups) >= 2:
+            try:
+                value = float(groups[0])
+                unit = groups[1].lower()
+                
+                multipliers = {
+                    'second': 1/3600,
+                    'minute': 1/60,
+                    'hour': 1,
+                    'day': 24,
+                    'week': 168,
+                    'month': 720  # Approximate
+                }
+                
+                return value * multipliers.get(unit, 1)
+            except:
+                pass
+        
+        elif pattern_type == 'yesterday':
+            return 24.0  # Approximate
+        
+        elif pattern_type == 'very_recent':
+            return 0.017  # About 1 minute
+        
+        elif pattern_type == 'immediate':
+            return 0.0
+        
+        elif pattern_type == 'approximate_recent':
+            # "a few minutes" -> ~5 minutes
+            text = reference['text'].lower()
+            if 'second' in text:
+                return 0.001
+            elif 'minute' in text:
+                return 0.083  # ~5 minutes
+            elif 'hour' in text:
+                return 2.0  # ~2 hours
+            elif 'day' in text:
+                return 48.0  # ~2 days
+        
+        return None
+    
     def _similarity_to_strength(self, similarity: float, temporal_type: str) -> float:
         """
         Convert similarity score to temporal strength using smooth probability function.
@@ -214,7 +585,9 @@ class TemporalQueryHandler:
             'moderate_recency': {'threshold': 0.25, 'steepness': 8},  # Lower threshold
             'session_based': {'threshold': 0.2, 'steepness': 6},      # Lower threshold
             'historical': {'threshold': 0.2, 'steepness': 6},
-            'ordered': {'threshold': 0.25, 'steepness': 7}
+            'ordered': {'threshold': 0.25, 'steepness': 7},
+            'specific_time': {'threshold': 0.2, 'steepness': 8},
+            'relative_position': {'threshold': 0.25, 'steepness': 7}
         }
         
         p = params.get(temporal_type, {'threshold': 0.2, 'steepness': 6})
@@ -306,6 +679,57 @@ class TemporalQueryHandler:
             logger.warning(f"Error parsing timestamp {event_timestamp}: {e}")
             return 1.0  # No penalty if we can't parse
     
+    def compute_temporal_weight_enhanced(self, event_timestamp: str,
+                                        query_time: Optional[datetime] = None,
+                                        temporal_type: str = '',
+                                        temporal_strength: float = 0.0,
+                                        extracted_context: Optional[Dict] = None,
+                                        is_raw_event: bool = False) -> float:
+        """
+        Enhanced temporal weight computation using extracted context.
+        
+        Args:
+            event_timestamp: ISO format timestamp from event
+            query_time: Time of query (defaults to now)
+            temporal_type: Type of temporal query detected
+            temporal_strength: Strength of temporal signal (0-1)
+            extracted_context: Additional context from LLM/regex extraction
+            is_raw_event: Whether this is a raw event
+            
+        Returns:
+            Temporal weight factor (0-1)
+        """
+        # If we have a specific reference time from extraction, use it
+        if extracted_context and extracted_context.get('reference_time'):
+            try:
+                reference_time = date_parser.parse(extracted_context['reference_time'])
+                event_time = date_parser.parse(event_timestamp)
+                
+                # Ensure timezone compatibility
+                if event_time.tzinfo is None and reference_time.tzinfo is not None:
+                    reference_time = reference_time.replace(tzinfo=None)
+                elif event_time.tzinfo is not None and reference_time.tzinfo is None:
+                    event_time = event_time.replace(tzinfo=None)
+                
+                # Calculate distance from reference time
+                time_diff = abs((event_time - reference_time).total_seconds() / 3600)
+                
+                # Use Gaussian-like scoring centered on reference time
+                sigma = 2.0  # 2-hour window around reference
+                weight = np.exp(-(time_diff ** 2) / (2 * sigma ** 2))
+                
+                # Apply strength scaling
+                return temporal_strength * weight + (1 - temporal_strength) * 0.5
+                
+            except Exception as e:
+                logger.debug(f"Error using reference time: {e}")
+        
+        # Otherwise use base implementation
+        return self.compute_temporal_weight(
+            event_timestamp, query_time, temporal_type, 
+            temporal_strength, is_raw_event
+        )
+    
     def apply_temporal_weighting(self, candidates: List[Tuple],
                                 temporal_type: str,
                                 temporal_strength: float,
@@ -360,6 +784,62 @@ class TemporalQueryHandler:
         
         return weighted_results
     
+    def apply_temporal_weighting_enhanced(self, candidates: List[Tuple],
+                                         temporal_type: str,
+                                         temporal_strength: float,
+                                         extracted_context: Optional[Dict] = None,
+                                         query_time: Optional[datetime] = None,
+                                         view_mode: str = 'merged') -> List[Tuple]:
+        """
+        Apply enhanced temporal weighting with extracted context.
+        
+        Args:
+            candidates: List of (event, score) tuples
+            temporal_type: Type of temporal query
+            temporal_strength: Strength of temporal signal
+            extracted_context: Additional context from extraction
+            query_time: Time of query
+            view_mode: 'merged' or 'raw'
+            
+        Returns:
+            Reranked list of (event, adjusted_score) tuples
+        """
+        if temporal_strength < 0.1:
+            return candidates
+        
+        weighted_results = []
+        
+        for event, score in candidates:
+            is_raw = view_mode == 'raw' or not hasattr(event, 'merged_count')
+            
+            # Use enhanced weight computation
+            temporal_weight = self.compute_temporal_weight_enhanced(
+                event.five_w1h.when,
+                query_time,
+                temporal_type,
+                temporal_strength,
+                extracted_context,
+                is_raw_event=is_raw
+            )
+            
+            # Apply stronger weighting when we have specific time references
+            if extracted_context and extracted_context.get('has_time_reference'):
+                # Stronger temporal influence for specific time queries
+                adjusted_score = score * (temporal_weight ** (temporal_strength * 1.2))
+            else:
+                # Standard weighting
+                if temporal_strength > 0.5:
+                    adjusted_score = score * (temporal_weight ** (temporal_strength * 0.9))
+                else:
+                    adjusted_score = (1 - temporal_strength * 0.4) * score + (temporal_strength * 0.4) * temporal_weight * score
+            
+            weighted_results.append((event, adjusted_score))
+        
+        # Re-sort by adjusted scores
+        weighted_results.sort(key=lambda x: x[1], reverse=True)
+        
+        return weighted_results
+    
     def compute_temporal_context(self, query: Dict[str, str], 
                                  lambda_e: float = 0.5, lambda_h: float = 0.5) -> Dict[str, Any]:
         """
@@ -379,7 +859,9 @@ class TemporalQueryHandler:
             'moderate_recency': 1.0,
             'session_based': 1.5,
             'historical': 10.0,
-            'ordered': 20.0
+            'ordered': 20.0,
+            'specific_time': 2.0,
+            'relative_position': 5.0
         }.get(temporal_type, 1.0)
         
         # Adjust window based on strength
@@ -400,6 +882,7 @@ def integrate_temporal_with_dual_space(query: Dict[str, str],
                                       lambda_h: float,
                                       similarity_cache=None,
                                       chromadb_store=None,
+                                      llm_client=None,
                                       view_mode: str = 'merged') -> Tuple[List[Tuple], Dict]:
     """
     Helper to integrate probabilistic temporal weighting with dual-space retrieval.
@@ -415,6 +898,7 @@ def integrate_temporal_with_dual_space(query: Dict[str, str],
         lambda_h: Hyperbolic space weight
         similarity_cache: Optional similarity cache for faster processing
         chromadb_store: Optional ChromaDB store for metadata filtering
+        llm_client: Optional LLM client for intelligent temporal analysis
         view_mode: 'merged' or 'raw' - affects temporal weighting
         
     Returns:
@@ -424,11 +908,43 @@ def integrate_temporal_with_dual_space(query: Dict[str, str],
     temporal_handler = TemporalQueryHandler(
         encoder=encoder,
         similarity_cache=similarity_cache,
-        chromadb_store=chromadb_store
+        chromadb_store=chromadb_store,
+        llm_client=llm_client
     )
     
-    # Extract temporal context probabilistically with space weights
-    temporal_context = temporal_handler.compute_temporal_context(query, lambda_e, lambda_h)
+    # Extract temporal context - use LLM if available
+    if llm_client:
+        temporal_type, similarity, strength, extracted_context = temporal_handler.detect_temporal_intent_with_llm(
+            query, lambda_e, lambda_h
+        )
+        temporal_context = {
+            'temporal_type': temporal_type,
+            'similarity': float(similarity),
+            'temporal_strength': float(strength),
+            'extracted_context': extracted_context,
+            'applied': False
+        }
+        
+        # Calculate suggested window
+        if extracted_context and extracted_context.get('hours_ago') is not None:
+            temporal_context['suggested_window'] = float(extracted_context['hours_ago']) * 1.5
+        else:
+            window_multiplier = {
+                'strong_recency': 0.5,
+                'moderate_recency': 1.0,
+                'session_based': 1.5,
+                'historical': 10.0,
+                'ordered': 20.0,
+                'specific_time': 2.0,
+                'relative_position': 5.0
+            }.get(temporal_type, 1.0)
+            temporal_context['suggested_window'] = 24.0 * window_multiplier * (0.5 + strength)
+    else:
+        # Fallback to standard detection
+        temporal_context = temporal_handler.compute_temporal_context(query, lambda_e, lambda_h)
+        extracted_context = None
+        strength = temporal_context['temporal_strength']
+        temporal_type = temporal_context['temporal_type']
     
     # Only apply if we have sufficient temporal signal
     if temporal_context['temporal_strength'] < 0.2:
@@ -436,13 +952,22 @@ def integrate_temporal_with_dual_space(query: Dict[str, str],
         temporal_context['applied'] = False
         return candidates, temporal_context
     
-    # Apply smooth temporal weighting with view mode awareness
-    weighted_results = temporal_handler.apply_temporal_weighting(
-        candidates,
-        temporal_context['temporal_type'],
-        temporal_context['temporal_strength'],
-        view_mode=view_mode
-    )
+    # Apply temporal weighting - use enhanced version if we have extracted context
+    if extracted_context:
+        weighted_results = temporal_handler.apply_temporal_weighting_enhanced(
+            candidates,
+            temporal_type,
+            strength,
+            extracted_context,
+            view_mode=view_mode
+        )
+    else:
+        weighted_results = temporal_handler.apply_temporal_weighting(
+            candidates,
+            temporal_type,
+            strength,
+            view_mode=view_mode
+        )
     
     temporal_context['applied'] = True
     
@@ -450,9 +975,15 @@ def integrate_temporal_with_dual_space(query: Dict[str, str],
     if temporal_context['temporal_strength'] > 0.3:
         logger.info(f"Applied temporal weighting: type={temporal_context['temporal_type']}, "
                     f"strength={temporal_context['temporal_strength']:.2f}, "
-                    f"similarity={temporal_context['similarity']:.3f}")
+                    f"similarity={temporal_context.get('similarity', 0):.3f}")
+        if extracted_context and extracted_context.get('time_reference'):
+            logger.info(f"Extracted time reference: {extracted_context['time_reference']}")
     
     return weighted_results, temporal_context
+
+
+# Alias for backward compatibility
+integrate_enhanced_temporal = integrate_temporal_with_dual_space
 
 
 class TemporalMetadataFilter:

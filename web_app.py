@@ -462,13 +462,14 @@ def initialize_system():
     # Attach multi-merger to memory store for access in API endpoints
     memory_agent.memory_store.multi_merger = multi_merger
     
-    # Initialize dimension attention retriever
+    # Initialize dimension attention retriever with LLM support
     dimension_retriever = DimensionAttentionRetriever(
         encoder=encoder,
         multi_merger=multi_merger,
         similarity_cache=memory_agent.memory_store.similarity_cache if hasattr(memory_agent.memory_store, 'similarity_cache') else None,
         chromadb_store=memory_agent.memory_store.chromadb if hasattr(memory_agent.memory_store, 'chromadb') else None,
-        temporal_manager=memory_agent.memory_store.temporal_manager if hasattr(memory_agent.memory_store, 'temporal_manager') else None
+        temporal_manager=memory_agent.memory_store.temporal_manager if hasattr(memory_agent.memory_store, 'temporal_manager') else None,
+        llm_client=llm_interface.client if hasattr(llm_interface, 'client') else llm_interface
     )
     
     # Load existing merge groups from ChromaDB

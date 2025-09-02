@@ -126,6 +126,30 @@
                 transform: translateY(0);
             }
         }
+        
+        /* Loading indicator styles */
+        #loadingIndicator {
+            padding: 0.5rem 1rem;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        #loadingIndicator .assistant-message {
+            background: rgba(111, 66, 193, 0.1);
+            border: 1px solid rgba(111, 66, 193, 0.3);
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.6;
+            }
+        }
+        
+        #loadingIndicator .text-muted {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
     </style>
 </head>
 <body>
@@ -236,6 +260,17 @@
                             </div>
                             <div class="chat-window" id="chatContainer">
                                 <div id="chatMessages"></div>
+                                <!-- Loading indicator -->
+                                <div id="loadingIndicator" style="display: none;">
+                                    <div class="message-card assistant-message">
+                                        <div class="d-flex align-items-center">
+                                            <div class="spinner-border spinner-border-sm text-cyan me-2" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                            <span class="text-muted">Generating response...</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <div class="chat-input-area mt-3">
                                 <form id="chatForm">

@@ -15,7 +15,7 @@ import time
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def test_enhanced_conceptual_retrieval():
+def test_conceptual_retrieval():
     """Test the enhanced conceptual retrieval system"""
     
     print("\n" + "="*60)
@@ -144,4 +144,4 @@ def test_enhanced_conceptual_retrieval():
     print("- Conceptual queries will benefit from the enhanced search")
 
 if __name__ == "__main__":
-    test_enhanced_conceptual_retrieval()
+    test_conceptual_retrieval()

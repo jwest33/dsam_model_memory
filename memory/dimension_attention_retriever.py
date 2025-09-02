@@ -14,6 +14,7 @@ import re
 from models.merge_types import MergeType
 from models.event import Event
 from models.merged_event import MergedEvent
+from memory.temporal_query import integrate_enhanced_temporal
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ class DimensionAttentionRetriever:
     characteristics and retrieves the most relevant memories.
     """
     
-    def __init__(self, encoder, multi_merger, similarity_cache=None, chromadb_store=None, temporal_manager=None):
+    def __init__(self, encoder, multi_merger, similarity_cache=None, chromadb_store=None, temporal_manager=None, llm_client=None):
         """
         Initialize the dimension attention retriever.
         
@@ -36,12 +37,14 @@ class DimensionAttentionRetriever:
             similarity_cache: Optional similarity cache for fast lookups
             chromadb_store: ChromaDB store for retrieving merge groups
             temporal_manager: Temporal manager for handling temporal queries
+            llm_client: Optional LLM client for enhanced temporal detection
         """
         self.encoder = encoder
         self.multi_merger = multi_merger
         self.similarity_cache = similarity_cache
         self.chromadb = chromadb_store
         self.temporal_manager = temporal_manager
+        self.llm_client = llm_client
         
         # Keywords for dimension detection
         self.actor_keywords = {
@@ -255,7 +258,7 @@ class DimensionAttentionRetriever:
                     logger.debug(f"Found {len(results)} results in {dim_type.value} dimension")
         
         # Combine results with attention weighting
-        combined_results = self._combine_dimension_results(dimension_results, k)
+        combined_results = self._combine_dimension_results(dimension_results, k, query_fields)
         
         return combined_results, dim_weights
     
@@ -690,7 +693,7 @@ class DimensionAttentionRetriever:
         return results
     
     def _combine_dimension_results(self, dimension_results: Dict[MergeType, Tuple[List, float]], 
-                                  k: int) -> List[Tuple]:
+                                  k: int, query_fields: Optional[Dict] = None) -> List[Tuple]:
         """
         Combine results from multiple dimensions with attention weighting.
         
@@ -731,36 +734,40 @@ class DimensionAttentionRetriever:
                     'score': score
                 })
         
-        # Apply temporal recency boost for high temporal weight queries
-        if temporal_weight > 0.4:  # If temporal dimension is dominant
-            from datetime import datetime
-            from dateutil import parser as date_parser
-            current_time = datetime.utcnow()
-            
+        # Apply enhanced temporal weighting if temporal dimension is significant
+        if temporal_weight > 0.3 and query_fields:  # Lower threshold for better temporal detection
+            # Convert results to format expected by temporal integration
+            temporal_candidates = []
             for result_id, result_obj in result_objects.items():
-                # Get the latest timestamp from metadata
-                latest_when = result_obj.get('latest_when', '')
-                if latest_when:
-                    try:
-                        event_time = date_parser.parse(latest_when)
-                        # Normalize timezones
-                        if event_time.tzinfo is not None:
-                            event_time = event_time.replace(tzinfo=None)
-                        
-                        # Calculate recency boost (exponential decay)
-                        time_diff = current_time - event_time
-                        hours_diff = max(0, time_diff.total_seconds() / 3600)
-                        
-                        # Strong exponential decay for recency queries
-                        decay_rate = 0.5
-                        window_hours = 24.0
-                        recency_factor = np.exp(-hours_diff / (window_hours * decay_rate))
-                        
-                        # Apply recency boost proportional to temporal weight
-                        combined_scores[result_id] *= (1.0 + temporal_weight * recency_factor)
-                        
-                    except Exception as e:
-                        logger.debug(f"Could not parse timestamp for recency boost: {e}")
+                # Create a mock event object with the necessary attributes
+                mock_event = type('obj', (object,), {
+                    'five_w1h': type('obj', (object,), {
+                        'when': result_obj.get('latest_when', result_obj.get('metadata', {}).get('latest_when', ''))
+                    }),
+                    'id': result_id,
+                    'metadata': result_obj.get('metadata', {})
+                })
+                temporal_candidates.append((mock_event, combined_scores[result_id]))
+            
+            # Apply enhanced temporal weighting
+            if temporal_candidates:
+                weighted_results, temporal_context = integrate_enhanced_temporal(
+                    query=query_fields,
+                    candidates=temporal_candidates,
+                    encoder=self.encoder,
+                    lambda_e=0.5,  # Use balanced weights
+                    lambda_h=0.5,
+                    llm_client=self.llm_client,
+                    view_mode='merged'
+                )
+                
+                # Update scores based on temporal weighting
+                if temporal_context.get('applied'):
+                    logger.info(f"Applied enhanced temporal weighting: {temporal_context}")
+                    for weighted_event, weighted_score in weighted_results:
+                        result_id = weighted_event.id
+                        if result_id in combined_scores:
+                            combined_scores[result_id] = weighted_score
         
         # Sort by combined score
         sorted_results = sorted(

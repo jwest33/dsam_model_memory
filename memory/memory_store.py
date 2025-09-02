@@ -39,9 +39,14 @@ class MemoryStore:
     Now includes raw event tracking alongside merged events.
     """
     
-    def __init__(self):
-        """Initialize the enhanced memory store"""
+    def __init__(self, llm_client=None):
+        """Initialize the enhanced memory store
+        
+        Args:
+            llm_client: Optional LLM client for enhanced features
+        """
         self.config = get_config()
+        self.llm_client = llm_client
         
         # Core storage (ChromaDB is primary)
         self.chromadb = ChromaDBStore()
@@ -60,16 +65,17 @@ class MemoryStore:
         # Multi-dimensional merger for handling all dimensional grouping
         from memory.multi_dimensional_merger import MultiDimensionalMerger
         self.multi_merger = MultiDimensionalMerger(
-            chromadb_store=self.chromadb
-            # llm_client will be set later if available
+            chromadb_store=self.chromadb,
+            llm_client=llm_client
         )
         
-        # Unified temporal manager
+        # Unified temporal manager with LLM support if available
         self.temporal_manager = TemporalManager(
             encoder=None,  # Will be set after encoder is initialized
             chromadb_store=self.chromadb,
             similarity_cache=None,  # Will be set after similarity cache is initialized
-            config=self.config
+            config=self.config,
+            llm_client=llm_client
         )
         
         # Legacy temporal chain reference for backward compatibility

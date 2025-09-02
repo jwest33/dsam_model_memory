@@ -77,7 +77,7 @@ class TemporalManager:
         'moment', 'recently', 'previously', 'subsequently'
     ]
     
-    def __init__(self, encoder=None, chromadb_store=None, similarity_cache=None, config=None):
+    def __init__(self, encoder=None, chromadb_store=None, similarity_cache=None, config=None, llm_client=None):
         """
         Initialize the temporal manager.
         
@@ -86,10 +86,12 @@ class TemporalManager:
             chromadb_store: ChromaDB store for persistence
             similarity_cache: Similarity cache for performance
             config: Optional Config object with temporal settings
+            llm_client: Optional LLM client for enhanced temporal detection
         """
         self.encoder = encoder
         self.chromadb = chromadb_store
         self.similarity_cache = similarity_cache
+        self.llm_client = llm_client
         
         # Load config
         if config:
@@ -105,11 +107,18 @@ class TemporalManager:
             similarity_cache=similarity_cache,
             config=self.config
         )
+        
+        # Create temporal query handler with optional LLM support
         self.temporal_query_handler = TemporalQueryHandler(
             encoder=encoder,
             chromadb_store=chromadb_store,
-            similarity_cache=similarity_cache
+            similarity_cache=similarity_cache,
+            llm_client=llm_client
         )
+        if llm_client:
+            logger.info("Using TemporalQueryHandler with LLM support")
+        else:
+            logger.info("Using TemporalQueryHandler without LLM (fallback to embeddings)")
         
         # Temporal merge groups (for multi-dimensional merging)
         self.temporal_merge_groups = {}  # merge_id -> group_data
@@ -135,12 +144,54 @@ class TemporalManager:
         """
         Detect temporal intent in a query and return strength and context.
         
+        Uses enhanced detection if available, otherwise falls back to simple matching.
+        
         Args:
             query: Query fields dictionary
             
         Returns:
             Tuple of (temporal_strength, confidence, temporal_context)
         """
+        # Use LLM detection if available
+        if self.llm_client:
+            temporal_type, similarity, strength, extracted_context = self.temporal_query_handler.detect_temporal_intent_with_llm(query)
+            
+            # Map to TemporalStrength enum
+            if strength >= 0.7:
+                enum_strength = TemporalStrength.STRONG
+            elif strength >= 0.4:
+                enum_strength = TemporalStrength.MODERATE
+            elif strength >= 0.2:
+                enum_strength = TemporalStrength.WEAK
+            else:
+                enum_strength = TemporalStrength.NONE
+            
+            # Build context dict
+            context = {
+                'type': temporal_type,
+                'similarity': similarity,
+                'strength': strength,
+                'extracted_context': extracted_context
+            }
+            
+            # Add window and decay based on type
+            window_decay_map = {
+                'strong_recency': (2, 0.5),
+                'moderate_recency': (24, 0.7),
+                'session_based': (8, 0.85),
+                'historical': (168, 0.9),
+                'ordered': (336, 0.95),
+                'specific_time': (4, 0.6),
+                'relative_position': (48, 0.8)
+            }
+            
+            window_hours, decay_rate = window_decay_map.get(temporal_type, (24, 0.7))
+            context['window_hours'] = window_hours
+            context['decay_rate'] = decay_rate
+            
+            return enum_strength, strength, context
+        
+        # Fallback to simple string matching
         query_text = ' '.join([str(v) for v in query.values() if v]).lower()
         
         # Check for strong temporal indicators

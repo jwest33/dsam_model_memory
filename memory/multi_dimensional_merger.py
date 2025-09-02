@@ -370,7 +370,8 @@ class MultiDimensionalMerger:
             if 'centroid_embedding' in group_data and 'euclidean_anchor' in embeddings:
                 distance = self._calculate_distance(
                     embeddings['euclidean_anchor'],
-                    group_data['centroid_embedding']
+                    group_data['centroid_embedding'],
+                    merge_type=merge_type
                 )
                 
                 # For ACTOR type ONLY, check actor compatibility
@@ -709,9 +710,23 @@ class MultiDimensionalMerger:
         }
         return mapping.get(merge_type)
     
-    def _calculate_distance(self, embedding1: np.ndarray, embedding2: np.ndarray) -> float:
-        """Calculate Euclidean distance between embeddings"""
-        return float(np.linalg.norm(embedding1 - embedding2))
+    def _calculate_distance(self, embedding1: np.ndarray, embedding2: np.ndarray, 
+                           merge_type: MergeType = None) -> float:
+        """
+        Calculate distance between embeddings.
+        Uses cosine distance for all merge types (better for high-dimensional semantic similarity).
+        """
+        # Use cosine distance for all merge types
+        # Normalize vectors first
+        norm1 = np.linalg.norm(embedding1)
+        norm2 = np.linalg.norm(embedding2)
+        if norm1 == 0 or norm2 == 0:
+            return 1.0  # Max distance if either vector is zero
+        
+        # Cosine similarity
+        cos_sim = np.dot(embedding1, embedding2) / (norm1 * norm2)
+        # Convert to distance (0 = identical, 1 = orthogonal, 2 = opposite)
+        return float(1 - cos_sim)
     
     def _normalize_location(self, location: str) -> str:
         """Clean location text without normalization"""
