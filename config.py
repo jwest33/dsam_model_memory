@@ -9,7 +9,7 @@ from typing import Optional, List
 
 @dataclass
 class MemoryConfig:
-    """Configuration for Modern Hopfield Network memory"""
+    """Configuration for Network memory"""
     
     # Memory settings (no arbitrary limits!)
     embedding_dim: int = 768  # Base embedding dimension
@@ -21,8 +21,8 @@ class MemoryConfig:
     similarity_threshold: float = 0.85  # Threshold for considering memories as duplicates (85% similar)
     
     # Memory update weights (sum to 1.0 for consistency)
-    query_weight: float = 0.65  # Weight for query similarity in matching
-    content_weight: float = 0.35  # Weight for content similarity in matching
+    query_weight: float = 0.2  # Weight for query similarity in matching
+    content_weight: float = 0.8  # Weight for content similarity in matching
     
     # EMA smoothing
     salience_ema_alpha: float = 0.1  # For exponential moving average

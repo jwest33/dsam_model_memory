@@ -3790,23 +3790,104 @@ function createVariationAccordionItem(id, label, variants) {
 function createMergedContextTab(mergedEvent) {
     // Check if we have enhanced LLM context (for multi-dimensional merges)
     if (mergedEvent.llm_context && Object.keys(mergedEvent.llm_context).length > 0) {
-        return createEnhancedLLMContextDisplay(mergedEvent.llm_context);
+        return createEnhancedLLMContextDisplay(mergedEvent.llm_context, mergedEvent);
     }
     
-    // Fall back to old context_preview format
-    const context = mergedEvent.context_preview || {};
+    // Display the LLM-generated group characterization fields
+    let groupCharacterizationHtml = '';
+    if (mergedEvent.group_why || mergedEvent.group_how) {
+        groupCharacterizationHtml = `
+            <h6 class="text-cyan mb-3"><i class="bi bi-robot"></i> LLM-Generated Group Characterization</h6>
+            <div class="row mb-4">
+                ${mergedEvent.group_why ? `
+                <div class="col-md-6 mb-3">
+                    <div class="p-3 bg-dark rounded border border-info">
+                        <h6 class="text-info mb-2">
+                            <i class="bi bi-question-circle"></i> Group Purpose (Why)
+                        </h6>
+                        <p class="text-white mb-0">${escapeHtml(mergedEvent.group_why)}</p>
+                    </div>
+                </div>
+                ` : ''}
+                ${mergedEvent.group_how ? `
+                <div class="col-md-6 mb-3">
+                    <div class="p-3 bg-dark rounded border border-warning">
+                        <h6 class="text-warning mb-2">
+                            <i class="bi bi-gear"></i> Group Mechanism (How)
+                        </h6>
+                        <p class="text-white mb-0">${escapeHtml(mergedEvent.group_how)}</p>
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+            ${mergedEvent.group_fields_method ? `
+            <div class="mb-4">
+                <small class="text-muted">
+                    <i class="bi bi-info-circle"></i> 
+                    Generated via: ${escapeHtml(mergedEvent.group_fields_method)}
+                    ${mergedEvent.group_fields_generated_at ? ` at ${formatDate(mergedEvent.group_fields_generated_at)}` : ''}
+                </small>
+            </div>
+            ` : ''}
+        `;
+    }
     
-    return `
+    // Display key metrics for the group
+    const metricsHtml = `
+        <h6 class="text-purple mb-3"><i class="bi bi-speedometer2"></i> Group Metrics</h6>
+        <div class="row mb-4">
+            <div class="col-md-3 col-sm-6 mb-2">
+                <div class="text-center p-2 bg-dark rounded">
+                    <div class="text-cyan h4 mb-0">${mergedEvent.merge_count || 0}</div>
+                    <small class="text-muted">Total Events</small>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-2">
+                <div class="text-center p-2 bg-dark rounded">
+                    <div class="text-warning h4 mb-0">${mergedEvent.merge_type || 'unknown'}</div>
+                    <small class="text-muted">Merge Type</small>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-2">
+                <div class="text-center p-2 bg-dark rounded">
+                    <div class="text-info h4 mb-0">${mergedEvent.dominant_space || 'balanced'}</div>
+                    <small class="text-muted">Dominant Space</small>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-2">
+                <div class="text-center p-2 bg-dark rounded">
+                    <div class="text-success h4 mb-0">
+                        ${mergedEvent.euclidean_weight ? (mergedEvent.euclidean_weight * 100).toFixed(0) + '%' : 'N/A'}
+                    </div>
+                    <small class="text-muted">Euclidean Weight</small>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Fall back to old context_preview format if available
+    const context = mergedEvent.context_preview || {};
+    const fallbackContextHtml = (context.summary || context.detailed) ? `
         <div>
-            <h6 class="text-purple mb-3">Summary Context</h6>
+            <h6 class="text-purple mb-3">Context Summary</h6>
             <div class="p-3 bg-dark rounded mb-4">
                 <pre class="text-white mb-0">${escapeHtml(context.summary || 'No summary available')}</pre>
             </div>
             
+            ${context.detailed ? `
             <h6 class="text-purple mb-3">Detailed Context (As Seen by LLM)</h6>
             <div class="p-3 bg-dark rounded">
-                <pre class="text-white mb-0">${escapeHtml(context.detailed || 'No detailed context available')}</pre>
+                <pre class="text-white mb-0">${escapeHtml(context.detailed)}</pre>
             </div>
+            ` : ''}
+        </div>
+    ` : '';
+    
+    return `
+        <div>
+            ${groupCharacterizationHtml}
+            ${metricsHtml}
+            ${fallbackContextHtml}
         </div>
     `;
 }

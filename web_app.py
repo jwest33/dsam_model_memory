@@ -26,6 +26,7 @@ from llm.llm_interface import LLMInterface
 from memory.dual_space_encoder import DualSpaceEncoder
 from memory.multi_dimensional_merger import MultiDimensionalMerger
 from memory.dimension_attention_retriever import DimensionAttentionRetriever
+from memory.field_generator import FieldGenerator, MechanismType
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -43,6 +44,7 @@ config = None
 encoder = None
 multi_merger = None
 dimension_retriever = None
+field_generator = None
 
 # Track analytics data
 analytics_data = {
@@ -436,17 +438,26 @@ def generate_enhanced_llm_context(merged_event, merge_type, merge_id, response_d
 
 def initialize_system():
     """Initialize the memory system and LLM"""
-    global memory_agent, llm_interface, config, encoder, multi_merger, dimension_retriever
+    global memory_agent, llm_interface, config, encoder, multi_merger, dimension_retriever, field_generator
     
     config = get_config()
     memory_agent = MemoryAgent(config)
     llm_interface = LLMInterface(config.llm)
     encoder = DualSpaceEncoder()
     
-    # Initialize multi-dimensional merger with ChromaDB
+    # Initialize field generator with LLM interface
+    field_generator = FieldGenerator(llm_client=llm_interface)
+    
+    # Initialize multi-dimensional merger with ChromaDB and LLM
     multi_merger = MultiDimensionalMerger(
-        chromadb_store=memory_agent.memory_store.chromadb if hasattr(memory_agent.memory_store, 'chromadb') else None
+        chromadb_store=memory_agent.memory_store.chromadb if hasattr(memory_agent.memory_store, 'chromadb') else None,
+        llm_client=llm_interface
     )
+    
+    # Also update the memory store's multi_merger with LLM client
+    if hasattr(memory_agent.memory_store, 'multi_merger'):
+        memory_agent.memory_store.multi_merger.llm_client = llm_interface
+        memory_agent.memory_store.multi_merger.group_field_generator.llm_client = llm_interface
     
     # Attach multi-merger to memory store for access in API endpoints
     memory_agent.memory_store.multi_merger = multi_merger
@@ -598,14 +609,44 @@ def chat():
             llm_response = "I'm processing your request. Could you provide more details?"
 
         # NOW store BOTH user query and assistant response (after generation to avoid self-retrieval)
+        # Add messages to context for better why field generation
+        field_generator.add_to_context(user_message, "User")
+        field_generator.add_to_context(llm_response, "Assistant")
+        
+        # Generate intelligent 'why' field for user query
+        user_why = field_generator.generate_why_field(
+            current_message=user_message,
+            who="User",
+            message_type="query"
+        )
+        
+        # Generate 'how' field for user input
+        user_how = field_generator.generate_how_field(
+            mechanism=MechanismType.CHAT_INTERFACE,
+            details={'interface': 'web'}
+        )
+        
         # Store user input first
         memory_agent.remember(
             who="User",
             what=user_message,
             where="web_chat",
-            why="User query",
-            how="Chat interface",
+            why=user_why,
+            how=user_how,
             event_type="user_input"
+        )
+        
+        # Generate intelligent 'why' field for assistant response
+        assistant_why = field_generator.generate_why_field(
+            current_message=llm_response,
+            who="Assistant",
+            message_type="response"
+        )
+        
+        # Generate 'how' field for assistant response
+        assistant_how = field_generator.generate_how_field(
+            mechanism=MechanismType.LLM_GENERATION,
+            details={'model': config.llm.model if config and hasattr(config.llm, 'model') else 'unknown'}
         )
         
         # Then store assistant response
@@ -613,8 +654,8 @@ def chat():
             who="Assistant",
             what=llm_response,
             where="web_chat",
-            why=f"Response to: {user_message[:50]}",
-            how="LLM generation",
+            why=assistant_why,
+            how=assistant_how,
             event_type="action"
         )
 
@@ -1323,7 +1364,18 @@ def get_multi_merge_details(merge_type, merge_id):
             
             # Metadata
             'created_at': group_data.get('created_at', datetime.utcnow()).isoformat(),
-            'last_updated': group_data.get('last_updated', datetime.utcnow()).isoformat()
+            'last_updated': group_data.get('last_updated', datetime.utcnow()).isoformat(),
+            
+            # Add LLM-generated group characterization fields
+            'group_why': merged_event.group_why if hasattr(merged_event, 'group_why') else '',
+            'group_how': merged_event.group_how if hasattr(merged_event, 'group_how') else '',
+            'group_fields_method': merged_event.group_fields_method if hasattr(merged_event, 'group_fields_method') else '',
+            'group_fields_generated_at': merged_event.group_fields_generated_at.isoformat() if hasattr(merged_event, 'group_fields_generated_at') and merged_event.group_fields_generated_at else '',
+            
+            # Add space dominance information (from our parallel search)
+            'dominant_space': 'balanced',  # Will be updated during retrieval
+            'euclidean_weight': 0.5,  # Default, updated during retrieval
+            'hyperbolic_weight': 0.5  # Default, updated during retrieval
         }
         
         # Format WHO variants - collect from timeline events if available
@@ -1582,12 +1634,40 @@ def create_memory():
     data = request.json
     
     try:
+        # Get the what field (required)
+        what = data.get('what', '')
+        who = data.get('who', 'User')
+        
+        # Generate intelligent 'why' field if not provided
+        why = data.get('why')
+        if not why or why == 'Manual entry':  # Use field generator if default or not provided
+            why = field_generator.generate_why_field(
+                current_message=what,
+                who=who,
+                message_type='observation'
+            )
+        
+        # Generate appropriate 'how' field based on source
+        how = data.get('how')
+        if not how or how == 'Direct input':  # Use field generator if default or not provided
+            # Determine mechanism based on source
+            mechanism = MechanismType.WEB_FORM  # Default for web interface
+            if data.get('source') == 'api':
+                mechanism = MechanismType.API_CALL
+            elif data.get('source') == 'cli':
+                mechanism = MechanismType.CLI_COMMAND
+            
+            how = field_generator.generate_how_field(
+                mechanism=mechanism,
+                details={'interface': data.get('interface', 'web')}
+            )
+        
         success, msg, event = memory_agent.remember(
-            who=data.get('who', 'User'),
-            what=data.get('what', ''),
+            who=who,
+            what=what,
             where=data.get('where', 'web_interface'),
-            why=data.get('why', 'Manual entry'),
-            how=data.get('how', 'Direct input'),
+            why=why,
+            how=how,
             event_type=data.get('type', 'observation'),
             tags=data.get('tags', [])
         )

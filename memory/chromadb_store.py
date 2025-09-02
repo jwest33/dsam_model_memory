@@ -144,6 +144,31 @@ class ChromaDBStore:
             embedding_function=None
         )
         
+        # Create parallel hyperbolic collections for dual-space search
+        self.temporal_merges_hyperbolic = self.client.get_or_create_collection(
+            name="temporal_merges_hyperbolic",
+            metadata={"description": "Hyperbolic embeddings for temporal merge groups", "space": "hyperbolic", "dim": 64},
+            embedding_function=None
+        )
+        
+        self.conceptual_merges_hyperbolic = self.client.get_or_create_collection(
+            name="conceptual_merges_hyperbolic",
+            metadata={"description": "Hyperbolic embeddings for conceptual merge groups", "space": "hyperbolic", "dim": 64},
+            embedding_function=None
+        )
+        
+        self.actor_merges_hyperbolic = self.client.get_or_create_collection(
+            name="actor_merges_hyperbolic",
+            metadata={"description": "Hyperbolic embeddings for actor merge groups", "space": "hyperbolic", "dim": 64},
+            embedding_function=None
+        )
+        
+        self.spatial_merges_hyperbolic = self.client.get_or_create_collection(
+            name="spatial_merges_hyperbolic",
+            metadata={"description": "Hyperbolic embeddings for spatial merge groups", "space": "hyperbolic", "dim": 64},
+            embedding_function=None
+        )
+        
         # Merge membership tracking collection
         self.merge_tracker_collection = self.client.get_or_create_collection(
             name="merge_tracker",

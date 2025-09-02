@@ -59,7 +59,10 @@ class MemoryStore:
         
         # Multi-dimensional merger for handling all dimensional grouping
         from memory.multi_dimensional_merger import MultiDimensionalMerger
-        self.multi_merger = MultiDimensionalMerger(chromadb_store=self.chromadb)
+        self.multi_merger = MultiDimensionalMerger(
+            chromadb_store=self.chromadb
+            # llm_client will be set later if available
+        )
         
         # Unified temporal manager
         self.temporal_manager = TemporalManager(

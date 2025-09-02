@@ -278,6 +278,10 @@ class DimensionAttentionRetriever:
         if not self.chromadb:
             return results
         
+        # For conceptual dimension, use enhanced search with dual embeddings and text
+        if dimension == MergeType.CONCEPTUAL:
+            return self._search_conceptual_dimension(query_embedding, query_fields, k)
+        
         # Special handling for temporal dimension with strong temporal intent
         if dimension == MergeType.TEMPORAL and self.temporal_manager:
             # Detect temporal intent strength
@@ -365,6 +369,238 @@ class DimensionAttentionRetriever:
             logger.error(f"Error searching {dimension.value} dimension: {e}")
         
         return results
+    
+    def _search_conceptual_dimension(self, query_embedding: Tuple[np.ndarray, np.ndarray],
+                                    query_fields: Dict[str, str], k: int) -> List[Tuple[Any, float]]:
+        """
+        Enhanced search for conceptual dimension using parallel dual-space search.
+        
+        Searches both Euclidean and Hyperbolic spaces independently, then merges results
+        based on actual similarity scores rather than predicted space weights.
+        
+        Args:
+            query_embedding: Dual-space query embeddings (euclidean, hyperbolic)
+            query_fields: Query fields
+            k: Number of results
+        
+        Returns:
+            List of (memory, score) tuples
+        """
+        results = []
+        euclidean_collection = self.chromadb.conceptual_merges_collection
+        hyperbolic_collection = self.chromadb.conceptual_merges_hyperbolic if hasattr(self.chromadb, 'conceptual_merges_hyperbolic') else None
+        
+        if not euclidean_collection:
+            return results
+        
+        try:
+            euclidean_emb, hyperbolic_emb = query_embedding
+            query_text = ' '.join([str(v) for v in query_fields.values() if v]).lower()
+            
+            # Step 1: Parallel search in BOTH spaces
+            initial_k = min(k * 2, 30)  # Get candidates from each space
+            
+            # Search Euclidean space
+            euclidean_results = {}
+            try:
+                euclidean_query = euclidean_collection.query(
+                    query_embeddings=[euclidean_emb.tolist()],
+                    n_results=initial_k,
+                    include=['metadatas', 'distances']
+                )
+                if euclidean_query and euclidean_query['ids']:
+                    for i, merge_id in enumerate(euclidean_query['ids'][0]):
+                        euclidean_results[merge_id] = {
+                            'distance': euclidean_query['distances'][0][i],
+                            'metadata': euclidean_query['metadatas'][0][i],
+                            'similarity': 1.0 / (1.0 + euclidean_query['distances'][0][i])
+                        }
+            except Exception as e:
+                if "Nothing found" not in str(e):
+                    logger.debug(f"Euclidean search error: {e}")
+            
+            # Search Hyperbolic space (if available)
+            hyperbolic_results = {}
+            if hyperbolic_collection:
+                try:
+                    hyperbolic_query = hyperbolic_collection.query(
+                        query_embeddings=[hyperbolic_emb.tolist()],
+                        n_results=initial_k,
+                        include=['metadatas', 'distances']
+                    )
+                    if hyperbolic_query and hyperbolic_query['ids']:
+                        for i, merge_id in enumerate(hyperbolic_query['ids'][0]):
+                            # Hyperbolic distance is already in hyperbolic metric
+                            # Convert to similarity (smaller distance = higher similarity)
+                            hyperbolic_results[merge_id] = {
+                                'distance': hyperbolic_query['distances'][0][i],
+                                'metadata': hyperbolic_query['metadatas'][0][i],
+                                'similarity': np.exp(-hyperbolic_query['distances'][0][i])  # Exponential decay
+                            }
+                except Exception as e:
+                    if "Nothing found" not in str(e):
+                        logger.debug(f"Hyperbolic search error: {e}")
+            
+            # Step 2: Merge results from both spaces
+            # Create unified scoring that lets the data determine which space is more relevant
+            all_candidates = {}
+            
+            # Collect all unique candidates from both spaces
+            all_merge_ids = set(euclidean_results.keys()) | set(hyperbolic_results.keys())
+            
+            for merge_id in all_merge_ids:
+                # Get similarities from each space (0 if not in that space's results)
+                euclidean_sim = euclidean_results[merge_id]['similarity'] if merge_id in euclidean_results else 0.0
+                hyperbolic_sim = hyperbolic_results[merge_id]['similarity'] if merge_id in hyperbolic_results else 0.0
+                
+                # Get metadata (prefer from euclidean if available in both)
+                if merge_id in euclidean_results:
+                    metadata = euclidean_results[merge_id]['metadata']
+                elif merge_id in hyperbolic_results:
+                    metadata = hyperbolic_results[merge_id]['metadata']
+                else:
+                    continue
+                
+                # Text similarity score based on group fields
+                text_score = 0.0
+                group_why = metadata.get('group_why', '').lower()
+                group_how = metadata.get('group_how', '').lower()
+                
+                if group_why or group_how:
+                    query_words = set(query_text.split())
+                    why_words = set(group_why.split()) if group_why else set()
+                    how_words = set(group_how.split()) if group_how else set()
+                    
+                    # Calculate Jaccard similarity
+                    why_similarity = len(query_words & why_words) / max(len(query_words | why_words), 1)
+                    how_similarity = len(query_words & how_words) / max(len(query_words | how_words), 1)
+                    
+                    # Check for conceptual keywords in group fields
+                    conceptual_boost = 0.0
+                    for keyword in self.conceptual_keywords:
+                        if keyword in group_why:
+                            conceptual_boost += 0.1
+                        if keyword in group_how:
+                            conceptual_boost += 0.1
+                    
+                    text_score = (why_similarity * 0.5 + how_similarity * 0.3 + min(conceptual_boost, 0.3))
+                
+                # NEW APPROACH: Let the actual similarities determine the weighting
+                # Instead of predicting λ_E and λ_H, we use the relative strength of similarities
+                
+                # Normalize similarities to determine which space is more confident
+                total_embedding_sim = euclidean_sim + hyperbolic_sim
+                if total_embedding_sim > 0:
+                    # Dynamic weights based on which space has stronger signal
+                    euclidean_weight = euclidean_sim / total_embedding_sim
+                    hyperbolic_weight = hyperbolic_sim / total_embedding_sim
+                else:
+                    euclidean_weight = 0.5
+                    hyperbolic_weight = 0.5
+                
+                # Combined score with dynamic weights
+                combined_score = (
+                    euclidean_sim * euclidean_weight * 0.4 +  # Euclidean contribution
+                    hyperbolic_sim * hyperbolic_weight * 0.4 +  # Hyperbolic contribution  
+                    text_score * 0.2  # Text matching contribution
+                )
+                
+                # Store candidate info
+                all_candidates[merge_id] = {
+                    'metadata': metadata,
+                    'euclidean_sim': euclidean_sim,
+                    'hyperbolic_sim': hyperbolic_sim,
+                    'text_score': text_score,
+                    'combined_score': combined_score,
+                    'dominant_space': 'hyperbolic' if hyperbolic_weight > euclidean_weight else 'euclidean'
+                }
+                
+            
+            # Step 3: Sort candidates by combined score and take top k
+            sorted_candidates = sorted(
+                all_candidates.items(), 
+                key=lambda x: x[1]['combined_score'], 
+                reverse=True
+            )[:k]
+            
+            # Step 4: Retrieve actual merge events for top candidates
+            for merge_id, candidate_info in sorted_candidates:
+                metadata = candidate_info['metadata']
+                score = candidate_info['combined_score']
+                
+                # Retrieve the actual merge event
+                merge_event = self._get_merge_event_from_metadata(merge_id, metadata)
+                if merge_event:
+                    results.append((merge_event, score))
+                    
+                    # Log which space was dominant for this result
+                    logger.debug(
+                        f"Conceptual result: {merge_id} "
+                        f"(score: {score:.3f}, "
+                        f"dominant: {candidate_info['dominant_space']}, "
+                        f"E: {candidate_info['euclidean_sim']:.3f}, "
+                        f"H: {candidate_info['hyperbolic_sim']:.3f}, "
+                        f"T: {candidate_info['text_score']:.3f}, "
+                        f"why: '{metadata.get('group_why', '')[:30]}...')"
+                    )
+            
+        except Exception as e:
+            logger.error(f"Error in conceptual dimension search: {e}")
+        
+        return results
+    
+    def _compute_hyperbolic_similarity(self, query_emb: np.ndarray, stored_emb: np.ndarray) -> float:
+        """
+        Compute similarity in hyperbolic space using Poincaré ball model.
+        
+        Args:
+            query_emb: Query hyperbolic embedding
+            stored_emb: Stored hyperbolic embedding
+            
+        Returns:
+            Similarity score between 0 and 1
+        """
+        try:
+            # Ensure embeddings are numpy arrays
+            query_emb = np.array(query_emb)
+            stored_emb = np.array(stored_emb)
+            
+            # Compute hyperbolic distance in Poincaré ball
+            # d_H(u, v) = arcosh(1 + 2 * ||u - v||^2 / ((1 - ||u||^2) * (1 - ||v||^2)))
+            
+            # Compute norms
+            query_norm_sq = np.sum(query_emb ** 2)
+            stored_norm_sq = np.sum(stored_emb ** 2)
+            
+            # Ensure we're within the Poincaré ball (norm < 1)
+            # Clip to avoid numerical issues
+            query_norm_sq = min(query_norm_sq, 0.99)
+            stored_norm_sq = min(stored_norm_sq, 0.99)
+            
+            # Compute difference
+            diff = query_emb - stored_emb
+            diff_norm_sq = np.sum(diff ** 2)
+            
+            # Compute hyperbolic distance
+            denominator = (1 - query_norm_sq) * (1 - stored_norm_sq)
+            if denominator > 0:
+                argument = 1 + 2 * diff_norm_sq / denominator
+                # Ensure argument is valid for arcosh (>= 1)
+                argument = max(argument, 1.0)
+                distance = np.arccosh(argument)
+            else:
+                # If denominator is 0 or negative, points are at boundary
+                distance = float('inf')
+            
+            # Convert distance to similarity (inverse relationship)
+            # Use exponential decay for smooth similarity scores
+            similarity = np.exp(-distance)
+            
+            return float(similarity)
+            
+        except Exception as e:
+            logger.debug(f"Error computing hyperbolic similarity: {e}")
+            return 0.0
     
     def _get_recent_temporal_groups(self, k: int, params: Dict) -> List[Tuple[Any, float]]:
         """

@@ -20,6 +20,7 @@ from models.merge_types import (
     MergeType, MergeStrategy, MERGE_STRATEGIES, MultiMergeTracker
 )
 from memory.smart_merger import SmartMerger
+from memory.merge_group_field_generator import MergeGroupFieldGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -29,19 +30,24 @@ class MultiDimensionalMerger:
     Manages multiple merge dimensions for comprehensive memory organization.
     """
     
-    def __init__(self, chromadb_store=None):
+    def __init__(self, chromadb_store=None, llm_client=None):
         """
         Initialize the multi-dimensional merger.
         
         Args:
             chromadb_store: ChromaDB store instance for persistence
+            llm_client: Optional LLM client for group field generation
         """
         self.chromadb = chromadb_store
+        self.llm_client = llm_client
         self.strategies = MERGE_STRATEGIES
         self.tracker = MultiMergeTracker()
         
         # Original smart merger for similarity calculations
         self.smart_merger = SmartMerger()
+        
+        # Group field generator for intelligent group characterization
+        self.group_field_generator = MergeGroupFieldGenerator(llm_client=llm_client)
         
         # In-memory cache of merge groups
         self.merge_groups = {
@@ -355,6 +361,9 @@ class MultiDimensionalMerger:
         best_match = None
         best_distance = float('inf')
         
+        # For CONCEPTUAL type, track all distances to enforce minimum separation
+        group_distances = [] if merge_type == MergeType.CONCEPTUAL else None
+        
         # For all groups, use semantic similarity
         for group_id, group_data in existing_groups.items():
             # Calculate distance to group centroid
@@ -412,17 +421,12 @@ class MultiDimensionalMerger:
                                     distance = 0.0  # Perfect match for same normalized location
                                     break
                 
-                # For CONCEPTUAL type, check if same concept
+                # For CONCEPTUAL type, rely on semantic embeddings
+                # The embeddings already capture the semantic meaning of why/how fields
                 if merge_type == MergeType.CONCEPTUAL:
-                    event_why = event_data.get('why', '').lower().strip()
-                    event_how = event_data.get('how', '').lower().strip()
-                    for group_event in group_data.get('events', []):
-                        group_why = group_event.get('why', '').lower().strip()
-                        group_how = group_event.get('how', '').lower().strip()
-                        # If either why or how matches exactly, consider it very similar
-                        if (event_why and event_why == group_why) or (event_how and event_how == group_how):
-                            distance = min(distance, 0.1)  # Very close match
-                            break
+                    # Just use the embedding distance without overrides
+                    # The dual-space encoder already encodes the full semantic meaning
+                    pass
                 
                 # Check if should merge with this group based on distance
                 group_events = group_data.get('events', [])
@@ -475,6 +479,7 @@ class MultiDimensionalMerger:
             'merged_event': merged_event,
             'events': [event_data],
             'centroid_embedding': embeddings['euclidean_anchor'].copy(),
+            'hyperbolic_embedding': embeddings.get('hyperbolic_anchor', np.zeros(64)).copy() if 'hyperbolic_anchor' in embeddings else np.zeros(64),
             'created_at': event_timestamp,  # Use event's when timestamp
             'last_updated': event_timestamp,  # Use event's when timestamp
             'system_created_at': datetime.now(timezone.utc),  # Keep system time for merge stats
@@ -482,6 +487,21 @@ class MultiDimensionalMerger:
         }
         
         logger.info(f"Created new {merge_type.value} merge group: {merge_id}")
+        
+        # Generate initial group-level fields for new groups
+        # For new groups, always generate to establish initial characterization
+        try:
+            initial_context = self._build_group_context(merged_event)
+            group_fields = self.group_field_generator.generate_group_fields(
+                merged_event, merge_type, initial_context
+            )
+            merged_event.group_why = group_fields['group_why']
+            merged_event.group_how = group_fields['group_how']
+            merged_event.group_fields_generated_at = datetime.now(timezone.utc)
+            merged_event.group_fields_method = group_fields.get('method', 'llm')
+            logger.debug(f"Generated initial group fields for {merge_id}: why='{merged_event.group_why}', how='{merged_event.group_how}'")
+        except Exception as e:
+            logger.debug(f"Could not generate initial group fields: {e}")
         
         # Save to ChromaDB
         self._update_merge_in_db(merge_type, merge_id, event, event_data)
@@ -548,7 +568,37 @@ class MultiDimensionalMerger:
             (group['centroid_embedding'] * (n - 1) + embeddings['euclidean_anchor']) / n
         )
         
+        # Update hyperbolic embedding if present
+        if 'hyperbolic_anchor' in embeddings:
+            if 'hyperbolic_embedding' not in group:
+                group['hyperbolic_embedding'] = embeddings['hyperbolic_anchor'].copy()
+            else:
+                group['hyperbolic_embedding'] = (
+                    (group['hyperbolic_embedding'] * (n - 1) + embeddings['hyperbolic_anchor']) / n
+                )
+        
         logger.info(f"Added event {event.id} to {merge_type.value} merge group {merge_id}")
+        
+        # Regenerate group fields based on group size
+        # Smaller groups regenerate more frequently to capture evolution
+        should_regenerate = (
+            not merged_event.group_why or  # Always generate if missing
+            self._should_regenerate_based_on_size(merged_event.merge_count)
+        )
+        
+        if should_regenerate:
+            try:
+                context = self._build_group_context(merged_event)
+                group_fields = self.group_field_generator.generate_group_fields(
+                    merged_event, merge_type, context
+                )
+                merged_event.group_why = group_fields['group_why']
+                merged_event.group_how = group_fields['group_how']
+                merged_event.group_fields_generated_at = datetime.now(timezone.utc)
+                merged_event.group_fields_method = group_fields.get('method', 'llm')
+                logger.debug(f"Regenerated group fields for {merge_id} (size {merged_event.merge_count}): why='{merged_event.group_why}'")
+            except Exception as e:
+                logger.debug(f"Could not regenerate group fields: {e}")
         
         # Save updates to ChromaDB
         self._update_merge_in_db(merge_type, merge_id, event, event_data)
@@ -595,16 +645,41 @@ class MultiDimensionalMerger:
             'latest_when': latest_state.get('when', ''),
             'latest_where': latest_state.get('where', ''),
             'latest_why': latest_state.get('why', ''),
-            'latest_how': latest_state.get('how', '')
+            'latest_how': latest_state.get('how', ''),
+            
+            # Add LLM-generated group characterization fields
+            'group_why': merged_event.group_why if hasattr(merged_event, 'group_why') else '',
+            'group_how': merged_event.group_how if hasattr(merged_event, 'group_how') else '',
+            'group_fields_method': merged_event.group_fields_method if hasattr(merged_event, 'group_fields_method') else ''
         }
         
-        # Store or update in ChromaDB
+        # Store or update in ChromaDB (both Euclidean and Hyperbolic collections)
         try:
+            # Store in Euclidean collection
             collection.upsert(
                 ids=[merge_id],
                 embeddings=[group['centroid_embedding'].tolist()],
                 metadatas=[metadata]
             )
+            
+            # Also store in Hyperbolic collection if available
+            if 'hyperbolic_embedding' in group and self.chromadb:
+                hyperbolic_collection = self._get_hyperbolic_collection_for_type(merge_type)
+                if hyperbolic_collection:
+                    # Metadata for hyperbolic collection (can be lighter)
+                    hyperbolic_metadata = {
+                        'merge_type': merge_type.value,
+                        'merge_count': merged_event.merge_count,
+                        'group_why': metadata.get('group_why', ''),
+                        'group_how': metadata.get('group_how', '')
+                    }
+                    hyperbolic_collection.upsert(
+                        ids=[merge_id],
+                        embeddings=[group['hyperbolic_embedding'].tolist()],
+                        metadatas=[hyperbolic_metadata]
+                    )
+                    logger.debug(f"Stored hyperbolic embedding for {merge_type.value} group {merge_id}")
+                    
         except Exception as e:
             logger.error(f"Failed to update merge in DB: {e}")
     
@@ -618,6 +693,19 @@ class MultiDimensionalMerger:
             MergeType.TEMPORAL: self.chromadb.temporal_merges_collection,
             MergeType.CONCEPTUAL: self.chromadb.conceptual_merges_collection,
             MergeType.SPATIAL: self.chromadb.spatial_merges_collection
+        }
+        return mapping.get(merge_type)
+    
+    def _get_hyperbolic_collection_for_type(self, merge_type: MergeType):
+        """Get the hyperbolic ChromaDB collection for a merge type"""
+        if not self.chromadb:
+            return None
+            
+        mapping = {
+            MergeType.ACTOR: getattr(self.chromadb, 'actor_merges_hyperbolic', None),
+            MergeType.TEMPORAL: getattr(self.chromadb, 'temporal_merges_hyperbolic', None),
+            MergeType.CONCEPTUAL: getattr(self.chromadb, 'conceptual_merges_hyperbolic', None),
+            MergeType.SPATIAL: getattr(self.chromadb, 'spatial_merges_hyperbolic', None)
         }
         return mapping.get(merge_type)
     
@@ -799,3 +887,76 @@ class MultiDimensionalMerger:
                         score += 0.5
         
         return score
+    
+    def _build_group_context(self, merged_event: MergedEvent) -> str:
+        """Build LLM context for a merge group"""
+        lines = []
+        latest = merged_event.get_latest_state()
+        
+        lines.append(f"Merge group with {merged_event.merge_count} events")
+        lines.append("\nLatest state:")
+        for key, value in latest.items():
+            if value:
+                lines.append(f"  {key}: {value}")
+        
+        # Add component variations
+        if merged_event.who_variants:
+            lines.append("\nActors involved:")
+            for who in list(merged_event.who_variants.keys())[:5]:
+                lines.append(f"  - {who}")
+        
+        if merged_event.what_variants:
+            lines.append("\nTopics/Actions:")
+            for what in list(merged_event.what_variants.keys())[:5]:
+                lines.append(f"  - {what[:100]}")
+        
+        # Add timeline
+        if merged_event.when_timeline:
+            lines.append("\nTimeline:")
+            for tp in merged_event.when_timeline[:5]:
+                lines.append(f"  - {tp.description or 'Event'} at {tp.timestamp}")
+        
+        return "\n".join(lines)
+    
+    def _should_regenerate_based_on_size(self, merge_count: int) -> bool:
+        """Determine if group fields should regenerate using a scaling function.
+        
+        Uses a logarithmic scaling function where:
+        - Very small groups (1-5): ~80-100% regeneration rate
+        - Small groups (6-20): ~30-60% regeneration rate
+        - Medium groups (21-50): ~15-30% regeneration rate
+        - Large groups (51-100): ~10-15% regeneration rate
+        - Very large groups (100+): ~5-10% regeneration rate
+        
+        The regeneration interval scales smoothly with group size.
+        """
+        import math
+        
+        # Always regenerate for the first few events to establish character
+        if merge_count <= 2:
+            return True
+        
+        # Calculate regeneration interval using logarithmic scaling
+        # This gives us a smooth curve that increases interval with size
+        # Base formula: interval = base * log(size + offset) ^ power
+        base_interval = 1.2  # Minimum interval multiplier (lowered for more frequent updates)
+        log_offset = 1.5  # Offset to control behavior at small sizes (lowered for smoother curve)
+        power_factor = 1.6  # Controls how quickly interval grows (lowered for gentler scaling)
+        
+        # Calculate the regeneration interval
+        interval = base_interval * math.pow(math.log(merge_count + log_offset), power_factor)
+        
+        # Apply a scaling factor that decreases with size (more stability for larger groups)
+        # This makes large groups even more stable
+        size_stability_factor = 1.0 + (merge_count / 100.0) * 0.5  # Increases interval for large groups
+        interval = interval * size_stability_factor
+        
+        # Ensure minimum interval of 1 (can regenerate every event if needed)
+        interval = max(1.0, interval)
+        
+        # Ensure maximum interval (cap at 50 for very large groups)
+        interval = min(50.0, interval)
+        
+        # Determine if we should regenerate at this count
+        # Use modulo with the ceiling of the interval
+        return merge_count % math.ceil(interval) == 0
