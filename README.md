@@ -1,10 +1,18 @@
 # Dual-Space Agentic Memory System (DSAM)
 
-> **Pre-release v2.1** - Functionality may change
+> **Pre-release v2.1** - Advanced semantic memory with multi-dimensional organization
 
 ## Overview
 
-DSAM is a content-addressable memory system for AI agents that uses dual geometric spaces (Euclidean + Hyperbolic) for semantic retrieval. The system features multi-dimensional event merging, adaptive residual learning, and comprehensive provenance tracking.
+DSAM is a content-addressable memory system for AI agents that uses dual geometric spaces (Euclidean + Hyperbolic) for semantic retrieval. The system features multi-dimensional event merging, intelligent field generation, adaptive residual learning, and comprehensive provenance tracking.
+
+## Key Features
+
+- **Dual-Space Embeddings**: Combines Euclidean (768-dim) for local similarity and Hyperbolic (64-dim) for hierarchical relationships
+- **4-Dimensional Merge Groups**: Organizes memories by Actor, Temporal, Conceptual, and Spatial dimensions
+- **Intelligent Field Generation**: LLM-powered generation of 'why' and 'how' fields for semantic context
+- **Cosine Similarity Merging**: Uses cosine distance for all merge types for better high-dimensional similarity
+- **Adaptive Memory Retrieval**: Product distance combining both embedding spaces with query-dependent weights
 
 ## Technical Architecture
 
@@ -13,42 +21,39 @@ DSAM is a content-addressable memory system for AI agents that uses dual geometr
 **Dual-Space Encoder** (`memory/dual_space_encoder.py`)
 - Euclidean space (768-dim): Sentence transformer embeddings for concrete/lexical similarity
 - Hyperbolic space (64-dim): Poincaré ball model for hierarchical/abstract relationships  
-- Query-adaptive weighting between spaces (λ_E + λ_H = 1.0)
+- Product distance retrieval combining both spaces (λ_E + λ_H = 1.0)
 - Field-aware gating for 5W1H composition
+- Geodesic distance calculation in hyperbolic space
 
 **Memory Store** (`memory/memory_store.py`)
 - Content-addressable retrieval without explicit memory IDs
 - Bounded residual adaptation (Euclidean ≤ 0.35, Hyperbolic ≤ 0.75)
 - Momentum-based updates (α=0.9, decay=0.995)
 - Automatic event deduplication (threshold: 0.85)
-- HDBSCAN clustering support
-
-**ChromaDB Backend** (`memory/chromadb_store.py`)
-- Collections: events (merged), raw_events (originals), blocks, metadata, similarity_cache
-- Full 5W1H metadata preservation
-- Bidirectional raw↔merged mapping
-- Persistent vector storage at `./state/chromadb`
+- HDBSCAN clustering support for retrieval
 
 **Multi-Dimensional Merger** (`memory/multi_dimensional_merger.py`)
 - Actor dimension: Groups by participants (who)
-- Temporal dimension: Groups by conversation threads
-- Conceptual dimension: Groups by concepts/goals
+- Temporal dimension: Groups by conversation threads (dynamic windows)
+- Conceptual dimension: Groups by semantic similarity (cosine distance)
 - Spatial dimension: Groups by location context
+- Size-based regeneration with logarithmic scaling
 
-**Temporal Manager** (`memory/temporal_manager.py`)
-- Unified temporal operations and chain tracking
-- Query strength detection (Strong/Moderate/Weak)
-- Episode and conversation thread management
+**Field Generators** 
+- `memory/field_generator.py`: Individual memory field generation with LLM fallback
+- `memory/merge_group_field_generator.py`: Group-level characterization
+- Multiple mechanism types: chat_interface, tool_use, llm_generation, etc.
 
-**Similarity Cache** (`memory/similarity_cache.py`)
-- Pre-computed pairwise similarities
-- O(1) lookup performance
-- Sparse storage (threshold: 0.2)
+**ChromaDB Backend** (`memory/chromadb_store.py`)
+- Collections: events, raw_events, merged_events, similarity_cache
+- Dimensional collections: actor_merges, temporal_merges, conceptual_merges, spatial_merges
+- Full 5W1H metadata preservation
+- Persistent vector storage at `./chroma_db`
 
 ## Installation
 
 ```bash
-git clone https://github.com/jwest33/dsam_model_memory
+git clone https://github.com/jwest33/agent-wip
 cd agent-wip
 python setup_venv.py
 
@@ -63,6 +68,7 @@ source .venv/bin/activate  # Linux/MacOS
 - ChromaDB
 - Sentence Transformers
 - Flask
+- OpenAI API key (optional, for field generation)
 
 ## Usage
 
@@ -70,6 +76,19 @@ source .venv/bin/activate  # Linux/MacOS
 ```bash
 python run_web.py
 # Access at http://localhost:5000
+```
+
+Features:
+- Memory exploration with raw/merged views
+- 4-dimensional merge group visualization
+- Interactive memory graph
+- Analytics dashboard
+- Real-time memory creation
+
+### Load Dataset with Field Generation
+```bash
+python load_llm_dataset.py
+# Generates intelligent 'why' and 'how' fields for memories
 ```
 
 ### CLI Operations
@@ -84,10 +103,16 @@ python cli.py recall --what "feature" --k 10
 python cli.py stats
 ```
 
-### Generate Test Data
+### Analysis Tools
 ```bash
-python benchmark/generate_benchmark_dataset_fast.py
-# Options: Small (100), Medium (500), Large (1000), Extra Large (2000), Massive (5000)
+# Analyze conceptual similarity between groups
+python analyze_conceptual_similarity.py
+
+# Test field generation
+python test_field_generation.py
+
+# Test scaling regeneration
+python test_scaling_regeneration.py
 ```
 
 ## API Endpoints
@@ -102,29 +127,43 @@ python benchmark/generate_benchmark_dataset_fast.py
 
 ## Configuration
 
-Key settings in `config.py`:
+Key parameters:
 
 ```python
-DualSpaceConfig:
-  euclidean_dim: 768
-  hyperbolic_dim: 64
-  euclidean_bound: 0.35
-  hyperbolic_bound: 0.75
-  momentum: 0.9
-  decay_factor: 0.995
-  similarity_threshold: 0.85
+# Embedding Dimensions
+Euclidean: 768 dimensions
+Hyperbolic: 64 dimensions
 
-StorageConfig:
-  chromadb_path: "./state/chromadb"
+# Merge Thresholds (Cosine Distance)
+Conceptual: 0.3
+Spatial: 0.3
+Temporal: 0.5
+Actor: 2.0
+
+# Temporal Windows
+Min: 10 minutes
+Max: 60 minutes (dynamic)
+
+# Regeneration
+Max interval: 50 events
+Logarithmic scaling function
 ```
 
 ## Performance
 
 - Graph visualization: Optimized for ≤200 nodes
 - Real-time updates: <1s for <1000 memories
-- Similarity cache: 100% hit rate after initial population
-- Memory retrieval: ~50ms average for 1000 events
-- Dataset generation: ~0.3-0.5 conversations/sec (LLM mode)
+- Memory retrieval: ~50ms average using dual-space product distance
+- Cosine similarity calculation for merging
+- Size-based regeneration reduces computational overhead
+
+## Architecture Highlights
+
+1. **Dual-Space Retrieval**: Combines Euclidean and Hyperbolic distances for nuanced similarity
+2. **Cosine Similarity Merging**: Better performance in high-dimensional spaces
+3. **Dynamic Temporal Windows**: Adapts to conversation patterns
+4. **Group-Level Characterization**: Generates meaningful descriptions for merge groups
+5. **Intelligent Field Generation**: Context-aware 'why' and 'how' fields
 
 ## License
 

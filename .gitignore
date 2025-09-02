@@ -71,7 +71,6 @@ RESEARCH_PAPER_RECOMMENDATIONS.md
 
 # Model cache
 .cache/
-models/
 
 # Temporary files
 tmp/
