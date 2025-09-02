@@ -93,8 +93,14 @@ class MergeStrategy:
         Returns:
             True if should merge with this group
         """
+        # Debug logging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug(f"should_merge_with_group for {self.merge_type.value}: distance={distance:.3f}, threshold={self.distance_threshold}")
+        
         # Check embedding distance first
         if distance > self.distance_threshold:
+            logger.debug(f"Rejecting {self.merge_type.value} merge: distance {distance:.3f} > threshold {self.distance_threshold}")
             return False
             
         # Type-specific checks
@@ -156,6 +162,11 @@ class MergeStrategy:
                 last_event_time = sorted_events[-1][1]
                 gap_minutes = abs((event_time - last_event_time).total_seconds() / 60)
                 
+                # Debug logging for temporal gap checking
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.debug(f"Temporal merge check: event_time={event_time}, last_event_time={last_event_time}, gap_minutes={gap_minutes:.2f}")
+                
                 # Calculate dynamic window based on group pattern
                 gaps = []
                 for i in range(1, len(sorted_events)):
@@ -176,14 +187,19 @@ class MergeStrategy:
                     dynamic_window = self.temporal_window_min  # Use strategy default (30)
                 
                 # Reject if gap exceeds dynamic window
+                logger.debug(f"Temporal window check: gap={gap_minutes:.2f} min, dynamic_window={dynamic_window:.2f} min, MAX={MAX_TEMPORAL_GAP} min")
                 if gap_minutes > dynamic_window:
+                    logger.info(f"Rejecting temporal merge: gap ({gap_minutes:.2f} min) exceeds window ({dynamic_window:.2f} min)")
                     return False
+                else:
+                    logger.debug(f"Accepting temporal merge: gap ({gap_minutes:.2f} min) within window ({dynamic_window:.2f} min)")
                     
         elif self.merge_type == MergeType.CONCEPTUAL:
             # For conceptual merges, rely mainly on embedding distance
             # which captures semantic similarity
             pass
-            
+        
+        logger.debug(f"Accepting {self.merge_type.value} merge: passed all checks")
         return True
 
 

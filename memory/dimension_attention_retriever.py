@@ -121,6 +121,7 @@ class DimensionAttentionRetriever:
         """Compute attention weight for temporal dimension."""
         # Use the temporal manager if available
         if hasattr(self, 'temporal_manager'):
+            logger.debug(f"Using temporal_manager for attention, has LLM: {self.temporal_manager.llm_client is not None}")
             return self.temporal_manager.compute_temporal_attention_weight(query_fields)
         
         # Fallback to original implementation
@@ -551,6 +552,42 @@ class DimensionAttentionRetriever:
             logger.error(f"Error in conceptual dimension search: {e}")
         
         return results
+    
+    def _get_merge_event_from_metadata(self, merge_id: str, metadata: Dict) -> Optional[Dict]:
+        """
+        Create a lightweight merge event object from metadata.
+        
+        Args:
+            merge_id: The merge event ID
+            metadata: The metadata dictionary from ChromaDB
+            
+        Returns:
+            A dictionary representing the merge event, or None if creation fails
+        """
+        try:
+            # Create a lightweight result object similar to _search_dimension
+            merge_event = {
+                'id': merge_id,
+                'dimension': 'conceptual',
+                'metadata': metadata,
+                'merge_key': metadata.get('merge_key', ''),
+                'event_count': int(metadata.get('merge_count', metadata.get('event_count', 1))),
+                'raw_event_ids': metadata.get('raw_event_ids', '').split(',') if metadata.get('raw_event_ids') else [],
+                # Include the latest state fields
+                'latest_who': metadata.get('latest_who', ''),
+                'latest_what': metadata.get('latest_what', ''),
+                'latest_when': metadata.get('latest_when', ''),
+                'latest_where': metadata.get('latest_where', ''),
+                'latest_why': metadata.get('latest_why', ''),
+                'latest_how': metadata.get('latest_how', ''),
+                # Include group-level fields if available
+                'group_why': metadata.get('group_why', ''),
+                'group_how': metadata.get('group_how', '')
+            }
+            return merge_event
+        except Exception as e:
+            logger.debug(f"Error creating merge event from metadata: {e}")
+            return None
     
     def _compute_hyperbolic_similarity(self, query_emb: np.ndarray, stored_emb: np.ndarray) -> float:
         """

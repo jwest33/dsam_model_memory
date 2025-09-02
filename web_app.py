@@ -469,7 +469,7 @@ def initialize_system():
         similarity_cache=memory_agent.memory_store.similarity_cache if hasattr(memory_agent.memory_store, 'similarity_cache') else None,
         chromadb_store=memory_agent.memory_store.chromadb if hasattr(memory_agent.memory_store, 'chromadb') else None,
         temporal_manager=memory_agent.memory_store.temporal_manager if hasattr(memory_agent.memory_store, 'temporal_manager') else None,
-        llm_client=llm_interface.client if hasattr(llm_interface, 'client') else llm_interface
+        llm_client=llm_interface  # Pass the LLMInterface directly, not the raw client
     )
     
     # Load existing merge groups from ChromaDB
@@ -590,13 +590,35 @@ def chat():
         from datetime import datetime
         current_time = datetime.utcnow().isoformat() + 'Z'
         
+        # Add enhanced temporal guidance if this is a temporal query
+        temporal_guidance = ""
+        if dominant_dimension == MergeType.TEMPORAL:
+            temporal_guidance = (
+                "\n⚠️ TEMPORAL/SEQUENTIAL CONTEXT DETECTED:\n"
+                "The user appears to be asking about the order or sequence of events.\n"
+                "IMPORTANT: Multiple temporal memory groups may be provided below.\n"
+                "Each group contains its own timeline of events.\n"
+                "To find the 'first thing discussed', look for the EARLIEST timestamp across ALL groups.\n"
+                "Compare the timestamps in Event 1 of each temporal group to find the absolute earliest.\n\n"
+            )
+        
         prompt = (
             "You are a helpful AI assistant with access to conversation history stored in memory groups.\n"
             f"Current time: {current_time}\n"
             "Use the memory groups below to understand context and answer the user's question.\n"
             "The memory groups show consolidated information from multiple related events.\n"
             "Each group's timeframe shows when those events occurred.\n"
-            "Answer based on the information provided in the memory groups.\n"
+            f"{temporal_guidance}"
+            "\nWhen answering questions about order, sequence, or timing:\n"
+            "- Sequential terms (first, last, previous, next) refer to chronological order\n"
+            "- For 'first thing': Find the EARLIEST timestamp across ALL memory groups provided\n"
+            "- For 'last thing': Find the MOST RECENT timestamp across ALL memory groups\n"
+            "- Compare timestamps (When: field) across different memory groups\n"
+            "- Example: 2025-08-25T16:10:42Z is earlier than 2025-08-26T21:08:31Z\n"
+            "- The absolute earliest event across all groups is the 'first thing discussed'\n"
+            "- Focus on the specific content ('What' field) when describing what was discussed\n"
+            "- NEVER say 'no record' if events with timestamps are shown in the memory groups\n"
+            "\nAnswer based on the information provided in the memory groups.\n"
             "Be direct and concise.\n\n"
             f"{context}"
             "\nCurrent question:\n"
@@ -1166,7 +1188,7 @@ def get_merged_event_details(memory_id):
             merged_event, 
             merge_type='standard',  # Default to standard merge type
             merge_id=merged_event.id if merged_event else memory_id,
-            timeline_events=timeline_events
+            response_data=response
         )
         
         return jsonify(response)

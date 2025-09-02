@@ -375,9 +375,12 @@ class TemporalQueryHandler:
             extracted_context includes any parsed time references
         """
         # Try LLM-based detection first if available
+        logger.debug(f"LLM client: {self.llm_client}, has is_available: {hasattr(self.llm_client, 'is_available') if self.llm_client else False}")
         if self.llm_client and hasattr(self.llm_client, 'is_available') and self.llm_client.is_available():
+            logger.debug("Using LLM for temporal detection")
             try:
                 llm_result = self._analyze_with_llm(query)
+                logger.debug(f"LLM result: {llm_result}")
                 if llm_result:
                     return llm_result
             except Exception as e:
