@@ -11,10 +11,14 @@ except ImportError:
     GOOGLESEARCH_AVAILABLE = False
 
 try:
-    from duckduckgo_search import DDGS
+    from ddgs import DDGS  # Updated package name
     DUCKDUCKGO_AVAILABLE = True
 except ImportError:
-    DUCKDUCKGO_AVAILABLE = False
+    try:
+        from duckduckgo_search import DDGS  # Fallback to old package name
+        DUCKDUCKGO_AVAILABLE = True
+    except ImportError:
+        DUCKDUCKGO_AVAILABLE = False
 
 
 class WebSearchTool(Tool):

@@ -1,19 +1,100 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Recent Memories</h2>
-<table>
+<style>
+  .memories-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+  }
+  .memories-table th {
+    background-color: #333;
+    color: #fff;
+    padding: 8px;
+    text-align: left;
+    position: sticky;
+    top: 0;
+  }
+  .memories-table td {
+    padding: 8px;
+    border-bottom: 1px solid #ddd;
+    vertical-align: top;
+  }
+  .memories-table tr:hover {
+    background-color: #f5f5f5;
+  }
+  .truncate {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .truncate-long {
+    max-width: 500px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  code.small {
+    font-size: 0.85em;
+  }
+  .metadata {
+    color: #666;
+    font-size: 0.9em;
+  }
+</style>
+
+<table class="memories-table">
   <thead>
-    <tr><th>When</th><th>Who</th><th>What</th><th>ID</th></tr>
+    <tr>
+      <th>When</th>
+      <th>Session</th>
+      <th>Who</th>
+      <th>What</th>
+      <th>Where</th>
+      <th>Why</th>
+      <th>How</th>
+      <th>Tokens</th>
+      <th>Extra</th>
+      <th>ID</th>
+    </tr>
   </thead>
   <tbody>
     {% for r in rows %}
       <tr>
-        <td><code>{{ r['when_ts'] }}</code></td>
-        <td>{{ r['who_type'] }}:{{ r['who_id'] }}</td>
-        <td>{{ r['what'][:120] }}</td>
-        <td><code>{{ r['memory_id'] }}</code></td>
+        <td><code class="small">{{ r['when_ts'][:19] if r['when_ts'] else '-' }}</code></td>
+        <td class="metadata">{{ r['session_id'][:12] if r['session_id'] else '-' }}</td>
+        <td>
+          <div>{{ r['who_type'] }}:{{ r['who_id'] }}</div>
+          {% if r['who_label'] %}
+            <div class="metadata">{{ r['who_label'][:30] }}</div>
+          {% endif %}
+        </td>
+        <td class="truncate-long" title="{{ r['what'] }}">{{ r['what'][:200] if r['what'] else '-' }}</td>
+        <td class="truncate">
+          {% if r['where_type'] or r['where_value'] %}
+            <div>{{ r['where_type'] }}: {{ r['where_value'][:50] if r['where_value'] else '-' }}</div>
+            {% if r['where_lat'] and r['where_lon'] %}
+              <div class="metadata">📍 {{ r['where_lat']|round(4) }}, {{ r['where_lon']|round(4) }}</div>
+            {% endif %}
+          {% else %}
+            -
+          {% endif %}
+        </td>
+        <td class="truncate" title="{{ r['why'] }}">{{ r['why'][:100] if r['why'] else '-' }}</td>
+        <td class="truncate" title="{{ r['how'] }}">{{ r['how'][:100] if r['how'] else '-' }}</td>
+        <td class="metadata">{{ r['token_count'] if r['token_count'] else '-' }}</td>
+        <td class="truncate metadata" title="{{ r['extra_json'] }}">
+          {{ r['extra_json'][:50] if r['extra_json'] else '-' }}
+        </td>
+        <td><code class="small">{{ r['memory_id'][:8] }}...</code></td>
       </tr>
     {% endfor %}
   </tbody>
 </table>
+
+{% if not rows %}
+<p>No memories found.</p>
+{% endif %}
+
 {% endblock %}

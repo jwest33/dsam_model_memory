@@ -32,21 +32,34 @@ class ToolHandler:
         tool_calls = []
         cleaned_response = llm_response
         
-        # Find all tool call patterns
-        pattern = r'<tool_call>(.*?)</tool_call>'
-        matches = re.finditer(pattern, llm_response, re.DOTALL)
+        # Find all tool call patterns - try multiple formats for robustness
+        patterns = [
+            r'<tool_call>(.*?)</tool_call>',
+            r'```tool_call\n(.*?)\n```',
+            r'```json\n(.*?)\n```'  # Some models output as json code blocks
+        ]
         
-        for match in matches:
-            try:
-                tool_data = json.loads(match.group(1))
-                tool_calls.append(ToolCall(
-                    name=tool_data.get("name"),
-                    arguments=tool_data.get("arguments", {})
-                ))
-            except json.JSONDecodeError:
-                logger.warning(f"Invalid JSON in tool call: {match.group(1)[:100]}")
-            # Always remove the tool call tags from response, even if invalid
-            cleaned_response = cleaned_response.replace(match.group(0), "")
+        for pattern in patterns:
+            matches = re.finditer(pattern, llm_response, re.DOTALL)
+            
+            for match in matches:
+                try:
+                    json_str = match.group(1).strip()
+                    # Clean up common formatting issues
+                    json_str = json_str.replace("'", '"')  # Replace single quotes
+                    tool_data = json.loads(json_str)
+                    
+                    # Check if this looks like a tool call
+                    if "name" in tool_data or ("tool" in tool_data and "arguments" in tool_data):
+                        tool_name = tool_data.get("name") or tool_data.get("tool")
+                        tool_calls.append(ToolCall(
+                            name=tool_name,
+                            arguments=tool_data.get("arguments", tool_data.get("params", {}))
+                        ))
+                        # Remove the matched tool call from response
+                        cleaned_response = cleaned_response.replace(match.group(0), "")
+                except (json.JSONDecodeError, AttributeError) as e:
+                    logger.warning(f"Failed to parse potential tool call: {match.group(1)[:100]}, error: {e}")
         
         # Clean up extra whitespace
         cleaned_response = re.sub(r'\n{3,}', '\n\n', cleaned_response).strip()
@@ -84,10 +97,23 @@ class ToolHandler:
         formatted = []
         for result in tool_results:
             if result.success:
-                formatted.append(f"[TOOL_RESULT:{result.name}]\n{result.content}")
+                # Parse JSON results if it's from web_search
+                if result.name == "web_search":
+                    try:
+                        search_data = json.loads(result.content)
+                        formatted_text = f"[Web Search Results for: {search_data.get('query', '')}]\n\n"
+                        for idx, res in enumerate(search_data.get('results', []), 1):
+                            formatted_text += f"{idx}. {res.get('title', 'No title')}\n"
+                            formatted_text += f"   {res.get('snippet', 'No description')}\n"
+                            formatted_text += f"   Source: {res.get('link', '')}\n\n"
+                        formatted.append(formatted_text)
+                    except json.JSONDecodeError:
+                        formatted.append(f"[TOOL_RESULT:{result.name}]\n{result.content}")
+                else:
+                    formatted.append(f"[TOOL_RESULT:{result.name}]\n{result.content}")
             else:
                 formatted.append(f"[TOOL_ERROR:{result.name}]\n{result.error}")
-        return "\n\n".join(formatted)
+        return "\n".join(formatted)
 
     def should_use_tool(self, user_message: str) -> Optional[str]:
         """Check if user message requires tool use."""
@@ -108,13 +134,35 @@ class ToolHandler:
     
     def build_system_prompt_with_tools(self, base_prompt: str) -> str:
         """Build system prompt that includes tool usage instructions."""
-        # If using OpenAI function calling, keep the prompt simple
-        # The tool definitions are passed separately
+        tools_info = []
+        for tool in self.tools.values():
+            tools_info.append(f"- {tool.name}: {tool.description}")
+        
+        tools_list = "\n".join(tools_info)
+        
         return f"""{base_prompt}
 
-You have access to tools including web search.
+## Available Tools
 
-IMPORTANT:
-- Use the web_search tool when users ask for current, real-time, or factual information
-- Do not claim you cannot access current information - use the tools provided
-- Tool results will be provided to you automatically after calling them"""
+You have access to the following tools to help answer questions:
+{tools_list}
+
+## Tool Usage Format
+
+When you need to use a tool, you MUST output it in this EXACT format as the FIRST thing in your response:
+<tool_call>{{"name": "web_search", "arguments": {{"query": "your search query"}}}}</tool_call>
+
+## Examples
+
+User: What's the weather today in Denver?
+Assistant: <tool_call>{{"name": "web_search", "arguments": {{"query": "weather today Denver Colorado"}}}}</tool_call>
+
+User: Tell me the latest news about AI
+Assistant: <tool_call>{{"name": "web_search", "arguments": {{"query": "latest AI news today"}}}}</tool_call>
+
+## Important Rules
+1. For ANY question about current events, weather, news, recent information, or real-time data, you MUST use the web_search tool
+2. Output the tool call FIRST before any explanation
+3. Use valid JSON with double quotes (not single quotes)
+4. Do NOT say "I cannot access current information" - use tools instead
+5. Do NOT explain what you're about to do - just call the tool directly"""
