@@ -14,6 +14,7 @@ import numpy as np
 from collections import defaultdict
 import time
 import psutil
+import threading
 
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent))
@@ -648,56 +649,66 @@ def chat():
         if not llm_response:
             llm_response = "I'm processing your request. Could you provide more details?"
 
-        # NOW store BOTH user query and assistant response (after generation to avoid self-retrieval)
-        # Add messages to context for better why field generation
-        field_generator.add_to_context(user_message, "User")
-        field_generator.add_to_context(llm_response, "Assistant")
+        # Create a background thread for memory storage to avoid delaying the response
+        def store_memories_async():
+            try:
+                # Add messages to context for better why field generation
+                field_generator.add_to_context(user_message, "User")
+                field_generator.add_to_context(llm_response, "Assistant")
+                
+                # Generate intelligent 'why' field for user query
+                user_why = field_generator.generate_why_field(
+                    current_message=user_message,
+                    who="User",
+                    message_type="query"
+                )
+                
+                # Generate 'how' field for user input
+                user_how = field_generator.generate_how_field(
+                    mechanism=MechanismType.CHAT_INTERFACE,
+                    details={'interface': 'web'}
+                )
+                
+                # Store user input first
+                memory_agent.remember(
+                    who="User",
+                    what=user_message,
+                    where="web_chat",
+                    why=user_why,
+                    how=user_how,
+                    event_type="user_input"
+                )
+                
+                # Generate intelligent 'why' field for assistant response
+                assistant_why = field_generator.generate_why_field(
+                    current_message=llm_response,
+                    who="Assistant",
+                    message_type="response"
+                )
+                
+                # Generate 'how' field for assistant response
+                assistant_how = field_generator.generate_how_field(
+                    mechanism=MechanismType.LLM_GENERATION,
+                    details={'model': config.llm.model if config and hasattr(config.llm, 'model') else 'unknown'}
+                )
+                
+                # Then store assistant response
+                memory_agent.remember(
+                    who="Assistant",
+                    what=llm_response,
+                    where="web_chat",
+                    why=assistant_why,
+                    how=assistant_how,
+                    event_type="action"
+                )
+                logger.info(f"Successfully stored memories for chat interaction in background")
+            except Exception as e:
+                logger.error(f"Failed to store memories in background: {e}")
         
-        # Generate intelligent 'why' field for user query
-        user_why = field_generator.generate_why_field(
-            current_message=user_message,
-            who="User",
-            message_type="query"
-        )
-        
-        # Generate 'how' field for user input
-        user_how = field_generator.generate_how_field(
-            mechanism=MechanismType.CHAT_INTERFACE,
-            details={'interface': 'web'}
-        )
-        
-        # Store user input first
-        memory_agent.remember(
-            who="User",
-            what=user_message,
-            where="web_chat",
-            why=user_why,
-            how=user_how,
-            event_type="user_input"
-        )
-        
-        # Generate intelligent 'why' field for assistant response
-        assistant_why = field_generator.generate_why_field(
-            current_message=llm_response,
-            who="Assistant",
-            message_type="response"
-        )
-        
-        # Generate 'how' field for assistant response
-        assistant_how = field_generator.generate_how_field(
-            mechanism=MechanismType.LLM_GENERATION,
-            details={'model': config.llm.model if config and hasattr(config.llm, 'model') else 'unknown'}
-        )
-        
-        # Then store assistant response
-        memory_agent.remember(
-            who="Assistant",
-            what=llm_response,
-            where="web_chat",
-            why=assistant_why,
-            how=assistant_how,
-            event_type="action"
-        )
+        # Start the background thread for memory storage
+        memory_thread = threading.Thread(target=store_memories_async, daemon=True)
+        memory_thread.start()
+        logger.info("Started background thread for memory storage")
 
         # Build response with dimension information and full LLM prompt for tracing
         response_data = {

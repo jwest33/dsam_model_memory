@@ -1,0 +1,65 @@
+{"query": "what is the last thing we discussed", "category": "temporal"}
+{"query": "when did we talk about security", "category": "temporal"}
+{"query": "show me yesterday's conversations", "category": "temporal"}
+{"query": "what happened 5 minutes ago", "category": "temporal"}
+{"query": "timeline of today's events", "category": "temporal"}
+{"query": "what did we discuss last week", "category": "temporal"}
+{"query": "events from this morning", "category": "temporal"}
+{"query": "chronological order of discussions", "category": "temporal"}
+{"query": "history of our conversations", "category": "temporal"}
+{"query": "when was the database updated", "category": "temporal"}
+{"query": "sequence of error messages", "category": "temporal"}
+{"query": "first thing we talked about", "category": "temporal"}
+{"query": "what came after the security discussion", "category": "temporal"}
+{"query": "recent memories", "category": "temporal"}
+{"query": "just now you mentioned", "category": "temporal"}
+{"query": "earlier today we covered", "category": "temporal"}
+{"query": "last time we discussed this", "category": "temporal"}
+{"query": "what happened before that", "category": "temporal"}
+{"query": "how does packet filtering work", "category": "conceptual"}
+{"query": "explain the authentication process", "category": "conceptual"}
+{"query": "when should I use firewall rules", "category": "conceptual"}
+{"query": "what are the best practices for security", "category": "conceptual"}
+{"query": "why does the system crash", "category": "conceptual"}
+{"query": "how to configure network settings", "category": "conceptual"}
+{"query": "when to apply security patches", "category": "conceptual"}
+{"query": "understanding tcp/ip protocols", "category": "conceptual"}
+{"query": "design patterns for authentication", "category": "conceptual"}
+{"query": "principles of network security", "category": "conceptual"}
+{"query": "troubleshooting connection issues", "category": "conceptual"}
+{"query": "what have we discussed", "category": "conceptual"}
+{"query": "topics we covered", "category": "conceptual"}
+{"query": "what have we discussed about firewall configuration", "category": "conceptual"}
+{"query": "our discussion on security protocols", "category": "conceptual"}
+{"query": "explain how the cache works", "category": "conceptual"}
+{"query": "debugging strategies for memory leaks", "category": "conceptual"}
+{"query": "optimization techniques", "category": "conceptual"}
+{"query": "what did I ask about yesterday", "category": "actor"}
+{"query": "show me what john said", "category": "actor"}
+{"query": "who mentioned the bug", "category": "actor"}
+{"query": "what did the assistant explain", "category": "actor"}
+{"query": "my questions about network", "category": "actor"}
+{"query": "what did you tell me about security", "category": "actor"}
+{"query": "alice's comments on the proposal", "category": "actor"}
+{"query": "everyone who discussed the issue", "category": "actor"}
+{"query": "what we agreed upon", "category": "actor"}
+{"query": "user feedback on the feature", "category": "actor"}
+{"query": "team discussions about deployment", "category": "actor"}
+{"query": "what I said earlier", "category": "actor"}
+{"query": "your explanation of the process", "category": "actor"}
+{"query": "who asked about the configuration", "category": "actor"}
+{"query": "what did they suggest", "category": "actor"}
+{"query": "my previous requests", "category": "actor"}
+{"query": "where is the config file", "category": "spatial"}
+{"query": "which module contains the authentication", "category": "spatial"}
+{"query": "files in the backend directory", "category": "spatial"}
+{"query": "location of the database", "category": "spatial"}
+{"query": "frontend components structure", "category": "spatial"}
+{"query": "server configuration path", "category": "spatial"}
+{"query": "where the logs are stored", "category": "spatial"}
+{"query": "api endpoint locations", "category": "spatial"}
+{"query": "system architecture layout", "category": "spatial"}
+{"query": "deployment environment setup", "category": "spatial"}
+{"query": "which service handles authentication", "category": "spatial"}
+{"query": "directory structure of the project", "category": "spatial"}
+{"query": "where errors are logged", "category": "spatial"}

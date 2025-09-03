@@ -27,7 +27,7 @@ class DimensionAttentionRetriever:
     characteristics and retrieves the most relevant memories.
     """
     
-    def __init__(self, encoder, multi_merger, similarity_cache=None, storage_backend=None, temporal_manager=None, llm_client=None):
+    def __init__(self, encoder, multi_merger, similarity_cache=None, storage_backend=None, temporal_manager=None, llm_client=None, use_learned_classifier=True):
         """
         Initialize the dimension attention retriever.
         
@@ -38,6 +38,7 @@ class DimensionAttentionRetriever:
             storage_backend: storage backend for retrieving merge groups
             temporal_manager: Temporal manager for handling temporal queries
             llm_client: Optional LLM client for enhanced temporal detection
+            use_learned_classifier: Whether to use the learned vector-based classifier
         """
         self.encoder = encoder
         self.multi_merger = multi_merger
@@ -45,6 +46,19 @@ class DimensionAttentionRetriever:
         self.storage = storage_backend
         self.temporal_manager = temporal_manager
         self.llm_client = llm_client
+        
+        # Initialize learned classifier if requested
+        self.learned_classifier = None
+        if use_learned_classifier and encoder and storage_backend:
+            try:
+                from memory.learned_dimension_classifier import LearnedDimensionClassifier
+                self.learned_classifier = LearnedDimensionClassifier(
+                    encoder=encoder,
+                    storage_backend=storage_backend
+                )
+                logger.info("Initialized learned dimension classifier")
+            except Exception as e:
+                logger.warning(f"Could not initialize learned classifier: {e}")
         
         # Keywords for dimension detection
         self.actor_keywords = {
@@ -82,6 +96,21 @@ class DimensionAttentionRetriever:
         Returns:
             Dictionary mapping MergeType to attention weight
         """
+        # Try learned classifier first if available
+        if self.learned_classifier:
+            try:
+                learned_weights = self.learned_classifier.classify_query(query_fields)
+                
+                # Optionally store this query for continuous learning
+                # (could be triggered by user feedback later)
+                
+                logger.debug(f"Using learned classifier weights: {learned_weights}")
+                return learned_weights
+                
+            except Exception as e:
+                logger.warning(f"Learned classifier failed, falling back to heuristics: {e}")
+        
+        # Fallback to heuristic-based classification
         weights = {}
         
         # Extract query text for analysis
@@ -102,26 +131,72 @@ class DimensionAttentionRetriever:
         """Compute attention weight for actor dimension."""
         score = 0.0
         
-        # Check if 'who' field is specified
+        # Check if 'who' field is specified - this should be a strong signal
         if query_fields.get('who'):
-            score += 0.5
+            score += 0.6  # Increased from 0.5 for more explicit weighting
         
-        # Check for actor-related keywords
+        # Enhanced: Check for explicit actor references (but reduce weight for temporal contexts)
+        explicit_actor_patterns = [
+            r'\b(i|you|we|they|he|she)\s+(said|mentioned|asked|told|explained)',
+            r'(what\s+did\s+)(i|you|we|they|he|she)\s+',
+            r'(tell\s+me\s+what\s+)(i|you|we|they|he|she)\s+'
+        ]
+        # Note: removed "when did [actor]" pattern as that should be temporal
+        for pattern in explicit_actor_patterns:
+            if re.search(pattern, query_text, re.IGNORECASE):
+                score += 0.4  # Strong boost for explicit actor mentions
+                break
+        
+        # Check for actor-related keywords with adjusted weighting
         actor_matches = sum(1 for keyword in self.actor_keywords if keyword in query_text)
-        score += min(actor_matches * 0.2, 0.5)
+        score += min(actor_matches * 0.25, 0.5)  # Slightly increased from 0.2
         
-        # Check for proper nouns (capitalized words)
+        # Check for proper nouns (capitalized words) - but exclude common start words
         words = query_text.split()
-        proper_nouns = sum(1 for word in words if word and word[0].isupper())
-        score += min(proper_nouns * 0.1, 0.3)
+        # Filter out common sentence starters and short words
+        proper_nouns = sum(1 for i, word in enumerate(words) 
+                          if word and word[0].isupper() 
+                          and i > 0  # Not the first word
+                          and len(word) > 2  # Not too short
+                          and word.lower() not in ['the', 'what', 'when', 'where', 'why', 'how'])
+        score += min(proper_nouns * 0.15, 0.3)  # Slightly increased from 0.1
+        
+        # Special case: if "we" is prominently featured, it's about shared context
+        if query_text.count('we ') > 1 or 'our ' in query_text:
+            score += 0.2
         
         return min(score, 1.0)
     
     def _compute_temporal_attention(self, query_fields: Dict[str, str], query_text: str) -> float:
         """Compute attention weight for temporal dimension."""
+        # Check if query is about a specific topic ("what have we discussed about X")
+        # This pattern should be more conceptual than temporal
+        discussion_about_pattern = r'(what\s+(have\s+)?we\s+(discussed|talked|covered|mentioned))\s+about\s+\S+'
+        if re.search(discussion_about_pattern, query_text):
+            # Check if there's substantial content after "about"
+            about_index = query_text.find('about')
+            if about_index != -1:
+                topic_content = query_text[about_index + 5:].strip()
+                # If there's a specific topic (more than 2 words), reduce temporal weight
+                if len(topic_content.split()) > 2:
+                    # Return a reduced temporal score since this is more conceptual
+                    return 0.2
+        
+        # Check for conceptual "when" usage (when to, when should) - not temporal
+        conceptual_when_patterns = [
+            r'when\s+(to|should|can|could|would)\s+',
+            r'explain\s+when\s+',
+            r'understand\s+when\s+',
+            r'know\s+when\s+'
+        ]
+        for pattern in conceptual_when_patterns:
+            if re.search(pattern, query_text):
+                # This is asking for advice/explanation, not temporal search
+                return 0.1
+        
         # Use the temporal manager if available
-        if hasattr(self, 'temporal_manager'):
-            logger.debug(f"Using temporal_manager for attention, has LLM: {self.temporal_manager.llm_client is not None}")
+        if hasattr(self, 'temporal_manager') and self.temporal_manager is not None:
+            logger.debug(f"Using temporal_manager for attention, has LLM: {hasattr(self.temporal_manager, 'llm_client') and self.temporal_manager.llm_client is not None}")
             return self.temporal_manager.compute_temporal_attention_weight(query_fields)
         
         # Fallback to original implementation
@@ -135,12 +210,19 @@ class DimensionAttentionRetriever:
         strong_temporal_indicators = [
             'last thing', 'just discussed', 'just talked', 'most recent',
             'latest', 'what did we just', 'last time', 'previous message',
-            'before this', 'earlier today', 'a moment ago'
+            'before this', 'earlier today', 'a moment ago', 'just now',
+            'yesterday', 'this morning', 'this afternoon', 'tonight',
+            'minutes ago', 'hours ago', 'days ago', 'last week',
+            'chronological', 'timeline', 'sequence of events'
         ]
         for indicator in strong_temporal_indicators:
             if indicator in query_text:
                 score += 0.7  # Strong boost for explicit temporal phrases
                 break
+        
+        # Check for "when did" pattern - strong temporal indicator
+        if re.search(r'when\s+did\s+', query_text):
+            score += 0.6
         
         # Check for temporal keywords with enhanced weighting
         temporal_matches = sum(1 for keyword in self.temporal_keywords if keyword in query_text)
@@ -151,8 +233,14 @@ class DimensionAttentionRetriever:
         if re.search(date_pattern, query_text):
             score += 0.4  # Increased from 0.3
         
-        # Check for conversation/thread context
+        # Check for conversation/thread context (but only if not about a specific topic)
         if any(word in query_text for word in ['conversation', 'thread', 'discussion', 'chat']):
+            # Don't boost if it's "what have we discussed" without more temporal context
+            if not (query_text.startswith('what have we') or query_text.startswith('what we')):
+                score += 0.3
+        
+        # Check for history/memory keywords that suggest temporal
+        if any(word in query_text for word in ['history', 'recent', 'memories', 'chronological']):
             score += 0.3
         
         return min(score, 1.0)
@@ -167,6 +255,24 @@ class DimensionAttentionRetriever:
             score += 0.4
         if query_fields.get('how'):
             score += 0.3
+        
+        # Enhanced: Check for discussion about specific topics
+        # Pattern: "what have we discussed/talked/covered about [specific topic]"
+        discussion_about_pattern = r'(what\s+(have\s+)?we\s+(discussed|talked|covered|mentioned))\s+about\s+\S+'
+        if re.search(discussion_about_pattern, query_text):
+            # This is asking about conceptual content related to a topic
+            score += 0.5
+            
+            # Extract the topic after "about" to check for technical/conceptual terms
+            about_index = query_text.find('about')
+            if about_index != -1:
+                topic_content = query_text[about_index + 5:].strip()
+                # Check if topic contains technical or conceptual terms
+                technical_terms = ['firewall', 'packet', 'network', 'system', 'algorithm', 
+                                 'implementation', 'architecture', 'protocol', 'security',
+                                 'database', 'api', 'framework', 'design', 'pattern']
+                if any(term in topic_content.lower() for term in technical_terms):
+                    score += 0.3  # Additional boost for technical topics
         
         # Check for conceptual keywords
         conceptual_matches = sum(1 for keyword in self.conceptual_keywords if keyword in query_text)

@@ -911,7 +911,7 @@ def integrate_temporal_with_dual_space(query: Dict[str, str],
     temporal_handler = TemporalQueryHandler(
         encoder=encoder,
         similarity_cache=similarity_cache,
-        storage_store=storage_store,
+        storage_backend=storage_store,  # Fixed: use storage_backend parameter name
         llm_client=llm_client
     )
     

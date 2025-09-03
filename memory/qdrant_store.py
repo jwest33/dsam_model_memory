@@ -1171,6 +1171,46 @@ class QdrantStore:
                         # Log but don't fail - MockCollection is for compatibility only
                         logger.debug(f"MockCollection store failed (non-critical): {e}")
             
+            def query(self, query_embeddings=None, n=5, **kwargs):
+                """Query method for compatibility with dimension attention retriever"""
+                try:
+                    from qdrant_client.models import Filter, FieldCondition, MatchValue
+                    
+                    # Use the Qdrant search method with the merge_type filter
+                    filters = Filter(
+                        must=[FieldCondition(key="merge_type", match=MatchValue(value=self.merge_type))]
+                    )
+                    
+                    # Use first embedding if multiple provided
+                    query_embedding = query_embeddings[0] if isinstance(query_embeddings, list) else query_embeddings
+                    
+                    # Search in merged_events collection
+                    search_results = self.store.client.search(
+                        collection_name="merged_events",
+                        query_vector=("euclidean", query_embedding.tolist() if hasattr(query_embedding, 'tolist') else query_embedding),
+                        limit=n,
+                        query_filter=filters
+                    )
+                    
+                    # Format results to match expected structure
+                    ids = []
+                    metadatas = []
+                    distances = []
+                    
+                    for result in search_results:
+                        ids.append(result.id)
+                        metadatas.append(result.payload)
+                        distances.append(result.score)
+                    
+                    return {
+                        'ids': [ids],  # Wrap in list for compatibility
+                        'metadatas': [metadatas],
+                        'distances': [distances]
+                    }
+                except Exception as e:
+                    logger.warning(f"MockCollection.query failed: {e}")
+                    return {'ids': [[]], 'metadatas': [[]], 'distances': [[]]}
+            
             def get(self, **kwargs):
                 # Forward to QdrantStore with merge_type filter
                 try:

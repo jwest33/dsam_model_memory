@@ -341,10 +341,7 @@ async function handleChatSubmit(e) {
             dominant_dimension: data.dominant_dimension
         });
         
-        // Update dimension weights display if present
-        if (data.dimension_weights) {
-            updateDimensionWeights(data.dimension_weights, data.dominant_dimension);
-        }
+        // Dimension weights are now displayed inline with each message
         
     } catch (error) {
         console.error('Chat error:', error);
@@ -442,17 +439,35 @@ function addChatMessage(message, sender, metadata = {}) {
     const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     messageDiv.id = messageId;
     
-    let spaceIndicator = '';
-    if (metadata.space_weights) {
-        const euclideanPct = Math.round(metadata.space_weights.euclidean * 100);
-        const hyperbolicPct = Math.round(metadata.space_weights.hyperbolic * 100);
-        spaceIndicator = `
-            <div class="space-indicator mt-2">
+    let dimensionIndicator = '';
+    if (metadata.dimension_weights) {
+        // Create dimension weights display similar to the merge dimension bar
+        const dimensions = ['actor', 'temporal', 'conceptual', 'spatial'];
+        const colors = {
+            'actor': '#ff6384',      // Red
+            'temporal': '#36a2eb',   // Blue
+            'conceptual': '#ffce56', // Yellow
+            'spatial': '#4bc0c0'     // Teal
+        };
+        
+        let bars = '';
+        let labels = '';
+        
+        for (const dim of dimensions) {
+            if (metadata.dimension_weights[dim] !== undefined) {
+                const weight = Math.round(metadata.dimension_weights[dim] * 100);
+                bars += `<div class="progress-bar" style="background-color: ${colors[dim]}; width: ${weight}%"></div>`;
+                labels += `<span class="me-2" style="color: ${colors[dim]};">${dim.charAt(0).toUpperCase() + dim.slice(1)}: ${weight}%</span>`;
+            }
+        }
+        
+        dimensionIndicator = `
+            <div class="dimension-indicator mt-2">
                 <div class="progress" style="height: 10px;">
-                    <div class="progress-bar bg-info" style="width: ${euclideanPct}%"></div>
-                    <div class="progress-bar bg-warning" style="width: ${hyperbolicPct}%"></div>
+                    ${bars}
                 </div>
-                <small class="text-muted">E: ${euclideanPct}% | H: ${hyperbolicPct}%</small>
+                <small class="text-muted">${labels}</small>
+                ${metadata.dominant_dimension ? `<small class="text-info ms-2">(Dominant: ${metadata.dominant_dimension})</small>` : ''}
             </div>
         `;
     }
@@ -469,7 +484,7 @@ function addChatMessage(message, sender, metadata = {}) {
             ${clickIndicator}
         </div>
         <div class="message-content" ${sender === 'assistant' && metadata.memories_used > 0 ? 'style="cursor: pointer;"' : ''}>${escapeHtml(message)}</div>
-        ${spaceIndicator}
+        ${dimensionIndicator}
         <div class="memory-details-container" style="display: none;"></div>
     `;
     
@@ -3905,6 +3920,15 @@ function initializeMergedEventModal(mergedEvent) {
 
 // Enhanced function to check if memory is merged and display accordingly
 window.viewMemoryDetails = async function(memoryId) {
+    // Check if we're in raw view mode
+    const rawView = document.getElementById('rawView');
+    const isRawViewActive = rawView && rawView.checked;
+    
+    // If in raw view, always show individual memory details
+    if (isRawViewActive) {
+        return window.viewMemoryDetailsOriginal(memoryId);
+    }
+    
     // Check if this is a multi-dimensional merge ID (e.g., temporal_xxx, actor_xxx, etc.)
     const multiDimPattern = /^(temporal|actor|conceptual|spatial)_/;
     if (multiDimPattern.test(memoryId)) {
@@ -3918,7 +3942,7 @@ window.viewMemoryDetails = async function(memoryId) {
         return window.viewMemoryDetailsOriginal(memoryId);
     }
     
-    // For non-raw events, try to get it as a merged event
+    // For non-raw events in merged view, try to get it as a merged event
     try {
         await viewMergedEventDetails(memoryId);
     } catch (error) {
