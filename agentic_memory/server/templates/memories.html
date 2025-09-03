@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Recent Memories</h2>
+<table>
+  <thead>
+    <tr><th>When</th><th>Who</th><th>What</th><th>ID</th></tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+      <tr>
+        <td><code>{{ r['when_ts'] }}</code></td>
+        <td>{{ r['who_type'] }}:{{ r['who_id'] }}</td>
+        <td>{{ r['what'][:120] }}</td>
+        <td><code>{{ r['memory_id'] }}</code></td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
