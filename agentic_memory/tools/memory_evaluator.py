@@ -133,49 +133,38 @@ class MemoryEvaluator:
     def evaluate_memories(cls, query: str, memories: List[Dict]) -> Dict:
         """
         Evaluate if memories can answer the query or if tools are needed.
-        
-        Returns:
-            {
-                'needs_tool': bool,
-                'reason': str,
-                'query_type': str,
-                'valid_memories': List[Dict],
-                'invalid_memories': List[Dict]
-            }
+        Simply checks if ANY memories exist and their age.
         """
         query_type = cls.classify_query_type(query)
         
         valid_memories = []
         invalid_memories = []
         
+        # Check ALL memories for temporal validity - no content filtering
         for memory in memories:
-            # Check if memory is about the same topic
-            memory_text = memory.get('what', '') + ' ' + memory.get('raw_text', '')
-            
-            # Simple relevance check (could be enhanced)
-            if cls._is_relevant(query, memory_text):
-                # Check temporal validity
-                timestamp = memory.get('when_ts') or memory.get('created_at')
-                if timestamp:
-                    is_valid, reason = cls.is_memory_valid(timestamp, query_type)
-                    if is_valid:
-                        valid_memories.append({**memory, 'validity_reason': reason})
-                    else:
-                        invalid_memories.append({**memory, 'validity_reason': reason})
+            timestamp = memory.get('when_ts') or memory.get('created_at')
+            if timestamp:
+                is_valid, reason = cls.is_memory_valid(timestamp, query_type)
+                if is_valid:
+                    valid_memories.append({**memory, 'validity_reason': reason})
+                else:
+                    invalid_memories.append({**memory, 'validity_reason': reason})
         
-        # Determine if we need tools
-        needs_tool = len(valid_memories) == 0 and query_type in [
+        # Determine if we need tools based on whether we have ANY valid memories
+        time_sensitive_types = [
             'weather_current', 'weather_today', 'weather_forecast',
             'stock_price', 'cryptocurrency', 'news_breaking', 
             'news_daily', 'sports_score', 'traffic'
         ]
         
+        needs_tool = len(valid_memories) == 0 and query_type in time_sensitive_types
+        
         if needs_tool:
-            reason = f"No valid recent memories found for {query_type}. Tool needed for fresh data."
+            reason = f"No recent memories found for {query_type}. Tool needed for fresh data."
         elif valid_memories:
-            reason = f"Found {len(valid_memories)} valid memories for {query_type}."
+            reason = f"Found {len(valid_memories)} recent memories that may contain {query_type} information."
         else:
-            reason = f"No relevant memories found, but query type '{query_type}' may not require tools."
+            reason = f"Memories exist but may be outdated for {query_type}."
         
         return {
             'needs_tool': needs_tool,
@@ -185,23 +174,6 @@ class MemoryEvaluator:
             'invalid_memories': invalid_memories
         }
     
-    @staticmethod
-    def _is_relevant(query: str, memory_text: str) -> bool:
-        """Simple relevance check - can be enhanced with embeddings."""
-        query_words = set(query.lower().split())
-        memory_words = set(memory_text.lower().split())
-        
-        # Remove common words
-        common_words = {'the', 'is', 'at', 'which', 'on', 'a', 'an', 'and', 'or', 'but', 'in', 'with', 'to', 'for'}
-        query_words -= common_words
-        memory_words -= common_words
-        
-        # Check overlap
-        overlap = query_words & memory_words
-        if len(query_words) > 0:
-            relevance = len(overlap) / len(query_words)
-            return relevance > 0.3  # 30% word overlap threshold
-        return False
     
     
     @classmethod

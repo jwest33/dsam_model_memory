@@ -89,23 +89,26 @@ You may reference the [MEM:<id>] annotations to ground your reply."""
 
     llm_messages += messages
     
-    # Intelligent memory evaluation for tool decision
-    # Extract relevant memories from the block for evaluation
-    relevant_memories = []
-    if 'members' in block['block']:
-        # Get the actual memory content for evaluation
-        import sqlite3
-        con = sqlite3.connect(cfg.db_path)
-        con.row_factory = sqlite3.Row
-        member_ids = block['block']['members'][:10]  # Check first 10 memories
-        if member_ids:
-            placeholders = ','.join('?' * len(member_ids))
-            query = f"SELECT * FROM memories WHERE memory_id IN ({placeholders})"
-            relevant_memories = [dict(row) for row in con.execute(query, member_ids).fetchall()]
-        con.close()
+    # Simple evaluation based on query type - let the LLM decide based on actual retrieved memories
+    query_type = MemoryEvaluator.classify_query_type(user_text)
     
-    # Evaluate if memories are sufficient or if tools are needed
-    evaluation = MemoryEvaluator.evaluate_memories(user_text, relevant_memories)
+    # For time-sensitive queries, suggest using tools
+    time_sensitive_types = [
+        'weather_current', 'weather_today', 'weather_forecast',
+        'stock_price', 'cryptocurrency', 'news_breaking', 
+        'news_daily', 'sports_score', 'traffic'
+    ]
+    
+    should_suggest_tool = query_type in time_sensitive_types
+    
+    # Create a simple evaluation result
+    evaluation = {
+        'needs_tool': should_suggest_tool,
+        'query_type': query_type,
+        'reason': f"Query type '{query_type}' typically benefits from fresh data" if should_suggest_tool else f"Query type '{query_type}' can use existing memories",
+        'valid_memories': [],
+        'invalid_memories': []
+    }
     
     print(f"\n=== Memory Evaluation ===")
     print(f"Query Type: {evaluation['query_type']}")
@@ -198,11 +201,18 @@ Format your tool call as:
         llm_messages.append({"role": "assistant", "content": tool_message})
         
         # Add explicit instruction to use the tool results
-        # Tailor the prompt based on the query type
-        if 'weather' in user_text.lower():
-            follow_up = "Based on the search results above, please summarize the current weather conditions and forecast."
-        else:
-            follow_up = "Based on the search results above, please provide a helpful and accurate answer to the user's question."
+        # Provide clear guidance on using the search results
+        follow_up = f"""The web search has been completed. Here are the search results above.
+
+Based on these search results, please provide the best answer you can to the user's original question: "{user_text}"
+
+Important instructions:
+1. If the search results contain relevant information, use it to answer the question
+2. If the results are not directly about the topic but mention related information, extract what's useful
+3. If the results don't contain the specific information needed, acknowledge this and suggest what the user should do next
+4. Be specific about what information you found or didn't find
+
+Please provide your response now:"""
         
         llm_messages.append({"role": "user", "content": follow_up})
         
