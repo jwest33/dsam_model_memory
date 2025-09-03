@@ -2,15 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Agentic Memory</title>
+  <title>Journalistic Agent Memory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='synthwave-theme.css') }}">
 </head>
 <body>
   <header>
-    <h1>Agentic Memory Framework</h1>
+    <span class="badge bg-purple ms-2">[JAM]</span>
+    <h1>Journalistic Agent Memory</h1>
     <nav>
-      <a href="/">Chat</a> | <a href="/memories">Memories</a>
+      <a href="/" {% if request.endpoint == 'chat' %}class="active"{% endif %}>Chat</a>
+      <a href="/memories" {% if request.endpoint == 'memories' %}class="active"{% endif %}>Memories</a>
     </nav>
   </header>
   <main>
