@@ -8,8 +8,10 @@
 </head>
 <body>
   <header>
-    <span class="badge bg-purple ms-2">[JAM]</span>
-    <h1>Journalistic Agent Memory</h1>
+    <div style="display: flex; align-items: center; gap: 1rem;">
+      <h4 style="margin: 0;">[JAM]</h4>
+      <h1 style="margin: 0;">Journalistic Agent Memory</h1>
+    </div>
     <nav>
       <a href="/" {% if request.endpoint == 'chat' %}class="active"{% endif %}>Chat</a>
       <a href="/memories" {% if request.endpoint == 'memories' %}class="active"{% endif %}>Memories</a>
