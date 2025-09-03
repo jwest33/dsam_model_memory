@@ -9,6 +9,10 @@
     <textarea id="input" placeholder="Say something..."></textarea>
     <button id="send">Send</button>
   </div>
+  <div id="loading-indicator" class="loading-container" style="display: none;">
+    <div class="spinner"></div>
+    <div class="loading-text">Processing your query...</div>
+  </div>
   <pre id="reply"></pre>
 </section>
 <script>
@@ -16,21 +20,53 @@ const sendBtn = document.getElementById('send');
 const input = document.getElementById('input');
 const session = document.getElementById('session');
 const replyEl = document.getElementById('reply');
+const loadingIndicator = document.getElementById('loading-indicator');
 let messages = [];
+let isProcessing = false;
 
 sendBtn.onclick = async () => {
   const text = input.value.trim();
-  if(!text) return;
-  const res = await fetch('/api/chat', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({session_id: session.value, text, messages})
-  });
-  const data = await res.json();
-  messages.push({role:'user', content:text});
-  messages.push({role:'assistant', content:data.reply});
-  replyEl.textContent = data.reply + "\n\n---\nBlock summary: " + JSON.stringify(data.block?.block || {}, null, 2);
-  input.value = '';
+  if(!text || isProcessing) return;
+  
+  // Set processing state
+  isProcessing = true;
+  
+  // Show loading indicator
+  loadingIndicator.style.display = 'flex';
+  sendBtn.disabled = true;
+  sendBtn.textContent = 'Processing...';
+  input.disabled = true;
+  
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({session_id: session.value, text, messages})
+    });
+    const data = await res.json();
+    messages.push({role:'user', content:text});
+    messages.push({role:'assistant', content:data.reply});
+    replyEl.textContent = data.reply + "\n\n---\nBlock summary: " + JSON.stringify(data.block?.block || {}, null, 2);
+    input.value = '';
+  } catch (error) {
+    replyEl.textContent = 'Error: ' + error.message;
+  } finally {
+    // Hide loading indicator and reset state
+    loadingIndicator.style.display = 'none';
+    sendBtn.disabled = false;
+    sendBtn.textContent = 'Send';
+    input.disabled = false;
+    isProcessing = false;
+    input.focus();
+  }
 };
+
+// Allow sending with Enter key when not processing
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey && !isProcessing) {
+    e.preventDefault();
+    sendBtn.click();
+  }
+});
 </script>
 {% endblock %}
