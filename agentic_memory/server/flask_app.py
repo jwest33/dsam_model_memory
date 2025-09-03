@@ -19,7 +19,7 @@ index = FaissIndex(dim=384, index_path=cfg.index_path)
 router = MemoryRouter(store, index)
 tool_handler = ToolHandler()
 
-def llama_chat(messages, tools_enabled=False):
+def llama_chat(messages, tools_enabled=False, tool_definitions=None):
     url = f"{cfg.llm_base_url}/chat/completions"
     headers = {"Content-Type": "application/json"}
     body = {
@@ -28,9 +28,45 @@ def llama_chat(messages, tools_enabled=False):
         "temperature": 0.2,
         "stream": False
     }
-    r = requests.post(url, headers=headers, json=body, timeout=120)
-    r.raise_for_status()
-    return r.json()["choices"][0]["message"]["content"], r.json()
+    
+    # Add tool definitions if enabled (OpenAI function calling format)
+    if tools_enabled and tool_definitions:
+        body["tools"] = tool_definitions
+        body["tool_choice"] = "auto"
+    
+    try:
+        r = requests.post(url, headers=headers, json=body, timeout=120)
+        r.raise_for_status()
+        response_json = r.json()
+        message = response_json["choices"][0]["message"]
+        
+        # Check for tool calls in OpenAI format
+        if "tool_calls" in message and message["tool_calls"]:
+            # Convert OpenAI format to our format
+            content_parts = []
+            for tc in message["tool_calls"]:
+                tool_call_json = {
+                    "name": tc["function"]["name"],
+                    "arguments": json.loads(tc["function"]["arguments"])
+                }
+                content_parts.append(f'<tool_call>{json.dumps(tool_call_json)}</tool_call>')
+            content = "\n".join(content_parts)
+        else:
+            content = message.get("content", "")
+        
+        return content, response_json
+    except Exception as e:
+        print(f"LLM call error: {e}")
+        # Fallback to simple format if function calling not supported
+        if tools_enabled and "tools" in body:
+            del body["tools"]
+            if "tool_choice" in body:
+                del body["tool_choice"]
+            r = requests.post(url, headers=headers, json=body, timeout=120)
+            r.raise_for_status()
+            response_json = r.json()
+            return response_json["choices"][0]["message"]["content"], response_json
+        raise
 
 @app.route('/', methods=['GET'])
 def index():
@@ -57,8 +93,20 @@ def api_chat():
         # record usage
         store.record_access(block['members'])
 
+    # Check if user message likely needs a tool
+    suggested_tool = tool_handler.should_use_tool(user_text)
+    
     # Construct LLM messages with tool support
-    base_prompt = "You are a helpful assistant. You may reference the [MEM:<id>] annotations to ground your reply. Ask for 'memory.fetch_next' if a pointer indicates more."
+    if suggested_tool:
+        base_prompt = f"""You are a helpful assistant with memory capabilities.
+The user is asking for information that requires using the {suggested_tool} tool.
+You MUST use the {suggested_tool} tool to answer this query.
+Do not say you cannot access current information - use the tools provided."""
+    else:
+        base_prompt = """You are a helpful assistant with memory capabilities.
+You may reference the [MEM:<id>] annotations to ground your reply.
+Use tools when users ask for current/real-time information."""
+    
     sys_prompt = tool_handler.build_system_prompt_with_tools(base_prompt)
     
     llm_messages = [{"role":"system","content":sys_prompt}]
@@ -68,15 +116,40 @@ def api_chat():
     llm_messages += messages
     llm_messages.append({"role":"user","content":user_text})
 
-    # Initial LLM response
-    reply, raw_json = llama_chat(llm_messages, tools_enabled=True)
+    # Get tool definitions in OpenAI format if tools are available
+    tool_definitions = None
+    if tool_handler.tools:
+        tool_definitions = []
+        for tool in tool_handler.tools.values():
+            tool_def = {
+                "type": "function",
+                "function": {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "parameters": tool.parameters
+                }
+            }
+            tool_definitions.append(tool_def)
+    
+    # Initial LLM response with tool definitions
+    reply, raw_json = llama_chat(llm_messages, tools_enabled=True, tool_definitions=tool_definitions)
     
     # Check for tool calls
     cleaned_reply, tool_calls = tool_handler.parse_tool_calls(reply)
     
+    # Log for debugging
+    if tool_calls:
+        print(f"Detected {len(tool_calls)} tool calls from LLM response")
+        for tc in tool_calls:
+            print(f"  - {tc.name}: {tc.arguments}")
+    elif tool_handler.should_use_tool(user_text):
+        # User likely wants a tool but LLM didn't use it
+        print(f"User message suggests tool use but LLM didn't call any tools")
+    
     if tool_calls:
         # Execute tools and store as memories
         tool_results = []
+        print(f"Executing {len(tool_calls)} tool calls...")
         for tool_call in tool_calls:
             # Store tool call as memory
             tool_call_event = RawEvent(
@@ -91,6 +164,7 @@ def api_chat():
             # Execute tool
             result = tool_handler.execute_tool(tool_call)
             tool_results.append(result)
+            print(f"Tool {tool_call.name} executed: success={result.success}")
             
             # Store tool result as memory
             tool_result_event = RawEvent(
@@ -106,8 +180,8 @@ def api_chat():
         tool_message = tool_handler.format_tool_message(tool_results)
         llm_messages.append({"role": "system", "content": tool_message})
         
-        # Get final LLM response after tool execution
-        final_reply, _ = llama_chat(llm_messages, tools_enabled=False)
+        # Get final LLM response after tool execution (no more tools)
+        final_reply, _ = llama_chat(llm_messages, tools_enabled=False, tool_definitions=None)
         
         # Combine cleaned initial response with final response
         full_reply = cleaned_reply

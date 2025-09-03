@@ -2,6 +2,9 @@ from __future__ import annotations
 import json
 import re
 from typing import List, Dict, Any, Optional, Tuple
+import logging
+
+logger = logging.getLogger(__name__)
 from .base import Tool, ToolCall, ToolResult
 from .web_search import WebSearchTool
 
@@ -41,7 +44,7 @@ class ToolHandler:
                     arguments=tool_data.get("arguments", {})
                 ))
             except json.JSONDecodeError:
-                pass  # Invalid JSON, skip this tool call
+                logger.warning(f"Invalid JSON in tool call: {match.group(1)[:100]}")
             # Always remove the tool call tags from response, even if invalid
             cleaned_response = cleaned_response.replace(match.group(0), "")
         
@@ -49,6 +52,7 @@ class ToolHandler:
         cleaned_response = re.sub(r'\n{3,}', '\n\n', cleaned_response).strip()
         
         return cleaned_response, tool_calls
+    
 
     def execute_tool(self, tool_call: ToolCall) -> ToolResult:
         if tool_call.name not in self.tools:
@@ -85,25 +89,32 @@ class ToolHandler:
                 formatted.append(f"[TOOL_ERROR:{result.name}]\n{result.error}")
         return "\n\n".join(formatted)
 
+    def should_use_tool(self, user_message: str) -> Optional[str]:
+        """Check if user message requires tool use."""
+        message_lower = user_message.lower()
+        
+        # Keywords that strongly suggest web search is needed
+        search_triggers = [
+            'current', 'today', 'now', 'latest', 'recent',
+            'search', 'look up', 'find out', 'check',
+            'weather', 'news', 'price', 'stock',
+            'what is the date', 'what time',
+        ]
+        
+        if any(trigger in message_lower for trigger in search_triggers):
+            return 'web_search'
+        
+        return None
+    
     def build_system_prompt_with_tools(self, base_prompt: str) -> str:
-        """Build system prompt that includes tool definitions."""
-        tool_descriptions = []
-        for tool in self.tools.values():
-            params_str = json.dumps(tool.parameters, indent=2)
-            tool_descriptions.append(
-                f"- {tool.name}: {tool.description}\n"
-                f"  Parameters: {params_str}"
-            )
-        
-        tools_section = "\n".join(tool_descriptions)
-        
+        """Build system prompt that includes tool usage instructions."""
+        # If using OpenAI function calling, keep the prompt simple
+        # The tool definitions are passed separately
         return f"""{base_prompt}
 
-You have access to the following tools:
-{tools_section}
+You have access to tools including web search.
 
-To use a tool, include it in your response using this format:
-<tool_call>{{"name": "tool_name", "arguments": {{"param1": "value1"}}}}</tool_call>
-
-You can call multiple tools in a single response. Always provide your reasoning before making tool calls.
-When you receive tool results, incorporate them naturally into your response."""
+IMPORTANT:
+- Use the web_search tool when users ask for current, real-time, or factual information
+- Do not claim you cannot access current information - use the tools provided
+- Tool results will be provided to you automatically after calling them"""
