@@ -6,17 +6,20 @@ from ..storage.sql_store import MemoryStore
 from ..storage.faiss_index import FaissIndex
 from ..router import MemoryRouter
 from ..types import RawEvent
+from ..tools.tool_handler import ToolHandler
 
 import requests
 from datetime import datetime
+import json
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 store = MemoryStore(cfg.db_path)
 # Assume dim from embed model default 384 for all-MiniLM-L6-v2; can be inferred dynamically
 index = FaissIndex(dim=384, index_path=cfg.index_path)
 router = MemoryRouter(store, index)
+tool_handler = ToolHandler()
 
-def llama_chat(messages):
+def llama_chat(messages, tools_enabled=False):
     url = f"{cfg.llm_base_url}/chat/completions"
     headers = {"Content-Type": "application/json"}
     body = {
@@ -54,8 +57,10 @@ def api_chat():
         # record usage
         store.record_access(block['members'])
 
-    # Construct LLM messages
-    sys_prompt = "You are a helpful assistant. You may reference the [MEM:<id>] annotations to ground your reply. Ask for 'memory.fetch_next' if a pointer indicates more."
+    # Construct LLM messages with tool support
+    base_prompt = "You are a helpful assistant. You may reference the [MEM:<id>] annotations to ground your reply. Ask for 'memory.fetch_next' if a pointer indicates more."
+    sys_prompt = tool_handler.build_system_prompt_with_tools(base_prompt)
+    
     llm_messages = [{"role":"system","content":sys_prompt}]
     if mem_texts:
         llm_messages.append({"role":"system","content":"\n\n".join(mem_texts)})
@@ -63,13 +68,67 @@ def api_chat():
     llm_messages += messages
     llm_messages.append({"role":"user","content":user_text})
 
-    reply, raw_json = llama_chat(llm_messages)
+    # Initial LLM response
+    reply, raw_json = llama_chat(llm_messages, tools_enabled=True)
+    
+    # Check for tool calls
+    cleaned_reply, tool_calls = tool_handler.parse_tool_calls(reply)
+    
+    if tool_calls:
+        # Execute tools and store as memories
+        tool_results = []
+        for tool_call in tool_calls:
+            # Store tool call as memory
+            tool_call_event = RawEvent(
+                session_id=session_id,
+                event_type='tool_call',
+                actor=f'tool:{tool_call.name}',
+                content=json.dumps({"name": tool_call.name, "arguments": tool_call.arguments}),
+                metadata={'location': 'flask_ui', 'tool_type': 'request'}
+            )
+            router.ingest(tool_call_event)
+            
+            # Execute tool
+            result = tool_handler.execute_tool(tool_call)
+            tool_results.append(result)
+            
+            # Store tool result as memory
+            tool_result_event = RawEvent(
+                session_id=session_id,
+                event_type='tool_result',
+                actor=f'tool:{tool_call.name}',
+                content=result.content if result.success else f"Error: {result.error}",
+                metadata={'location': 'flask_ui', 'tool_type': 'response', 'success': result.success}
+            )
+            router.ingest(tool_result_event)
+        
+        # Add tool results to context and get final response
+        tool_message = tool_handler.format_tool_message(tool_results)
+        llm_messages.append({"role": "system", "content": tool_message})
+        
+        # Get final LLM response after tool execution
+        final_reply, _ = llama_chat(llm_messages, tools_enabled=False)
+        
+        # Combine cleaned initial response with final response
+        full_reply = cleaned_reply
+        if cleaned_reply and final_reply:
+            full_reply += "\n\n" + final_reply
+        elif final_reply:
+            full_reply = final_reply
+    else:
+        full_reply = reply
 
     # Ingest LLM reply
-    raw_llm = RawEvent(session_id=session_id, event_type='llm_message', actor=f"llm:{cfg.llm_model}", content=reply, metadata={'location':'flask_ui'})
+    raw_llm = RawEvent(
+        session_id=session_id,
+        event_type='llm_message',
+        actor=f"llm:{cfg.llm_model}",
+        content=full_reply,
+        metadata={'location':'flask_ui', 'had_tool_calls': len(tool_calls) > 0}
+    )
     router.ingest(raw_llm)
 
-    return jsonify({"reply": reply, "block": block})
+    return jsonify({"reply": full_reply, "block": block, "tool_calls": len(tool_calls)})
 
 @app.route('/memories', methods=['GET'])
 def list_memories():
