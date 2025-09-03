@@ -40,10 +40,10 @@ class ToolHandler:
                     name=tool_data.get("name"),
                     arguments=tool_data.get("arguments", {})
                 ))
-                # Remove tool call from response
-                cleaned_response = cleaned_response.replace(match.group(0), "")
             except json.JSONDecodeError:
-                continue
+                pass  # Invalid JSON, skip this tool call
+            # Always remove the tool call tags from response, even if invalid
+            cleaned_response = cleaned_response.replace(match.group(0), "")
         
         # Clean up extra whitespace
         cleaned_response = re.sub(r'\n{3,}', '\n\n', cleaned_response).strip()

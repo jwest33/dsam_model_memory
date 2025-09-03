@@ -10,3 +10,4 @@ sentence-transformers>=2.2.2
 rank-bm25>=0.2.2
 llama-cpp-python>=0.2.76
 psutil>=5.9.5
+pytest>=7.4.0
