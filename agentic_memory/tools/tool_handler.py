@@ -6,7 +6,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 from .base import Tool, ToolCall, ToolResult
-from .web_search import WebSearchTool
+from .llama_agent_websearch import LlamaAgentWebSearchTool
 
 
 class ToolHandler:
@@ -15,7 +15,8 @@ class ToolHandler:
         self._register_default_tools()
 
     def _register_default_tools(self):
-        self.register_tool(WebSearchTool())
+        # Use llama-agent based web search with content fetching disabled by default for speed
+        self.register_tool(LlamaAgentWebSearchTool(fetch_content=False, max_results=5))
 
     def register_tool(self, tool: Tool):
         self.tools[tool.name] = tool
@@ -101,11 +102,19 @@ class ToolHandler:
                 if result.name == "web_search":
                     try:
                         search_data = json.loads(result.content)
-                        formatted_text = f"[Web Search Results for: {search_data.get('query', '')}]\n\n"
-                        for idx, res in enumerate(search_data.get('results', []), 1):
-                            formatted_text += f"{idx}. {res.get('title', 'No title')}\n"
+                        formatted_text = f"[Web Search Results for: {search_data.get('query', '')}]\n"
+                        formatted_text += f"Found {search_data.get('results_count', 0)} results\n\n"
+                        
+                        for res in search_data.get('results', []):
+                            formatted_text += f"{res.get('position', '')}. {res.get('title', 'No title')}\n"
                             formatted_text += f"   {res.get('snippet', 'No description')}\n"
-                            formatted_text += f"   Source: {res.get('link', '')}\n\n"
+                            formatted_text += f"   Source: {res.get('link', '')}\n"
+                            
+                            # Include fetched content if available
+                            if 'content' in res:
+                                content_preview = res['content'][:500] + "..." if len(res['content']) > 500 else res['content']
+                                formatted_text += f"   Content: {content_preview}\n"
+                            formatted_text += "\n"
                         formatted.append(formatted_text)
                     except json.JSONDecodeError:
                         formatted.append(f"[TOOL_RESULT:{result.name}]\n{result.content}")
@@ -152,13 +161,24 @@ You have access to the following tools to help answer questions:
 When you need to use a tool, you MUST output it in this EXACT format as the FIRST thing in your response:
 <tool_call>{{"name": "web_search", "arguments": {{"query": "your search query"}}}}</tool_call>
 
+## Search Query Guidelines
+
+When constructing search queries:
+- Be specific and include location names when relevant
+- Include time references (today, tomorrow, current, 2025) when asking about time-sensitive info
+- Use natural search phrases that would work well in a search engine
+- Don't include filler words like "please" or "can you"
+
 ## Examples
 
 User: What's the weather today in Denver?
-Assistant: <tool_call>{{"name": "web_search", "arguments": {{"query": "weather today Denver Colorado"}}}}</tool_call>
+Assistant: <tool_call>{{"name": "web_search", "arguments": {{"query": "Denver Colorado weather today forecast"}}}}</tool_call>
 
 User: Tell me the latest news about AI
-Assistant: <tool_call>{{"name": "web_search", "arguments": {{"query": "latest AI news today"}}}}</tool_call>
+Assistant: <tool_call>{{"name": "web_search", "arguments": {{"query": "AI artificial intelligence news 2025"}}}}</tool_call>
+
+User: What's the weather forecast for tomorrow in Colorado?
+Assistant: <tool_call>{{"name": "web_search", "arguments": {{"query": "Colorado weather forecast tomorrow"}}}}</tool_call>
 
 ## Important Rules
 1. For ANY question about current events, weather, news, recent information, or real-time data, you MUST use the web_search tool
