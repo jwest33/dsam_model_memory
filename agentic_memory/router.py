@@ -8,6 +8,7 @@ from sentence_transformers import SentenceTransformer
 from .config import cfg
 from .types import RawEvent, RetrievalQuery
 from .extraction.llm_extractor import extract_5w1h
+from .extraction.multi_part_extractor import extract_multi_part_5w1h
 from .storage.sql_store import MemoryStore
 from .storage.faiss_index import FaissIndex
 from .retrieval import HybridRetriever
@@ -23,7 +24,46 @@ class MemoryRouter:
         self.embedder = SentenceTransformer(cfg.embed_model_name)
         self.tok = TokenizerAdapter()
 
-    def ingest(self, raw_event: RawEvent, context_hint: str = "") -> str:
+    def ingest(self, raw_event: RawEvent, context_hint: str = "", use_multi_part: bool = True) -> str:
+        """
+        Ingest a raw event, optionally breaking it into multiple memories.
+        
+        Args:
+            raw_event: The raw event to process
+            context_hint: Additional context for extraction
+            use_multi_part: If True, attempt to break complex content into multiple memories
+            
+        Returns:
+            Comma-separated list of memory IDs created
+        """
+        memory_ids = []
+        
+        # Decide whether to use multi-part extraction
+        should_use_multi = use_multi_part and cfg.use_multi_part_extraction and (
+            len(raw_event.content) > cfg.multi_part_threshold or  # Long content
+            '\n\n' in raw_event.content or  # Multi-paragraph content
+            raw_event.content.count('\n') > 3 or  # Multiple lines
+            raw_event.event_type in ['llm_message', 'tool_result']  # Often have complex responses
+        )
+        
+        if should_use_multi:
+            # Try multi-part extraction
+            memories = extract_multi_part_5w1h(raw_event, context_hint=context_hint)
+            
+            # Process each memory
+            for rec in memories:
+                vec = np.array(rec.extra.pop('embed_vector_np'), dtype='float32')
+                # Persist
+                self.store.upsert_memory(rec, embedding=vec.tobytes(), dim=vec.shape[0])
+                # Add to FAISS (normalized already)
+                self.index.add(rec.memory_id, vec)
+                memory_ids.append(rec.memory_id)
+            
+            if memory_ids:
+                self.index.save()
+                return ','.join(memory_ids)
+        
+        # Fallback to single extraction
         rec = extract_5w1h(raw_event, context_hint=context_hint)
         vec = np.array(rec.extra.pop('embed_vector_np'), dtype='float32')
         # Persist

@@ -19,5 +19,8 @@ class Config:
     w_spatial: float = float(os.getenv("AM_W_SPATIAL", "0.03"))
     w_usage: float = float(os.getenv("AM_W_USAGE", "0.05"))
     mmr_lambda: float = float(os.getenv("AM_MMR_LAMBDA", "0.5"))
+    # Multi-part extraction
+    use_multi_part_extraction: bool = os.getenv("AM_USE_MULTI_PART", "true").lower() in ['true', '1', 'yes']
+    multi_part_threshold: int = int(os.getenv("AM_MULTI_PART_THRESHOLD", "200"))  # Min chars to trigger multi-part
 
 cfg = Config()
