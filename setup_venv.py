@@ -102,9 +102,6 @@ def create_env_file():
 HF_HUB_OFFLINE=1
 TRANSFORMERS_OFFLINE=1
 
-# Optional: Set custom ChromaDB path
-# CHROMADB_PATH=./state/chromadb
-
 # Optional: Set custom benchmark datasets path
 # BENCHMARK_DATASETS_PATH=./benchmark_datasets
 

@@ -79,9 +79,8 @@ class StorageConfig:
     state_dir: Path = Path("state")
     backup_dir: Path = Path("state/backups")  # For JSON exports
     
-    # ChromaDB settings (primary storage)
-    chromadb_path: Path = Path("state/chromadb")
-    chromadb_required: bool = True  # Fail if ChromaDB not available
+    # Vector DB settings - Qdrant is the primary storage backend
+    qdrant_path: Path = Path("state/qdrant_db")  # Qdrant storage path
     
     # Cache settings
     cache_size: int = 1000  # Maximum cached items
@@ -193,17 +192,17 @@ class Config:
         if os.getenv("LLM_SERVER_URL"):
             config.llm.server_url = os.getenv("LLM_SERVER_URL")
         
-        if os.getenv("CHROMADB_PATH"):
-            config.storage.chromadb_path = Path(os.getenv("CHROMADB_PATH"))
+        if os.getenv("QDRANT_PATH"):
+            config.storage.qdrant_path = Path(os.getenv("QDRANT_PATH"))
         
         if os.getenv("STATE_DIR"):
             config.storage.state_dir = Path(os.getenv("STATE_DIR"))
-            config.storage.chromadb_path = config.storage.state_dir / "chromadb"
+            config.storage.qdrant_path = config.storage.state_dir / "qdrant_db"
             config.storage.backup_dir = config.storage.state_dir / "backups"
         
         # Ensure directories exist
         config.storage.state_dir.mkdir(parents=True, exist_ok=True)
-        config.storage.chromadb_path.mkdir(parents=True, exist_ok=True)
+        config.storage.qdrant_path.mkdir(parents=True, exist_ok=True)
         config.storage.backup_dir.mkdir(parents=True, exist_ok=True)
         
         return config

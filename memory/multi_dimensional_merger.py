@@ -30,15 +30,15 @@ class MultiDimensionalMerger:
     Manages multiple merge dimensions for comprehensive memory organization.
     """
     
-    def __init__(self, chromadb_store=None, llm_client=None):
+    def __init__(self, storage_backend=None, llm_client=None):
         """
         Initialize the multi-dimensional merger.
         
         Args:
-            chromadb_store: ChromaDB store instance for persistence
+            storage_backend: Storage backend (Qdrant) instance for persistence
             llm_client: Optional LLM client for group field generation
         """
-        self.chromadb = chromadb_store
+        self.storage = storage_backend
         self.llm_client = llm_client
         self.strategies = MERGE_STRATEGIES
         self.tracker = MultiMergeTracker()
@@ -57,24 +57,24 @@ class MultiDimensionalMerger:
             MergeType.SPATIAL: {}
         }
         
-        # Load existing merges from ChromaDB if available
-        if self.chromadb:
+        # Load existing merges from storage if available
+        if self.storage:
             self._load_existing_merges()
     
     def _load_existing_merges(self):
-        """Load existing merge groups from ChromaDB collections"""
-        if not self.chromadb:
+        """Load existing merge groups from storage collections"""
+        if not self.storage:
             return
         
-        logger.info("Loading existing multi-dimensional merge groups from ChromaDB...")
+        logger.info("Loading existing multi-dimensional merge groups from storage...")
         
         try:
             # Map of merge types to their collections
             collection_map = {
-                MergeType.ACTOR: self.chromadb.actor_merges_collection,
-                MergeType.TEMPORAL: self.chromadb.temporal_merges_collection,
-                MergeType.CONCEPTUAL: self.chromadb.conceptual_merges_collection,
-                MergeType.SPATIAL: self.chromadb.spatial_merges_collection
+                MergeType.ACTOR: self.storage.actor_merges_collection,
+                MergeType.TEMPORAL: self.storage.temporal_merges_collection,
+                MergeType.CONCEPTUAL: self.storage.conceptual_merges_collection,
+                MergeType.SPATIAL: self.storage.spatial_merges_collection
             }
             
             for merge_type, collection in collection_map.items():
@@ -102,6 +102,19 @@ class MultiDimensionalMerger:
                                     raw_ids = raw_ids_str.split(',')
                                     for raw_id in raw_ids:
                                         merged_event.raw_event_ids.add(raw_id.strip())
+                                
+                                # Also check component_ids (the actual event IDs in the merge group)
+                                component_ids = metadata.get('component_ids', [])
+                                if isinstance(component_ids, str):
+                                    # If it's a string, try to parse it as comma-separated
+                                    component_ids = [id.strip() for id in component_ids.split(',') if id.strip()]
+                                elif not isinstance(component_ids, list):
+                                    component_ids = []
+                                
+                                # Use component_ids as the actual raw event IDs if raw_event_ids is empty
+                                if not merged_event.raw_event_ids and component_ids:
+                                    for comp_id in component_ids:
+                                        merged_event.raw_event_ids.add(comp_id)
                                 
                                 # Load the component data from metadata
                                 # Always add a synthetic event with latest values for display
@@ -172,17 +185,23 @@ class MultiDimensionalMerger:
                                     )
                                 
                                 # Now try to load the actual raw events to build the full timeline
-                                if self.chromadb and merged_event.raw_event_ids:
+                                if self.storage and merged_event.raw_event_ids:
                                     try:
                                         # Try both collections since events might be in either
                                         raw_collection = None
                                         events_collection = None
                                         try:
-                                            raw_collection = self.chromadb.client.get_collection('raw_events')
+                                            if hasattr(self.storage, 'client'):
+                                                raw_collection = self.storage.client.get_collection('raw_events')
+                                            else:
+                                                raw_collection = None
                                         except:
                                             pass
                                         try:
-                                            events_collection = self.chromadb.client.get_collection('events')
+                                            if hasattr(self.storage, 'client'):
+                                                events_collection = self.storage.client.get_collection('events')
+                                            else:
+                                                events_collection = None
                                         except:
                                             pass
                                         
@@ -296,7 +315,7 @@ class MultiDimensionalMerger:
                                 for raw_id in merged_event.raw_event_ids:
                                     self.tracker.add_merge_membership(raw_id, merge_type, merge_id)
                             
-                            logger.info(f"Loaded {len(results['ids'])} {merge_type.value} merge groups from ChromaDB")
+                            logger.info(f"Loaded {len(results['ids'])} {merge_type.value} merge groups from storage")
                             logger.info(f"Actually stored in memory: {len(self.merge_groups.get(merge_type, {}))} {merge_type.value} groups")
                             # Debug: show the IDs
                             if self.merge_groups.get(merge_type):
@@ -332,8 +351,8 @@ class MultiDimensionalMerger:
                 # Use event ID directly without prefix
                 self.tracker.add_merge_membership(event.id, merge_type, merge_id)
                 
-                # Update the merge group in ChromaDB
-                if self.chromadb:
+                # Update the merge group in storage
+                if self.storage:
                     self._update_merge_in_db(merge_type, merge_id, event, event_data)
         
         logger.info(f"Event {event.id} assigned to merge groups: {merge_assignments}")
@@ -504,7 +523,7 @@ class MultiDimensionalMerger:
         except Exception as e:
             logger.debug(f"Could not generate initial group fields: {e}")
         
-        # Save to ChromaDB
+        # Save to storage
         self._update_merge_in_db(merge_type, merge_id, event, event_data)
         
         return merge_id
@@ -601,13 +620,13 @@ class MultiDimensionalMerger:
             except Exception as e:
                 logger.debug(f"Could not regenerate group fields: {e}")
         
-        # Save updates to ChromaDB
+        # Save updates to storage
         self._update_merge_in_db(merge_type, merge_id, event, event_data)
     
     def _update_merge_in_db(self, merge_type: MergeType, merge_id: str, 
                            event: Event, event_data: Dict):
-        """Update merge group in ChromaDB"""
-        if not self.chromadb:
+        """Update merge group in storage"""
+        if not self.storage:
             return
             
         collection = self._get_collection_for_type(merge_type)
@@ -634,7 +653,8 @@ class MultiDimensionalMerger:
             'merge_count': merged_event.merge_count,
             'created_at': group['created_at'].isoformat(),
             'last_updated': group['last_updated'].isoformat(),
-            'raw_event_ids': ','.join(merged_event.raw_event_ids),
+            'raw_event_ids': ','.join(merged_event.raw_event_ids) if merged_event.raw_event_ids else '',
+            'component_ids': list(merged_event.raw_event_ids),  # Store as list for Qdrant
             'base_event_id': merged_event.base_event_id,
             
             # Store ALL who values for cross-actor groups
@@ -654,7 +674,7 @@ class MultiDimensionalMerger:
             'group_fields_method': merged_event.group_fields_method if hasattr(merged_event, 'group_fields_method') else ''
         }
         
-        # Store or update in ChromaDB (both Euclidean and Hyperbolic collections)
+        # Store or update in storage (both Euclidean and Hyperbolic collections)
         try:
             # Store in Euclidean collection
             collection.upsert(
@@ -664,7 +684,7 @@ class MultiDimensionalMerger:
             )
             
             # Also store in Hyperbolic collection if available
-            if 'hyperbolic_embedding' in group and self.chromadb:
+            if 'hyperbolic_embedding' in group and self.storage:
                 hyperbolic_collection = self._get_hyperbolic_collection_for_type(merge_type)
                 if hyperbolic_collection:
                     # Metadata for hyperbolic collection (can be lighter)
@@ -682,31 +702,31 @@ class MultiDimensionalMerger:
                     logger.debug(f"Stored hyperbolic embedding for {merge_type.value} group {merge_id}")
                     
         except Exception as e:
-            logger.error(f"Failed to update merge in DB: {e}")
+            logger.error(f"Failed to update merge in storage: {e}")
     
     def _get_collection_for_type(self, merge_type: MergeType):
-        """Get the ChromaDB collection for a merge type"""
-        if not self.chromadb:
+        """Get the storage collection for a merge type"""
+        if not self.storage:
             return None
             
         mapping = {
-            MergeType.ACTOR: self.chromadb.actor_merges_collection,
-            MergeType.TEMPORAL: self.chromadb.temporal_merges_collection,
-            MergeType.CONCEPTUAL: self.chromadb.conceptual_merges_collection,
-            MergeType.SPATIAL: self.chromadb.spatial_merges_collection
+            MergeType.ACTOR: self.storage.actor_merges_collection,
+            MergeType.TEMPORAL: self.storage.temporal_merges_collection,
+            MergeType.CONCEPTUAL: self.storage.conceptual_merges_collection,
+            MergeType.SPATIAL: self.storage.spatial_merges_collection
         }
         return mapping.get(merge_type)
     
     def _get_hyperbolic_collection_for_type(self, merge_type: MergeType):
-        """Get the hyperbolic ChromaDB collection for a merge type"""
-        if not self.chromadb:
+        """Get the hyperbolic storage collection for a merge type"""
+        if not self.storage:
             return None
             
         mapping = {
-            MergeType.ACTOR: getattr(self.chromadb, 'actor_merges_hyperbolic', None),
-            MergeType.TEMPORAL: getattr(self.chromadb, 'temporal_merges_hyperbolic', None),
-            MergeType.CONCEPTUAL: getattr(self.chromadb, 'conceptual_merges_hyperbolic', None),
-            MergeType.SPATIAL: getattr(self.chromadb, 'spatial_merges_hyperbolic', None)
+            MergeType.ACTOR: getattr(self.storage, 'actor_merges_hyperbolic', None),
+            MergeType.TEMPORAL: getattr(self.storage, 'temporal_merges_hyperbolic', None),
+            MergeType.CONCEPTUAL: getattr(self.storage, 'conceptual_merges_hyperbolic', None),
+            MergeType.SPATIAL: getattr(self.storage, 'spatial_merges_hyperbolic', None)
         }
         return mapping.get(merge_type)
     

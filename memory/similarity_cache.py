@@ -23,7 +23,7 @@ class SimilarityCache:
     Features:
     - Incremental updates when new memories are added
     - Batch computation for efficiency
-    - Persistent storage in ChromaDB
+    - Persistent storage backend
     - Memory-efficient sparse storage (only stores similarities above threshold)
     """
     

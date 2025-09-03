@@ -138,7 +138,10 @@ class DualSpaceEncoder:
                  euclidean_dim: int = 768, hyperbolic_dim: int = 64,
                  field_weights: Optional[Dict[str, float]] = None,
                  max_norm: float = 0.999, epsilon: float = 1e-5):
-        self.model = SentenceTransformer(model_name)
+        # Use CUDA if available for faster processing
+        import torch
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.model = SentenceTransformer(model_name, device=device)
         self.base_dim = self.model.get_sentence_embedding_dimension()
         self.euclidean_dim = euclidean_dim
         self.hyperbolic_dim = hyperbolic_dim

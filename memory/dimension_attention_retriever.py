@@ -27,7 +27,7 @@ class DimensionAttentionRetriever:
     characteristics and retrieves the most relevant memories.
     """
     
-    def __init__(self, encoder, multi_merger, similarity_cache=None, chromadb_store=None, temporal_manager=None, llm_client=None):
+    def __init__(self, encoder, multi_merger, similarity_cache=None, storage_backend=None, temporal_manager=None, llm_client=None):
         """
         Initialize the dimension attention retriever.
         
@@ -35,14 +35,14 @@ class DimensionAttentionRetriever:
             encoder: Dual-space encoder for embeddings
             multi_merger: Multi-dimensional merger instance
             similarity_cache: Optional similarity cache for fast lookups
-            chromadb_store: ChromaDB store for retrieving merge groups
+            storage_backend: storage backend for retrieving merge groups
             temporal_manager: Temporal manager for handling temporal queries
             llm_client: Optional LLM client for enhanced temporal detection
         """
         self.encoder = encoder
         self.multi_merger = multi_merger
         self.similarity_cache = similarity_cache
-        self.chromadb = chromadb_store
+        self.storage = storage_backend
         self.temporal_manager = temporal_manager
         self.llm_client = llm_client
         
@@ -279,7 +279,7 @@ class DimensionAttentionRetriever:
         """
         results = []
         
-        if not self.chromadb:
+        if not self.storage:
             return results
         
         # For conceptual dimension, use enhanced search with dual embeddings and text
@@ -304,10 +304,10 @@ class DimensionAttentionRetriever:
         
         # Get the appropriate collection for this dimension
         collection_map = {
-            MergeType.ACTOR: self.chromadb.actor_merges_collection,
-            MergeType.TEMPORAL: self.chromadb.temporal_merges_collection,
-            MergeType.CONCEPTUAL: self.chromadb.conceptual_merges_collection,
-            MergeType.SPATIAL: self.chromadb.spatial_merges_collection
+            MergeType.ACTOR: self.storage.actor_merges_collection,
+            MergeType.TEMPORAL: self.storage.temporal_merges_collection,
+            MergeType.CONCEPTUAL: self.storage.conceptual_merges_collection,
+            MergeType.SPATIAL: self.storage.spatial_merges_collection
         }
         
         collection = collection_map.get(dimension)
@@ -321,8 +321,8 @@ class DimensionAttentionRetriever:
             # Combine embeddings with space weights
             euclidean_emb, hyperbolic_emb = query_embedding
             
-            # Use only Euclidean embedding for ChromaDB search
-            # (ChromaDB collections are created with 768-dim Euclidean embeddings only)
+            # Use only Euclidean embedding for storage search
+            # (storage collections are created with 768-dim Euclidean embeddings only)
             weighted_embedding = euclidean_emb
             
             # Query the collection (handle empty collections gracefully)
@@ -391,8 +391,8 @@ class DimensionAttentionRetriever:
             List of (memory, score) tuples
         """
         results = []
-        euclidean_collection = self.chromadb.conceptual_merges_collection
-        hyperbolic_collection = self.chromadb.conceptual_merges_hyperbolic if hasattr(self.chromadb, 'conceptual_merges_hyperbolic') else None
+        euclidean_collection = self.storage.conceptual_merges_collection
+        hyperbolic_collection = self.storage.conceptual_merges_hyperbolic if hasattr(self.storage, 'conceptual_merges_hyperbolic') else None
         
         if not euclidean_collection:
             return results
@@ -559,7 +559,7 @@ class DimensionAttentionRetriever:
         
         Args:
             merge_id: The merge event ID
-            metadata: The metadata dictionary from ChromaDB
+            metadata: The metadata dictionary from storage
             
         Returns:
             A dictionary representing the merge event, or None if creation fails
@@ -656,13 +656,13 @@ class DimensionAttentionRetriever:
         logger.info(f"_get_recent_temporal_groups called with k={k}, params={params}")
         results = []
         
-        if not self.chromadb or not self.chromadb.temporal_merges_collection:
-            logger.warning("ChromaDB or temporal_merges_collection not available")
+        if not self.storage or not self.storage.temporal_merges_collection:
+            logger.warning("storage or temporal_merges_collection not available")
             return results
         
         try:
             # Get all temporal groups
-            all_groups = self.chromadb.temporal_merges_collection.get(
+            all_groups = self.storage.temporal_merges_collection.get(
                 include=['metadatas']
             )
             
@@ -816,13 +816,13 @@ class DimensionAttentionRetriever:
         return sorted_results[:k]
     
     def get_context_from_dimension_results(self, results: List[Tuple], 
-                                          chromadb_store) -> List[Tuple[Any, float, str]]:
+                                          storage_store) -> List[Tuple[Any, float, str]]:
         """
         Convert dimension search results to full memory objects with context.
         
         Args:
             results: List of (result_obj, score) from dimension search
-            chromadb_store: ChromaDB store to retrieve full events
+            storage_store: storage store to retrieve full events
         
         Returns:
             List of (event, score, context_string) tuples
@@ -846,12 +846,12 @@ class DimensionAttentionRetriever:
                 why = metadata.get('latest_why', result_obj.get('latest_why', ''))
                 how = metadata.get('latest_how', result_obj.get('latest_how', ''))
                 
-                # For temporal groups, get the full event timeline from ChromaDB
-                if dimension == 'temporal' and chromadb_store and merge_id:
+                # For temporal groups, get the full event timeline from storage
+                if dimension == 'temporal' and storage_store and merge_id:
                     # Get the actual temporal merge group with all events
                     try:
                         # Query the temporal_merges collection for full group data
-                        temporal_result = chromadb_store.client.get_collection('temporal_merges').get(
+                        temporal_result = storage_store.client.get_collection('temporal_merges').get(
                             ids=[merge_id],
                             include=['metadatas']
                         )
@@ -871,7 +871,7 @@ class DimensionAttentionRetriever:
                             # Get all events from the raw_events collection
                             timeline_events = []
                             if event_ids:
-                                raw_events = chromadb_store.raw_events_collection.get(
+                                raw_events = storage_store.raw_events_collection.get(
                                     ids=event_ids,
                                     include=['metadatas']
                                 )
@@ -926,7 +926,7 @@ class DimensionAttentionRetriever:
                         # Fall back to original simple format
                         context_str = f"[{dimension.title()} Memory Group - {merge_key}]\nContains {event_count} events"
                 else:
-                    # For non-temporal or if no ChromaDB, use simple format
+                    # For non-temporal or if no storage, use simple format
                     context_lines = []
                     context_lines.append(f"[{dimension.title()} Memory Group - {merge_key}]")
                     context_lines.append(f"Contains {event_count} events")

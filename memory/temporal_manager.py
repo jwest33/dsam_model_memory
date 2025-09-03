@@ -77,19 +77,19 @@ class TemporalManager:
         'moment', 'recently', 'previously', 'subsequently'
     ]
     
-    def __init__(self, encoder=None, chromadb_store=None, similarity_cache=None, config=None, llm_client=None):
+    def __init__(self, encoder=None, storage_backend=None, similarity_cache=None, config=None, llm_client=None):
         """
         Initialize the temporal manager.
         
         Args:
             encoder: Dual-space encoder for embeddings
-            chromadb_store: ChromaDB store for persistence
+            storage_backend: Storage backend for persistence
             similarity_cache: Similarity cache for performance
             config: Optional Config object with temporal settings
             llm_client: Optional LLM client for enhanced temporal detection
         """
         self.encoder = encoder
-        self.chromadb = chromadb_store
+        self.storage = storage_backend
         self.similarity_cache = similarity_cache
         self.llm_client = llm_client
         
@@ -102,7 +102,7 @@ class TemporalManager:
         
         # Initialize components with config
         self.temporal_chain = TemporalChain(
-            chromadb_store=chromadb_store,
+            storage_backend=storage_backend,
             encoder=encoder,
             similarity_cache=similarity_cache,
             config=self.config
@@ -111,7 +111,7 @@ class TemporalManager:
         # Create temporal query handler with optional LLM support
         self.temporal_query_handler = TemporalQueryHandler(
             encoder=encoder,
-            chromadb_store=chromadb_store,
+            storage_backend=storage_backend,
             similarity_cache=similarity_cache,
             llm_client=llm_client
         )
@@ -319,12 +319,12 @@ class TemporalManager:
             self.temporal_merge_groups[merge_id]['last_updated'] = datetime.utcnow().isoformat()
             self.event_to_temporal_group[event.id] = merge_id
             
-            # Persist to ChromaDB
+            # Persist to storage
             self._save_temporal_merge_group(merge_id)
     
     def _save_temporal_merge_group(self, merge_id: str):
-        """Save temporal merge group to ChromaDB."""
-        if not self.chromadb or not hasattr(self.chromadb, 'temporal_merges_collection'):
+        """Save temporal merge group to storage."""
+        if not self.storage or not hasattr(self.storage, 'temporal_merges_collection'):
             return
             
         group = self.temporal_merge_groups[merge_id]
@@ -344,7 +344,7 @@ class TemporalManager:
         embedding = np.random.randn(768).tolist()  # Placeholder
         
         try:
-            self.chromadb.temporal_merges_collection.upsert(
+            self.storage.temporal_merges_collection.upsert(
                 ids=[merge_id],
                 embeddings=[embedding],
                 metadatas=[metadata]
@@ -523,7 +523,7 @@ class TemporalManager:
     
     def get_temporal_merge_groups(self) -> List[Dict]:
         """
-        Get all temporal merge groups from MultiDimensionalMerger via ChromaDB.
+        Get all temporal merge groups from MultiDimensionalMerger via storage.
         
         Returns:
             List of temporal merge group dictionaries

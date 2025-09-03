@@ -257,7 +257,7 @@ class TemporalQueryHandler:
     ]
 
     def __init__(self, encoder=None, decay_factor: float = 0.9, window_hours: float = 24.0,
-                 similarity_cache=None, chromadb_store=None, llm_client=None):
+                 similarity_cache=None, storage_backend=None, llm_client=None):
         """
         Initialize enhanced temporal handler.
         
@@ -266,14 +266,14 @@ class TemporalQueryHandler:
             decay_factor: Base decay rate for time-based scoring (0-1)
             window_hours: Time window for "recent" queries (in hours)
             similarity_cache: Optional similarity cache for faster prototype matching
-            chromadb_store: Optional ChromaDB store for metadata-based filtering
+            storage_backend: Optional storage backend for metadata-based filtering
             llm_client: Optional LLM client for intelligent temporal analysis
         """
         self.encoder = encoder
         self.decay_factor = decay_factor
         self.window_hours = window_hours
         self.similarity_cache = similarity_cache
-        self.chromadb_store = chromadb_store
+        self.storage_store = storage_backend
         self.llm_client = llm_client
         self._temporal_embeddings = None
         self._temporal_embedding_ids = {}  # Maps temporal_type to virtual IDs for cache
@@ -884,7 +884,7 @@ def integrate_temporal_with_dual_space(query: Dict[str, str],
                                       lambda_e: float,
                                       lambda_h: float,
                                       similarity_cache=None,
-                                      chromadb_store=None,
+                                      storage_store=None,
                                       llm_client=None,
                                       view_mode: str = 'merged') -> Tuple[List[Tuple], Dict]:
     """
@@ -900,7 +900,7 @@ def integrate_temporal_with_dual_space(query: Dict[str, str],
         lambda_e: Euclidean space weight
         lambda_h: Hyperbolic space weight
         similarity_cache: Optional similarity cache for faster processing
-        chromadb_store: Optional ChromaDB store for metadata filtering
+        storage_store: Optional storage store for metadata filtering
         llm_client: Optional LLM client for intelligent temporal analysis
         view_mode: 'merged' or 'raw' - affects temporal weighting
         
@@ -911,7 +911,7 @@ def integrate_temporal_with_dual_space(query: Dict[str, str],
     temporal_handler = TemporalQueryHandler(
         encoder=encoder,
         similarity_cache=similarity_cache,
-        chromadb_store=chromadb_store,
+        storage_store=storage_store,
         llm_client=llm_client
     )
     
@@ -991,14 +991,14 @@ integrate_enhanced_temporal = integrate_temporal_with_dual_space
 
 class TemporalMetadataFilter:
     """
-    Helper class for creating ChromaDB metadata filters based on temporal queries.
+    Helper class for creating storage metadata filters based on temporal queries.
     """
     
     @staticmethod
     def create_temporal_filter(temporal_type: str, temporal_strength: float,
                                query_time: Optional[datetime] = None) -> Optional[Dict]:
         """
-        Create ChromaDB metadata filter for temporal queries.
+        Create storage metadata filter for temporal queries.
         
         Args:
             temporal_type: Type of temporal query detected
@@ -1006,7 +1006,7 @@ class TemporalMetadataFilter:
             query_time: Reference time for query
             
         Returns:
-            ChromaDB-compatible filter dict or None
+            storage-compatible filter dict or None
         """
         if temporal_strength < 0.3:  # Too weak to filter
             return None

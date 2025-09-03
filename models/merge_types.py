@@ -175,12 +175,13 @@ class MergeStrategy:
                     gap = abs((curr_time - prev_time).total_seconds() / 60)
                     gaps.append(gap)
                 
+                MIN_WINDOW = 10  # Minimum window in minutes
+                MAX_TEMPORAL_GAP = self.temporal_window_max  # Use strategy max (default 60)
+                
                 if gaps:
                     avg_gap = sum(gaps) / len(gaps)
                     # Dynamic window is 2.5x average gap, but CAPPED
                     # Use strategy parameters (which should come from config)
-                    MIN_WINDOW = 10  # Minimum window in minutes
-                    MAX_TEMPORAL_GAP = self.temporal_window_max  # Use strategy max (default 60)
                     dynamic_window = min(max(avg_gap * 2.5, MIN_WINDOW), MAX_TEMPORAL_GAP)
                 else:
                     # Default for first gap - use strategy default

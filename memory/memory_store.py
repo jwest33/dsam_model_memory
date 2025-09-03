@@ -20,7 +20,7 @@ import uuid
 
 from models.event import Event, FiveW1H, EventType
 from models.merged_event import MergedEvent, EventRelationship
-from memory.chromadb_store import ChromaDBStore
+from memory.qdrant_store import QdrantStore
 from memory.dual_space_encoder import DualSpaceEncoder, HyperbolicOperations, mobius_add
 from memory.temporal_query import integrate_temporal_with_dual_space
 from memory.smart_merger import SmartMerger
@@ -48,11 +48,10 @@ class MemoryStore:
         self.config = get_config()
         self.llm_client = llm_client
         
-        # Core storage (ChromaDB is primary)
-        self.chromadb = ChromaDBStore()
+        # Core storage - Qdrant is the primary storage backend
+        self.db_store = QdrantStore(self.config)
         
-        # Initialize raw events collection in ChromaDB
-        self._init_raw_events_collection()
+        # Raw events are now handled directly in memory
         
         # Raw event tracking (in memory for fast access)
         self.raw_events = {}  # raw_event_id -> Event
@@ -65,14 +64,14 @@ class MemoryStore:
         # Multi-dimensional merger for handling all dimensional grouping
         from memory.multi_dimensional_merger import MultiDimensionalMerger
         self.multi_merger = MultiDimensionalMerger(
-            chromadb_store=self.chromadb,
+            storage_backend=self.db_store,
             llm_client=llm_client
         )
         
         # Unified temporal manager with LLM support if available
         self.temporal_manager = TemporalManager(
             encoder=None,  # Will be set after encoder is initialized
-            chromadb_store=self.chromadb,
+            storage_backend=self.db_store,
             similarity_cache=None,  # Will be set after similarity cache is initialized
             config=self.config,
             llm_client=llm_client
@@ -84,10 +83,7 @@ class MemoryStore:
         self.context_generator = MergedEventContextGenerator(self.temporal_chain)
         self.merged_events_cache = {}  # merged_event_id -> MergedEvent
         
-        # Load existing raw events from ChromaDB
-        self._load_raw_events_from_db()
-        
-        # Load existing merged events from ChromaDB
+        # Load existing merged events from storage
         self._load_merged_events_from_db()
         
         # Dual-space encoder with config values
@@ -136,6 +132,8 @@ class MemoryStore:
         self.embedding_cache = {}  # event_id -> embeddings dict
         
         # Statistics - initialize from existing data
+        self.total_events = 0
+        self.total_queries = 0  # Track number of queries made
         self._initialize_statistics()
         
         # Update temporal manager with encoder and similarity cache
@@ -146,21 +144,15 @@ class MemoryStore:
         logger.info("Enhanced memory store initialized with dual-space encoding")
     
     def _initialize_statistics(self):
-        """Initialize statistics from existing ChromaDB data."""
+        """Initialize statistics from existing storage data."""
         try:
-            # Count existing events in ChromaDB
-            from chromadb import Client
-            client = Client()
+            # Get statistics from Qdrant
+            stats = self.db_store.get_statistics()
+            self.total_events = stats.get('total_events', 0)
             
-            # Try to get the events collection if it exists
-            try:
-                collection = self.chromadb.client.get_collection("events")
-                self.total_events = collection.count()
-                
-                # Load existing embeddings into similarity cache
+            # Load existing embeddings into similarity cache if needed
+            if self.total_events > 0:
                 self._load_embeddings_to_cache()
-            except:
-                self.total_events = 0
             
             self.total_queries = 0
             
@@ -168,112 +160,45 @@ class MemoryStore:
             state_file = Path("./state/residuals.pkl")
             if state_file.exists():
                 self.load_state()
-        except:
+        except Exception as e:
+            logger.debug(f"Could not initialize statistics: {e}")
             self.total_events = 0
             self.total_queries = 0
     
     def _load_merged_events_from_db(self):
-        """Load all merged events from ChromaDB on initialization."""
+        """Load all merged events from storage on initialization."""
         try:
-            import json
-            # Get all merged events from ChromaDB
-            collection = self.chromadb.merged_events_collection
-            all_merged = collection.get(include=['documents', 'metadatas'])
-            
-            if all_merged['ids']:
-                logger.info(f"Loading {len(all_merged['ids'])} merged events from ChromaDB")
-                
-                from models.merged_event import MergedEvent
-                
-                for i, merged_id in enumerate(all_merged['ids']):
-                    try:
-                        # Deserialize merged event
-                        document = json.loads(all_merged['documents'][i])
-                        merged_event = MergedEvent.from_dict(document)
-                        
-                        # Store in cache
-                        self.merged_events_cache[merged_id] = merged_event
-                        
-                        # Rebuild raw_to_merged mappings
-                        # Handle both raw_ prefixed and non-prefixed IDs
-                        raw_ids_for_mapping = set()
-                        for raw_id in merged_event.raw_event_ids:
-                            # Check which format exists in raw_events
-                            # Just use the ID as-is, no prefix handling needed
-                            if raw_id in self.raw_events:
-                                self.raw_to_merged[raw_id] = merged_id
-                                raw_ids_for_mapping.add(raw_id)
-                        
-                        # Rebuild merged_to_raw mapping with the correct IDs
-                        self.merged_to_raw[merged_id] = raw_ids_for_mapping
-                        
-                    except Exception as e:
-                        logger.error(f"Failed to load merged event {merged_id}: {e}")
-                
-                logger.info(f"Successfully loaded {len(self.merged_events_cache)} merged events")
-            else:
-                logger.info("No existing merged events found in ChromaDB")
+            # The merged_events collection now stores multi-dimensional merge groups
+            # created by MultiDimensionalMerger, not standard MergedEvent objects.
+            # Standard merged events are kept in memory only.
+            # Skip loading for now since we don't have standard merged events persisted.
+            logger.info("Skipping merged events load - using multi-dimensional merging only")
                 
         except Exception as e:
-            logger.warning(f"Could not load merged events from ChromaDB: {e}")
+            logger.warning(f"Could not load merged events from storage: {e}")
     
     def _load_embeddings_to_cache(self):
         """Load all existing embeddings into similarity cache."""
         try:
-            collection = self.chromadb.client.get_collection("events")
-            results = collection.get(
-                include=["metadatas", "embeddings"]
-            )
-            
-            if results['ids']:
-                embeddings_dict = {}
-                for i, event_id in enumerate(results['ids']):
-                    # Reconstruct embedding dict from stored data
-                    euclidean_anchor = np.array(results['embeddings'][i])
-                    
-                    # Get residuals if they exist
-                    euclidean_residual = self.residuals.get(event_id, {}).get('euclidean', np.zeros_like(euclidean_anchor))
-                    hyperbolic_residual = self.residuals.get(event_id, {}).get('hyperbolic', np.zeros(64))
-                    
-                    # For hyperbolic anchor, we need to retrieve it from encoder
-                    # or store it separately. For now, create a placeholder
-                    hyperbolic_anchor = np.zeros(64)  # This should be stored/retrieved properly
-                    
-                    embeddings_dict[event_id] = {
-                        'euclidean_anchor': euclidean_anchor,
-                        'euclidean_residual': euclidean_residual,
-                        'hyperbolic_anchor': hyperbolic_anchor,
-                        'hyperbolic_residual': hyperbolic_residual
-                    }
-                    
-                    # Also update embedding cache
-                    self.embedding_cache[event_id] = embeddings_dict[event_id]
-                
-                # Batch update similarity cache
-                self.chromadb.batch_update_similarity_cache(embeddings_dict)
-                logger.info(f"Loaded {len(embeddings_dict)} embeddings into similarity cache")
+            # For now, skip loading embeddings to cache on initialization
+            # This will be populated as events are accessed
+            logger.info("Skipping embedding cache load - will populate on demand")
         except Exception as e:
             logger.warning(f"Could not load embeddings to cache: {e}")
     
     def _init_raw_events_collection(self):
-        """Initialize the raw events collection in ChromaDB"""
-        try:
-            # Check if raw_events collection exists
-            collections = self.chromadb.client.list_collections()
-            if not any(c.name == 'raw_events' for c in collections):
-                self.chromadb.client.create_collection(
-                    name='raw_events',
-                    metadata={"description": "Raw events with merge tracking"}
-                )
-                logger.info("Created raw_events collection")
-        except Exception as e:
-            logger.warning(f"Could not initialize raw events collection: {e}")
+        """Initialize the raw events collection (deprecated)"""
+        # Raw events are now handled in memory, not in the database
+        pass
     
     def _load_raw_events_from_db(self):
-        """Load existing raw events from ChromaDB"""
+        """Load existing raw events from storage (deprecated)"""
+        # Raw events are now handled in memory, not in the database
+        pass
+        return
         try:
-            raw_collection = self.chromadb.client.get_collection('raw_events')
-            results = raw_collection.get(include=['metadatas', 'documents'])
+            # This code is deprecated and no longer used
+            results = None
             
             for i, metadata in enumerate(results['metadatas']):
                 raw_id = results['ids'][i]
@@ -305,7 +230,7 @@ class MemoryStore:
                     # Store the raw_id as is (with raw_ prefix) to match store_event behavior
                     self.merged_to_raw[merged_id].add(raw_id)
             
-            logger.info(f"Loaded {len(self.raw_events)} raw events from ChromaDB")
+            logger.info(f"Loaded {len(self.raw_events)} raw events from storage")
             
         except Exception as e:
             logger.warning(f"Could not load raw events: {e}")
@@ -337,30 +262,7 @@ class MemoryStore:
             if preserve_raw:
                 self.raw_events[raw_event_id] = event
                 
-                # Also store in ChromaDB for persistence
-                try:
-                    raw_collection = self.chromadb.client.get_collection('raw_events')
-                    raw_collection.add(
-                        ids=[raw_event_id],
-                        documents=[event.five_w1h.what or ""],
-                        metadatas=[{
-                            'original_id': event.id,
-                            'who': event.five_w1h.who or "",
-                            'what': event.five_w1h.what or "",
-                            'when': event.five_w1h.when or "",
-                            'where': event.five_w1h.where or "",
-                            'why': event.five_w1h.why or "",
-                            'how': event.five_w1h.how or "",
-                            'event_type': event.event_type.value,
-                            'episode_id': event.episode_id,
-                            'merged_id': '',  # Will be updated after merging
-                            'euclidean_weight': str(euclidean_weight),
-                            'hyperbolic_weight': str(hyperbolic_weight)
-                        }],
-                        embeddings=[embeddings['euclidean_anchor'].tolist()]  # Store embedding for potential future use
-                    )
-                except Exception as e:
-                    logger.warning(f"Could not store raw event in ChromaDB: {e}")
+                # Raw events are stored in memory only
             
             # NO MERGING/DEDUPLICATION HERE!
             # The MultiDimensionalMerger handles all grouping
@@ -369,15 +271,18 @@ class MemoryStore:
             # Add to temporal chain (for conversation tracking)
             self.temporal_manager.add_event_to_temporal_chain(event, {})
             
-            # Store immutable anchors in ChromaDB
+            # Store immutable anchors in storage
             # Calculate actual space weights from embeddings
             euclidean_weight, hyperbolic_weight = self.encoder.calculate_space_activation(embeddings)
             
-            # For ChromaDB, concatenate euclidean anchor for vector search
-            chromadb_embedding = embeddings['euclidean_anchor']
-            self.chromadb.store_event(event, chromadb_embedding, 
-                                     euclidean_weight=euclidean_weight, 
-                                     hyperbolic_weight=hyperbolic_weight)
+            # Store with both Euclidean and Hyperbolic embeddings
+            euclidean_embedding = embeddings['euclidean_anchor']
+            hyperbolic_embedding = embeddings['hyperbolic_anchor']
+            
+            self.db_store.store_event(event, euclidean_embedding,
+                                     euclidean_weight=euclidean_weight,
+                                     hyperbolic_weight=hyperbolic_weight,
+                                     hyperbolic_embedding=hyperbolic_embedding)
             
             # Track raw-to-merged mapping for new merged event
             if preserve_raw:
@@ -386,21 +291,13 @@ class MemoryStore:
                     self.merged_to_raw[event.id] = set()
                 self.merged_to_raw[event.id].add(raw_event_id)
                 
-                # Update merged_id in ChromaDB
-                try:
-                    raw_collection = self.chromadb.client.get_collection('raw_events')
-                    raw_collection.update(
-                        ids=[raw_event_id],
-                        metadatas=[{'merged_id': event.id}]
-                    )
-                except Exception as e:
-                    logger.warning(f"Could not update merge mapping in ChromaDB: {e}")
+                # Raw event to merged mapping is tracked in memory only
             
             # Store full embeddings in cache
             self.embedding_cache[event.id] = embeddings
             
-            # Update similarity cache in ChromaDB
-            self.chromadb.update_similarity_cache(event.id, embeddings)
+            # Update similarity cache in storage
+            self.db_store.update_similarity_cache(event.id, embeddings)
             
             # Initialize residuals to zero
             self.residuals[event.id] = {
@@ -481,10 +378,14 @@ class MemoryStore:
             # Compute query-dependent weights
             lambda_e, lambda_h = self.encoder.compute_query_weights(query)
             
-            # Initial retrieval from ChromaDB (using Euclidean prefilter)
-            candidates = self.chromadb.retrieve_events_by_query(
+            # Initial retrieval using dual-space if available
+            # Retrieve using dual-space search
+            candidates = self.db_store.retrieve_events_by_query(
                 query_embeddings['euclidean_anchor'],
-                k=min(k * 10, 200)  # Get more candidates for reranking
+                k=min(k * 10, 200),  # Get more candidates for reranking
+                hyperbolic_query=query_embeddings['hyperbolic_anchor'],
+                lambda_e=lambda_e,
+                lambda_h=lambda_h
             )
             
             if not candidates:
@@ -589,8 +490,8 @@ class MemoryStore:
             elif f"merged_{event.id}" in self.merged_events_cache:
                 merged_event = self.merged_events_cache[f"merged_{event.id}"]
             else:
-                # Try to load from ChromaDB
-                merged_event = self.chromadb.get_merged_event(f"merged_{event.id}")
+                # Try to load from storage
+                merged_event = self.db_store.get_merged_event(f"merged_{event.id}")
                 if merged_event:
                     self.merged_events_cache[merged_event.id] = merged_event
             
@@ -833,9 +734,11 @@ class MemoryStore:
     
     def _find_similar_events(self, embeddings: Dict, k: int = 5) -> List[Tuple[Event, float]]:
         """Find similar events using product distance."""
-        # Quick retrieval using Euclidean anchor
-        candidates = self.chromadb.retrieve_events_by_query(
-            embeddings['euclidean_anchor'], k=k * 2
+        # Quick retrieval using dual-space
+        candidates = self.db_store.retrieve_events_by_query(
+            embeddings['euclidean_anchor'], 
+            k=k * 2,
+            hyperbolic_query=embeddings.get('hyperbolic_anchor')
         )
         
         if not candidates:
@@ -981,7 +884,7 @@ class MemoryStore:
                     'embedding_cache': self.embedding_cache
                 }, f)
             
-            # ChromaDB persists automatically
+            # Storage persists automatically
             
             logger.info(f"Saved memory state to {state_dir}")
             return True
@@ -1006,7 +909,7 @@ class MemoryStore:
                     self.momentum = state['momentum']
                     self.embedding_cache = state.get('embedding_cache', {})
             
-            # ChromaDB loads automatically from persistent storage
+            # Storage loads automatically
             
             logger.info(f"Loaded memory state from {state_dir}")
             return True
@@ -1061,15 +964,8 @@ class MemoryStore:
     
     def get_statistics(self) -> Dict[str, Any]:
         """Get statistics about the memory store."""
-        # Get actual count from ChromaDB raw_events collection if available
-        try:
-            raw_collection = self.chromadb.client.get_collection('raw_events')
-            # Count only entries that start with 'raw_' to avoid any potential duplicates
-            all_ids = raw_collection.get(limit=1)  # Just to check it exists
-            total_raw = raw_collection.count()
-        except:
-            # Fallback to in-memory count if collection doesn't exist
-            total_raw = len(self.raw_events)
+        # Raw events are memory-only now, no database collection
+        total_raw = len(self.raw_events)
         
         total_merged = len(self.merged_to_raw)
         avg_merge_size = sum(len(rids) for rids in self.merged_to_raw.values()) / max(1, total_merged) if total_merged > 0 else 0
@@ -1103,15 +999,11 @@ class MemoryStore:
     
     def clear(self):
         """Clear all memories and reset state."""
-        # Clear ChromaDB
-        try:
-            # Delete and recreate collections
-            self.chromadb.client.delete_collection("events")
-        except:
-            pass
+        # Clear storage
+        self.db_store.clear_all()
         
-        # Reinitialize ChromaDB
-        self.chromadb = ChromaDBStore()
+        # Reinitialize storage
+        self.db_store = QdrantStore(self.config)
         
         # Clear all tracking
         self.residuals.clear()
@@ -1126,29 +1018,13 @@ class MemoryStore:
     def _find_event_by_id(self, event_id: str) -> Optional[Event]:
         """Find an event by its ID."""
         try:
-            # Try to get from ChromaDB
-            result = self.chromadb.client.get_collection("events").get(
-                ids=[event_id],
-                include=["metadatas"]
-            )
-            
-            if result and result['metadatas']:
-                metadata = result['metadatas'][0]
-                # Reconstruct Event from metadata
-                event = Event(
-                    id=event_id,
-                    five_w1h=FiveW1H(
-                        who=metadata.get('who', ''),
-                        what=metadata.get('what', ''),
-                        when=metadata.get('when', ''),
-                        where=metadata.get('where', ''),
-                        why=metadata.get('why', ''),
-                        how=metadata.get('how', '')
-                    ),
-                    event_type=EventType(metadata.get('event_type', 'action')),
-                    episode_id=metadata.get('episode_id', '')
-                )
+            # Try to get from storage using Qdrant's get_event method
+            event = self.db_store.get_event(event_id)
+            if event:
                 return event
+            
+            # If not found, return None
+            return None
         except Exception as e:
             logger.error(f"Error finding event {event_id}: {e}")
         
@@ -1289,7 +1165,7 @@ class MemoryStore:
             hy_norm = np.linalg.norm(self.residuals.get(event_id, {}).get('hyperbolic', 0))
             
             # Get current provenance
-            current_provenance = self.chromadb.get_provenance(event_id) or {}
+            current_provenance = self.db_store.get_provenance(event_id) or {}
             
             # Update co-retrieval partners
             partners = current_provenance.get('co_retrieval_partners', [])
@@ -1305,8 +1181,8 @@ class MemoryStore:
                 'co_retrieval_partners': partners[-20:],  # Keep last 20 partners
             }
             
-            # Update in ChromaDB
-            self.chromadb.update_provenance(event_id, provenance_data)
+            # Update in storage
+            self.db_store.update_provenance(event_id, provenance_data)
             
         except Exception as e:
             logger.debug(f"Could not update provenance for {event_id}: {e}")

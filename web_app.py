@@ -236,7 +236,7 @@ def generate_enhanced_llm_context(merged_event, merge_type, merge_id, response_d
     what_events = []
     
     # The Timeline tab successfully uses variants, so we should too!
-    # Don't bother with raw_events since they're not loading from ChromaDB
+    # Don't bother with raw_events since they're memory-only now
     # Just use the variants directly like the Timeline does
     
     raw_events = []  # We'll build from variants instead
@@ -253,7 +253,6 @@ def generate_enhanced_llm_context(merged_event, merge_type, merge_id, response_d
             who = five_w1h.get('who') or event.get('who', 'Unknown')
             what = five_w1h.get('what') or event.get('what', '')
             actors_in_raw.add(who)
-            logger.info(f"Raw event: who={who}, what={what[:50]}...")
         logger.info(f"Actors found in raw_events: {actors_in_raw}")
         
         # Use raw_events directly as they have complete 5W1H for each event
@@ -440,17 +439,35 @@ def initialize_system():
     """Initialize the memory system and LLM"""
     global memory_agent, llm_interface, config, encoder, multi_merger, dimension_retriever, field_generator
     
+    logger.info("=" * 60)
+    logger.info("INITIALIZING SYSTEM")
+    logger.info("=" * 60)
+    
     config = get_config()
     memory_agent = MemoryAgent(config)
+    
+    logger.info(f"After MemoryAgent init:")
+    logger.info(f"  total_events: {memory_agent.memory_store.total_events}")
+    logger.info(f"  db_store type: {type(memory_agent.memory_store.db_store)}")
+    
+    # Test direct Qdrant access
+    try:
+        qdrant_stats = memory_agent.memory_store.db_store.get_statistics()
+        logger.info(f"  Qdrant statistics: {qdrant_stats}")
+        
+        all_events = memory_agent.memory_store.db_store.get_all_events()
+        logger.info(f"  Qdrant get_all_events: {len(all_events.get('ids', []))} events")
+    except Exception as e:
+        logger.error(f"  Error accessing Qdrant: {e}")
     llm_interface = LLMInterface(config.llm)
     encoder = DualSpaceEncoder()
     
     # Initialize field generator with LLM interface
     field_generator = FieldGenerator(llm_client=llm_interface)
     
-    # Initialize multi-dimensional merger with ChromaDB and LLM
+    # Initialize multi-dimensional merger with storage backend and LLM
     multi_merger = MultiDimensionalMerger(
-        chromadb_store=memory_agent.memory_store.chromadb if hasattr(memory_agent.memory_store, 'chromadb') else None,
+        storage_backend=memory_agent.memory_store.db_store if hasattr(memory_agent.memory_store, 'db_store') else None,
         llm_client=llm_interface
     )
     
@@ -467,12 +484,12 @@ def initialize_system():
         encoder=encoder,
         multi_merger=multi_merger,
         similarity_cache=memory_agent.memory_store.similarity_cache if hasattr(memory_agent.memory_store, 'similarity_cache') else None,
-        chromadb_store=memory_agent.memory_store.chromadb if hasattr(memory_agent.memory_store, 'chromadb') else None,
+        storage_backend=memory_agent.memory_store.db_store if hasattr(memory_agent.memory_store, 'db_store') else None,
         temporal_manager=memory_agent.memory_store.temporal_manager if hasattr(memory_agent.memory_store, 'temporal_manager') else None,
         llm_client=llm_interface  # Pass the LLMInterface directly, not the raw client
     )
     
-    # Load existing merge groups from ChromaDB
+    # Load existing merge groups from storage backend
     try:
         multi_merger._load_existing_merges()
         logger.info(f"Loaded multi-dimensional merge groups: "
@@ -525,7 +542,7 @@ def chat():
             # Convert dimension results to memory context
             relevant_memories = dimension_retriever.get_context_from_dimension_results(
                 dimension_results,
-                memory_agent.memory_store.chromadb
+                memory_agent.memory_store.db_store
             )
             
             # Find dominant dimension
@@ -713,30 +730,31 @@ def get_memories():
     """Get all memories with residual information and raw/merged views"""
     view_mode = request.args.get('view', 'merged')  # 'merged' or 'raw'
     
+    logger.info(f"get_memories called with view_mode: {view_mode}")
+    
     try:
         stats = memory_agent.get_statistics()
+        logger.info(f"Stats: total_events={stats.get('total_events', 0)}")
         
         memories = []
         
         # Check for raw view mode
         if view_mode == 'raw':
-            # ONLY get raw events from the raw_events collection
+            # For raw view, show all events from the events collection
+            # Since we don't have separate raw/merged events anymore, 
+            # just show all events as "raw"
             memories = []
             
             try:
-                # Get ONLY from raw_events collection
-                raw_collection = memory_agent.memory_store.chromadb.client.get_collection('raw_events')
-                raw_results = raw_collection.get(include=['metadatas', 'documents'])
+                # Get all events from Qdrant
+                results = memory_agent.memory_store.db_store.get_all_events()
                 
-                for i in range(len(raw_results['ids'])):
-                    raw_id = raw_results['ids'][i]
-                    metadata = raw_results['metadatas'][i]
-                    
-                    # Include all events from raw_events collection
+                for i, metadata in enumerate(results.get('metadatas', [])):
+                    event_id = results['ids'][i] if 'ids' in results else str(uuid.uuid4())
                     
                     memories.append({
-                        'id': raw_id,
-                        'merged_id': metadata.get('merged_id', ''),
+                        'id': event_id,
+                        'merged_id': '',  # No merged ID for raw view
                         'type': 'raw',
                         'five_w1h': {
                             'who': metadata.get('who', ''),
@@ -769,16 +787,37 @@ def get_memories():
                 'view_mode': view_mode
             })
         
-        # Default merged view - get all events from ChromaDB
+        # Default merged view - get all events from storage backend
         try:
-            collection = memory_agent.memory_store.chromadb.client.get_collection("events")
-            results = collection.get(include=["metadatas"])
+            logger.info(f"Getting events for merged view...")
+            logger.info(f"  memory_agent exists: {memory_agent is not None}")
+            logger.info(f"  memory_store exists: {hasattr(memory_agent, 'memory_store')}")
+            logger.info(f"  db_store exists: {hasattr(memory_agent.memory_store, 'db_store')}")
+            logger.info(f"  total_events: {memory_agent.memory_store.total_events}")
             
+            # Use the QdrantStore's get_all_events method
+            results = memory_agent.memory_store.db_store.get_all_events()
+            logger.info(f"Retrieved {len(results.get('ids', []))} events from Qdrant")
+            logger.info(f"  First 3 IDs: {results.get('ids', [])[:3]}")
+            
+            if not results.get('metadatas'):
+                logger.error("No metadatas in results!")
+                return jsonify({
+                    'memories': [],
+                    'stats': stats,
+                    'error': 'No metadata returned from database'
+                })
+            
+            processed_count = 0
             for i, metadata in enumerate(results['metadatas']):
                 event_id = results['ids'][i] if 'ids' in results else str(uuid.uuid4())
+                processed_count += 1
                 
-                # Check if this memory has residuals
-                has_residual = event_id in memory_agent.memory_store.residuals
+                if processed_count <= 3:
+                    logger.info(f"Processing event {processed_count}: {event_id[:8]}...")
+                
+                # Check if this memory has residuals (will be empty on fresh start)
+                has_residual = event_id in memory_agent.memory_store.residuals if hasattr(memory_agent.memory_store, 'residuals') else False
                 residual_norm = 0.0
                 
                 if has_residual:
@@ -790,14 +829,16 @@ def get_memories():
                 is_merged = False
                 merge_count = 1
                 merged_event = None
-                if event_id in memory_agent.memory_store.merged_events_cache:
-                    merged_event = memory_agent.memory_store.merged_events_cache[event_id]
+                merged_cache = memory_agent.memory_store.merged_events_cache if hasattr(memory_agent.memory_store, 'merged_events_cache') else {}
+                
+                if event_id in merged_cache:
+                    merged_event = merged_cache[event_id]
                     is_merged = True
-                    merge_count = merged_event.merge_count
-                elif f"merged_{event_id}" in memory_agent.memory_store.merged_events_cache:
-                    merged_event = memory_agent.memory_store.merged_events_cache[f"merged_{event_id}"]
+                    merge_count = merged_event.merge_count if hasattr(merged_event, 'merge_count') else 1
+                elif f"merged_{event_id}" in merged_cache:
+                    merged_event = merged_cache[f"merged_{event_id}"]
                     is_merged = True
-                    merge_count = merged_event.merge_count
+                    merge_count = merged_event.merge_count if hasattr(merged_event, 'merge_count') else 1
                 
                 # Get the latest state for merged events to get the latest WHEN
                 if is_merged and merged_event:
@@ -817,7 +858,7 @@ def get_memories():
                     why_value = metadata.get('why', '')
                     how_value = metadata.get('how', '')
                 
-                memories.append({
+                memory_dict = {
                     'id': event_id,
                     'who': who_value,
                     'what': what_value,
@@ -833,13 +874,29 @@ def get_memories():
                     'hyperbolic_weight': float(metadata.get('hyperbolic_weight', 0.5)),
                     'is_merged': is_merged,
                     'merge_count': merge_count
-                })
+                }
+                memories.append(memory_dict)
+                
+                if processed_count <= 3:
+                    logger.info(f"  Added memory: who={who_value}, what={what_value[:30]}...")
+            logger.info(f"Successfully processed {processed_count} events")
+            
         except Exception as e:
-            logger.warning(f"Could not retrieve events: {e}")
+            logger.error(f"Error retrieving events: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+        
+        logger.info(f"Returning {len(memories)} memories to client")
+        
+        # Get merge groups for counts
+        merge_groups = memory_agent.memory_store.get_merge_groups()
         
         return jsonify({
             'memories': memories,
-            'stats': stats
+            'stats': stats,
+            'total_events': stats.get('total_events', 0),
+            'total_raw': stats.get('total_events', 0),  # All events are "raw" since we don't have standard merging
+            'total_merged': len(memories)  # For merged view, show count of displayed memories
         })
         
     except Exception as e:
@@ -949,16 +1006,14 @@ def get_memory_raw_events(memory_id):
     try:
         raw_events = memory_agent.memory_store.get_raw_events_for_merged(memory_id)
         
-        # If no raw events found in memory, try loading from ChromaDB directly
+        # If no raw events found in memory, try loading from storage backend directly
         if not raw_events:
-            logger.info(f"No raw events in memory for {memory_id}, checking ChromaDB directly")
+            logger.info(f"No raw events in memory for {memory_id}, checking storage backend directly")
             try:
-                raw_collection = memory_agent.memory_store.chromadb.client.get_collection('raw_events')
+                # Raw events are now memory-only, not in database
+                raw_events = []
                 # Get all raw events and filter by merged_id
-                results = raw_collection.get(
-                    where={"merged_id": memory_id},
-                    include=['metadatas', 'documents']
-                )
+                results = {'ids': [], 'metadatas': [], 'documents': []}
                 
                 raw_events = []
                 for i, metadata in enumerate(results['metadatas']):
@@ -977,9 +1032,9 @@ def get_memory_raw_events(memory_id):
                         episode_id=metadata.get('episode_id', '')
                     )
                     raw_events.append(event)
-                logger.info(f"Loaded {len(raw_events)} raw events from ChromaDB for {memory_id}")
+                logger.info(f"Loaded {len(raw_events)} raw events from storage for {memory_id}")
             except Exception as e:
-                logger.error(f"Failed to load raw events from ChromaDB: {e}")
+                logger.error(f"Failed to load raw events from storage: {e}")
         
         formatted_raw = []
         for event in raw_events:
@@ -1019,13 +1074,13 @@ def get_merged_event_details(memory_id):
             merged_event = memory_agent.memory_store.merged_events_cache[memory_id]
             logger.info(f"Found merged event {memory_id} in cache")
         
-        # 2. If not in cache, load from ChromaDB (primary storage)
+        # 2. If not in cache, load from storage backend (primary storage)
         if not merged_event:
-            merged_event = memory_agent.memory_store.chromadb.get_merged_event(memory_id)
+            merged_event = memory_agent.memory_store.db_store.get_merged_event(memory_id)
             if merged_event:
                 # Update cache for future quick access
                 memory_agent.memory_store.merged_events_cache[memory_id] = merged_event
-                logger.info(f"Loaded merged event {memory_id} from ChromaDB")
+                logger.info(f"Loaded merged event {memory_id} from storage backend")
         
         # 3. Check if this is a raw event that's part of a merged group
         if not merged_event and memory_id in memory_agent.memory_store.raw_to_merged:
@@ -1035,16 +1090,16 @@ def get_merged_event_details(memory_id):
                 merged_event = memory_agent.memory_store.merged_events_cache[merged_id]
                 logger.info(f"Found cached merged event {merged_id} for raw event {memory_id}")
             else:
-                # Load from ChromaDB
-                merged_event = memory_agent.memory_store.chromadb.get_merged_event(merged_id)
+                # Load from storage backend
+                merged_event = memory_agent.memory_store.db_store.get_merged_event(merged_id)
                 if merged_event:
                     memory_agent.memory_store.merged_events_cache[merged_id] = merged_event
                     logger.info(f"Loaded merged event {merged_id} for raw event {memory_id}")
         
         # 4. If still no merged event, try to get the regular event and create a single-event merged view
         if not merged_event:
-            # Try to get the event from ChromaDB
-            event = memory_agent.memory_store.chromadb.get_event(memory_id)
+            # Try to get the event from storage backend
+            event = memory_agent.memory_store.db_store.get_event(memory_id)
             if event:
                 # Create a merged event view for single event
                 merged_event = MergedEvent(
@@ -1066,23 +1121,74 @@ def get_merged_event_details(memory_id):
                 logger.info(f"No event found for {memory_id}")
                 return jsonify({'error': 'Memory not found', 'memory_id': memory_id}), 404
         
-        # Format the response with all component details
+        # Get raw events directly from the database
+        raw_events = []
+        if hasattr(merged_event, 'raw_event_ids') and merged_event.raw_event_ids:
+            for event_id in merged_event.raw_event_ids:
+                try:
+                    event = memory_agent.memory_store.db_store.get_event(event_id)
+                    if event:
+                        raw_events.append({
+                            'id': event_id,
+                            'five_w1h': {
+                                'who': event.five_w1h.who if event.five_w1h else '',
+                                'what': event.five_w1h.what if event.five_w1h else '',
+                                'when': event.five_w1h.when if event.five_w1h else '',
+                                'where': event.five_w1h.where if event.five_w1h else '',
+                                'why': event.five_w1h.why if event.five_w1h else '',
+                                'how': event.five_w1h.how if event.five_w1h else ''
+                            },
+                            'event_type': event.event_type.value if hasattr(event, 'event_type') else 'observation',
+                            'timestamp': event.created_at.isoformat() if hasattr(event, 'created_at') else '',
+                            'created_at': event.created_at.isoformat() if hasattr(event, 'created_at') else ''
+                        })
+                except Exception as e:
+                    logger.debug(f"Could not retrieve event {event_id}: {e}")
+        
+        # Build aggregated summaries from raw events
+        who_summary = {}
+        what_summary = {}
+        where_summary = {}
+        why_summary = {}
+        how_summary = {}
+        
+        for event in raw_events:
+            five_w1h = event.get('five_w1h', {})
+            # Aggregate WHO
+            if five_w1h.get('who'):
+                who_summary[five_w1h['who']] = who_summary.get(five_w1h['who'], 0) + 1
+            # Aggregate WHAT
+            if five_w1h.get('what'):
+                what_summary[five_w1h['what']] = what_summary.get(five_w1h['what'], 0) + 1
+            # Aggregate WHERE
+            if five_w1h.get('where'):
+                where_summary[five_w1h['where']] = where_summary.get(five_w1h['where'], 0) + 1
+            # Aggregate WHY
+            if five_w1h.get('why'):
+                why_summary[five_w1h['why']] = why_summary.get(five_w1h['why'], 0) + 1
+            # Aggregate HOW
+            if five_w1h.get('how'):
+                how_summary[five_w1h['how']] = how_summary.get(five_w1h['how'], 0) + 1
+        
+        # Format the response with raw events instead of variants
         response = {
             'id': merged_event.id,
             'base_event_id': merged_event.base_event_id,
-            'merge_count': merged_event.merge_count,
+            'merge_count': len(raw_events),
             'created_at': merged_event.created_at.isoformat(),
             'last_updated': merged_event.last_updated.isoformat(),
-            'system_created_at': merged_event.created_at.isoformat(),  # For now, use same until we have system timestamps in MergedEvent
-            'system_last_updated': merged_event.last_updated.isoformat(),  # For now, use same until we have system timestamps
+            'system_created_at': merged_event.created_at.isoformat(),
+            'system_last_updated': merged_event.last_updated.isoformat(),
             
-            # Component variations
-            'who_variants': {},
-            'what_variants': {},
-            'when_timeline': [],
-            'where_locations': merged_event.where_locations,
-            'why_variants': {},
-            'how_methods': merged_event.how_methods,
+            # Raw events data
+            'raw_events': raw_events,
+            
+            # Aggregated summaries
+            'who_summary': who_summary,
+            'what_summary': what_summary,
+            'where_summary': where_summary,
+            'why_summary': why_summary,
+            'how_summary': how_summary,
             
             # Latest state
             'latest_state': merged_event.get_latest_state() if hasattr(merged_event, 'get_latest_state') else {},
@@ -1095,93 +1201,9 @@ def get_merged_event_details(memory_id):
             'depends_on': list(getattr(merged_event, 'depends_on', [])),
             'enables': list(getattr(merged_event, 'enables', [])),
             
-            # Raw events
+            # Raw event IDs for reference
             'raw_event_ids': list(merged_event.raw_event_ids)
         }
-        
-        # Format WHO variants
-        for who, variants in merged_event.who_variants.items():
-            response['who_variants'][who] = [
-                {
-                    'value': v.value,
-                    'timestamp': v.timestamp.isoformat(),
-                    'event_id': v.event_id,
-                    'relationship': v.relationship.value,
-                    'version': v.version
-                }
-                for v in variants
-            ]
-        
-        # Format WHAT variants
-        for what, variants in merged_event.what_variants.items():
-            response['what_variants'][what] = [
-                {
-                    'value': v.value,
-                    'timestamp': v.timestamp.isoformat(),
-                    'event_id': v.event_id,
-                    'relationship': v.relationship.value,
-                    'version': v.version
-                }
-                for v in variants
-            ]
-        
-        # Format WHEN timeline
-        response['when_timeline'] = [
-            {
-                'timestamp': tp.timestamp.isoformat(),
-                'semantic_time': tp.semantic_time,
-                'event_id': tp.event_id,
-                'description': tp.description
-            }
-            for tp in merged_event.when_timeline
-        ]
-        
-        # Format WHY variants
-        for why, variants in merged_event.why_variants.items():
-            response['why_variants'][why] = [
-                {
-                    'value': v.value,
-                    'timestamp': v.timestamp.isoformat(),
-                    'event_id': v.event_id,
-                    'relationship': v.relationship.value,
-                    'version': v.version
-                }
-                for v in variants
-            ]
-        
-        # Build timeline events from raw event IDs if available
-        timeline_events = []
-        if merged_event and hasattr(merged_event, 'raw_event_ids') and merged_event.raw_event_ids:
-            # Try to get raw events for timeline
-            chromadb = memory_agent.memory_store.chromadb if hasattr(memory_agent.memory_store, 'chromadb') else None
-            if chromadb:
-                for event_id in list(merged_event.raw_event_ids)[:10]:  # Limit to 10 for performance
-                    try:
-                        # Try to get from raw events collection
-                        # Just query with the event ID directly
-                        raw_results = chromadb.raw_events_collection.get(
-                            ids=[event_id],
-                            include=['metadatas']
-                        )
-                        if raw_results and raw_results['metadatas']:
-                            for i, metadata in enumerate(raw_results['metadatas']):
-                                if metadata:
-                                    timeline_events.append({
-                                        'id': raw_results['ids'][i],
-                                        'event_type': metadata.get('event_type', 'observation'),
-                                        'timestamp': metadata.get('when', metadata.get('created_at', '')),
-                                        'five_w1h': {
-                                            'who': metadata.get('who', ''),
-                                            'what': metadata.get('what', ''),
-                                            'when': metadata.get('when', ''),
-                                            'where': metadata.get('where', ''),
-                                            'why': metadata.get('why', ''),
-                                            'how': metadata.get('how', '')
-                                        }
-                                    })
-                                    break
-                    except Exception as e:
-                        logger.debug(f"Could not retrieve event {event_id}: {e}")
         
         # Generate enhanced LLM context
         response['llm_context'] = generate_enhanced_llm_context(
@@ -1227,7 +1249,7 @@ def get_multi_merge_details(merge_type, merge_id):
         # Get latest state from merged event
         latest_state = merged_event.get_latest_state()
         
-        # Get actual events from ChromaDB for timeline
+        # Get actual events from storage backend for timeline
         timeline_events = []
         
         # First check if we have raw_event_ids
@@ -1246,9 +1268,9 @@ def get_multi_merge_details(merge_type, merge_id):
                 merged_event.raw_event_ids = raw_ids
         
         if hasattr(merged_event, 'raw_event_ids') and merged_event.raw_event_ids:
-            # Get raw events from ChromaDB
-            chromadb = memory_agent.memory_store.chromadb if hasattr(memory_agent.memory_store, 'chromadb') else None
-            if chromadb:
+            # Get raw events from storage backend
+            db_store = memory_agent.memory_store.db_store if hasattr(memory_agent.memory_store, 'db_store') else None
+            if db_store:
                 for event_id in merged_event.raw_event_ids:
                     # Try to get from raw events collection
                     try:
@@ -1261,10 +1283,8 @@ def get_multi_merge_details(merge_type, merge_id):
                         # Simply query with the event ID
                         logger.debug(f"Querying raw_events_collection with ID: {event_id}")
                         
-                        raw_results = chromadb.raw_events_collection.get(
-                            ids=[event_id],
-                            include=['metadatas']
-                        )
+                        # Raw events are memory-only now
+                        raw_results = {'ids': [], 'documents': [], 'metadatas': []}
                         logger.debug(f"Raw results found: {len(raw_results.get('ids', []))} events")
                         
                         found_event = False
@@ -1293,27 +1313,21 @@ def get_multi_merge_details(merge_type, merge_id):
                         
                         # If not found in raw, try regular events collection
                         if not any(e['id'] == event_id for e in timeline_events):
-                            results = chromadb.events_collection.get(
-                                ids=[event_id],
-                                include=['metadatas']
-                            )
-                            if results and results['metadatas']:
-                                for i, metadata in enumerate(results['metadatas']):
-                                    if metadata:
-                                        timeline_events.append({
-                                            'id': results['ids'][i],
-                                            'event_type': metadata.get('event_type', 'observation'),
-                                            'timestamp': metadata.get('when', metadata.get('created_at', '')),
-                                            'five_w1h': {
-                                                'who': metadata.get('who', ''),
-                                                'what': metadata.get('what', ''),
-                                                'when': metadata.get('when', ''),
-                                                'where': metadata.get('where', ''),
-                                                'why': metadata.get('why', ''),
-                                                'how': metadata.get('how', '')
-                                            }
-                                        })
-                                        break
+                            event = db_store.get_event(event_id)
+                            if event:
+                                timeline_events.append({
+                                    'id': event.id,
+                                    'event_type': event.event_type.value if hasattr(event, 'event_type') else 'observation',
+                                    'timestamp': event.five_w1h.when if hasattr(event, 'five_w1h') else '',
+                                    'five_w1h': {
+                                        'who': event.five_w1h.who if hasattr(event, 'five_w1h') else '',
+                                        'what': event.five_w1h.what if hasattr(event, 'five_w1h') else '',
+                                        'when': event.five_w1h.when if hasattr(event, 'five_w1h') else '',
+                                        'where': event.five_w1h.where if hasattr(event, 'five_w1h') else '',
+                                        'why': event.five_w1h.why if hasattr(event, 'five_w1h') else '',
+                                        'how': event.five_w1h.how if hasattr(event, 'five_w1h') else ''
+                                    }
+                                })
                     except Exception as e:
                         logger.debug(f"Could not retrieve event {event_id}: {e}")
         
@@ -1714,9 +1728,8 @@ def create_memory():
 def delete_memory(memory_id):
     """Delete a memory"""
     try:
-        # Delete from ChromaDB
-        collection = memory_agent.memory_store.chromadb.client.get_collection("events")
-        collection.delete(ids=[memory_id])
+        # Delete from storage backend
+        memory_agent.memory_store.db_store.delete_event(memory_id)
         
         # Remove from residuals and momentum
         if memory_id in memory_agent.memory_store.residuals:
@@ -1861,32 +1874,30 @@ def get_graph():
                     # Check raw_events collection
                     if True:  # Always check
                         # Try with raw_ prefix first
-                        collection = memory_agent.memory_store.chromadb.client.get_collection("raw_events")
-                        test_result = collection.get(
-                            ids=[center_node_id],
-                            include=["metadatas"]
-                        )
-                        if test_result['ids']:
-                            actual_center_id = center_node_id
+                        # Raw events are memory-only now
+                        pass
                 
                 # If we haven't found metadata yet, try the collections
                 if center_metadata is None:
                     # Try events collection first
                     try:
-                        collection = memory_agent.memory_store.chromadb.client.get_collection("events")
-                        center_result = collection.get(
-                            ids=[actual_center_id],
-                            include=["metadatas", "embeddings"]
-                        )
-                        if center_result['ids']:
-                            center_metadata = center_result['metadatas'][0]
+                        event = memory_agent.memory_store.db_store.get_event(actual_center_id)
+                        if event:
+                            center_metadata = {
+                                'who': event.five_w1h.who if hasattr(event, 'five_w1h') else '',
+                                'what': event.five_w1h.what if hasattr(event, 'five_w1h') else '',
+                                'when': event.five_w1h.when if hasattr(event, 'five_w1h') else '',
+                                'where': event.five_w1h.where if hasattr(event, 'five_w1h') else '',
+                                'why': event.five_w1h.why if hasattr(event, 'five_w1h') else '',
+                                'how': event.five_w1h.how if hasattr(event, 'five_w1h') else ''
+                            }
                     except:
                         pass
                     
                     # If not found, try raw_events collection
                     if center_metadata is None:
                         try:
-                            collection = memory_agent.memory_store.chromadb.client.get_collection("raw_events")
+                            # Raw events are memory-only now
                             center_result = collection.get(
                                 ids=[actual_center_id],
                                 include=["metadatas", "embeddings"]
@@ -1994,14 +2005,10 @@ def get_graph():
                 logger.info(f"Fetching {len(raw_event_ids_to_include)} raw events for merged node")
                 logger.info(f"Raw IDs to fetch: {raw_event_ids_to_include[:5]}...")
                 try:
-                    # Get raw events from ChromaDB
-                    raw_collection = memory_agent.memory_store.chromadb.client.get_collection("raw_events")
-                    raw_results = raw_collection.get(
-                        ids=raw_event_ids_to_include,
-                        include=["metadatas"]
-                    )
+                    # Raw events are memory-only now
+                    raw_results = {'ids': [], 'documents': [], 'metadatas': []}
                     
-                    logger.info(f"Retrieved {len(raw_results['ids'])} raw events from ChromaDB")
+                    logger.info(f"Retrieved {len(raw_results['ids'])} raw events from storage")
                     
                     for idx, raw_id in enumerate(raw_results['ids']):
                         if raw_id in raw_results['ids']:
@@ -2103,7 +2110,7 @@ def get_graph():
                     continue
                 
                 # Try to get cached similarity first
-                similarity = memory_agent.memory_store.chromadb.get_cached_similarity(
+                similarity = memory_agent.memory_store.db_store.get_cached_similarity(
                     nodes[i]['id'], nodes[j]['id'], lambda_e, lambda_h
                 )
                 
@@ -2122,10 +2129,10 @@ def get_graph():
                         similarity = 1.0 / (1.0 + distance)
                         
                         # Cache this similarity for future use
-                        memory_agent.memory_store.chromadb.update_similarity_cache(
+                        memory_agent.memory_store.db_store.update_similarity_cache(
                             nodes[i]['id'], emb1
                         )
-                        memory_agent.memory_store.chromadb.update_similarity_cache(
+                        memory_agent.memory_store.db_store.update_similarity_cache(
                             nodes[j]['id'], emb2
                         )
                     else:
@@ -2398,8 +2405,9 @@ def get_merge_statistics():
                     'total_events': total_events
                 }
         
+        # Use total_events as the raw count since that's the actual number of events in the database
         return jsonify({
-            'total_raw': stats.get('total_raw_events', 0),
+            'total_raw': stats.get('total_events', 0),  # Use total_events for database count
             'total_merged': stats.get('total_merged_groups', 0),
             'average_merge_size': stats.get('average_merge_size', 0),
             'size_distribution': size_distribution,
@@ -2417,7 +2425,7 @@ def get_merge_statistics():
 def get_similarity_cache_stats():
     """Get similarity cache statistics"""
     try:
-        stats = memory_agent.memory_store.chromadb.get_similarity_stats()
+        stats = memory_agent.memory_store.db_store.get_similarity_stats()
         return jsonify(stats)
     except Exception as e:
         logger.error(f"Error getting similarity cache stats: {e}")
@@ -2456,9 +2464,8 @@ def get_analytics():
         
         if total_memories > 0:
             try:
-                # Get all memories from ChromaDB
-                collection = memory_agent.memory_store.chromadb.client.get_collection("events")
-                all_memories = collection.get(include=["metadatas"])
+                # Get all memories from storage backend
+                all_memories = memory_agent.memory_store.db_store.get_all_events()
                 
                 logger.info(f"Analyzing {len(all_memories['metadatas'])} memories for space distribution")
                 
@@ -2782,11 +2789,34 @@ def get_merge_groups(merge_type):
                 merged_event = group_data.get('merged_event')
                 if merged_event:
                     latest_state = merged_event.get_latest_state()
+                    
+                    # If latest_state is empty or has unknown values, try to get from first raw event
+                    if not latest_state or all(v in ['', 'unknown', None] for v in latest_state.values()):
+                        # Get the first raw event to populate 5W1H
+                        if merged_event.raw_event_ids:
+                            first_event_id = list(merged_event.raw_event_ids)[0]
+                            logger.info(f"  Fetching event {first_event_id}")
+                            event = memory_agent.memory_store.db_store.get_event(first_event_id)
+                            if event:
+                                latest_state = {
+                                    'who': event.five_w1h.who or 'unknown',
+                                    'what': event.five_w1h.what or 'unknown',
+                                    'when': event.five_w1h.when or '',
+                                    'where': event.five_w1h.where or 'unknown',
+                                    'why': event.five_w1h.why or 'unknown',
+                                    'how': event.five_w1h.how or 'unknown'
+                                }
+                                logger.info(f"  Got event data: who={latest_state['who']}, what={latest_state['what'][:30]}...")
+                            else:
+                                logger.warning(f"  Could not get event {first_event_id}")
+                        else:
+                            logger.warning(f"  No raw_event_ids for group {group_id}")
+                    
                     formatted_groups.append({
                         'id': group_id,
                         'type': merge_type,
                         'key': group_data.get('key', 'Unknown'),
-                        'merge_count': merged_event.merge_count,
+                        'merge_count': merged_event.merge_count if merged_event.merge_count > 0 else len(merged_event.raw_event_ids),
                         'created_at': group_data.get('created_at', datetime.utcnow()).isoformat() if 'created_at' in group_data else '',
                         'last_updated': group_data.get('last_updated', datetime.utcnow()).isoformat() if 'last_updated' in group_data else '',
                         'system_created_at': group_data.get('system_created_at', datetime.utcnow()).isoformat() if 'system_created_at' in group_data else '',
@@ -3000,7 +3030,7 @@ def preload_similarity_cache():
         logger.info("Pre-loading similarity cache...")
         # This will be done automatically when memory_store initializes
         # through the _load_embeddings_to_cache() method
-        stats = memory_agent.memory_store.chromadb.get_similarity_stats()
+        stats = memory_agent.memory_store.db_store.get_similarity_stats()
         logger.info(f"Similarity cache loaded: {stats['cached_pairs']} pairs, "
                    f"{stats['num_embeddings']} embeddings")
     except Exception as e:

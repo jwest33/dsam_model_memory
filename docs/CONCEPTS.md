@@ -139,37 +139,6 @@ Bounds prevent catastrophic drift:
 - Euclidean: ±0.35 (tighter for lexical stability)
 - Hyperbolic: ±0.75 (looser for hierarchical flexibility)
 
-## Storage Architecture
-
-### ChromaDB Collections
-
-```python
-# Main collections
-collections = {
-    'events': merged_events,        # Deduplicated events
-    'raw_events': original_events,   # All original events
-    'merged_events': merge_mappings, # Merge relationships
-    'similarity_cache': similarities # Pre-computed scores
-}
-
-# Dimensional collections (Euclidean + Hyperbolic)
-merge_collections = {
-    'actor_merges': actor_groups,
-    'temporal_merges': temporal_groups,
-    'conceptual_merges': conceptual_groups,
-    'spatial_merges': spatial_groups,
-    # Plus hyperbolic versions for each
-}
-```
-
-### Similarity Cache
-
-Pre-computed pairwise similarities:
-- Sparse storage (threshold: 0.2)
-- O(1) lookup vs O(n²) computation
-- Uses both Euclidean and Hyperbolic distances
-- Hit rate typically >99% after warmup
-
 ## Performance Characteristics
 
 ### Computational Complexity

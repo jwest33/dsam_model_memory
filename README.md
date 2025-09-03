@@ -44,11 +44,11 @@ DSAM is a content-addressable memory system for AI agents that uses dual geometr
 - `memory/merge_group_field_generator.py`: Group-level characterization
 - Multiple mechanism types: chat_interface, tool_use, llm_generation, etc.
 
-**ChromaDB Backend** (`memory/chromadb_store.py`)
+**Qdrant Backend** (`memory/qdrant_store.py`)
 - Collections: events, raw_events, merged_events, similarity_cache
 - Dimensional collections: actor_merges, temporal_merges, conceptual_merges, spatial_merges
 - Full 5W1H metadata preservation
-- Persistent vector storage at `./chroma_db`
+- Persistent vector storage at `./qdrant_db`
 
 ## Installation
 
@@ -65,7 +65,7 @@ source .venv/bin/activate  # Linux/MacOS
 ### Requirements
 - Python 3.11+
 - PyTorch
-- ChromaDB
+- Qdrant
 - Sentence Transformers
 - Flask
 - OpenAI API key (optional, for field generation)

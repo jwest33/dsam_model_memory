@@ -199,9 +199,9 @@ def main():
     print(f"  Average memories per episode: {stats.get('avg_memories_per_episode', 0):.1f}")
     
     # Show merge statistics
-    if hasattr(memory_agent.memory_store, 'chromadb'):
+    if hasattr(memory_agent.memory_store, 'db_store'):
         try:
-            merge_stats = memory_agent.memory_store.chromadb.get_merge_statistics()
+            merge_stats = memory_agent.memory_store.db_store.get_statistics()
             
             print(f"\nMerge Statistics:")
             print(f"  Merged events: {merge_stats.get('merged_events', 0)}")

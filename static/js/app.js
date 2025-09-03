@@ -1742,11 +1742,29 @@ async function loadMergeStats() {
     try {
         const response = await fetch('/api/merge-stats');
         const data = await response.json();
+        console.log('Merge stats data:', data);
         
         // Update UI with merge statistics
         if (data.total_raw !== undefined) {
             const rawCountEl = document.getElementById('rawCount');
-            if (rawCountEl) rawCountEl.textContent = data.total_raw;
+            if (rawCountEl) {
+                rawCountEl.textContent = data.total_raw;
+                console.log(`Updated rawCount to: ${data.total_raw}`);
+            } else {
+                console.log('rawCount element not found, retrying...');
+                // If element doesn't exist yet, retry after a short delay
+                setTimeout(() => {
+                    const retryEl = document.getElementById('rawCount');
+                    if (retryEl) {
+                        retryEl.textContent = data.total_raw;
+                        console.log(`Updated rawCount on retry to: ${data.total_raw}`);
+                    } else {
+                        console.log('rawCount element still not found after retry');
+                    }
+                }, 100);
+            }
+        } else {
+            console.log('total_raw not in response data');
         }
         if (data.total_merged !== undefined) {
             const mergedCountEl = document.getElementById('mergedCount');
@@ -3216,6 +3234,7 @@ function createMergedOverviewTab(mergedEvent, latest) {
                     <td class="text-truncate" style="max-width: 300px;" title="${escapeHtml(value)}">
                         ${escapeHtml(value.substring(0, 100))}
                     </td>
+                    <td class="text-center">${data.count}</td>
                     <td class="text-muted small">${formatDate(data.lastUpdated)}</td>
                 </tr>`;
         }
@@ -3231,76 +3250,56 @@ function createMergedOverviewTab(mergedEvent, latest) {
     };
     
     // Helper function to create component rows for unified table
-    const createComponentRows = (title, variants, displayField = 'value') => {
-        if (!variants || Object.keys(variants).length === 0) {
+    const createComponentRows = (title, summary) => {
+        if (!summary || Object.keys(summary).length === 0) {
             return `
                 <tr class="table-secondary">
-                    <td colspan="3"><strong>${title}</strong></td>
+                    <td colspan="2"><strong>${title}</strong></td>
                 </tr>
                 <tr>
-                    <td colspan="3" class="text-muted ps-4">No data available</td>
+                    <td colspan="2" class="text-muted ps-4">No data available</td>
                 </tr>`;
         }
         
-        // Aggregate all variants
-        const aggregated = {};
-        for (const [key, variantList] of Object.entries(variants)) {
-            for (const variant of variantList) {
-                const value = variant[displayField] || variant.value || key;
-                if (!aggregated[value]) {
-                    aggregated[value] = {
-                        count: 0,
-                        lastUpdated: variant.timestamp
-                    };
-                }
-                // Use the variant's count if available, otherwise increment by 1
-                const variantCount = variant.count || 1;
-                aggregated[value].count += variantCount;
-                if (variant.timestamp > aggregated[value].lastUpdated) {
-                    aggregated[value].lastUpdated = variant.timestamp;
-                }
-            }
-        }
-        
         // Sort by count descending
-        const sorted = Object.entries(aggregated).sort((a, b) => b[1].count - a[1].count);
+        const sorted = Object.entries(summary).sort((a, b) => b[1] - a[1]);
         
         // Generate unique ID for this section
         const sectionId = title.replace(/\W+/g, '_').toLowerCase() + '_' + Math.random().toString(36).substr(2, 9);
         
         let rows = `
             <tr class="table-secondary">
-                <td colspan="3"><strong>${title}</strong></td>
+                <td colspan="2"><strong>${title}</strong></td>
             </tr>`;
         
         // Always show first 5
-        for (const [value, data] of sorted.slice(0, 5)) {
+        for (const [value, count] of sorted.slice(0, 5)) {
             rows += `
                 <tr>
-                    <td class="text-truncate ps-4" style="max-width: 400px;" title="${escapeHtml(value)}">
+                    <td class="text-truncate ps-4" style="max-width: 500px;" title="${escapeHtml(value)}">
                         ${escapeHtml(value.substring(0, 100))}
                     </td>
-                    <td style="width: 200px;" class="text-muted small">${formatDate(data.lastUpdated)}</td>
+                    <td class="text-center" style="width: 80px;">${count}</td>
                 </tr>`;
         }
         
         // Add hidden rows for remaining items
         if (sorted.length > 5) {
             // Add collapsed rows
-            for (const [value, data] of sorted.slice(5)) {
+            for (const [value, count] of sorted.slice(5)) {
                 rows += `
                     <tr class="merge-group-extra-row" data-section="${sectionId}" style="display: none;">
-                        <td class="text-truncate ps-4" style="max-width: 400px;" title="${escapeHtml(value)}">
+                        <td class="text-truncate ps-4" style="max-width: 500px;" title="${escapeHtml(value)}">
                             ${escapeHtml(value.substring(0, 100))}
                         </td>
-                        <td style="width: 200px;" class="text-muted small">${formatDate(data.lastUpdated)}</td>
+                        <td class="text-center" style="width: 80px;">${count}</td>
                     </tr>`;
             }
             
             // Add expand/collapse row
             rows += `
                 <tr>
-                    <td colspan="3" class="text-muted small ps-4">
+                    <td colspan="2" class="text-muted small ps-4">
                         <a href="#" class="text-decoration-none text-info merge-group-expand-link" 
                            data-section="${sectionId}" 
                            data-expanded="false"
@@ -3324,12 +3323,18 @@ function createMergedOverviewTab(mergedEvent, latest) {
                 <h5 class="text-purple mb-3">Component Summary</h5>
                 <div class="table-responsive">
                     <table class="table table-sm table-dark table-hover">
+                        <thead>
+                            <tr>
+                                <th>Value</th>
+                                <th style="width: 80px;" class="text-center">Count</th>
+                            </tr>
+                        </thead>
                         <tbody>
-                            ${createComponentRows('WHO - Actors', mergedEvent.who_variants)}
-                            ${createComponentRows('WHAT - Actions', mergedEvent.what_variants)}
-                            ${createComponentRows('WHERE - Locations', mergedEvent.where_locations)}
-                            ${createComponentRows('WHY - Reasons', mergedEvent.why_variants)}
-                            ${createComponentRows('HOW - Methods', mergedEvent.how_variants || (mergedEvent.how_methods ? {'methods': Object.entries(mergedEvent.how_methods).map(([method, count]) => ({value: method, timestamp: new Date()}))} : {}))}
+                            ${createComponentRows('WHO - Actors', mergedEvent.who_summary)}
+                            ${createComponentRows('WHAT - Actions', mergedEvent.what_summary)}
+                            ${createComponentRows('WHERE - Locations', mergedEvent.where_summary)}
+                            ${createComponentRows('WHY - Reasons', mergedEvent.why_summary)}
+                            ${createComponentRows('HOW - Methods', mergedEvent.how_summary)}
                         </tbody>
                     </table>
                 </div>
@@ -5000,11 +5005,13 @@ window.loadMemories = async function() {
         
         await loadMemoriesOriginal();
     } else if (isMergedView) {
-        // Merged view - show table (will be handled by displayMergeGroups)
-        // Default to temporal if not set
+        // Merged view - show multi-dimensional merge groups
+        // Default to conceptual if not set
         if (!currentMergeDimension) {
-            currentMergeDimension = 'temporal';
+            currentMergeDimension = 'conceptual';
         }
+        
+        // Load and display merge groups for the current dimension
         await loadMergeGroups(currentMergeDimension);
     }
 }

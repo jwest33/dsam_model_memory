@@ -5,7 +5,7 @@ This module manages temporal relationships between events, tracking how events
 update, correct, or supersede each other over time.
 
 Enhanced for integration with:
-- ChromaDB persistence (raw and merged events)
+- storage persistence (raw and merged events)
 - Multi-dimensional merging system (temporal dimension)
 - Dual-space distance metrics for chain-based retrieval
 - Similarity cache for efficient chain analysis
@@ -39,14 +39,14 @@ class TemporalChain:
     Manages temporal relationships between events, tracking how information
     evolves, gets corrected, or superseded over time.
     
-    Integrated with ChromaDB and multi-dimensional merging system.
+    Integrated with storage and multi-dimensional merging system.
     """
     
-    def __init__(self, chromadb_store=None, encoder=None, similarity_cache=None, config=None):
+    def __init__(self, storage_backend=None, encoder=None, similarity_cache=None, config=None):
         """Initialize the temporal chain manager
         
         Args:
-            chromadb_store: Optional ChromaDB store for persistence
+            storage_backend: Optional storage backend for persistence
             encoder: Optional dual-space encoder for chain similarity
             similarity_cache: Optional similarity cache for efficient analysis
             config: Optional Config object with temporal settings
@@ -63,7 +63,7 @@ class TemporalChain:
         self.continues_map: Dict[str, str] = {}  # event_id -> continues_from
         
         # Integration with new architecture
-        self.chromadb = chromadb_store
+        self.storage = storage_backend
         self.encoder = encoder
         self.similarity_cache = similarity_cache
         
@@ -84,8 +84,8 @@ class TemporalChain:
         # Chain embeddings for similarity-based chain detection
         self.chain_embeddings: Dict[str, Dict] = {}  # chain_id -> embeddings
         
-        # Load existing chains from ChromaDB if available
-        if self.chromadb:
+        # Load existing chains from storage if available
+        if self.storage:
             self._load_chains_from_db()
         
     def add_event(self, event: Event, chain_context: Optional[Dict] = None,
@@ -152,8 +152,8 @@ class TemporalChain:
         if self.encoder:
             self._update_chain_embedding(chain_id, event)
         
-        # Persist to ChromaDB if available
-        if self.chromadb:
+        # Persist to storage if available
+        if self.storage:
             self._persist_chain_to_db(chain_id)
         
         logger.info(f"Added event {event.id} to chain {chain_id} with relationship {relationship.value}")
@@ -671,9 +671,9 @@ class TemporalChain:
     
     def _persist_chain_to_db(self, chain_id: str):
         """
-        Persist chain information to ChromaDB metadata collection.
+        Persist chain information to storage metadata collection.
         """
-        if not self.chromadb:
+        if not self.storage:
             return
             
         try:
@@ -695,8 +695,8 @@ class TemporalChain:
             }
             
             # Store in metadata collection if method exists
-            if hasattr(self.chromadb, 'store_metadata'):
-                self.chromadb.store_metadata(
+            if hasattr(self.storage, 'store_metadata'):
+                self.storage.store_metadata(
                     key=f"temporal_chain_{chain_id}",
                     value=chain_data
                 )
@@ -707,31 +707,31 @@ class TemporalChain:
                         'euclidean': self.chain_embeddings[chain_id]['euclidean'].tolist(),
                         'hyperbolic': self.chain_embeddings[chain_id]['hyperbolic'].tolist()
                     }
-                    self.chromadb.store_metadata(
+                    self.storage.store_metadata(
                         key=f"temporal_chain_embedding_{chain_id}",
                         value=emb_data
                     )
             else:
-                logger.debug("ChromaDB store_metadata not available, skipping chain persistence")
+                logger.debug("storage store_metadata not available, skipping chain persistence")
                 
         except Exception as e:
-            logger.warning(f"Failed to persist chain {chain_id} to ChromaDB: {e}")
+            logger.warning(f"Failed to persist chain {chain_id} to storage: {e}")
     
     def _load_chains_from_db(self):
         """
-        Load existing temporal chains from ChromaDB.
+        Load existing temporal chains from storage.
         """
-        if not self.chromadb:
+        if not self.storage:
             return
             
         try:
-            # Check if the ChromaDB store has the get_all_metadata method
-            if not hasattr(self.chromadb, 'get_all_metadata'):
-                logger.debug("ChromaDB store does not support get_all_metadata, skipping chain loading")
+            # Check if the storage store has the get_all_metadata method
+            if not hasattr(self.storage, 'get_all_metadata'):
+                logger.debug("storage store does not support get_all_metadata, skipping chain loading")
                 return
                 
             # Get all temporal chain metadata
-            metadata = self.chromadb.get_all_metadata()
+            metadata = self.storage.get_all_metadata()
             
             for key, value in metadata.items():
                 if key.startswith('temporal_chain_') and not key.endswith('_embedding'):
@@ -770,13 +770,13 @@ class TemporalChain:
                             'hyperbolic': np.array(emb_data['hyperbolic'])
                         }
                         
-            logger.info(f"Loaded {len(self.chains)} temporal chains from ChromaDB")
+            logger.info(f"Loaded {len(self.chains)} temporal chains from storage")
             
         except AttributeError as e:
-            # This is expected if ChromaDB doesn't have metadata methods
-            logger.debug(f"ChromaDB metadata methods not available: {e}")
+            # This is expected if storage doesn't have metadata methods
+            logger.debug(f"storage metadata methods not available: {e}")
         except Exception as e:
-            logger.warning(f"Failed to load temporal chains from ChromaDB: {e}")
+            logger.warning(f"Failed to load temporal chains from storage: {e}")
     
     def _serialize_metadata(self, metadata: Dict) -> Dict:
         """Convert sets to lists for JSON serialization."""
