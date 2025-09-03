@@ -2,27 +2,53 @@
 {% block content %}
 <section class="chat">
   <div class="panel">
-    <label>Session ID</label>
-    <input id="session" value="default"/>
+    <h3>Session Configuration</h3>
+    <div style="display: flex; align-items: center; gap: 1rem;">
+      <label style="color: var(--synth-cyan); font-weight: 600; text-transform: uppercase; font-size: 0.8rem;">Session ID:</label>
+      <input id="session" type="text" value="default" style="flex: 1; max-width: 300px;"/>
+    </div>
   </div>
+  
   <div class="panel">
-    <textarea id="input" placeholder="Say something..."></textarea>
-    <button id="send">Send</button>
+    <h3>Chat Interface</h3>
+    <div id="messages" style="min-height: 300px; max-height: 400px; overflow-y: auto; margin-bottom: 1rem; padding: 1rem; background: var(--synth-surface); border-radius: 8px; border: 1px solid var(--synth-border);"></div>
+    <div style="display: flex; gap: 1rem; align-items: flex-end;">
+      <textarea id="input" placeholder="Type your message here..." style="flex: 1;"></textarea>
+      <button id="send">Send</button>
+    </div>
   </div>
+  
   <div id="loading-indicator" class="loading-container" style="display: none;">
     <div class="spinner"></div>
     <div class="loading-text">Processing your query...</div>
   </div>
-  <pre id="reply"></pre>
+  
+  <div class="panel" id="debug-panel" style="display: none;">
+    <h3>Debug Information</h3>
+    <pre id="reply" style="max-height: 200px; overflow-y: auto;"></pre>
+  </div>
 </section>
 <script>
 const sendBtn = document.getElementById('send');
 const input = document.getElementById('input');
 const session = document.getElementById('session');
 const replyEl = document.getElementById('reply');
+const messagesEl = document.getElementById('messages');
+const debugPanel = document.getElementById('debug-panel');
 const loadingIndicator = document.getElementById('loading-indicator');
 let messages = [];
 let isProcessing = false;
+
+function addMessage(role, content) {
+  const messageDiv = document.createElement('div');
+  messageDiv.className = `message ${role}`;
+  messageDiv.innerHTML = `
+    <div class="role">${role}</div>
+    <div class="content">${content}</div>
+  `;
+  messagesEl.appendChild(messageDiv);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
 
 sendBtn.onclick = async () => {
   const text = input.value.trim();
@@ -30,6 +56,9 @@ sendBtn.onclick = async () => {
   
   // Set processing state
   isProcessing = true;
+  
+  // Add user message to UI
+  addMessage('user', text);
   
   // Show loading indicator
   loadingIndicator.style.display = 'flex';
@@ -46,10 +75,19 @@ sendBtn.onclick = async () => {
     const data = await res.json();
     messages.push({role:'user', content:text});
     messages.push({role:'assistant', content:data.reply});
-    replyEl.textContent = data.reply + "\n\n---\nBlock summary: " + JSON.stringify(data.block?.block || {}, null, 2);
+    
+    // Add assistant message to UI
+    addMessage('assistant', data.reply);
+    
+    // Update debug info if available
+    if (data.block?.block) {
+      debugPanel.style.display = 'block';
+      replyEl.textContent = "Block summary: " + JSON.stringify(data.block.block, null, 2);
+    }
+    
     input.value = '';
   } catch (error) {
-    replyEl.textContent = 'Error: ' + error.message;
+    addMessage('assistant', 'Error: ' + error.message);
   } finally {
     // Hide loading indicator and reset state
     loadingIndicator.style.display = 'none';
