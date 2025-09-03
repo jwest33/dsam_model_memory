@@ -1,4 +1,6 @@
-# Agentic Memory Framework
+# [JAM] Jouranlistic Agent Memory
+> [!NOTE]
+> Formerly DSAM (Dual-Space Agentic Memory)
 
 A local-first journalistic memory system that gives LLM agents persistent, searchable memory with human-like organization and recall patterns.
 
