@@ -16,8 +16,8 @@ This framework provides agents with a memory system inspired by how humans actua
 - **Self-Organizing**: Memories cluster naturally based on concepts, time, actors, and context
 - **Token-Aware**: Optimally packs memories into LLM context windows using knapsack algorithms
 
-### Professional Web Interface
-- **Synthwave Theme**: Stunning cyberpunk aesthetics with neon colors and gradients
+### Web Interface
+- **Synthwave Theme**: Synthwave aesthetics with neon colors and gradients
 - **Chat Interface**: Real-time messaging with loading animations and session management
 - **Memory Explorer**: Browse and search through stored memories with advanced filtering
 - **Responsive Design**: Optimized for desktop and tablet viewing
@@ -28,7 +28,7 @@ This framework provides agents with a memory system inspired by how humans actua
 - **Extensible Framework**: Easy to add new tools and capabilities
 
 ### Privacy-First
-- **100% Local**: Runs entirely on your machine
+- **100% Local**: Runs entirely on your machine!
 - **No Cloud Dependencies**: Your data never leaves your system
 - **Open Source**: Full transparency and control
 
