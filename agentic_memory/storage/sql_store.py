@@ -167,11 +167,13 @@ class MemoryStore:
 
     def lexical_search(self, query: str, k: int = 50) -> List[sqlite3.Row]:
         # Use FTS5 bm25
+        # Escape special FTS5 characters by quoting the entire query
+        escaped_query = '"' + query.replace('"', '""') + '"'
         sql = """SELECT memory_id, bm25(mem_fts) AS score FROM mem_fts
                  WHERE mem_fts MATCH ?
                  ORDER BY score LIMIT ?"""
         with self.connect() as con:
-            rows = con.execute(sql, (query, k)).fetchall()
+            rows = con.execute(sql, (escaped_query, k)).fetchall()
         return rows
 
     # Blocks
