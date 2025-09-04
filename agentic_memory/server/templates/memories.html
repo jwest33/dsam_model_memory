@@ -7,10 +7,57 @@
 
 {% block content %}
 <div class="panel">
-  <h3 class="neon-text" style="color: var(--synth-pink);">Memory Store</h3>
-  <p class="text-muted" style="margin-top: 0.5rem; font-size: 0.8rem;">
-    Viewing recent memories stored in the system
-  </p>
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      <h3 class="neon-text" style="color: var(--synth-pink);">Memory Store</h3>
+      <p class="text-muted" style="margin-top: 0.5rem; font-size: 0.8rem;">
+        Viewing recent memories stored in the system
+      </p>
+    </div>
+    <div style="display: flex; gap: 1rem;">
+      <button id="btn-import" class="btn-synthwave" style="
+        background: linear-gradient(135deg, var(--synth-purple), var(--synth-pink));
+        border: none;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 5px;
+        cursor: pointer;
+        font-family: 'Michroma', sans-serif;
+        font-size: 0.8rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 10px rgba(255, 16, 240, 0.3);
+      ">
+        Import
+      </button>
+      <button id="btn-export" class="btn-synthwave" style="
+        background: linear-gradient(135deg, var(--synth-cyan), var(--synth-purple));
+        border: none;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 5px;
+        cursor: pointer;
+        font-family: 'Michroma', sans-serif;
+        font-size: 0.8rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 10px rgba(0, 255, 255, 0.3);
+      ">
+        Export
+      </button>
+      <button id="btn-delete-all" class="btn-synthwave" style="
+        background: transparent;
+        border: 1px solid var(--synth-pink);
+        color: var(--synth-pink);
+        padding: 0.5rem 1rem;
+        border-radius: 5px;
+        cursor: pointer;
+        font-family: 'Michroma', sans-serif;
+        font-size: 0.8rem;
+        transition: all 0.3s ease;
+      ">
+        Delete All
+      </button>
+    </div>
+  </div>
 </div>
 
 <div class="panel" style="overflow-x: auto;">
@@ -108,6 +155,31 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
+    
+    // Delete All button
+    document.getElementById('btn-delete-all').addEventListener('click', function() {
+        synthModal.confirm({
+            title: 'Delete All Memories',
+            message: 'Delete all memories in the system?',
+            submessage: 'This will permanently remove ALL memories from the database.',
+            type: 'danger',
+            confirmText: 'Delete All',
+            cancelText: 'Cancel',
+            showWarningBox: true,
+            warningText: 'THIS ACTION CANNOT BE UNDONE! All memory data will be lost.',
+            onConfirm: () => deleteAllMemories()
+        });
+    });
+    
+    // Export button
+    document.getElementById('btn-export').addEventListener('click', function() {
+        showExportDialog();
+    });
+    
+    // Import button
+    document.getElementById('btn-import').addEventListener('click', function() {
+        showImportDialog();
+    });
 });
 
 async function deleteMemory(memoryId) {
@@ -126,6 +198,329 @@ async function deleteMemory(memoryId) {
         }
     } catch (error) {
         alert('Failed to delete memory: ' + error.message);
+    }
+}
+
+async function deleteAllMemories() {
+    try {
+        const response = await fetch('/api/memories/delete-all', {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            synthModal.alert({
+                title: 'Success',
+                message: data.message || 'All memories deleted successfully',
+                type: 'success',
+                onClose: () => location.reload()
+            });
+        } else {
+            alert(`Failed to delete memories: ${data.error}`);
+        }
+    } catch (error) {
+        alert('Failed to delete memories: ' + error.message);
+    }
+}
+
+function showExportDialog() {
+    const content = `
+        <div style="padding: 1rem;">
+            <h4 style="color: var(--synth-cyan); margin-bottom: 1rem;">Export Options</h4>
+            
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--synth-purple);">
+                    Session ID (optional):
+                </label>
+                <input type="text" id="export-session-id" placeholder="Leave empty for all sessions" style="
+                    width: 100%;
+                    background: rgba(0,0,0,0.5);
+                    border: 1px solid var(--synth-cyan);
+                    color: white;
+                    padding: 0.5rem;
+                    border-radius: 3px;
+                    font-family: 'Michroma', sans-serif;
+                ">
+            </div>
+            
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--synth-purple);">
+                    Start Date (optional):
+                </label>
+                <input type="datetime-local" id="export-start-date" style="
+                    width: 100%;
+                    background: rgba(0,0,0,0.5);
+                    border: 1px solid var(--synth-cyan);
+                    color: white;
+                    padding: 0.5rem;
+                    border-radius: 3px;
+                    font-family: 'Michroma', sans-serif;
+                ">
+            </div>
+            
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--synth-purple);">
+                    End Date (optional):
+                </label>
+                <input type="datetime-local" id="export-end-date" style="
+                    width: 100%;
+                    background: rgba(0,0,0,0.5);
+                    border: 1px solid var(--synth-cyan);
+                    color: white;
+                    padding: 0.5rem;
+                    border-radius: 3px;
+                    font-family: 'Michroma', sans-serif;
+                ">
+            </div>
+            
+            <div id="export-preview" style="margin-top: 1rem; padding: 0.5rem; background: rgba(0,255,255,0.1); border-radius: 3px; display: none;">
+                <div style="color: var(--synth-cyan); font-size: 0.9rem;">Preview loading...</div>
+            </div>
+            
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button onclick="previewExport()" style="
+                    background: linear-gradient(135deg, var(--synth-purple), var(--synth-pink));
+                    border: none;
+                    color: white;
+                    padding: 0.5rem 1rem;
+                    border-radius: 3px;
+                    cursor: pointer;
+                    font-family: 'Michroma', sans-serif;
+                    flex: 1;
+                ">Preview</button>
+                <button onclick="performExport()" style="
+                    background: linear-gradient(135deg, var(--synth-cyan), var(--synth-purple));
+                    border: none;
+                    color: white;
+                    padding: 0.5rem 1rem;
+                    border-radius: 3px;
+                    cursor: pointer;
+                    font-family: 'Michroma', sans-serif;
+                    flex: 1;
+                ">Export</button>
+            </div>
+        </div>
+    `;
+    
+    synthModal.custom({
+        title: 'Export Memories',
+        content: content,
+        width: '500px'
+    });
+}
+
+async function previewExport() {
+    const sessionId = document.getElementById('export-session-id').value;
+    const startDate = document.getElementById('export-start-date').value;
+    const endDate = document.getElementById('export-end-date').value;
+    
+    const previewDiv = document.getElementById('export-preview');
+    previewDiv.style.display = 'block';
+    previewDiv.innerHTML = '<div style="color: var(--synth-cyan);">Loading preview...</div>';
+    
+    try {
+        const response = await fetch('/api/memories/export-preview', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                session_id: sessionId || null,
+                start_date: startDate || null,
+                end_date: endDate || null
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            let previewHtml = `
+                <div style="color: var(--synth-cyan); margin-bottom: 0.5rem;">
+                    Will export <strong>${data.count}</strong> memories
+                </div>
+            `;
+            
+            if (data.samples && data.samples.length > 0) {
+                previewHtml += '<div style="color: var(--synth-purple); margin-top: 0.5rem;">Sample memories:</div>';
+                previewHtml += '<ul style="margin-top: 0.5rem; font-size: 0.8rem;">';
+                data.samples.forEach(s => {
+                    previewHtml += `<li style="color: white;">${s.what.substring(0, 50)}...</li>`;
+                });
+                previewHtml += '</ul>';
+            }
+            
+            previewDiv.innerHTML = previewHtml;
+        } else {
+            previewDiv.innerHTML = `<div style="color: var(--synth-pink);">Error: ${data.error}</div>`;
+        }
+    } catch (error) {
+        previewDiv.innerHTML = `<div style="color: var(--synth-pink);">Error: ${error.message}</div>`;
+    }
+}
+
+async function performExport() {
+    const sessionId = document.getElementById('export-session-id').value;
+    const startDate = document.getElementById('export-start-date').value;
+    const endDate = document.getElementById('export-end-date').value;
+    
+    try {
+        const response = await fetch('/api/memories/export', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                session_id: sessionId || null,
+                start_date: startDate || null,
+                end_date: endDate || null
+            })
+        });
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `memories_export_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            synthModal.close();
+            synthModal.alert({
+                title: 'Success',
+                message: 'Memories exported successfully',
+                type: 'success'
+            });
+        } else {
+            const data = await response.json();
+            alert(`Export failed: ${data.error}`);
+        }
+    } catch (error) {
+        alert('Export failed: ' + error.message);
+    }
+}
+
+function showImportDialog() {
+    const content = `
+        <div style="padding: 1rem;">
+            <h4 style="color: var(--synth-cyan); margin-bottom: 1rem;">Import Memories</h4>
+            
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--synth-purple);">
+                    Select JSON file:
+                </label>
+                <input type="file" id="import-file" accept=".json" style="
+                    width: 100%;
+                    background: rgba(0,0,0,0.5);
+                    border: 1px solid var(--synth-cyan);
+                    color: white;
+                    padding: 0.5rem;
+                    border-radius: 3px;
+                    font-family: 'Michroma', sans-serif;
+                ">
+            </div>
+            
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--synth-purple);">
+                    Merge Strategy:
+                </label>
+                <select id="import-merge-strategy" style="
+                    width: 100%;
+                    background: rgba(0,0,0,0.5);
+                    border: 1px solid var(--synth-cyan);
+                    color: white;
+                    padding: 0.5rem;
+                    border-radius: 3px;
+                    font-family: 'Michroma', sans-serif;
+                ">
+                    <option value="skip">Skip existing (recommended)</option>
+                    <option value="overwrite">Overwrite existing</option>
+                    <option value="new_ids">Import all as new</option>
+                </select>
+            </div>
+            
+            <div style="margin-bottom: 1rem;">
+                <label style="display: flex; align-items: center; color: var(--synth-purple); cursor: pointer;">
+                    <input type="checkbox" id="import-regenerate-embeddings" style="margin-right: 0.5rem;">
+                    Regenerate embeddings (slower but ensures compatibility)
+                </label>
+            </div>
+            
+            <div id="import-info" style="margin-top: 1rem; padding: 0.5rem; background: rgba(255,16,240,0.1); border-radius: 3px;">
+                <div style="color: var(--synth-pink); font-size: 0.8rem;">
+                    <strong>Note:</strong> Large imports may take some time. The page will refresh when complete.
+                </div>
+            </div>
+            
+            <button onclick="performImport()" style="
+                width: 100%;
+                background: linear-gradient(135deg, var(--synth-purple), var(--synth-pink));
+                border: none;
+                color: white;
+                padding: 0.75rem;
+                border-radius: 3px;
+                cursor: pointer;
+                font-family: 'Michroma', sans-serif;
+                margin-top: 1rem;
+            ">Import Memories</button>
+        </div>
+    `;
+    
+    synthModal.custom({
+        title: 'Import Memories',
+        content: content,
+        width: '500px'
+    });
+}
+
+async function performImport() {
+    const fileInput = document.getElementById('import-file');
+    const mergeStrategy = document.getElementById('import-merge-strategy').value;
+    const regenerateEmbeddings = document.getElementById('import-regenerate-embeddings').checked;
+    
+    if (!fileInput.files || fileInput.files.length === 0) {
+        alert('Please select a file to import');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    formData.append('merge_strategy', mergeStrategy);
+    formData.append('regenerate_embeddings', regenerateEmbeddings);
+    
+    // Show loading state
+    const importButton = event.target;
+    importButton.disabled = true;
+    importButton.textContent = 'Importing...';
+    
+    try {
+        const response = await fetch('/api/memories/import', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            synthModal.close();
+            synthModal.alert({
+                title: 'Import Successful',
+                message: `Imported ${data.imported} memories, skipped ${data.skipped}, errors: ${data.errors}`,
+                type: 'success',
+                onClose: () => location.reload()
+            });
+        } else {
+            let errorMsg = data.error || 'Import failed';
+            if (data.errors && data.errors.length > 0) {
+                errorMsg += '\nErrors: ' + data.error_details.join('\n');
+            }
+            alert(errorMsg);
+            importButton.disabled = false;
+            importButton.textContent = 'Import Memories';
+        }
+    } catch (error) {
+        alert('Import failed: ' + error.message);
+        importButton.disabled = false;
+        importButton.textContent = 'Import Memories';
     }
 }
 </script>
