@@ -100,13 +100,13 @@
 
 .tab-btn:hover {
     background: rgba(168, 85, 247, 0.2);
-    box-shadow: 0 0 10px var(--neon-purple);
+    opacity: 1;
 }
 
 .tab-btn.active {
     background: var(--neon-purple);
     color: white;
-    box-shadow: 0 0 20px var(--neon-purple);
+    opacity: 1;
 }
 
 .settings-controls {
@@ -249,34 +249,61 @@
     box-shadow: 0 0 10px var(--neon-cyan);
 }
 
-.setting-input[type="checkbox"] {
-    width: 40px;
-    height: 20px;
-    appearance: none;
+/* Dropdown styling */
+.setting-input select,
+select.setting-input {
     background: rgba(0, 255, 255, 0.1);
-    border-radius: 10px;
-    position: relative;
+    border: 1px solid var(--neon-cyan);
+    color: white;
     cursor: pointer;
 }
 
-.setting-input[type="checkbox"]:checked {
-    background: var(--neon-cyan);
+.setting-input select option,
+select.setting-input option {
+    background: #1a1a2e;
+    color: white;
+    padding: 5px;
 }
 
-.setting-input[type="checkbox"]::after {
-    content: '';
-    position: absolute;
-    width: 16px;
-    height: 16px;
-    background: white;
-    border-radius: 50%;
-    top: 2px;
-    left: 2px;
-    transition: transform 0.3s ease;
+.setting-input select:hover,
+select.setting-input:hover {
+    background: rgba(0, 255, 255, 0.15);
+}
+
+.setting-input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    appearance: none;
+    background: rgba(0, 255, 255, 0.05);
+    border: 1px solid var(--neon-cyan);
+    border-radius: 4px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    opacity: 0.8;
+}
+
+.setting-input[type="checkbox"]:hover {
+    opacity: 1;
+    background: rgba(0, 255, 255, 0.15);
+}
+
+.setting-input[type="checkbox"]:checked {
+    background: rgba(0, 255, 255, 0.2);
+    border-color: var(--neon-cyan);
+    opacity: 1;
 }
 
 .setting-input[type="checkbox"]:checked::after {
-    transform: translateX(20px);
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--neon-cyan);
+    font-size: 14px;
+    font-weight: bold;
+    text-shadow: 0 0 5px var(--neon-cyan);
 }
 
 .setting-unit {
@@ -297,7 +324,6 @@
 
 .btn-reset:hover {
     background: rgba(255, 16, 240, 0.1);
-    box-shadow: 0 0 10px var(--synth-pink);
     opacity: 1;
 }
 
@@ -315,7 +341,7 @@
 
 .btn-secondary:hover {
     background: rgba(0, 255, 255, 0.1);
-    box-shadow: 0 0 10px var(--neon-cyan);
+    opacity: 1;
 }
 
 .btn-primary {
@@ -332,7 +358,7 @@
 
 .btn-primary:hover {
     background: rgba(168, 85, 247, 0.2);
-    box-shadow: 0 0 10px var(--neon-purple);
+    opacity: 1;
 }
 
 .btn-danger {
@@ -350,7 +376,6 @@
 
 .btn-danger:hover {
     background: rgba(255, 16, 240, 0.1);
-    box-shadow: 0 0 10px var(--synth-pink);
     opacity: 1;
 }
 
@@ -476,10 +501,12 @@ let showAdvanced = true;  // Show advanced settings by default
 
 // Load settings on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Ensure modal is available
-    if (typeof window.synthModal === 'undefined') {
-        console.error('Modal system not loaded. Check that modal.js is included.');
-    }
+    // Give modal system time to initialize
+    setTimeout(function() {
+        if (typeof window.synthModal === 'undefined') {
+            console.error('Modal system not loaded. Check that modal.js is included.');
+        }
+    }, 100);
     
     loadSettings();
     loadHistory();
@@ -551,13 +578,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Delete all data button
     document.getElementById('btn-delete-all-data').addEventListener('click', function() {
+        // Check if modal is available
         if (!window.synthModal) {
-            console.error('Modal not available');
+            // Fallback to browser confirm if modal isn't available
             if (confirm('WARNING: This will permanently delete ALL memories from the database!\n\nThis action cannot be undone. All data will be lost forever.\n\nAre you absolutely certain you want to DELETE ALL MEMORIES?')) {
                 deleteAllMemories();
             }
             return;
         }
+        
+        // Use the synthwave modal
         window.synthModal.confirmDangerous({
             title: 'Delete All Data',
             message: 'This will permanently delete ALL memories from the database!',
@@ -699,7 +729,10 @@ function createSettingElement(setting) {
     input.disabled = !setting.editable;
     
     if (setting.editable) {
-        input.addEventListener('change', () => updateSetting(setting.key, input.value || input.checked));
+        input.addEventListener('change', () => {
+            const value = setting.type === 'boolean' ? input.checked : input.value;
+            updateSetting(setting.key, value);
+        });
     }
     
     controlDiv.appendChild(input);
@@ -711,7 +744,7 @@ function createSettingElement(setting) {
         controlDiv.appendChild(unit);
     }
     
-    if (setting.editable && setting.current_value !== setting.default_value) {
+    if (setting.editable && setting.current_value !== setting.default_value && setting.type !== 'boolean') {
         const resetBtn = document.createElement('button');
         resetBtn.className = 'btn-reset';
         resetBtn.textContent = 'Reset';
