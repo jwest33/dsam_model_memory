@@ -22,5 +22,26 @@ class Config:
     # Multi-part extraction
     use_multi_part_extraction: bool = os.getenv("AM_USE_MULTI_PART", "true").lower() in ['true', '1', 'yes']
     multi_part_threshold: int = int(os.getenv("AM_MULTI_PART_THRESHOLD", "200"))  # Min chars to trigger multi-part
+    
+    # Dynamic/Attention-based retrieval
+    use_attention_retrieval: bool = os.getenv("AM_USE_ATTENTION", "true").lower() in ['true', '1', 'yes']
+    embed_dim: int = int(os.getenv("AM_EMBED_DIM", "384"))  # Embedding dimension
+    attention_heads: int = int(os.getenv("AM_ATTENTION_HEADS", "8"))  # Number of attention heads
+    consolidation_state_path: str = os.getenv("AM_CONSOLIDATION_PATH", "./consolidation_state.pkl")
+    
+    # Liquid clustering parameters
+    use_liquid_clustering: bool = os.getenv("AM_USE_LIQUID_CLUSTERS", "true").lower() in ['true', '1', 'yes']
+    cluster_flow_rate: float = float(os.getenv("AM_CLUSTER_FLOW_RATE", "0.1"))
+    cluster_merge_threshold: float = float(os.getenv("AM_CLUSTER_MERGE_THRESHOLD", "0.85"))
+    cluster_energy_decay: float = float(os.getenv("AM_CLUSTER_ENERGY_DECAY", "0.99"))
+    
+    # Memory consolidation parameters  
+    hebbian_learning_rate: float = float(os.getenv("AM_HEBBIAN_RATE", "0.01"))
+    synaptic_decay_rate: float = float(os.getenv("AM_SYNAPTIC_DECAY", "0.001"))
+    memory_budget: int = int(os.getenv("AM_MEMORY_BUDGET", "10000"))  # Max memories before pruning
+    
+    # Embedding drift parameters
+    embedding_momentum_rate: float = float(os.getenv("AM_EMBED_MOMENTUM", "0.95"))
+    drift_blend_ratio: float = float(os.getenv("AM_DRIFT_BLEND", "0.3"))  # How much drift affects embeddings
 
 cfg = Config()

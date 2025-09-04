@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from datetime import datetime
 import json
 import os
+import numpy as np
 
 from ..types import MemoryRecord
 
@@ -93,6 +94,32 @@ CREATE TABLE IF NOT EXISTS block_members (
     rank INTEGER NOT NULL,
     memory_id TEXT REFERENCES memories(memory_id) ON DELETE CASCADE,
     PRIMARY KEY (block_id, rank)
+);
+
+-- Synaptic connections between memories (Hebbian learning)
+CREATE TABLE IF NOT EXISTS memory_synapses (
+    memory_id1 TEXT NOT NULL,
+    memory_id2 TEXT NOT NULL,
+    weight REAL NOT NULL DEFAULT 0.0,
+    last_activation TEXT NOT NULL,
+    PRIMARY KEY (memory_id1, memory_id2),
+    CHECK (memory_id1 < memory_id2)  -- Ensure unique pairs
+);
+
+-- Memory importance scores (PageRank-style)
+CREATE TABLE IF NOT EXISTS memory_importance (
+    memory_id TEXT PRIMARY KEY REFERENCES memories(memory_id) ON DELETE CASCADE,
+    importance_score REAL NOT NULL DEFAULT 0.0,
+    connection_count INTEGER NOT NULL DEFAULT 0,
+    last_computed TEXT NOT NULL
+);
+
+-- Embedding drift tracking
+CREATE TABLE IF NOT EXISTS embedding_drift (
+    memory_id TEXT PRIMARY KEY REFERENCES memories(memory_id) ON DELETE CASCADE,
+    drift_vector BLOB,
+    momentum_rate REAL DEFAULT 0.95,
+    last_update TEXT NOT NULL
 );
 '''
 
@@ -202,3 +229,116 @@ class MemoryStore:
                 return {}
             ms = con.execute("SELECT memory_id FROM block_members WHERE block_id=? ORDER BY rank", (block_id,)).fetchall()
         return {'block': dict(b), 'members': [m['memory_id'] for m in ms]}
+    
+    def get_usage_stats(self, memory_ids: List[str]) -> Dict[str, Dict]:
+        """Get usage statistics for multiple memories"""
+        if not memory_ids:
+            return {}
+        
+        qmarks = ','.join('?' * len(memory_ids))
+        with self.connect() as con:
+            rows = con.execute(
+                f"SELECT memory_id, accesses, last_access FROM usage_stats WHERE memory_id IN ({qmarks})",
+                memory_ids
+            ).fetchall()
+        
+        return {row['memory_id']: dict(row) for row in rows}
+    
+    def update_synapse(self, memory_id1: str, memory_id2: str, weight_delta: float):
+        """Update synaptic weight between two memories"""
+        # Ensure consistent ordering
+        m1, m2 = (memory_id1, memory_id2) if memory_id1 < memory_id2 else (memory_id2, memory_id1)
+        now = datetime.utcnow().isoformat()
+        
+        with self.connect() as con:
+            con.execute(
+                """INSERT INTO memory_synapses (memory_id1, memory_id2, weight, last_activation)
+                   VALUES (?, ?, ?, ?)
+                   ON CONFLICT(memory_id1, memory_id2) DO UPDATE SET
+                     weight = MIN(1.0, weight + ?),
+                     last_activation = ?""",
+                (m1, m2, weight_delta, now, weight_delta, now)
+            )
+    
+    def get_synapses(self, memory_id: str, threshold: float = 0.01) -> List[Tuple[str, float]]:
+        """Get all synaptic connections for a memory above threshold"""
+        with self.connect() as con:
+            rows = con.execute(
+                """SELECT memory_id2 as other, weight FROM memory_synapses
+                   WHERE memory_id1 = ? AND weight >= ?
+                   UNION
+                   SELECT memory_id1 as other, weight FROM memory_synapses
+                   WHERE memory_id2 = ? AND weight >= ?""",
+                (memory_id, threshold, memory_id, threshold)
+            ).fetchall()
+        
+        return [(r['other'], r['weight']) for r in rows]
+    
+    def update_importance(self, memory_id: str, importance_score: float, connection_count: int):
+        """Update importance score for a memory"""
+        now = datetime.utcnow().isoformat()
+        
+        with self.connect() as con:
+            con.execute(
+                """INSERT INTO memory_importance (memory_id, importance_score, connection_count, last_computed)
+                   VALUES (?, ?, ?, ?)
+                   ON CONFLICT(memory_id) DO UPDATE SET
+                     importance_score = ?,
+                     connection_count = ?,
+                     last_computed = ?""",
+                (memory_id, importance_score, connection_count, now,
+                 importance_score, connection_count, now)
+            )
+    
+    def get_importance_scores(self, memory_ids: List[str]) -> Dict[str, float]:
+        """Get importance scores for multiple memories"""
+        if not memory_ids:
+            return {}
+        
+        qmarks = ','.join('?' * len(memory_ids))
+        with self.connect() as con:
+            rows = con.execute(
+                f"SELECT memory_id, importance_score FROM memory_importance WHERE memory_id IN ({qmarks})",
+                memory_ids
+            ).fetchall()
+        
+        return {row['memory_id']: row['importance_score'] for row in rows}
+    
+    def decay_synapses(self, decay_rate: float = 0.001):
+        """Apply decay to all synaptic weights"""
+        with self.connect() as con:
+            con.execute(
+                """UPDATE memory_synapses 
+                   SET weight = weight * ?
+                   WHERE weight > 0""",
+                (1.0 - decay_rate,)
+            )
+            # Remove very weak connections
+            con.execute("DELETE FROM memory_synapses WHERE weight < 0.01")
+    
+    def store_embedding_drift(self, memory_id: str, drift_vector: np.ndarray):
+        """Store embedding drift vector for a memory"""
+        now = datetime.utcnow().isoformat()
+        drift_blob = drift_vector.tobytes()
+        
+        with self.connect() as con:
+            con.execute(
+                """INSERT INTO embedding_drift (memory_id, drift_vector, last_update)
+                   VALUES (?, ?, ?)
+                   ON CONFLICT(memory_id) DO UPDATE SET
+                     drift_vector = ?,
+                     last_update = ?""",
+                (memory_id, drift_blob, now, drift_blob, now)
+            )
+    
+    def get_embedding_drift(self, memory_id: str) -> Optional[np.ndarray]:
+        """Get embedding drift vector for a memory"""
+        with self.connect() as con:
+            row = con.execute(
+                "SELECT drift_vector FROM embedding_drift WHERE memory_id = ?",
+                (memory_id,)
+            ).fetchone()
+        
+        if row and row['drift_vector']:
+            return np.frombuffer(row['drift_vector'], dtype=np.float32)
+        return None
