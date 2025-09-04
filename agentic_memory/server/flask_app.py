@@ -1,6 +1,6 @@
 from __future__ import annotations
 import os
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, send_file
 from ..config import cfg
 from ..config_manager import ConfigManager, ConfigType
 from ..storage.sql_store import MemoryStore
@@ -9,10 +9,13 @@ from ..router import MemoryRouter
 from ..types import RawEvent
 from ..tools.tool_handler import ToolHandler
 from ..tools.memory_evaluator import MemoryEvaluator
+from ..import_export import MemoryExporter, MemoryImporter
 
 import requests
 from datetime import datetime
 import json
+import tempfile
+from pathlib import Path
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 app.secret_key = os.urandom(24)  # For session management
@@ -485,6 +488,154 @@ def api_memory_next():
         return jsonify({'block':cur, 'next':None})
     nxt = store.get_block(nxt_id)
     return jsonify({'block':cur, 'next':nxt})
+
+@app.route('/api/memories/export', methods=['POST'])
+def api_export_memories():
+    """Export memories to JSON file"""
+    try:
+        # Get filter parameters
+        data = request.get_json() or {}
+        session_id = data.get('session_id')
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+        
+        # Parse dates if provided
+        if start_date:
+            start_date = datetime.fromisoformat(start_date)
+        if end_date:
+            end_date = datetime.fromisoformat(end_date)
+        
+        # Create exporter and export data
+        exporter = MemoryExporter(cfg.db_path)
+        export_data = exporter.export_memories(session_id, start_date, end_date)
+        
+        # Create temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(export_data, f, indent=2, ensure_ascii=False)
+            temp_path = f.name
+        
+        # Generate filename
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        filename = f"memories_export_{timestamp}.json"
+        
+        # Send file and delete after sending
+        def remove_file(response):
+            try:
+                os.unlink(temp_path)
+            except:
+                pass
+            return response
+        
+        return send_file(
+            temp_path,
+            mimetype='application/json',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/memories/import', methods=['POST'])
+def api_import_memories():
+    """Import memories from JSON file"""
+    try:
+        # Check if file was uploaded
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file uploaded'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
+        
+        # Get import options
+        merge_strategy = request.form.get('merge_strategy', 'skip')
+        regenerate_embeddings = request.form.get('regenerate_embeddings', 'false').lower() == 'true'
+        
+        # Read and parse file
+        file_content = file.read().decode('utf-8')
+        import_data = json.loads(file_content)
+        
+        # Create importer with proper stores
+        sql_store = MemoryStore(cfg.db_path)
+        vector_store = FaissIndex(dim=384, index_path=cfg.index_path)
+        importer = MemoryImporter(sql_store, vector_store, cfg.embed_model)
+        
+        # Import memories
+        result = importer.import_memories(
+            import_data,
+            merge_strategy=merge_strategy,
+            regenerate_embeddings=regenerate_embeddings
+        )
+        
+        return jsonify(result)
+        
+    except json.JSONDecodeError as e:
+        return jsonify({'success': False, 'error': f'Invalid JSON file: {str(e)}'}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/memories/export-preview', methods=['POST'])
+def api_export_preview():
+    """Preview what will be exported"""
+    try:
+        # Get filter parameters
+        data = request.get_json() or {}
+        session_id = data.get('session_id')
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+        
+        # Parse dates if provided
+        if start_date:
+            start_date = datetime.fromisoformat(start_date)
+        if end_date:
+            end_date = datetime.fromisoformat(end_date)
+        
+        # Count memories that match filters
+        import sqlite3
+        con = sqlite3.connect(cfg.db_path)
+        cursor = con.cursor()
+        
+        query = "SELECT COUNT(*) FROM memories WHERE 1=1"
+        params = []
+        
+        if session_id:
+            query += " AND session_id = ?"
+            params.append(session_id)
+        
+        if start_date:
+            query += " AND when_ts >= ?"
+            params.append(start_date.isoformat())
+        
+        if end_date:
+            query += " AND when_ts <= ?"
+            params.append(end_date.isoformat())
+        
+        cursor.execute(query, params)
+        count = cursor.fetchone()[0]
+        
+        # Get sample of memories (first 5)
+        query = query.replace("COUNT(*)", "memory_id, what, when_ts, who_id") + " LIMIT 5"
+        cursor.execute(query, params)
+        samples = cursor.fetchall()
+        
+        con.close()
+        
+        return jsonify({
+            'success': True,
+            'count': count,
+            'samples': [
+                {
+                    'memory_id': s[0],
+                    'what': s[1],
+                    'when': s[2],
+                    'who': s[3]
+                } for s in samples
+            ]
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 if __name__ == '__main__':
