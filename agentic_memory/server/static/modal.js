@@ -171,7 +171,8 @@ class SynthModal {
             title: 'Alert',
             message: '',
             type: 'info',
-            buttonText: 'OK'
+            buttonText: 'OK',
+            onClose: () => {}
         };
         
         const config = { ...defaults, ...options };
@@ -196,6 +197,9 @@ class SynthModal {
             </div>
         `;
         
+        // Store callback
+        this._onClose = config.onClose;
+        
         // Ensure modal root exists
         this.createModalRoot();
         
@@ -209,6 +213,63 @@ class SynthModal {
             }
         };
         document.addEventListener('keydown', this._escapeHandler);
+    }
+    
+    /**
+     * Show a custom content modal
+     * @param {Object} options - Modal configuration
+     * @param {string} options.title - Modal title
+     * @param {string} options.content - Custom HTML content
+     * @param {string} options.width - Modal width (optional)
+     * @param {Function} options.onClose - Callback when modal is closed
+     */
+    custom(options) {
+        const defaults = {
+            title: 'Modal',
+            content: '',
+            width: '600px',
+            onClose: () => {}
+        };
+        
+        const config = { ...defaults, ...options };
+        
+        const modalHtml = `
+            <div class="modal-overlay active" id="synth-modal">
+                <div class="modal-container" style="width: ${config.width}; max-width: 90%;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">${this.escapeHtml(config.title)}</h3>
+                        <button class="modal-close" onclick="synthModal.close()">×</button>
+                    </div>
+                    <div class="modal-body" style="padding: 0;">
+                        ${config.content}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Store callback
+        this._onClose = config.onClose;
+        
+        // Ensure modal root exists
+        this.createModalRoot();
+        
+        document.getElementById('modal-root').innerHTML = modalHtml;
+        this.activeModal = document.getElementById('synth-modal');
+        
+        // Add escape key handler
+        this._escapeHandler = (e) => {
+            if (e.key === 'Escape') {
+                this.close();
+            }
+        };
+        document.addEventListener('keydown', this._escapeHandler);
+        
+        // Add click outside handler
+        this.activeModal.addEventListener('click', (e) => {
+            if (e.target === this.activeModal) {
+                this.close();
+            }
+        });
     }
     
     handleConfirm() {
@@ -226,6 +287,11 @@ class SynthModal {
     }
     
     close() {
+        // Call onClose callback if it exists
+        if (this._onClose) {
+            this._onClose();
+        }
+        
         if (this.activeModal) {
             this.activeModal.classList.remove('active');
             setTimeout(() => {
@@ -245,6 +311,7 @@ class SynthModal {
         // Clear callbacks
         this._onConfirm = null;
         this._onCancel = null;
+        this._onClose = null;
     }
     
     getIcon(type) {
