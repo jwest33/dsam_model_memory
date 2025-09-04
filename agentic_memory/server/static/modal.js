@@ -10,6 +10,15 @@ class SynthModal {
     }
     
     init() {
+        // Wait for DOM to be ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.createModalRoot());
+        } else {
+            this.createModalRoot();
+        }
+    }
+    
+    createModalRoot() {
         // Create modal container if it doesn't exist
         if (!document.getElementById('modal-root')) {
             const modalRoot = document.createElement('div');
@@ -82,6 +91,9 @@ class SynthModal {
         // Store callbacks
         this._onConfirm = config.onConfirm;
         this._onCancel = config.onCancel;
+        
+        // Ensure modal root exists
+        this.createModalRoot();
         
         // Add to DOM
         document.getElementById('modal-root').innerHTML = modalHtml;
@@ -184,6 +196,9 @@ class SynthModal {
             </div>
         `;
         
+        // Ensure modal root exists
+        this.createModalRoot();
+        
         document.getElementById('modal-root').innerHTML = modalHtml;
         this.activeModal = document.getElementById('synth-modal');
         
@@ -249,5 +264,11 @@ class SynthModal {
     }
 }
 
-// Create global instance and attach to window
-window.synthModal = new SynthModal();
+// Create global instance and attach to window when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+        window.synthModal = new SynthModal();
+    });
+} else {
+    window.synthModal = new SynthModal();
+}

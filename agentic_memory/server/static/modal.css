@@ -91,7 +91,6 @@
 .modal-close:hover {
     opacity: 1;
     background: rgba(255, 16, 240, 0.1);
-    box-shadow: 0 0 10px var(--neon-pink);
     transform: rotate(90deg);
 }
 
@@ -179,7 +178,7 @@
     border-top: 1px solid rgba(0, 255, 255, 0.3);
     background: rgba(0, 0, 0, 0.3);
     display: flex;
-    justify-content: flex-end;
+    justify-content: center;
     gap: 10px;
 }
 
@@ -191,6 +190,7 @@
     cursor: pointer;
     transition: all 0.3s ease;
     background: transparent;
+    opacity: 0.8;
 }
 
 .modal-btn-cancel {
@@ -200,7 +200,7 @@
 
 .modal-btn-cancel:hover {
     background: rgba(0, 255, 255, 0.1);
-    box-shadow: 0 0 10px var(--neon-cyan);
+    opacity: 1;
 }
 
 .modal-btn-confirm {
@@ -210,7 +210,7 @@
 
 .modal-btn-confirm:hover {
     background: rgba(168, 85, 247, 0.2);
-    box-shadow: 0 0 10px var(--neon-purple);
+    opacity: 1;
 }
 
 .modal-btn-danger {
@@ -221,7 +221,6 @@
 
 .modal-btn-danger:hover {
     background: rgba(255, 16, 240, 0.1);
-    box-shadow: 0 0 10px var(--neon-pink);
     opacity: 1;
 }
 
