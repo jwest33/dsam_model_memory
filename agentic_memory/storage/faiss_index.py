@@ -44,5 +44,28 @@ class FaissIndex:
         for score, idx in zip(scores[0], idxs[0]):
             if idx < 0 or idx >= len(self.id_map):
                 continue
-            results.append((self.id_map[idx], float(score)))
+            memory_id = self.id_map[idx]
+            # Skip deleted entries (marked as empty string)
+            if memory_id and memory_id != "":
+                results.append((memory_id, float(score)))
         return results
+    
+    def remove(self, memory_id: str):
+        """Remove a memory from the index by ID"""
+        # Note: FAISS doesn't support direct removal, so we just mark it in id_map
+        # A more complete implementation would rebuild the index periodically
+        try:
+            idx = self.id_map.index(memory_id)
+            # Mark as deleted by setting to None or empty string
+            self.id_map[idx] = ""
+        except ValueError:
+            pass  # Memory not in index
+    
+    def reset(self):
+        """Clear the entire index"""
+        self.index = faiss.IndexHNSWFlat(self.dim, 32, faiss.METRIC_INNER_PRODUCT)
+        self.index.hnsw.efSearch = 64
+        self.index.hnsw.efConstruction = 80
+        self.id_map = []
+        # Save the empty index
+        self.save()

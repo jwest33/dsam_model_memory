@@ -1,6 +1,27 @@
 import os
 from dataclasses import dataclass
 
+def get_config_value(key: str, default: str) -> str:
+    """Get config value from environment or ConfigManager if available"""
+    # First check environment variable
+    value = os.getenv(key)
+    if value is not None:
+        return value
+    
+    # Try to get from ConfigManager if it's been initialized
+    try:
+        from .config_manager import ConfigManager
+        # Use default db path since we're bootstrapping
+        db_path = os.getenv("AM_DB_PATH", "./amemory.sqlite3")
+        manager = ConfigManager(db_path)
+        stored_value = manager.get_value(key)
+        if stored_value is not None:
+            return str(stored_value)
+    except:
+        pass  # ConfigManager not available yet
+    
+    return default
+
 @dataclass
 class Config:
     llm_base_url: str = os.getenv("AM_LLM_BASE_URL", "http://localhost:8000/v1")

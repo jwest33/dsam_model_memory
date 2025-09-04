@@ -1,7 +1,8 @@
 from __future__ import annotations
 import os
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session
 from ..config import cfg
+from ..config_manager import ConfigManager, ConfigType
 from ..storage.sql_store import MemoryStore
 from ..storage.faiss_index import FaissIndex
 from ..router import MemoryRouter
@@ -14,6 +15,11 @@ from datetime import datetime
 import json
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
+app.secret_key = os.urandom(24)  # For session management
+
+# Initialize config manager
+config_manager = ConfigManager(cfg.db_path)
+
 store = MemoryStore(cfg.db_path)
 # Assume dim from embed model default 384 for all-MiniLM-L6-v2; can be inferred dynamically
 index = FaissIndex(dim=384, index_path=cfg.index_path)
@@ -260,6 +266,211 @@ def list_memories():
     con.close()
     return render_template('memories.html', rows=rows)
 
+
+@app.route('/settings')
+def settings_page():
+    """Settings page"""
+    # Show all categories since advanced is on by default
+    categories = config_manager.get_categories()
+    return render_template('settings.html', categories=categories)
+
+@app.route('/api/settings', methods=['GET'])
+def api_get_settings():
+    """Get all settings or settings by category"""
+    category = request.args.get('category')
+    include_advanced = request.args.get('advanced', 'false').lower() == 'true'
+    
+    if category and category != 'all':
+        settings = config_manager.get_settings_by_category(category, include_advanced)
+    else:
+        settings = list(config_manager.settings.values())
+        if not include_advanced:
+            settings = [s for s in settings if not s.advanced]
+    
+    return jsonify({
+        'settings': [s.to_dict() for s in settings]
+    })
+
+@app.route('/api/settings/<key>', methods=['GET', 'PUT'])
+def api_setting(key):
+    """Get or update a specific setting"""
+    if request.method == 'GET':
+        setting = config_manager.get_setting(key)
+        if not setting:
+            return jsonify({'error': f'Unknown setting: {key}'}), 404
+        return jsonify(setting.to_dict())
+    
+    else:  # PUT
+        data = request.get_json()
+        value = data.get('value')
+        user = session.get('user', 'web_ui')
+        reason = data.get('reason')
+        
+        success, error = config_manager.update_setting(key, value, user, reason)
+        
+        if success:
+            setting = config_manager.get_setting(key)
+            return jsonify({
+                'success': True,
+                'setting': setting.to_dict(),
+                'requires_restart': setting.requires_restart
+            })
+        else:
+            return jsonify({'success': False, 'error': error}), 400
+
+@app.route('/api/settings/<key>/reset', methods=['POST'])
+def api_reset_setting(key):
+    """Reset a setting to its default value"""
+    user = session.get('user', 'web_ui')
+    success, error = config_manager.reset_setting(key, user)
+    
+    if success:
+        setting = config_manager.get_setting(key)
+        return jsonify({
+            'success': True,
+            'setting': setting.to_dict()
+        })
+    else:
+        return jsonify({'success': False, 'error': error}), 400
+
+@app.route('/api/settings/reset-all', methods=['POST'])
+def api_reset_all_settings():
+    """Reset all settings to defaults"""
+    user = session.get('user', 'web_ui')
+    results = config_manager.reset_all(user)
+    
+    successful = sum(1 for r in results.values() if r[0])
+    failed = sum(1 for r in results.values() if not r[0])
+    
+    return jsonify({
+        'success': failed == 0,
+        'successful': successful,
+        'failed': failed,
+        'results': results
+    })
+
+@app.route('/api/settings/export', methods=['GET'])
+def api_export_settings():
+    """Export current configuration"""
+    return jsonify(config_manager.export_config())
+
+@app.route('/api/settings/import', methods=['POST'])
+def api_import_settings():
+    """Import configuration"""
+    config_data = request.get_json()
+    user = session.get('user', 'web_ui')
+    
+    results = config_manager.import_config(config_data, user)
+    
+    if 'error' in results:
+        return jsonify({'success': False, 'error': results['error'][1]}), 400
+    
+    successful = sum(1 for r in results.values() if r[0])
+    
+    return jsonify({
+        'success': True,
+        'updated': successful,
+        'results': results
+    })
+
+@app.route('/api/settings/history', methods=['GET'])
+def api_settings_history():
+    """Get configuration change history"""
+    key = request.args.get('key')
+    limit = int(request.args.get('limit', 50))
+    
+    history = config_manager.get_history(key, limit)
+    
+    return jsonify({'history': history})
+
+@app.route('/api/settings/validate-weights', methods=['GET'])
+def api_validate_weights():
+    """Validate that retrieval weights sum to 1.0"""
+    valid, error = config_manager.validate_weights()
+    
+    return jsonify({
+        'valid': valid,
+        'error': error
+    })
+
+@app.route('/api/memories/<memory_id>', methods=['DELETE'])
+def api_delete_memory(memory_id):
+    """Delete a single memory"""
+    try:
+        import sqlite3
+        con = sqlite3.connect(cfg.db_path)
+        cursor = con.cursor()
+        
+        # Delete from all related tables
+        cursor.execute("DELETE FROM memories WHERE memory_id = ?", (memory_id,))
+        deleted_count = cursor.rowcount
+        
+        # Also delete from FTS and other tables (they should cascade but let's be explicit)
+        cursor.execute("DELETE FROM mem_fts WHERE memory_id = ?", (memory_id,))
+        cursor.execute("DELETE FROM embeddings WHERE memory_id = ?", (memory_id,))
+        cursor.execute("DELETE FROM usage_stats WHERE memory_id = ?", (memory_id,))
+        
+        con.commit()
+        con.close()
+        
+        # Also remove from FAISS index if it exists
+        try:
+            index.remove(memory_id)
+            index.save()
+        except:
+            pass  # Memory might not be in index
+        
+        return jsonify({
+            'success': True,
+            'deleted': deleted_count > 0,
+            'memory_id': memory_id
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/memories/delete-all', methods=['DELETE'])
+def api_delete_all_memories():
+    """Delete all memories from the database"""
+    try:
+        import sqlite3
+        con = sqlite3.connect(cfg.db_path)
+        cursor = con.cursor()
+        
+        # Count memories before deletion
+        count_result = cursor.execute("SELECT COUNT(*) FROM memories").fetchone()
+        count = count_result[0] if count_result else 0
+        
+        # Delete from all tables (skip if table doesn't exist)
+        tables_to_clear = [
+            'memories', 'mem_fts', 'embeddings', 'usage_stats',
+            'memory_synapses', 'memory_importance', 'embedding_drift',
+            'blocks', 'block_members', 'cluster_membership'
+        ]
+        
+        for table in tables_to_clear:
+            try:
+                cursor.execute(f"DELETE FROM {table}")
+            except sqlite3.OperationalError:
+                # Table doesn't exist, skip it
+                pass
+        
+        con.commit()
+        con.close()
+        
+        # Clear FAISS index
+        try:
+            index.reset()
+            index.save()
+        except:
+            pass
+        
+        return jsonify({
+            'success': True,
+            'deleted_count': count,
+            'message': f'Successfully deleted {count} memories'
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/memory/next', methods=['GET'])
 def api_memory_next():

@@ -1,0 +1,929 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - JAM{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='modal.css') }}">
+<script src="{{ url_for('static', filename='modal.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <div class="settings-header">
+        <h2 class="neon-text">System Configuration</h2>
+        <div class="settings-actions">
+            <button id="btn-export" class="btn-secondary">Export</button>
+            <button id="btn-import" class="btn-secondary">Import</button>
+            <button id="btn-reset-all" class="btn-danger">Reset All</button>
+            <button id="btn-delete-all-data" class="btn-danger" style="background: transparent; border-color: var(--synth-pink); color: var(--synth-pink);">Delete All Data</button>
+        </div>
+    </div>
+    
+    <div class="settings-tabs">
+        <button class="tab-btn active" data-category="all">All Settings</button>
+        {% for category in categories %}
+        <button class="tab-btn" data-category="{{ category }}">{{ category }}</button>
+        {% endfor %}
+        <button class="tab-btn" data-category="history">History</button>
+    </div>
+    
+    <div class="settings-controls">
+        <label class="toggle-advanced">
+            <input type="checkbox" id="show-advanced" checked>
+            <span>Show Advanced Settings</span>
+        </label>
+        <div class="search-box">
+            <input type="text" id="settings-search" placeholder="Search settings...">
+        </div>
+    </div>
+    
+    <div id="settings-content" class="settings-content">
+        <!-- Settings will be loaded here -->
+    </div>
+    
+    <div id="history-content" class="history-content" style="display: none;">
+        <!-- History will be loaded here -->
+    </div>
+</div>
+
+<!-- Import modal -->
+<div id="import-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h3>Import Configuration</h3>
+        <textarea id="import-data" placeholder="Paste exported configuration JSON here..."></textarea>
+        <div class="modal-actions">
+            <button onclick="closeImportModal()" class="btn-secondary">Cancel</button>
+            <button onclick="importConfig()" class="btn-primary">Import</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.settings-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--synth-pink);
+}
+
+.settings-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.settings-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.tab-btn {
+    background: rgba(168, 85, 247, 0.1);
+    border: 1px solid var(--neon-purple);
+    color: var(--neon-cyan);
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: 'Michroma', sans-serif;
+    font-size: 12px;
+}
+
+.tab-btn:hover {
+    background: rgba(168, 85, 247, 0.2);
+    box-shadow: 0 0 10px var(--neon-purple);
+}
+
+.tab-btn.active {
+    background: var(--neon-purple);
+    color: white;
+    box-shadow: 0 0 20px var(--neon-purple);
+}
+
+.settings-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 10px;
+}
+
+.toggle-advanced {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--neon-cyan);
+    cursor: pointer;
+}
+
+.search-box input {
+    background: rgba(0, 255, 255, 0.1);
+    border: 1px solid var(--neon-cyan);
+    color: white;
+    padding: 8px 15px;
+    border-radius: 5px;
+    width: 300px;
+}
+
+.settings-content {
+    display: grid;
+    gap: 20px;
+}
+
+.setting-category {
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid var(--neon-cyan);
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.category-title {
+    color: var(--synth-pink);
+    font-size: 18px;
+    margin-bottom: 15px;
+    font-family: 'Michroma', sans-serif;
+}
+
+.setting-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 20px;
+    padding: 15px;
+    margin-bottom: 15px;
+    background: rgba(0, 255, 255, 0.05);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.setting-item:hover {
+    background: rgba(0, 255, 255, 0.1);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+}
+
+.setting-item.advanced {
+    opacity: 0.7;
+    border-left: 3px solid var(--neon-purple);
+}
+
+.setting-item.modified {
+    border-left: 3px solid var(--synth-pink);
+}
+
+.setting-info {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.setting-name {
+    color: var(--neon-cyan);
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.setting-description {
+    color: #aaa;
+    font-size: 12px;
+}
+
+.setting-badges {
+    display: flex;
+    gap: 5px;
+    margin-top: 5px;
+}
+
+.badge {
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+.badge.requires-restart {
+    background: rgba(255, 165, 0, 0.2);
+    color: orange;
+    border: 1px solid orange;
+}
+
+.badge.modified {
+    background: rgba(255, 16, 240, 0.2);
+    color: var(--synth-pink);
+    border: 1px solid var(--synth-pink);
+}
+
+.badge.advanced {
+    background: rgba(168, 85, 247, 0.2);
+    color: var(--neon-purple);
+    border: 1px solid var(--neon-purple);
+}
+
+.setting-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.setting-input {
+    background: rgba(0, 255, 255, 0.1);
+    border: 1px solid var(--neon-cyan);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 5px;
+    min-width: 150px;
+}
+
+.setting-input:focus {
+    outline: none;
+    box-shadow: 0 0 10px var(--neon-cyan);
+}
+
+.setting-input[type="checkbox"] {
+    width: 40px;
+    height: 20px;
+    appearance: none;
+    background: rgba(0, 255, 255, 0.1);
+    border-radius: 10px;
+    position: relative;
+    cursor: pointer;
+}
+
+.setting-input[type="checkbox"]:checked {
+    background: var(--neon-cyan);
+}
+
+.setting-input[type="checkbox"]::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.3s ease;
+}
+
+.setting-input[type="checkbox"]:checked::after {
+    transform: translateX(20px);
+}
+
+.setting-unit {
+    color: #888;
+    font-size: 12px;
+}
+
+.btn-reset {
+    background: transparent;
+    border: 1px solid var(--synth-pink);
+    color: var(--synth-pink);
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    opacity: 0.8;
+}
+
+.btn-reset:hover {
+    background: rgba(255, 16, 240, 0.1);
+    box-shadow: 0 0 10px var(--synth-pink);
+    opacity: 1;
+}
+
+.btn-secondary {
+    background: transparent;
+    border: 1px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: 'Michroma', sans-serif;
+    font-size: 12px;
+}
+
+.btn-secondary:hover {
+    background: rgba(0, 255, 255, 0.1);
+    box-shadow: 0 0 10px var(--neon-cyan);
+}
+
+.btn-primary {
+    background: transparent;
+    border: 1px solid var(--neon-purple);
+    color: var(--neon-purple);
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: 'Michroma', sans-serif;
+    font-size: 12px;
+}
+
+.btn-primary:hover {
+    background: rgba(168, 85, 247, 0.2);
+    box-shadow: 0 0 10px var(--neon-purple);
+}
+
+.btn-danger {
+    background: transparent;
+    border: 1px solid var(--synth-pink);
+    color: var(--synth-pink);
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: 'Michroma', sans-serif;
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+.btn-danger:hover {
+    background: rgba(255, 16, 240, 0.1);
+    box-shadow: 0 0 10px var(--synth-pink);
+    opacity: 1;
+}
+
+.history-content {
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid var(--neon-cyan);
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.history-table th {
+    background: rgba(0, 255, 255, 0.1);
+    color: var(--neon-cyan);
+    padding: 10px;
+    text-align: left;
+    border-bottom: 2px solid var(--neon-cyan);
+}
+
+.history-table td {
+    padding: 10px;
+    border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.history-table tr:hover {
+    background: rgba(0, 255, 255, 0.05);
+}
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #1a1a2e;
+    border: 2px solid var(--neon-cyan);
+    border-radius: 10px;
+    padding: 30px;
+    max-width: 600px;
+    width: 90%;
+}
+
+.modal-content h3 {
+    color: var(--synth-pink);
+    margin-bottom: 20px;
+}
+
+.modal-content textarea {
+    width: 100%;
+    height: 300px;
+    background: rgba(0, 255, 255, 0.1);
+    border: 1px solid var(--neon-cyan);
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    font-family: monospace;
+    resize: vertical;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 5px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    z-index: 2000;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.notification.success {
+    background: rgba(0, 255, 0, 0.2);
+    border: 1px solid #00ff00;
+    color: #00ff00;
+}
+
+.notification.error {
+    background: rgba(255, 0, 0, 0.2);
+    border: 1px solid #ff0000;
+    color: #ff0000;
+}
+
+.notification.warning {
+    background: rgba(255, 165, 0, 0.2);
+    border: 1px solid orange;
+    color: orange;
+}
+</style>
+
+<script>
+let currentCategory = 'all';
+let showAdvanced = true;  // Show advanced settings by default
+
+// Load settings on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Ensure modal is available
+    if (typeof window.synthModal === 'undefined') {
+        console.error('Modal system not loaded. Check that modal.js is included.');
+    }
+    
+    loadSettings();
+    loadHistory();
+    
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            const category = this.dataset.category;
+            if (category === 'history') {
+                document.getElementById('settings-content').style.display = 'none';
+                document.getElementById('history-content').style.display = 'block';
+                loadHistory();
+            } else {
+                document.getElementById('settings-content').style.display = 'grid';
+                document.getElementById('history-content').style.display = 'none';
+                currentCategory = category;
+                loadSettings();
+            }
+        });
+    });
+    
+    // Advanced settings toggle
+    document.getElementById('show-advanced').addEventListener('change', function() {
+        showAdvanced = this.checked;
+        loadSettings();
+    });
+    
+    // Search functionality
+    document.getElementById('settings-search').addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        document.querySelectorAll('.setting-item').forEach(item => {
+            const text = item.textContent.toLowerCase();
+            item.style.display = text.includes(searchTerm) ? 'grid' : 'none';
+        });
+    });
+    
+    // Export button
+    document.getElementById('btn-export').addEventListener('click', exportConfig);
+    
+    // Import button
+    document.getElementById('btn-import').addEventListener('click', function() {
+        document.getElementById('import-modal').style.display = 'flex';
+    });
+    
+    // Reset all button
+    document.getElementById('btn-reset-all').addEventListener('click', function() {
+        if (!window.synthModal) {
+            console.error('Modal not available');
+            if (confirm('Reset all configuration settings to their default values?\n\nYour custom settings will be lost, but memories will remain intact.')) {
+                resetAllSettings();
+            }
+            return;
+        }
+        window.synthModal.confirm({
+            title: 'Reset All Settings',
+            message: 'Reset all configuration settings to their default values?',
+            submessage: 'Your custom settings will be lost, but memories will remain intact.',
+            type: 'warning',
+            confirmText: 'Reset Settings',
+            cancelText: 'Cancel',
+            showWarningBox: true,
+            warningText: 'This will restore all settings to their factory defaults.',
+            onConfirm: resetAllSettings
+        });
+    });
+    
+    // Delete all data button
+    document.getElementById('btn-delete-all-data').addEventListener('click', function() {
+        if (!window.synthModal) {
+            console.error('Modal not available');
+            if (confirm('WARNING: This will permanently delete ALL memories from the database!\n\nThis action cannot be undone. All data will be lost forever.\n\nAre you absolutely certain you want to DELETE ALL MEMORIES?')) {
+                deleteAllMemories();
+            }
+            return;
+        }
+        window.synthModal.confirmDangerous({
+            title: 'Delete All Data',
+            message: 'This will permanently delete ALL memories from the database!',
+            submessage: 'This includes all memory records, embeddings, usage statistics, and configuration history.',
+            warningText: 'This action cannot be undone. All data will be lost forever.',
+            finalMessage: 'Are you absolutely certain you want to DELETE ALL MEMORIES?',
+            finalConfirmText: 'Yes, Delete All Data',
+            onConfirm: deleteAllMemories
+        });
+    });
+});
+
+async function loadSettings() {
+    try {
+        let url = '/api/settings';
+        const params = [];
+        if (currentCategory !== 'all') {
+            params.push(`category=${currentCategory}`);
+        }
+        params.push(`advanced=${showAdvanced}`);
+        if (params.length > 0) {
+            url += '?' + params.join('&');
+        }
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        const container = document.getElementById('settings-content');
+        container.innerHTML = '';
+        
+        // Group settings by category
+        const grouped = {};
+        data.settings.forEach(setting => {
+            if (!showAdvanced && setting.advanced) return;
+            if (!grouped[setting.category]) {
+                grouped[setting.category] = [];
+            }
+            grouped[setting.category].push(setting);
+        });
+        
+        // Render each category
+        Object.entries(grouped).forEach(([category, settings]) => {
+            const categoryDiv = document.createElement('div');
+            categoryDiv.className = 'setting-category';
+            
+            const title = document.createElement('h3');
+            title.className = 'category-title';
+            title.textContent = category;
+            categoryDiv.appendChild(title);
+            
+            settings.forEach(setting => {
+                categoryDiv.appendChild(createSettingElement(setting));
+            });
+            
+            container.appendChild(categoryDiv);
+        });
+    } catch (error) {
+        showNotification('Failed to load settings: ' + error.message, 'error');
+    }
+}
+
+function createSettingElement(setting) {
+    const div = document.createElement('div');
+    div.className = 'setting-item';
+    if (setting.advanced) div.classList.add('advanced');
+    if (setting.current_value !== setting.default_value) div.classList.add('modified');
+    
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'setting-info';
+    
+    const nameDiv = document.createElement('div');
+    nameDiv.className = 'setting-name';
+    nameDiv.textContent = setting.display_name;
+    infoDiv.appendChild(nameDiv);
+    
+    const descDiv = document.createElement('div');
+    descDiv.className = 'setting-description';
+    descDiv.textContent = setting.description;
+    infoDiv.appendChild(descDiv);
+    
+    const badgesDiv = document.createElement('div');
+    badgesDiv.className = 'setting-badges';
+    
+    if (setting.requires_restart) {
+        const badge = document.createElement('span');
+        badge.className = 'badge requires-restart';
+        badge.textContent = 'Requires Restart';
+        badgesDiv.appendChild(badge);
+    }
+    
+    if (setting.current_value !== setting.default_value) {
+        const badge = document.createElement('span');
+        badge.className = 'badge modified';
+        badge.textContent = 'Modified';
+        badgesDiv.appendChild(badge);
+    }
+    
+    if (setting.advanced) {
+        const badge = document.createElement('span');
+        badge.className = 'badge advanced';
+        badge.textContent = 'Advanced';
+        badgesDiv.appendChild(badge);
+    }
+    
+    infoDiv.appendChild(badgesDiv);
+    div.appendChild(infoDiv);
+    
+    const controlDiv = document.createElement('div');
+    controlDiv.className = 'setting-control';
+    
+    let input;
+    if (setting.type === 'boolean') {
+        input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = setting.current_value;
+    } else if (setting.type === 'choice' && setting.choices) {
+        input = document.createElement('select');
+        setting.choices.forEach(choice => {
+            const option = document.createElement('option');
+            option.value = choice;
+            option.textContent = choice;
+            if (choice === setting.current_value) option.selected = true;
+            input.appendChild(option);
+        });
+    } else if (setting.type === 'integer' || setting.type === 'float') {
+        input = document.createElement('input');
+        input.type = 'number';
+        input.value = setting.current_value;
+        if (setting.min_value !== null) input.min = setting.min_value;
+        if (setting.max_value !== null) input.max = setting.max_value;
+        if (setting.type === 'float') input.step = '0.001';
+    } else {
+        input = document.createElement('input');
+        input.type = 'text';
+        input.value = setting.current_value;
+    }
+    
+    input.className = 'setting-input';
+    input.disabled = !setting.editable;
+    
+    if (setting.editable) {
+        input.addEventListener('change', () => updateSetting(setting.key, input.value || input.checked));
+    }
+    
+    controlDiv.appendChild(input);
+    
+    if (setting.unit) {
+        const unit = document.createElement('span');
+        unit.className = 'setting-unit';
+        unit.textContent = setting.unit;
+        controlDiv.appendChild(unit);
+    }
+    
+    if (setting.editable && setting.current_value !== setting.default_value) {
+        const resetBtn = document.createElement('button');
+        resetBtn.className = 'btn-reset';
+        resetBtn.textContent = 'Reset';
+        resetBtn.onclick = () => resetSetting(setting.key);
+        controlDiv.appendChild(resetBtn);
+    }
+    
+    div.appendChild(controlDiv);
+    
+    return div;
+}
+
+async function updateSetting(key, value) {
+    try {
+        const response = await fetch(`/api/settings/${key}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({value: value})
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification(`Setting updated: ${key}`, 'success');
+            if (data.requires_restart) {
+                showNotification('This change requires a restart to take effect', 'warning');
+            }
+            loadSettings(); // Reload to show updated state
+        } else {
+            showNotification(`Failed to update: ${data.error}`, 'error');
+            loadSettings(); // Reload to revert display
+        }
+    } catch (error) {
+        showNotification('Failed to update setting: ' + error.message, 'error');
+        loadSettings();
+    }
+}
+
+async function resetSetting(key) {
+    if (!confirm(`Reset ${key} to default value?`)) return;
+    
+    try {
+        const response = await fetch(`/api/settings/${key}/reset`, {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification(`Setting reset: ${key}`, 'success');
+            loadSettings();
+        } else {
+            showNotification(`Failed to reset: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        showNotification('Failed to reset setting: ' + error.message, 'error');
+    }
+}
+
+async function resetAllSettings() {
+    try {
+        const response = await fetch('/api/settings/reset-all', {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification('All settings reset to defaults', 'success');
+            loadSettings();
+        } else {
+            showNotification('Failed to reset settings', 'error');
+        }
+    } catch (error) {
+        showNotification('Failed to reset settings: ' + error.message, 'error');
+    }
+}
+
+async function exportConfig() {
+    try {
+        const response = await fetch('/api/settings/export');
+        const data = await response.json();
+        
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `jam-config-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        showNotification('Configuration exported', 'success');
+    } catch (error) {
+        showNotification('Failed to export configuration: ' + error.message, 'error');
+    }
+}
+
+async function importConfig() {
+    const textarea = document.getElementById('import-data');
+    const data = textarea.value.trim();
+    
+    if (!data) {
+        showNotification('Please paste configuration data', 'error');
+        return;
+    }
+    
+    try {
+        const config = JSON.parse(data);
+        
+        const response = await fetch('/api/settings/import', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(config)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification(`Configuration imported: ${result.updated} settings updated`, 'success');
+            closeImportModal();
+            loadSettings();
+        } else {
+            showNotification('Failed to import configuration', 'error');
+        }
+    } catch (error) {
+        showNotification('Invalid configuration format: ' + error.message, 'error');
+    }
+}
+
+function closeImportModal() {
+    document.getElementById('import-modal').style.display = 'none';
+    document.getElementById('import-data').value = '';
+}
+
+async function loadHistory() {
+    try {
+        const response = await fetch('/api/settings/history');
+        const data = await response.json();
+        
+        const container = document.getElementById('history-content');
+        
+        if (data.history.length === 0) {
+            container.innerHTML = '<p style="color: #888; text-align: center;">No configuration changes recorded</p>';
+            return;
+        }
+        
+        const table = document.createElement('table');
+        table.className = 'history-table';
+        
+        const thead = document.createElement('thead');
+        thead.innerHTML = `
+            <tr>
+                <th>Time</th>
+                <th>Setting</th>
+                <th>Old Value</th>
+                <th>New Value</th>
+                <th>Changed By</th>
+                <th>Reason</th>
+            </tr>
+        `;
+        table.appendChild(thead);
+        
+        const tbody = document.createElement('tbody');
+        data.history.forEach(entry => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${new Date(entry.changed_at).toLocaleString()}</td>
+                <td>${entry.key}</td>
+                <td>${entry.old_value}</td>
+                <td>${entry.new_value}</td>
+                <td>${entry.changed_by || 'System'}</td>
+                <td>${entry.reason || '-'}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        
+        container.innerHTML = '';
+        container.appendChild(table);
+    } catch (error) {
+        showNotification('Failed to load history: ' + error.message, 'error');
+    }
+}
+
+async function deleteAllMemories() {
+    try {
+        const response = await fetch('/api/memories/delete-all', {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification(`All memories deleted (${data.deleted_count} records removed)`, 'success');
+        } else {
+            showNotification(`Failed to delete memories: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        showNotification('Failed to delete memories: ' + error.message, 'error');
+    }
+}
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideIn 0.3s ease reverse';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+</script>
+{% endblock %}

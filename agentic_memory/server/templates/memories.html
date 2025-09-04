@@ -1,7 +1,13 @@
 {% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='modal.css') }}">
+<script src="{{ url_for('static', filename='modal.js') }}"></script>
+{% endblock %}
+
 {% block content %}
 <div class="panel">
-  <h2>Memory Store</h2>
+  <h3 class="neon-text" style="color: var(--synth-pink);">Memory Store</h3>
   <p class="text-muted" style="margin-top: 0.5rem; font-size: 0.8rem;">
     Viewing recent memories stored in the system
   </p>
@@ -21,6 +27,7 @@
         <th>Tokens</th>
         <th>Extra</th>
         <th>ID</th>
+        <th>Action</th>
       </tr>
     </thead>
     <tbody>
@@ -52,6 +59,23 @@
             <span class="text-muted">{{ r['extra_json'][:50] if r['extra_json'] else '-' }}</span>
           </td>
           <td><code style="color: var(--synth-purple); font-size: 0.75rem;">{{ r['memory_id'][:8] }}...</code></td>
+          <td>
+            <button class="btn-delete-memory" data-memory-id="{{ r['memory_id'] }}" style="
+              background: transparent;
+              border: 1px solid var(--synth-pink);
+              color: var(--synth-pink);
+              padding: 2px 8px;
+              border-radius: 3px;
+              cursor: pointer;
+              font-size: 0.75rem;
+              font-family: 'Michroma', sans-serif;
+              transition: all 0.3s ease;
+              opacity: 0.7;
+            " onmouseover="this.style.opacity='1'; this.style.background='rgba(255, 16, 240, 0.1)'; this.style.boxShadow='0 0 5px var(--synth-pink)';" 
+               onmouseout="this.style.opacity='0.7'; this.style.background='transparent'; this.style.boxShadow='none';">
+              Delete
+            </button>
+          </td>
         </tr>
       {% endfor %}
     </tbody>
@@ -64,5 +88,46 @@
   <p class="text-muted" style="font-size: 0.8rem; margin-top: 1rem;">Memories will appear here as you interact with the chat interface.</p>
 </div>
 {% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add event listeners to all delete buttons
+    document.querySelectorAll('.btn-delete-memory').forEach(button => {
+        button.addEventListener('click', function() {
+            const memoryId = this.dataset.memoryId;
+            synthModal.confirm({
+                title: 'Delete Memory',
+                message: `Delete memory ${memoryId.substring(0, 8)}...?`,
+                submessage: 'This will permanently remove this memory from the system.',
+                type: 'warning',
+                confirmText: 'Delete',
+                cancelText: 'Cancel',
+                showWarningBox: true,
+                warningText: 'This action cannot be undone.',
+                onConfirm: () => deleteMemory(memoryId)
+            });
+        });
+    });
+});
+
+async function deleteMemory(memoryId) {
+    try {
+        const response = await fetch(`/api/memories/${memoryId}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Reload the page to show updated list
+            location.reload();
+        } else {
+            alert(`Failed to delete memory: ${data.error}`);
+        }
+    } catch (error) {
+        alert('Failed to delete memory: ' + error.message);
+    }
+}
+</script>
 
 {% endblock %}
