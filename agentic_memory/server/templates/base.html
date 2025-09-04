@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Journalistic Agent Memory</title>
+  <title>{% block title %}Journalistic Agent Memory{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="{{ url_for('static', filename='synthwave-theme.css') }}">
+  {% block head %}{% endblock %}
 </head>
 <body>
   <header>
@@ -13,8 +14,9 @@
       <h1 style="margin: 0;">Journalistic Agent Memory</h1>
     </div>
     <nav>
-      <a href="/" {% if request.endpoint == 'chat' %}class="active"{% endif %}>Chat</a>
-      <a href="/memories" {% if request.endpoint == 'memories' %}class="active"{% endif %}>Memories</a>
+      <a href="/" {% if request.endpoint == 'index' %}class="active"{% endif %}>Chat</a>
+      <a href="/memories" {% if request.endpoint == 'list_memories' %}class="active"{% endif %}>Memories</a>
+      <a href="/settings" {% if request.endpoint == 'settings_page' %}class="active"{% endif %}>Settings</a>
     </nav>
   </header>
   <main>
