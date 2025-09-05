@@ -5,6 +5,17 @@ import json
 from ..types import RawEvent, MemoryRecord, Who, Where
 from ..tokenization import TokenizerAdapter
 from ..config import cfg
+from sentence_transformers import SentenceTransformer
+import numpy as np
+
+# Initialize embedder once at module level to avoid reloading
+_embedder = None
+
+def _get_embedder():
+    global _embedder
+    if _embedder is None:
+        _embedder = SentenceTransformer(cfg.embed_model_name)
+    return _embedder
 
 PROMPT = """You are a structured-information extractor that converts an interaction into 5W1H fields.
 Return ONLY valid JSON in the following schema:
@@ -68,10 +79,7 @@ def extract_5w1h(raw: RawEvent, context_hint: str = "") -> MemoryRecord:
         why = parsed.get('why','unspecified')
         how = parsed.get('how','message')
 
-    from sentence_transformers import SentenceTransformer
-    import numpy as np
-
-    embedder = SentenceTransformer(cfg.embed_model_name)
+    embedder = _get_embedder()
     embed_text = f"WHAT: {what}\nWHY: {why}\nHOW: {how}\nRAW: {raw.content}"
     vec = embedder.encode([embed_text], normalize_embeddings=True)[0]
     token_counter = TokenizerAdapter().count_tokens(embed_text)
