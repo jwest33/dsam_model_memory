@@ -251,11 +251,74 @@ Please provide your response now:"""
 
 @app.route('/memories', methods=['GET'])
 def list_memories():
-    # naive preview
+    # Get query parameters
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 50))
+    sort_by = request.args.get('sort_by', 'when_ts')
+    sort_order = request.args.get('sort_order', 'desc')
+    
+    # Filter parameters
+    session_filter = request.args.get('session_id', '')
+    who_filter = request.args.get('who', '')
+    what_filter = request.args.get('what', '')
+    where_filter = request.args.get('where', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+    
+    # Validate sort column
+    valid_sort_columns = ['when_ts', 'created_at', 'memory_id', 'session_id', 
+                          'who_id', 'what', 'where_value', 'token_count']
+    if sort_by not in valid_sort_columns:
+        sort_by = 'when_ts'
+    
+    # Validate sort order
+    if sort_order.lower() not in ['asc', 'desc']:
+        sort_order = 'desc'
+    
     import sqlite3
     con = sqlite3.connect(cfg.db_path)
     con.row_factory = sqlite3.Row
-    rows = con.execute("""SELECT 
+    
+    # Build query with filters
+    where_clauses = []
+    params = []
+    
+    if session_filter:
+        where_clauses.append("session_id LIKE ?")
+        params.append(f"%{session_filter}%")
+    
+    if who_filter:
+        where_clauses.append("(who_id LIKE ? OR who_label LIKE ? OR who_type LIKE ?)")
+        params.extend([f"%{who_filter}%", f"%{who_filter}%", f"%{who_filter}%"])
+    
+    if what_filter:
+        where_clauses.append("what LIKE ?")
+        params.append(f"%{what_filter}%")
+    
+    if where_filter:
+        where_clauses.append("(where_value LIKE ? OR where_type LIKE ?)")
+        params.extend([f"%{where_filter}%", f"%{where_filter}%"])
+    
+    if date_from:
+        where_clauses.append("when_ts >= ?")
+        params.append(date_from)
+    
+    if date_to:
+        where_clauses.append("when_ts <= ?")
+        params.append(date_to)
+    
+    where_clause = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+    
+    # Get total count for pagination
+    count_query = f"SELECT COUNT(*) as total FROM memories{where_clause}"
+    total_count = con.execute(count_query, params).fetchone()['total']
+    
+    # Calculate pagination
+    total_pages = (total_count + per_page - 1) // per_page
+    offset = (page - 1) * per_page
+    
+    # Build main query
+    query = f"""SELECT 
         memory_id, session_id, source_event_id,
         who_type, who_id, who_label, 
         what, when_ts, 
@@ -263,11 +326,44 @@ def list_memories():
         why, how, 
         raw_text, token_count, embed_model, 
         extra_json, created_at 
-        FROM memories 
-        ORDER BY when_ts DESC 
-        LIMIT 200""").fetchall()
+        FROM memories{where_clause}
+        ORDER BY {sort_by} {sort_order}
+        LIMIT ? OFFSET ?"""
+    
+    params.extend([per_page, offset])
+    rows = con.execute(query, params).fetchall()
     con.close()
-    return render_template('memories.html', rows=rows)
+    
+    # Convert Row objects to dictionaries for JSON serialization
+    rows_as_dicts = []
+    for row in rows:
+        rows_as_dicts.append(dict(row))
+    
+    # Prepare pagination info
+    pagination = {
+        'page': page,
+        'per_page': per_page,
+        'total': total_count,
+        'total_pages': total_pages,
+        'has_prev': page > 1,
+        'has_next': page < total_pages,
+        'prev_page': page - 1 if page > 1 else None,
+        'next_page': page + 1 if page < total_pages else None
+    }
+    
+    # Current filters for template
+    filters = {
+        'session_id': session_filter,
+        'who': who_filter,
+        'what': what_filter,
+        'where': where_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'sort_by': sort_by,
+        'sort_order': sort_order
+    }
+    
+    return render_template('memories.html', rows=rows_as_dicts, pagination=pagination, filters=filters)
 
 
 @app.route('/settings')
