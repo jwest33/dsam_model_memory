@@ -334,6 +334,11 @@ def list_memories():
     rows = con.execute(query, params).fetchall()
     con.close()
     
+    # Convert Row objects to dictionaries for JSON serialization
+    rows_as_dicts = []
+    for row in rows:
+        rows_as_dicts.append(dict(row))
+    
     # Prepare pagination info
     pagination = {
         'page': page,
@@ -358,7 +363,7 @@ def list_memories():
         'sort_order': sort_order
     }
     
-    return render_template('memories.html', rows=rows, pagination=pagination, filters=filters)
+    return render_template('memories.html', rows=rows_as_dicts, pagination=pagination, filters=filters)
 
 
 @app.route('/settings')
