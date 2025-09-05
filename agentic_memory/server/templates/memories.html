@@ -3,6 +3,256 @@
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='modal.css') }}">
 <script src="{{ url_for('static', filename='modal.js') }}"></script>
+<style>
+.filter-panel {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--synth-cyan);
+    border-radius: 5px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.filter-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.filter-group label {
+    color: var(--synth-purple);
+    font-size: 0.8rem;
+    margin-bottom: 0.25rem;
+    font-family: 'Michroma', sans-serif;
+}
+
+.filter-group input,
+.filter-group select {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--synth-cyan);
+    color: white;
+    padding: 0.4rem;
+    border-radius: 3px;
+    font-family: 'Michroma', sans-serif;
+    font-size: 0.8rem;
+}
+
+.filter-group input:focus,
+.filter-group select:focus {
+    outline: none;
+    border-color: var(--synth-pink);
+    box-shadow: 0 0 5px rgba(255, 16, 240, 0.3);
+}
+
+.pagination-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--synth-cyan);
+    border-radius: 5px;
+}
+
+.pagination-info {
+    color: var(--synth-cyan);
+    font-family: 'Michroma', sans-serif;
+    font-size: 0.8rem;
+}
+
+.pagination-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.pagination-button {
+    background: transparent;
+    border: 1px solid var(--synth-cyan);
+    color: var(--synth-cyan);
+    padding: 0.4rem 0.8rem;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: 'Michroma', sans-serif;
+    font-size: 0.8rem;
+    transition: all 0.3s ease;
+}
+
+.pagination-button:hover:not(:disabled) {
+    background: var(--synth-cyan);
+    color: black;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.pagination-button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.pagination-button.active {
+    background: var(--synth-cyan);
+    color: black;
+}
+
+.sort-header {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    padding-right: 1.2rem;
+}
+
+.sort-header:hover {
+    color: var(--synth-cyan);
+}
+
+.sort-indicator {
+    position: absolute;
+    right: 0.2rem;
+    font-size: 0.7rem;
+}
+
+.filter-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.btn-filter {
+    background: linear-gradient(135deg, var(--synth-cyan), var(--synth-purple));
+    border: none;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: 'Michroma', sans-serif;
+    font-size: 0.8rem;
+    transition: all 0.3s ease;
+}
+
+.btn-filter:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 255, 255, 0.4);
+}
+
+.btn-clear {
+    background: transparent;
+    border: 1px solid var(--synth-pink);
+    color: var(--synth-pink);
+    padding: 0.5rem 1rem;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: 'Michroma', sans-serif;
+    font-size: 0.8rem;
+    transition: all 0.3s ease;
+}
+
+.btn-clear:hover {
+    background: rgba(255, 16, 240, 0.1);
+    box-shadow: 0 0 10px rgba(255, 16, 240, 0.3);
+}
+
+.memory-row {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.memory-row:hover {
+    background: rgba(0, 255, 255, 0.05);
+}
+
+.memory-detail-section {
+    margin-bottom: 1rem;
+}
+
+.memory-detail-label {
+    color: var(--synth-purple);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.3rem;
+    font-family: 'Michroma', sans-serif;
+}
+
+.memory-detail-value {
+    color: white;
+    font-size: 0.9rem;
+    padding: 0.5rem;
+    background: rgba(0,0,0,0.3);
+    border-left: 2px solid var(--synth-cyan);
+    border-radius: 3px;
+    word-break: break-word;
+    line-height: 1.4;
+}
+
+.memory-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.memory-metadata {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: rgba(0,0,0,0.2);
+    border-radius: 5px;
+    border: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.metadata-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.metadata-label {
+    color: var(--synth-pink);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.2rem;
+}
+
+.metadata-value {
+    color: var(--synth-cyan);
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    word-break: break-all;
+}
+
+.raw-text-section {
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 0.75rem;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--synth-cyan);
+    border-radius: 5px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.json-display {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--synth-purple);
+    border-radius: 5px;
+    padding: 0.75rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    line-height: 1.3;
+    color: var(--synth-cyan);
+    white-space: pre-wrap;
+    max-height: 200px;
+    overflow-y: auto;
+}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -11,7 +261,15 @@
     <div>
       <h3 class="neon-text" style="color: var(--synth-pink);">Memory Store</h3>
       <p class="text-muted" style="margin-top: 0.5rem; font-size: 0.8rem;">
-        Viewing recent memories stored in the system
+        {% if pagination %}
+          {% set end_item = pagination.page * pagination.per_page %}
+          {% if end_item > pagination.total %}
+            {% set end_item = pagination.total %}
+          {% endif %}
+          Showing {{ (pagination.page - 1) * pagination.per_page + 1 }}-{{ end_item }} of {{ pagination.total }} memories
+        {% else %}
+          Viewing recent memories stored in the system
+        {% endif %}
       </p>
     </div>
     <div style="display: flex; gap: 1rem;">
@@ -60,18 +318,119 @@
   </div>
 </div>
 
+<!-- Filter Panel -->
+<div class="panel filter-panel">
+  <h4 class="neon-text" style="color: var(--synth-cyan); margin-bottom: 1rem;">Filters</h4>
+  
+  <form id="filter-form" method="GET" action="/memories">
+    <div class="filter-row">
+      <div class="filter-group">
+        <label for="filter-session">Session ID</label>
+        <input type="text" id="filter-session" name="session_id" 
+               value="{{ filters.session_id if filters else '' }}" 
+               placeholder="Filter by session...">
+      </div>
+      
+      <div class="filter-group">
+        <label for="filter-who">Who</label>
+        <input type="text" id="filter-who" name="who" 
+               value="{{ filters.who if filters else '' }}" 
+               placeholder="Filter by actor...">
+      </div>
+      
+      <div class="filter-group">
+        <label for="filter-what">What</label>
+        <input type="text" id="filter-what" name="what" 
+               value="{{ filters.what if filters else '' }}" 
+               placeholder="Filter by content...">
+      </div>
+      
+      <div class="filter-group">
+        <label for="filter-where">Where</label>
+        <input type="text" id="filter-where" name="where" 
+               value="{{ filters.where if filters else '' }}" 
+               placeholder="Filter by location...">
+      </div>
+    </div>
+    
+    <div class="filter-row">
+      <div class="filter-group">
+        <label for="filter-date-from">Date From</label>
+        <input type="datetime-local" id="filter-date-from" name="date_from" 
+               value="{{ filters.date_from if filters else '' }}">
+      </div>
+      
+      <div class="filter-group">
+        <label for="filter-date-to">Date To</label>
+        <input type="datetime-local" id="filter-date-to" name="date_to" 
+               value="{{ filters.date_to if filters else '' }}">
+      </div>
+      
+      <div class="filter-group">
+        <label for="filter-sort">Sort By</label>
+        <select id="filter-sort" name="sort_by">
+          <option value="when_ts" {% if filters and filters.sort_by == 'when_ts' %}selected{% endif %}>When</option>
+          <option value="created_at" {% if filters and filters.sort_by == 'created_at' %}selected{% endif %}>Created</option>
+          <option value="session_id" {% if filters and filters.sort_by == 'session_id' %}selected{% endif %}>Session</option>
+          <option value="who_id" {% if filters and filters.sort_by == 'who_id' %}selected{% endif %}>Who</option>
+          <option value="what" {% if filters and filters.sort_by == 'what' %}selected{% endif %}>What</option>
+          <option value="token_count" {% if filters and filters.sort_by == 'token_count' %}selected{% endif %}>Tokens</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label for="filter-order">Order</label>
+        <select id="filter-order" name="sort_order">
+          <option value="desc" {% if filters and filters.sort_order == 'desc' %}selected{% endif %}>Descending</option>
+          <option value="asc" {% if filters and filters.sort_order == 'asc' %}selected{% endif %}>Ascending</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="filter-actions">
+      <button type="submit" class="btn-filter">Apply Filters</button>
+      <button type="button" class="btn-clear" onclick="clearFilters()">Clear Filters</button>
+    </div>
+  </form>
+</div>
+
 <div class="panel" style="overflow-x: auto;">
   <table class="memories-table">
     <thead>
       <tr>
-        <th>When</th>
-        <th>Session</th>
-        <th>Who</th>
-        <th>What</th>
+        <th class="sort-header" data-sort="when_ts">
+          When
+          {% if filters and filters.sort_by == 'when_ts' %}
+            <span class="sort-indicator">{{ '▼' if filters.sort_order == 'desc' else '▲' }}</span>
+          {% endif %}
+        </th>
+        <th class="sort-header" data-sort="session_id">
+          Session
+          {% if filters and filters.sort_by == 'session_id' %}
+            <span class="sort-indicator">{{ '▼' if filters.sort_order == 'desc' else '▲' }}</span>
+          {% endif %}
+        </th>
+        <th class="sort-header" data-sort="who_id">
+          Who
+          {% if filters and filters.sort_by == 'who_id' %}
+            <span class="sort-indicator">{{ '▼' if filters.sort_order == 'desc' else '▲' }}</span>
+          {% endif %}
+        </th>
+        <th class="sort-header" data-sort="what">
+          What
+          {% if filters and filters.sort_by == 'what' %}
+            <span class="sort-indicator">{{ '▼' if filters.sort_order == 'desc' else '▲' }}</span>
+          {% endif %}
+        </th>
         <th>Where</th>
         <th>Why</th>
         <th>How</th>
-        <th>Tokens</th>
+        <th class="sort-header" data-sort="token_count">
+          Tokens
+          {% if filters and filters.sort_by == 'token_count' %}
+            <span class="sort-indicator">{{ '▼' if filters.sort_order == 'desc' else '▲' }}</span>
+          {% endif %}
+        </th>
         <th>Extra</th>
         <th>ID</th>
         <th>Action</th>
@@ -79,7 +438,7 @@
     </thead>
     <tbody>
       {% for r in rows %}
-        <tr>
+        <tr class="memory-row" data-memory='{{ r | tojson }}' onclick="showMemoryDetails(this)" style="cursor: pointer;">
           <td><code style="color: var(--synth-cyan); font-size: 0.8rem;">{{ r['when_ts'][:19] if r['when_ts'] else '-' }}</code></td>
           <td><span class="text-muted">{{ r['session_id'][:12] if r['session_id'] else '-' }}</span></td>
           <td>
@@ -107,7 +466,9 @@
           </td>
           <td><code style="color: var(--synth-purple); font-size: 0.75rem;">{{ r['memory_id'][:8] }}...</code></td>
           <td>
-            <button class="btn-delete-memory" data-memory-id="{{ r['memory_id'] }}" style="
+            <button class="btn-delete-memory" data-memory-id="{{ r['memory_id'] }}" 
+                    onclick="event.stopPropagation(); deleteMemoryWithConfirm('{{ r['memory_id'] }}')"
+                    style="
               background: transparent;
               border: 1px solid var(--synth-pink);
               color: var(--synth-pink);
@@ -136,25 +497,67 @@
 </div>
 {% endif %}
 
+{% if pagination and pagination.total_pages > 1 %}
+<div class="pagination-controls">
+  <div class="pagination-info">
+    Page {{ pagination.page }} of {{ pagination.total_pages }} ({{ pagination.total }} total memories)
+  </div>
+  
+  <div class="pagination-buttons">
+    <button class="pagination-button" 
+            onclick="goToPage(1)" 
+            {% if not pagination.has_prev %}disabled{% endif %}>
+      First
+    </button>
+    <button class="pagination-button" 
+            onclick="goToPage({{ pagination.prev_page }})" 
+            {% if not pagination.has_prev %}disabled{% endif %}>
+      Previous
+    </button>
+    
+    {% set page_range_start = 1 %}
+    {% if pagination.page - 2 > 1 %}
+      {% set page_range_start = pagination.page - 2 %}
+    {% endif %}
+    
+    {% set page_range_end = pagination.total_pages %}
+    {% if pagination.page + 2 < pagination.total_pages %}
+      {% set page_range_end = pagination.page + 2 %}
+    {% endif %}
+    
+    {% for page_num in range(page_range_start, page_range_end + 1) %}
+      <button class="pagination-button {% if page_num == pagination.page %}active{% endif %}" 
+              onclick="goToPage({{ page_num }})">
+        {{ page_num }}
+      </button>
+    {% endfor %}
+    
+    <button class="pagination-button" 
+            onclick="goToPage({{ pagination.next_page }})" 
+            {% if not pagination.has_next %}disabled{% endif %}>
+      Next
+    </button>
+    <button class="pagination-button" 
+            onclick="goToPage({{ pagination.total_pages }})" 
+            {% if not pagination.has_next %}disabled{% endif %}>
+      Last
+    </button>
+  </div>
+  
+  <div class="filter-group" style="display: flex; align-items: center; gap: 0.5rem;">
+    <label for="per-page" style="margin-bottom: 0;">Per Page:</label>
+    <select id="per-page" onchange="changePerPage(this.value)" style="width: auto;">
+      <option value="25" {% if pagination.per_page == 25 %}selected{% endif %}>25</option>
+      <option value="50" {% if pagination.per_page == 50 %}selected{% endif %}>50</option>
+      <option value="100" {% if pagination.per_page == 100 %}selected{% endif %}>100</option>
+      <option value="200" {% if pagination.per_page == 200 %}selected{% endif %}>200</option>
+    </select>
+  </div>
+</div>
+{% endif %}
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Add event listeners to all delete buttons
-    document.querySelectorAll('.btn-delete-memory').forEach(button => {
-        button.addEventListener('click', function() {
-            const memoryId = this.dataset.memoryId;
-            synthModal.confirm({
-                title: 'Delete Memory',
-                message: `Delete memory ${memoryId.substring(0, 8)}...?`,
-                submessage: 'This will permanently remove this memory from the system.',
-                type: 'warning',
-                confirmText: 'Delete',
-                cancelText: 'Cancel',
-                showWarningBox: true,
-                warningText: 'This action cannot be undone.',
-                onConfirm: () => deleteMemory(memoryId)
-            });
-        });
-    });
     
     // Delete All button
     document.getElementById('btn-delete-all').addEventListener('click', function() {
@@ -180,7 +583,161 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('btn-import').addEventListener('click', function() {
         showImportDialog();
     });
+    
+    // Sort headers
+    document.querySelectorAll('.sort-header').forEach(header => {
+        header.addEventListener('click', function() {
+            const sortBy = this.dataset.sort;
+            const currentSort = '{{ filters.sort_by if filters else "" }}';
+            const currentOrder = '{{ filters.sort_order if filters else "desc" }}';
+            
+            let newOrder = 'desc';
+            if (sortBy === currentSort) {
+                newOrder = currentOrder === 'desc' ? 'asc' : 'desc';
+            }
+            
+            const params = new URLSearchParams(window.location.search);
+            params.set('sort_by', sortBy);
+            params.set('sort_order', newOrder);
+            
+            window.location.href = '/memories?' + params.toString();
+        });
+    });
 });
+
+function clearFilters() {
+    window.location.href = '/memories';
+}
+
+function deleteMemoryWithConfirm(memoryId) {
+    synthModal.confirm({
+        title: 'Delete Memory',
+        message: `Delete memory ${memoryId.substring(0, 8)}...?`,
+        submessage: 'This will permanently remove this memory from the system.',
+        type: 'warning',
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        showWarningBox: true,
+        warningText: 'This action cannot be undone.',
+        onConfirm: () => deleteMemory(memoryId)
+    });
+}
+
+function formatDateTime(dateStr) {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
+function formatJSON(jsonStr) {
+    if (!jsonStr) return 'None';
+    try {
+        const obj = JSON.parse(jsonStr);
+        return JSON.stringify(obj, null, 2);
+    } catch {
+        return jsonStr;
+    }
+}
+
+function showMemoryDetails(element) {
+    // Get memory data from the element's data attribute
+    const memory = JSON.parse(element.dataset.memory);
+    
+    // Build WHO section with conditional label
+    let whoContent = `<strong>${escapeHtml(memory.who_type || '-')}: ${escapeHtml(memory.who_id || '-')}</strong>`;
+    if (memory.who_label) {
+        whoContent += `<br><span style="color: rgba(255, 255, 255, 0.7);">${escapeHtml(memory.who_label)}</span>`;
+    }
+    
+    // Build WHERE section with conditional coordinates
+    let whereContent = `${escapeHtml(memory.where_type || '-')}: ${escapeHtml(memory.where_value || '-')}`;
+    if (memory.where_lat && memory.where_lon) {
+        whereContent += `<br><span style="color: var(--synth-cyan);">📍 Coordinates: ${memory.where_lat}, ${memory.where_lon}</span>`;
+    }
+    
+    // Build the 5W1H section
+    const fiveW1H = `
+        <div class="memory-detail-grid">
+            <div class="memory-detail-section">
+                <div class="memory-detail-label">WHO</div>
+                <div class="memory-detail-value">${whoContent}</div>
+            </div>
+            <div class="memory-detail-section">
+                <div class="memory-detail-label">WHEN</div>
+                <div class="memory-detail-value">${formatDateTime(memory.when_ts)}</div>
+            </div>
+        </div>
+        <div class="memory-detail-section">
+            <div class="memory-detail-label">WHAT</div>
+            <div class="memory-detail-value">${escapeHtml(memory.what || 'No description available')}</div>
+        </div>
+        <div class="memory-detail-section">
+            <div class="memory-detail-label">WHERE</div>
+            <div class="memory-detail-value">${whereContent}</div>
+        </div>
+        <div class="memory-detail-grid">
+            <div class="memory-detail-section">
+                <div class="memory-detail-label">WHY</div>
+                <div class="memory-detail-value">${escapeHtml(memory.why || 'No reason specified')}</div>
+            </div>
+            <div class="memory-detail-section">
+                <div class="memory-detail-label">HOW</div>
+                <div class="memory-detail-value">${escapeHtml(memory.how || 'No method specified')}</div>
+            </div>
+        </div>
+    `;
+    
+    // Build metadata section
+    const metadata = `<h4 style="color: var(--synth-cyan); margin-top: 1.5rem; margin-bottom: 0.75rem;">Metadata</h4><div class="memory-metadata"><div class="metadata-item"><div class="metadata-label">Memory ID</div><div class="metadata-value">${escapeHtml(memory.memory_id)}</div></div><div class="metadata-item"><div class="metadata-label">Session ID</div><div class="metadata-value">${escapeHtml(memory.session_id || '-')}</div></div><div class="metadata-item"><div class="metadata-label">Source Event</div><div class="metadata-value">${escapeHtml(memory.source_event_id || '-')}</div></div><div class="metadata-item"><div class="metadata-label">Token Count</div><div class="metadata-value">${memory.token_count || '0'}</div></div><div class="metadata-item"><div class="metadata-label">Embed Model</div><div class="metadata-value">${escapeHtml(memory.embed_model || '-')}</div></div><div class="metadata-item"><div class="metadata-label">Created At</div><div class="metadata-value">${formatDateTime(memory.created_at)}</div></div></div>`;
+    
+    // Build raw text section
+    const rawText = memory.raw_text ? `<h4 style="color: var(--synth-cyan); margin-top: 1.5rem; margin-bottom: 0.75rem;">Original Text</h4><div class="raw-text-section">${escapeHtml(memory.raw_text)}</div>` : '';
+    
+    // Build extra JSON section
+    const extraJson = memory.extra_json ? `<h4 style="color: var(--synth-purple); margin-top: 1.5rem; margin-bottom: 0.75rem;">Additional Data</h4><div class="json-display">${escapeHtml(formatJSON(memory.extra_json))}</div>` : '';
+    
+    // Combine all sections
+    const content = `<div style="padding: 1rem; max-height: 70vh; overflow-y: auto;"><h3 style="color: var(--synth-pink); margin-bottom: 1rem;">Memory Details<span style="float: right; font-size: 0.7rem; color: var(--synth-cyan);">${memory.memory_id ? memory.memory_id.substring(0, 12) + '...' : ''}</span></h3>${fiveW1H}${metadata}${rawText}${extraJson}</div>`;
+    
+    // Show the modal
+    synthModal.custom({
+        title: 'Memory Information',
+        content: content,
+        width: '800px'
+    });
+}
+
+function goToPage(page) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('page', page);
+    window.location.href = '/memories?' + params.toString();
+}
+
+function changePerPage(perPage) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('per_page', perPage);
+    params.set('page', 1); // Reset to first page
+    window.location.href = '/memories?' + params.toString();
+}
 
 async function deleteMemory(memoryId) {
     try {

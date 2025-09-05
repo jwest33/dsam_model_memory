@@ -129,7 +129,7 @@ class ServerConfig:
     port: int = 8000
     context_size: int = 10000
     n_gpu_layers: int = 35  # -1 for all layers on GPU
-    threads: int = 12
+    threads: int = 4  # Reduced for better performance (usually physical cores / 2)
     
     # GPU/VRAM optimization settings
     gpu_split: Optional[str] = None  # e.g., "0.5,0.5" for multi-GPU
@@ -138,9 +138,9 @@ class ServerConfig:
     no_mmap: bool = False  # Disable memory mapping (keeps model in RAM/VRAM)
     lock_memory: bool = True  # Lock model in memory (prevent swapping)
     offload_kqv: bool = True  # Offload K,Q,V to GPU
-    flash_attention: bool = False  # Use flash attention (if supported)
-    batch_size: int = 512  # Batch size for prompt processing
-    ubatch_size: int = 512  # Micro-batch size for prompt processing
+    flash_attention: bool = True  # Use flash attention for 2x+ speedup
+    batch_size: int = 2048  # Increased for better GPU utilization
+    ubatch_size: int = 512  # Keep smaller for memory efficiency
     
     # Remote server settings (NEW)
     remote_host: Optional[str] = None

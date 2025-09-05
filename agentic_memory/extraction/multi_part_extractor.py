@@ -8,6 +8,16 @@ import json
 from ..types import RawEvent, MemoryRecord, Who, Where
 from ..tokenization import TokenizerAdapter
 from ..config import cfg
+from sentence_transformers import SentenceTransformer
+
+# Initialize embedder once at module level to avoid reloading
+_embedder = None
+
+def _get_embedder():
+    global _embedder
+    if _embedder is None:
+        _embedder = SentenceTransformer(cfg.embed_model_name)
+    return _embedder
 
 MULTI_PART_PROMPT = """You are a structured-information extractor that identifies DISTINCT pieces of information and converts EACH into separate 5W1H fields.
 
@@ -97,8 +107,7 @@ def extract_multi_part_5w1h(raw: RawEvent, context_hint: str = "") -> List[Memor
         }]
     
     # Create embeddings for each memory
-    from sentence_transformers import SentenceTransformer
-    embedder = SentenceTransformer(cfg.embed_model_name)
+    embedder = _get_embedder()
     token_counter = TokenizerAdapter()
     
     memories = []
