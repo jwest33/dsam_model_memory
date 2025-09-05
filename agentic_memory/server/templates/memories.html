@@ -155,6 +155,103 @@
     background: rgba(255, 16, 240, 0.1);
     box-shadow: 0 0 10px rgba(255, 16, 240, 0.3);
 }
+
+.memory-row {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.memory-row:hover {
+    background: rgba(0, 255, 255, 0.05);
+}
+
+.memory-detail-section {
+    margin-bottom: 1rem;
+}
+
+.memory-detail-label {
+    color: var(--synth-purple);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.3rem;
+    font-family: 'Michroma', sans-serif;
+}
+
+.memory-detail-value {
+    color: white;
+    font-size: 0.9rem;
+    padding: 0.5rem;
+    background: rgba(0,0,0,0.3);
+    border-left: 2px solid var(--synth-cyan);
+    border-radius: 3px;
+    word-break: break-word;
+    line-height: 1.4;
+}
+
+.memory-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.memory-metadata {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: rgba(0,0,0,0.2);
+    border-radius: 5px;
+    border: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.metadata-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.metadata-label {
+    color: var(--synth-pink);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.2rem;
+}
+
+.metadata-value {
+    color: var(--synth-cyan);
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    word-break: break-all;
+}
+
+.raw-text-section {
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 0.75rem;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--synth-cyan);
+    border-radius: 5px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.json-display {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--synth-purple);
+    border-radius: 5px;
+    padding: 0.75rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    line-height: 1.3;
+    color: var(--synth-cyan);
+    white-space: pre-wrap;
+    max-height: 200px;
+    overflow-y: auto;
+}
 </style>
 {% endblock %}
 
@@ -341,7 +438,7 @@
     </thead>
     <tbody>
       {% for r in rows %}
-        <tr>
+        <tr class="memory-row" data-memory='{{ r | tojson }}' onclick="showMemoryDetails(this)" style="cursor: pointer;">
           <td><code style="color: var(--synth-cyan); font-size: 0.8rem;">{{ r['when_ts'][:19] if r['when_ts'] else '-' }}</code></td>
           <td><span class="text-muted">{{ r['session_id'][:12] if r['session_id'] else '-' }}</span></td>
           <td>
@@ -369,7 +466,9 @@
           </td>
           <td><code style="color: var(--synth-purple); font-size: 0.75rem;">{{ r['memory_id'][:8] }}...</code></td>
           <td>
-            <button class="btn-delete-memory" data-memory-id="{{ r['memory_id'] }}" style="
+            <button class="btn-delete-memory" data-memory-id="{{ r['memory_id'] }}" 
+                    onclick="event.stopPropagation(); deleteMemoryWithConfirm('{{ r['memory_id'] }}')"
+                    style="
               background: transparent;
               border: 1px solid var(--synth-pink);
               color: var(--synth-pink);
@@ -459,23 +558,6 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Add event listeners to all delete buttons
-    document.querySelectorAll('.btn-delete-memory').forEach(button => {
-        button.addEventListener('click', function() {
-            const memoryId = this.dataset.memoryId;
-            synthModal.confirm({
-                title: 'Delete Memory',
-                message: `Delete memory ${memoryId.substring(0, 8)}...?`,
-                submessage: 'This will permanently remove this memory from the system.',
-                type: 'warning',
-                confirmText: 'Delete',
-                cancelText: 'Cancel',
-                showWarningBox: true,
-                warningText: 'This action cannot be undone.',
-                onConfirm: () => deleteMemory(memoryId)
-            });
-        });
-    });
     
     // Delete All button
     document.getElementById('btn-delete-all').addEventListener('click', function() {
@@ -525,6 +607,123 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function clearFilters() {
     window.location.href = '/memories';
+}
+
+function deleteMemoryWithConfirm(memoryId) {
+    synthModal.confirm({
+        title: 'Delete Memory',
+        message: `Delete memory ${memoryId.substring(0, 8)}...?`,
+        submessage: 'This will permanently remove this memory from the system.',
+        type: 'warning',
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        showWarningBox: true,
+        warningText: 'This action cannot be undone.',
+        onConfirm: () => deleteMemory(memoryId)
+    });
+}
+
+function formatDateTime(dateStr) {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
+function formatJSON(jsonStr) {
+    if (!jsonStr) return 'None';
+    try {
+        const obj = JSON.parse(jsonStr);
+        return JSON.stringify(obj, null, 2);
+    } catch {
+        return jsonStr;
+    }
+}
+
+function showMemoryDetails(element) {
+    // Get memory data from the element's data attribute
+    const memory = JSON.parse(element.dataset.memory);
+    
+    // Build WHO section with conditional label
+    let whoContent = `<strong>${escapeHtml(memory.who_type || '-')}: ${escapeHtml(memory.who_id || '-')}</strong>`;
+    if (memory.who_label) {
+        whoContent += `<br><span style="color: rgba(255, 255, 255, 0.7);">${escapeHtml(memory.who_label)}</span>`;
+    }
+    
+    // Build WHERE section with conditional coordinates
+    let whereContent = `${escapeHtml(memory.where_type || '-')}: ${escapeHtml(memory.where_value || '-')}`;
+    if (memory.where_lat && memory.where_lon) {
+        whereContent += `<br><span style="color: var(--synth-cyan);">📍 Coordinates: ${memory.where_lat}, ${memory.where_lon}</span>`;
+    }
+    
+    // Build the 5W1H section
+    const fiveW1H = `
+        <div class="memory-detail-grid">
+            <div class="memory-detail-section">
+                <div class="memory-detail-label">WHO</div>
+                <div class="memory-detail-value">${whoContent}</div>
+            </div>
+            <div class="memory-detail-section">
+                <div class="memory-detail-label">WHEN</div>
+                <div class="memory-detail-value">${formatDateTime(memory.when_ts)}</div>
+            </div>
+        </div>
+        <div class="memory-detail-section">
+            <div class="memory-detail-label">WHAT</div>
+            <div class="memory-detail-value">${escapeHtml(memory.what || 'No description available')}</div>
+        </div>
+        <div class="memory-detail-section">
+            <div class="memory-detail-label">WHERE</div>
+            <div class="memory-detail-value">${whereContent}</div>
+        </div>
+        <div class="memory-detail-grid">
+            <div class="memory-detail-section">
+                <div class="memory-detail-label">WHY</div>
+                <div class="memory-detail-value">${escapeHtml(memory.why || 'No reason specified')}</div>
+            </div>
+            <div class="memory-detail-section">
+                <div class="memory-detail-label">HOW</div>
+                <div class="memory-detail-value">${escapeHtml(memory.how || 'No method specified')}</div>
+            </div>
+        </div>
+    `;
+    
+    // Build metadata section
+    const metadata = `<h4 style="color: var(--synth-cyan); margin-top: 1.5rem; margin-bottom: 0.75rem;">Metadata</h4><div class="memory-metadata"><div class="metadata-item"><div class="metadata-label">Memory ID</div><div class="metadata-value">${escapeHtml(memory.memory_id)}</div></div><div class="metadata-item"><div class="metadata-label">Session ID</div><div class="metadata-value">${escapeHtml(memory.session_id || '-')}</div></div><div class="metadata-item"><div class="metadata-label">Source Event</div><div class="metadata-value">${escapeHtml(memory.source_event_id || '-')}</div></div><div class="metadata-item"><div class="metadata-label">Token Count</div><div class="metadata-value">${memory.token_count || '0'}</div></div><div class="metadata-item"><div class="metadata-label">Embed Model</div><div class="metadata-value">${escapeHtml(memory.embed_model || '-')}</div></div><div class="metadata-item"><div class="metadata-label">Created At</div><div class="metadata-value">${formatDateTime(memory.created_at)}</div></div></div>`;
+    
+    // Build raw text section
+    const rawText = memory.raw_text ? `<h4 style="color: var(--synth-cyan); margin-top: 1.5rem; margin-bottom: 0.75rem;">Original Text</h4><div class="raw-text-section">${escapeHtml(memory.raw_text)}</div>` : '';
+    
+    // Build extra JSON section
+    const extraJson = memory.extra_json ? `<h4 style="color: var(--synth-purple); margin-top: 1.5rem; margin-bottom: 0.75rem;">Additional Data</h4><div class="json-display">${escapeHtml(formatJSON(memory.extra_json))}</div>` : '';
+    
+    // Combine all sections
+    const content = `<div style="padding: 1rem; max-height: 70vh; overflow-y: auto;"><h3 style="color: var(--synth-pink); margin-bottom: 1rem;">Memory Details<span style="float: right; font-size: 0.7rem; color: var(--synth-cyan);">${memory.memory_id ? memory.memory_id.substring(0, 12) + '...' : ''}</span></h3>${fiveW1H}${metadata}${rawText}${extraJson}</div>`;
+    
+    // Show the modal
+    synthModal.custom({
+        title: 'Memory Information',
+        content: content,
+        width: '800px'
+    });
 }
 
 function goToPage(page) {
