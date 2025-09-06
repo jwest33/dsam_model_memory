@@ -1,0 +1,36 @@
+# LoRA Adapter Training Requirements
+# These are additional dependencies needed for the auto_lora.py module
+# Install with: pip install -r lora/requirements.txt
+
+# Core ML Framework (required)
+torch>=2.0.0
+torchvision
+torchaudio
+
+# Transformers and LoRA (required)
+transformers>=4.36.0
+peft>=0.7.0
+accelerate>=0.25.0
+datasets>=2.14.0
+
+# Quantization support (optional - not compatible with Python 3.13 yet)
+# bitsandbytes>=0.41.0  # Uncomment when using Python 3.12 or lower
+
+# Async HTTP for llama.cpp communication (required)
+aiohttp>=3.9.0
+
+# Progress bars (required)
+tqdm>=4.65.0
+
+# Config files (required)
+pyyaml>=6.0
+
+# Model weights format (required)
+safetensors>=0.4.0
+
+# Tokenizer support for Qwen (required)
+sentencepiece>=0.1.99
+protobuf>=3.20.0
+
+# Training visualization (optional but included in code)
+tensorboard>=2.14.0
