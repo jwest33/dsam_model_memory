@@ -240,6 +240,108 @@ def assign_concept(embedding):
     return cluster_id, confidence
 ```
 
+## Liquid Memory Clustering
+
+### Self-Organizing Memory Topology
+
+The system implements a dynamic "liquid" clustering approach where memories flow between clusters based on affinity gradients:
+
+#### Affinity Matrix Computation
+```python
+def compute_affinity_matrix(memory_ids, embeddings, metadata):
+    """
+    Multi-signal affinity between memory pairs
+    """
+    affinity[i,j] = (
+        0.4 * co_access_score +      # How often accessed together
+        0.3 * temporal_proximity +    # Time-based closeness
+        0.3 * semantic_similarity     # Meaning similarity
+    )
+```
+
+#### Gradient Flow Dynamics
+```python
+def flow_step(memories, affinity_matrix):
+    """
+    Memories migrate following affinity gradients
+    """
+    for memory in memories:
+        # Compute pull from each cluster
+        pulls = {}
+        for cluster in clusters:
+            pull_strength = avg_affinity_to_cluster_members
+            pulls[cluster] = pull_strength * cluster_energy
+        
+        # Flow to strongest pull if above threshold
+        if max(pulls.values()) > flow_rate:
+            memory.cluster = argmax(pulls)
+```
+
+#### Energy Dynamics
+```python
+# Cluster energy increases with access
+energy[cluster] = min(1.0, energy[cluster] + 0.05 * access_count)
+
+# Energy decays over time
+energy[cluster] *= 0.99  # Per timestep decay
+
+# Clusters merge when similarity exceeds threshold
+if cosine_similarity(centroid1, centroid2) > 0.85:
+    merge_clusters(cluster1, cluster2)
+```
+
+### 3D Visualization Pipeline
+
+The visualization system projects high-dimensional embeddings into 3D space for intuitive exploration:
+
+#### Dimensionality Reduction Methods
+
+##### PCA (Principal Component Analysis)
+```python
+# Linear projection preserving maximum variance
+reducer = PCA(n_components=3)
+coords_3d = reducer.fit_transform(embeddings)
+# Fast, deterministic, preserves global structure
+```
+
+##### t-SNE (t-Distributed Stochastic Neighbor Embedding)
+```python
+# Non-linear projection preserving local neighborhoods
+reducer = TSNE(n_components=3, perplexity=30, max_iter=1000)
+coords_3d = reducer.fit_transform(embeddings)
+# Perplexity controls local vs global structure balance
+```
+
+##### UMAP (Uniform Manifold Approximation and Projection)
+```python
+# Manifold learning preserving both local and global structure
+reducer = UMAP(n_components=3, n_neighbors=15)
+coords_3d = reducer.fit_transform(embeddings)
+# Fastest for large datasets, good structure preservation
+```
+
+#### Visualization Features
+
+##### Dynamic Coloring Schemes
+- **Cluster ID**: Discrete colors per cluster (Viridis colormap)
+- **Energy Level**: Continuous heat map (Hot colormap)
+- **Recency Score**: Temporal gradient (Plasma colormap)
+- **Usage Count**: Frequency visualization (Electric colormap)
+
+##### Adaptive Clustering
+```python
+# Dynamically adjust cluster count based on data
+n_samples = len(embeddings)
+optimal_clusters = min(max(8, n_samples // 10), 64)
+# Ensures meaningful clusters: 8 ≤ k ≤ 64
+```
+
+##### Real-time Updates
+- Auto-refresh every 30 seconds
+- Co-access patterns tracked across sessions
+- Energy propagation through cluster network
+- Automatic merger of converged clusters
+
 ## Mathematical Models
 
 ### Attention Mechanism

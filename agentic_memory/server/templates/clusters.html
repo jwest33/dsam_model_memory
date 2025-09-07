@@ -1,0 +1,390 @@
+{% extends "base.html" %}
+
+{% block title %}Liquid Memory Clusters - JAM{% endblock %}
+
+{% block head %}
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
+<style>
+    .cluster-controls {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    
+    .control-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .control-group label {
+        font-size: 0.85rem;
+        color: var(--cyan);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+    }
+    
+    #cluster-plot {
+        width: 100%;
+        height: 600px;
+        background: linear-gradient(135deg, rgba(25,25,50,0.9) 0%, rgba(15,15,30,0.95) 100%);
+        border: 1px solid var(--cyan);
+        border-radius: 8px;
+        box-shadow: 0 0 30px rgba(0,255,255,0.3);
+    }
+    
+    .cluster-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+    
+    .stat-card {
+        background: rgba(30,30,60,0.5);
+        border: 1px solid var(--purple);
+        border-radius: 4px;
+        padding: 1rem;
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+        color: var(--pink);
+        font-weight: bold;
+        text-shadow: 0 0 10px currentColor;
+    }
+    
+    .stat-label {
+        font-size: 0.85rem;
+        color: var(--cyan);
+        margin-top: 0.5rem;
+        text-transform: uppercase;
+    }
+    
+    .loading-overlay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: var(--cyan);
+        font-size: 1.2rem;
+        text-shadow: 0 0 20px currentColor;
+        animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    .refresh-btn {
+        background: linear-gradient(135deg, var(--purple) 0%, var(--pink) 100%);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 4px;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        transition: all 0.3s;
+        box-shadow: 0 4px 15px rgba(255,0,255,0.3);
+    }
+    
+    .refresh-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(255,0,255,0.5);
+    }
+    
+    select, input[type="range"] {
+        background: rgba(30,30,60,0.8);
+        color: var(--cyan);
+        border: 1px solid var(--purple);
+        padding: 0.5rem;
+        border-radius: 4px;
+    }
+    
+    select option {
+        background: rgba(30,30,60,0.95);
+        color: var(--cyan);
+    }
+    
+    .range-value {
+        color: var(--pink);
+        font-weight: bold;
+        margin-left: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 style="color: var(--cyan); text-shadow: 0 0 20px currentColor; margin-bottom: 2rem;">
+        Liquid Memory Clusters - 3D Visualization
+    </h2>
+    
+    <div class="cluster-controls">
+        <div class="control-group">
+            <label>Reduction Method</label>
+            <select id="reduction-method">
+                <option value="pca">PCA</option>
+                <option value="tsne">t-SNE</option>
+                <option value="umap">UMAP</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label>Perplexity (t-SNE)</label>
+            <div style="display: flex; align-items: center;">
+                <input type="range" id="perplexity" min="5" max="50" value="30" />
+                <span class="range-value" id="perplexity-value">30</span>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <label>Color By</label>
+            <select id="color-by">
+                <option value="cluster">Cluster</option>
+                <option value="energy">Energy</option>
+                <option value="recency">Recency</option>
+                <option value="usage">Usage Count</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label>Point Size</label>
+            <div style="display: flex; align-items: center;">
+                <input type="range" id="point-size" min="2" max="15" value="6" />
+                <span class="range-value" id="point-size-value">6</span>
+            </div>
+        </div>
+        
+        <button class="refresh-btn" onclick="refreshVisualization()">
+            Refresh Data
+        </button>
+    </div>
+    
+    <div style="position: relative;">
+        <div id="cluster-plot">
+            <div class="loading-overlay">Loading cluster data...</div>
+        </div>
+    </div>
+    
+    <div class="cluster-stats">
+        <div class="stat-card">
+            <div class="stat-value" id="total-memories">-</div>
+            <div class="stat-label">Total Memories</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="active-clusters">-</div>
+            <div class="stat-label">Active Clusters</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="avg-energy">-</div>
+            <div class="stat-label">Avg Energy</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="largest-cluster">-</div>
+            <div class="stat-label">Largest Cluster</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentData = null;
+    
+    // Update range value displays
+    document.getElementById('perplexity').addEventListener('input', function() {
+        document.getElementById('perplexity-value').textContent = this.value;
+    });
+    
+    document.getElementById('point-size').addEventListener('input', function() {
+        document.getElementById('point-size-value').textContent = this.value;
+        if (currentData) {
+            updateVisualization();
+        }
+    });
+    
+    // Listen for control changes
+    document.getElementById('reduction-method').addEventListener('change', fetchAndVisualize);
+    document.getElementById('perplexity').addEventListener('change', fetchAndVisualize);
+    document.getElementById('color-by').addEventListener('change', updateVisualization);
+    
+    async function fetchAndVisualize() {
+        const plotDiv = document.getElementById('cluster-plot');
+        plotDiv.innerHTML = '<div class="loading-overlay">Computing visualization...</div>';
+        
+        const method = document.getElementById('reduction-method').value;
+        const perplexity = document.getElementById('perplexity').value;
+        
+        try {
+            const response = await fetch(`/api/clusters/visualization?method=${method}&perplexity=${perplexity}`);
+            const data = await response.json();
+            
+            if (!data.success) {
+                plotDiv.innerHTML = `<div class="loading-overlay" style="color: var(--pink);">Error: ${data.error}</div>`;
+                return;
+            }
+            
+            currentData = data;
+            updateStats(data.stats);
+            updateVisualization();
+            
+        } catch (error) {
+            plotDiv.innerHTML = `<div class="loading-overlay" style="color: var(--pink);">Error loading data: ${error.message}</div>`;
+        }
+    }
+    
+    function updateVisualization() {
+        if (!currentData || !currentData.points) return;
+        
+        // Clear any loading overlay when we start rendering
+        const plotDiv = document.getElementById('cluster-plot');
+        const loadingOverlay = plotDiv.querySelector('.loading-overlay');
+        if (loadingOverlay) {
+            loadingOverlay.remove();
+        }
+        
+        const colorBy = document.getElementById('color-by').value;
+        const pointSize = parseInt(document.getElementById('point-size').value);
+        
+        // Prepare color scale based on selection
+        let colorScale, colorValues, colorbarTitle;
+        
+        switch(colorBy) {
+            case 'cluster':
+                colorValues = currentData.points.map(p => p.cluster_id);
+                colorbarTitle = 'Cluster ID';
+                colorScale = 'Viridis';
+                break;
+            case 'energy':
+                colorValues = currentData.points.map(p => p.energy || 0);
+                colorbarTitle = 'Energy Level';
+                colorScale = 'Hot';
+                break;
+            case 'recency':
+                colorValues = currentData.points.map(p => p.recency_score || 0);
+                colorbarTitle = 'Recency';
+                colorScale = 'Plasma';
+                break;
+            case 'usage':
+                colorValues = currentData.points.map(p => p.usage_count || 0);
+                colorbarTitle = 'Usage Count';
+                colorScale = 'Electric';
+                break;
+        }
+        
+        const trace = {
+            x: currentData.points.map(p => p.x),
+            y: currentData.points.map(p => p.y),
+            z: currentData.points.map(p => p.z),
+            mode: 'markers',
+            type: 'scatter3d',
+            marker: {
+                size: pointSize,
+                color: colorValues,
+                colorscale: colorScale,
+                showscale: true,
+                colorbar: {
+                    title: colorbarTitle,
+                    thickness: 20,
+                    len: 0.7,
+                    tickfont: { color: '#00ffff' },
+                    titlefont: { color: '#00ffff' }
+                },
+                line: {
+                    width: 0.5,
+                    color: 'rgba(0,255,255,0.3)'
+                },
+                opacity: 0.8
+            },
+            text: currentData.points.map(p => 
+                `Memory: ${p.memory_id}<br>` +
+                `Cluster: ${p.cluster_id}<br>` +
+                `What: ${p.what || 'N/A'}<br>` +
+                `Energy: ${(p.energy || 0).toFixed(3)}<br>` +
+                `Usage: ${p.usage_count || 0}`
+            ),
+            hoverinfo: 'text',
+            hoverlabel: {
+                bgcolor: 'rgba(30,30,60,0.9)',
+                bordercolor: '#00ffff',
+                font: { color: '#ffffff' }
+            }
+        };
+        
+        const layout = {
+            scene: {
+                xaxis: {
+                    showgrid: false,
+                    showticklabels: false,
+                    showaxeslabels: false,
+                    showspikes: false,
+                    showbackground: false,
+                    zeroline: false,
+                    title: ''
+                },
+                yaxis: {
+                    showgrid: false,
+                    showticklabels: false,
+                    showaxeslabels: false,
+                    showspikes: false,
+                    showbackground: false,
+                    zeroline: false,
+                    title: ''
+                },
+                zaxis: {
+                    showgrid: false,
+                    showticklabels: false,
+                    showaxeslabels: false,
+                    showspikes: false,
+                    showbackground: false,
+                    zeroline: false,
+                    title: ''
+                },
+                camera: {
+                    eye: { x: 1.5, y: 1.5, z: 1.5 }
+                },
+                aspectmode: 'cube',
+                bgcolor: 'rgba(0,0,0,0)'
+            },
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            margin: { l: 0, r: 0, b: 0, t: 0 },
+            showlegend: false,
+            hovermode: 'closest'
+        };
+        
+        const config = {
+            displayModeBar: true,
+            displaylogo: false,
+            modeBarButtonsToRemove: ['toImage'],
+            responsive: true
+        };
+        
+        Plotly.newPlot('cluster-plot', [trace], layout, config);
+    }
+    
+    function updateStats(stats) {
+        if (!stats) return;
+        
+        document.getElementById('total-memories').textContent = stats.total_memories || 0;
+        document.getElementById('active-clusters').textContent = stats.n_clusters || 0;
+        document.getElementById('avg-energy').textContent = 
+            stats.avg_energy ? stats.avg_energy.toFixed(3) : '0.000';
+        document.getElementById('largest-cluster').textContent = stats.largest_cluster_size || 0;
+    }
+    
+    function refreshVisualization() {
+        fetchAndVisualize();
+    }
+    
+    // Initial load
+    fetchAndVisualize();
+    
+    // Auto-refresh every 30 seconds
+    setInterval(fetchAndVisualize, 30000);
+</script>
+{% endblock %}

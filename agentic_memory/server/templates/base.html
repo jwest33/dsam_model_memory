@@ -16,6 +16,7 @@
     <nav>
       <a href="/" {% if request.endpoint == 'index' %}class="active"{% endif %}>Chat</a>
       <a href="/memories" {% if request.endpoint == 'list_memories' %}class="active"{% endif %}>Memories</a>
+      <a href="/clusters" {% if request.endpoint == 'clusters_page' %}class="active"{% endif %}>Clusters</a>
       <a href="/settings" {% if request.endpoint == 'settings_page' %}class="active"{% endif %}>Settings</a>
     </nav>
   </header>
