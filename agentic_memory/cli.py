@@ -334,6 +334,189 @@ def memory():
     pass
 
 
+@cli.group()
+def document():
+    """Document parsing and ingestion"""
+    pass
+
+
+@document.command()
+@click.argument('file_path', type=click.Path(exists=True))
+@click.option('--strategy', type=click.Choice(['semantic', 'paragraph', 'sentence']), default='semantic', help='Chunking strategy')
+@click.option('--chunk-size', default=2000, help='Maximum chunk size')
+@click.option('--overlap', default=200, help='Chunk overlap size')
+@click.option('--dry-run', is_flag=True, help='Parse without ingesting into memory')
+def parse(file_path, strategy, chunk_size, overlap, dry_run):
+    """Parse a document and ingest into memory"""
+    from agentic_memory.document_parser import DocumentParser, SemanticChunker, ParagraphChunker, SentenceChunker
+    
+    click.echo(f"Parsing document: {file_path}")
+    
+    # Select chunking strategy
+    if strategy == 'sentence':
+        chunker = SentenceChunker(chunk_size, overlap)
+    elif strategy == 'paragraph':
+        chunker = ParagraphChunker(chunk_size, overlap)
+    else:
+        chunker = SemanticChunker(chunk_size, overlap)
+    
+    # Parse document
+    parser = DocumentParser(chunking_strategy=chunker)
+    parsed_doc = parser.parse(file_path)
+    
+    if not parsed_doc.success:
+        click.echo(f"❌ Failed to parse document")
+        for error in parsed_doc.extraction_errors:
+            click.echo(f"   Error: {error}")
+        return
+    
+    # Display results
+    click.echo(f"✅ Document parsed successfully")
+    click.echo(f"   File type: {parsed_doc.file_type}")
+    click.echo(f"   Chunks: {len(parsed_doc.chunks)}")
+    click.echo(f"   Words: {parsed_doc.total_words:,}")
+    click.echo(f"   Characters: {parsed_doc.total_chars:,}")
+    
+    if dry_run:
+        click.echo("\n--dry-run specified, not ingesting into memory")
+        click.echo("\nFirst 3 chunks preview:")
+        for i, chunk in enumerate(parsed_doc.chunks[:3], 1):
+            click.echo(f"\n--- Chunk {i}/{len(parsed_doc.chunks)} ---")
+            preview = chunk.content[:200] + "..." if len(chunk.content) > 200 else chunk.content
+            click.echo(preview)
+        return
+    
+    # Ingest into memory
+    click.echo("\nIngesting chunks into memory...")
+    config = ConfigManager()
+    router = MemoryRouter(config)
+    
+    memories_created = 0
+    with click.progressbar(parsed_doc.chunks) as chunks:
+        for chunk in chunks:
+            try:
+                memory_text = chunk.to_memory_text()
+                memory = router.ingest(memory_text, metadata={
+                    'source': 'document',
+                    'file_name': Path(file_path).name,
+                    'chunk_index': chunk.chunk_index,
+                    'total_chunks': chunk.total_chunks
+                })
+                if memory:
+                    memories_created += 1
+            except Exception as e:
+                click.echo(f"\n⚠️  Error ingesting chunk {chunk.chunk_index}: {e}")
+    
+    click.echo(f"\n✅ Created {memories_created} memories from {len(parsed_doc.chunks)} chunks")
+
+
+@document.command()
+@click.argument('directory', type=click.Path(exists=True, file_okay=False, dir_okay=True))
+@click.option('--recursive', '-r', is_flag=True, help='Process subdirectories')
+@click.option('--extensions', '-e', multiple=True, help='File extensions to process (e.g., -e .txt -e .pdf)')
+@click.option('--strategy', type=click.Choice(['semantic', 'paragraph', 'sentence']), default='semantic')
+@click.option('--chunk-size', default=2000, help='Maximum chunk size')
+@click.option('--overlap', default=200, help='Chunk overlap size')
+def batch(directory, recursive, extensions, strategy, chunk_size, overlap):
+    """Batch process documents in a directory"""
+    from agentic_memory.document_parser import DocumentParser, SemanticChunker, ParagraphChunker, SentenceChunker
+    
+    click.echo(f"Processing directory: {directory}")
+    
+    # Select chunking strategy
+    if strategy == 'sentence':
+        chunker = SentenceChunker(chunk_size, overlap)
+    elif strategy == 'paragraph':
+        chunker = ParagraphChunker(chunk_size, overlap)
+    else:
+        chunker = SemanticChunker(chunk_size, overlap)
+    
+    parser = DocumentParser(chunking_strategy=chunker)
+    
+    # Parse directory
+    parsed_docs = parser.parse_directory(directory, recursive=recursive, extensions=list(extensions) if extensions else None)
+    
+    if not parsed_docs:
+        click.echo("No documents found to process")
+        return
+    
+    # Display summary
+    total_chunks = sum(len(doc.chunks) for doc in parsed_docs)
+    successful = sum(1 for doc in parsed_docs if doc.success)
+    
+    click.echo(f"\nParsed {len(parsed_docs)} documents:")
+    click.echo(f"   Successful: {successful}")
+    click.echo(f"   Failed: {len(parsed_docs) - successful}")
+    click.echo(f"   Total chunks: {total_chunks}")
+    
+    # Ingest into memory
+    if click.confirm("Ingest all documents into memory?"):
+        config = ConfigManager()
+        router = MemoryRouter(config)
+        
+        total_memories = 0
+        for doc in parsed_docs:
+            if not doc.success:
+                continue
+            
+            click.echo(f"\nProcessing: {Path(doc.file_path).name}")
+            memories_created = 0
+            
+            with click.progressbar(doc.chunks) as chunks:
+                for chunk in chunks:
+                    try:
+                        memory_text = chunk.to_memory_text()
+                        memory = router.ingest(memory_text, metadata={
+                            'source': 'document',
+                            'file_name': Path(doc.file_path).name,
+                            'chunk_index': chunk.chunk_index,
+                            'total_chunks': chunk.total_chunks
+                        })
+                        if memory:
+                            memories_created += 1
+                    except Exception as e:
+                        pass
+            
+            total_memories += memories_created
+            click.echo(f"   Created {memories_created} memories")
+        
+        click.echo(f"\n✅ Total memories created: {total_memories}")
+
+
+@document.command()
+def formats():
+    """List supported document formats"""
+    from agentic_memory.document_parser import DocumentParser
+    
+    parser = DocumentParser()
+    
+    click.echo("\n📄 Supported Document Formats:")
+    click.echo("-" * 40)
+    
+    format_categories = {
+        "Text Files": ['.txt', '.md', '.markdown', '.log'],
+        "Documents": ['.pdf', '.docx'],
+        "Web": ['.html', '.htm', '.xml'],
+        "Data": ['.json', '.csv'],
+        "Code": ['.py', '.js', '.java', '.cpp', '.c', '.h', '.cs', '.php', '.rb', '.go', '.rs'],
+        "Config": ['.yaml', '.yml', '.toml', '.ini', '.cfg', '.conf'],
+        "Images (OCR)": ['.jpg', '.jpeg', '.png', '.gif', '.bmp']
+    }
+    
+    for category, extensions in format_categories.items():
+        click.echo(f"\n{category}:")
+        for ext in extensions:
+            if ext in parser.parsers:
+                click.echo(f"   ✅ {ext}")
+            else:
+                click.echo(f"   ⚠️  {ext} (limited support)")
+    
+    click.echo("\n" + "-" * 40)
+    click.echo("Note: OCR support requires pytesseract installation")
+    click.echo("PDF support requires PyPDF2 installation")
+    click.echo("DOCX support requires python-docx installation")
+
+
 @memory.command()
 @click.argument('text')
 @click.option('--actor', default='user', help='Actor/source of the memory')

@@ -147,8 +147,9 @@ class ServerConfig:
     remote_port: int = 8000
     use_remote: bool = False
     
-    # Paths
+    # Paths - can be overridden by environment variable
     if platform.system() == "Windows":
+        # Default to searching in PATH or local directory
         server_executable = "llama-server.exe"
     else:
         server_executable = "llama-server"
@@ -218,11 +219,51 @@ class ServerConfig:
         if os.getenv("LLM_TENSOR_SPLIT"):
             config.tensor_split = os.getenv("LLM_TENSOR_SPLIT")
         
-        # Auto-detect Windows executable
-        if platform.system() == "Windows":
-            for exe_name in ["llama-server.exe", "server.exe", "./server.exe"]:
-                if Path(exe_name).exists():
-                    config.server_executable = exe_name
+        # Check for explicit server path from environment variable
+        if os.getenv("LLAMA_SERVER_PATH"):
+            config.server_executable = os.getenv("LLAMA_SERVER_PATH")
+            logger.info(f"Using llama server from LLAMA_SERVER_PATH: {config.server_executable}")
+        
+        # Check for llama.cpp directory from environment variable
+        elif os.getenv("LLAMA_CPP_PATH"):
+            llama_cpp_path = os.getenv("LLAMA_CPP_PATH")
+            if platform.system() == "Windows":
+                server_path = os.path.join(llama_cpp_path, "build", "bin", "Release", "llama-server.exe")
+            else:
+                server_path = os.path.join(llama_cpp_path, "build", "bin", "llama-server")
+            
+            if os.path.exists(server_path):
+                config.server_executable = server_path
+                logger.info(f"Using llama server from LLAMA_CPP_PATH: {server_path}")
+        
+        # Auto-detect executable in common locations
+        elif platform.system() == "Windows":
+            # Check common relative paths (no hardcoded user paths)
+            possible_paths = [
+                # Local llama.cpp build
+                "./llama.cpp/build/bin/Release/llama-server.exe",
+                "./llama.cpp/build/bin/Release/server.exe",
+                # Alternative build locations
+                "./build/bin/Release/llama-server.exe",
+                "./build/bin/Release/server.exe",
+                # Current directory
+                "./llama-server.exe",
+                "./server.exe",
+                "llama-server.exe",
+                "server.exe"
+            ]
+            
+            # Also check user's home directory if needed
+            home = Path.home()
+            possible_paths.extend([
+                str(home / "llama.cpp/build/bin/Release/llama-server.exe"),
+                str(home / "llama.cpp/build/bin/Release/server.exe")
+            ])
+            
+            for exe_path in possible_paths:
+                if Path(exe_path).exists():
+                    config.server_executable = exe_path
+                    logger.info(f"Found llama server at: {exe_path}")
                     break
         
         return config

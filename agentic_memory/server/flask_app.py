@@ -1,6 +1,7 @@
 from __future__ import annotations
 import os
-from flask import Flask, render_template, request, jsonify, session, send_file
+from flask import Flask, render_template, request, jsonify, session, send_file, flash, redirect, url_for
+from werkzeug.utils import secure_filename
 from ..config import cfg
 from ..config_manager import ConfigManager, ConfigType
 from ..storage.sql_store import MemoryStore
@@ -11,6 +12,7 @@ from ..tools.tool_handler import ToolHandler
 from ..tools.memory_evaluator import MemoryEvaluator
 from ..import_export import MemoryExporter, MemoryImporter
 from ..cluster.concept_cluster import LiquidMemoryClusters
+from ..document_parser import DocumentParser, SemanticChunker, ParagraphChunker, SentenceChunker
 
 import requests
 from datetime import datetime
@@ -24,6 +26,12 @@ import sqlite3
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 app.secret_key = os.urandom(24)  # For session management
+
+# Configure file upload
+UPLOAD_FOLDER = tempfile.gettempdir()
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'md', 'html', 'json', 'csv', 'xml', 'log', 'py', 'js', 'java', 'cpp', 'c', 'h'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 
 # Initialize config manager
 config_manager = ConfigManager(cfg.db_path)
@@ -932,6 +940,167 @@ def api_export_preview():
             ]
         })
         
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def allowed_file(filename):
+    """Check if file extension is allowed"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route('/documents')
+def documents():
+    """Document upload page"""
+    return render_template('documents.html')
+
+
+@app.route('/api/documents/upload', methods=['POST'])
+def upload_document():
+    """Handle document upload and ingestion"""
+    try:
+        # Check if file is present
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file provided'}), 400
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'success': False, 'error': f'File type not supported. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'}), 400
+        
+        # Get chunking parameters
+        chunking_strategy = request.form.get('chunking_strategy', 'semantic')
+        max_chunk_size = int(request.form.get('max_chunk_size', 2000))
+        chunk_overlap = int(request.form.get('chunk_overlap', 200))
+        
+        # Save uploaded file
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        
+        try:
+            # Initialize document parser with selected strategy
+            if chunking_strategy == 'sentence':
+                chunker = SentenceChunker(max_chunk_size, chunk_overlap)
+            elif chunking_strategy == 'paragraph':
+                chunker = ParagraphChunker(max_chunk_size, chunk_overlap)
+            else:
+                chunker = SemanticChunker(max_chunk_size, chunk_overlap)
+            
+            parser = DocumentParser(chunking_strategy=chunker)
+            
+            # Parse document
+            parsed_doc = parser.parse(filepath)
+            
+            if not parsed_doc.success:
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to parse document',
+                    'details': parsed_doc.extraction_errors
+                }), 500
+            
+            # Ingest chunks into memory
+            memories_created = 0
+            failed_chunks = []
+            
+            for chunk in parsed_doc.chunks:
+                try:
+                    # Create memory text
+                    memory_text = chunk.to_memory_text()
+                    
+                    # Add metadata
+                    metadata = {
+                        'source': 'document',
+                        'file_name': filename,
+                        'file_type': parsed_doc.file_type,
+                        'chunk_index': chunk.chunk_index,
+                        'total_chunks': chunk.total_chunks,
+                        'extraction_method': chunk.extraction_method
+                    }
+                    
+                    # Ingest into memory
+                    event = RawEvent(
+                        raw_text=memory_text,
+                        who='document_parser',
+                        actor='document',
+                        metadata=metadata
+                    )
+                    
+                    memory = router.ingest(event)
+                    if memory:
+                        memories_created += 1
+                except Exception as e:
+                    failed_chunks.append({
+                        'chunk': chunk.chunk_index,
+                        'error': str(e)
+                    })
+            
+            # Return results
+            return jsonify({
+                'success': True,
+                'file_name': filename,
+                'file_type': parsed_doc.file_type,
+                'chunks_created': len(parsed_doc.chunks),
+                'memories_created': memories_created,
+                'total_words': parsed_doc.total_words,
+                'total_chars': parsed_doc.total_chars,
+                'failed_chunks': failed_chunks,
+                'extraction_errors': parsed_doc.extraction_errors
+            })
+            
+        finally:
+            # Clean up uploaded file
+            try:
+                os.remove(filepath)
+            except:
+                pass
+    
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/documents/parse', methods=['POST'])
+def parse_document_path():
+    """Parse a document from a file path"""
+    try:
+        data = request.json
+        file_path = data.get('file_path')
+        
+        if not file_path:
+            return jsonify({'success': False, 'error': 'No file path provided'}), 400
+        
+        if not os.path.exists(file_path):
+            return jsonify({'success': False, 'error': 'File not found'}), 404
+        
+        # Get chunking parameters
+        chunking_strategy = data.get('chunking_strategy', 'semantic')
+        max_chunk_size = data.get('max_chunk_size', 2000)
+        chunk_overlap = data.get('chunk_overlap', 200)
+        
+        # Initialize parser
+        if chunking_strategy == 'sentence':
+            chunker = SentenceChunker(max_chunk_size, chunk_overlap)
+        elif chunking_strategy == 'paragraph':
+            chunker = ParagraphChunker(max_chunk_size, chunk_overlap)
+        else:
+            chunker = SemanticChunker(max_chunk_size, chunk_overlap)
+        
+        parser = DocumentParser(chunking_strategy=chunker)
+        
+        # Parse document
+        parsed_doc = parser.parse(file_path)
+        
+        # Return parsing summary
+        return jsonify({
+            'success': parsed_doc.success,
+            'summary': parsed_doc.get_summary(),
+            'chunks': len(parsed_doc.chunks),
+            'errors': parsed_doc.extraction_errors
+        })
+    
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
