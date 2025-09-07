@@ -138,7 +138,7 @@ class ServerConfig:
     no_mmap: bool = False  # Disable memory mapping (keeps model in RAM/VRAM)
     lock_memory: bool = True  # Lock model in memory (prevent swapping)
     offload_kqv: bool = True  # Offload K,Q,V to GPU
-    flash_attention: bool = True  # Use flash attention for 2x+ speedup
+    flash_attention: bool = False  # Disabled - may not be supported on all GPUs/builds
     batch_size: int = 2048  # Increased for better GPU utilization
     ubatch_size: int = 512  # Keep smaller for memory efficiency
     
