@@ -474,8 +474,8 @@ class ConfigManager:
             display_name='Default Temperature',
             description='Default temperature for LLM generation',
             type=ConfigType.FLOAT,
-            default_value=0.3,
-            current_value=float(os.getenv('AM_DEFAULT_TEMPERATURE', '0.3')),
+            default_value=0.1,  # Lower for more consistent extraction
+            current_value=float(os.getenv('AM_DEFAULT_TEMPERATURE', '0.1')),
             category='Generation',
             editable=True,
             requires_restart=False,
@@ -488,8 +488,8 @@ class ConfigManager:
             display_name='Default Max Tokens',
             description='Default maximum tokens for LLM generation',
             type=ConfigType.INTEGER,
-            default_value=100,
-            current_value=int(os.getenv('AM_DEFAULT_MAX_TOKENS', '100')),
+            default_value=512,  # Increased for multi-part extraction
+            current_value=int(os.getenv('AM_DEFAULT_MAX_TOKENS', '512')),
             category='Generation',
             editable=True,
             requires_restart=False,
@@ -581,6 +581,32 @@ class ConfigManager:
             category='Model',
             editable=True,
             requires_restart=True
+        )
+        
+        settings['AM_EMBEDDING_MODEL_PATH'] = ConfigSetting(
+            key='AM_EMBEDDING_MODEL_PATH',
+            display_name='Embedding Model Path',
+            description='Path to the GGUF embedding model file',
+            type=ConfigType.STRING,
+            default_value=r'C:\models\Qwen3-Embedding-0.6B\qwen3-embedding-0.6b-q8_0.gguf',
+            current_value=os.getenv('AM_EMBEDDING_MODEL_PATH', r'C:\models\Qwen3-Embedding-0.6B\qwen3-embedding-0.6b-q8_0.gguf'),
+            category='Model',
+            editable=True,
+            requires_restart=True
+        )
+        
+        settings['AM_EMBEDDING_DIM'] = ConfigSetting(
+            key='AM_EMBEDDING_DIM',
+            display_name='Embedding Dimension',
+            description='Dimension of embedding vectors',
+            type=ConfigType.INTEGER,
+            default_value=1024,  # Updated for Qwen embedding model
+            current_value=int(os.getenv('AM_EMBEDDING_DIM', '1024')),
+            category='Model',
+            editable=True,
+            requires_restart=True,
+            min_value=128,
+            max_value=4096
         )
         
         # System Settings (read-only)
@@ -766,6 +792,115 @@ class ConfigManager:
             min_value=0.0,
             max_value=0.5,
             advanced=True
+        )
+        
+        # Performance optimization settings
+        settings['AM_USE_LLAMA_EMBEDDINGS'] = ConfigSetting(
+            key='AM_USE_LLAMA_EMBEDDINGS',
+            display_name='Use Llama.cpp Embeddings',
+            description='Use llama.cpp for embeddings instead of SentenceTransformers (faster)',
+            type=ConfigType.BOOLEAN,
+            default_value=True,
+            current_value=os.getenv('AM_USE_LLAMA_EMBEDDINGS', 'true').lower() in ['true', '1', 'yes'],
+            category='Performance',
+            editable=True,
+            requires_restart=True
+        )
+        
+        settings['AM_EXTRACTION_BATCH_SIZE'] = ConfigSetting(
+            key='AM_EXTRACTION_BATCH_SIZE',
+            display_name='Extraction Batch Size',
+            description='Number of events to process in parallel',
+            type=ConfigType.INTEGER,
+            default_value=8,
+            current_value=int(os.getenv('AM_EXTRACTION_BATCH_SIZE', '8')),
+            category='Performance',
+            editable=True,
+            requires_restart=False,
+            min_value=1,
+            max_value=32
+        )
+        
+        settings['AM_EMBEDDING_BATCH_SIZE'] = ConfigSetting(
+            key='AM_EMBEDDING_BATCH_SIZE',
+            display_name='Embedding Batch Size',
+            description='Batch size for embedding generation',
+            type=ConfigType.INTEGER,
+            default_value=64,
+            current_value=int(os.getenv('AM_EMBEDDING_BATCH_SIZE', '64')),
+            category='Performance',
+            editable=True,
+            requires_restart=False,
+            min_value=8,
+            max_value=256
+        )
+        
+        settings['AM_GPU_LAYERS'] = ConfigSetting(
+            key='AM_GPU_LAYERS',
+            display_name='GPU Layers',
+            description='Number of model layers to offload to GPU (-1 for all)',
+            type=ConfigType.INTEGER,
+            default_value=-1,
+            current_value=int(os.getenv('AM_GPU_LAYERS', '-1')),
+            category='Performance',
+            editable=True,
+            requires_restart=True,
+            min_value=-1,
+            max_value=100
+        )
+        
+        settings['AM_LLAMA_BATCH_SIZE'] = ConfigSetting(
+            key='AM_LLAMA_BATCH_SIZE',
+            display_name='Llama Server Batch Size',
+            description='Batch size for llama.cpp server',
+            type=ConfigType.INTEGER,
+            default_value=4096,
+            current_value=int(os.getenv('AM_LLAMA_BATCH_SIZE', '4096')),
+            category='Performance',
+            editable=True,
+            requires_restart=True,
+            min_value=512,
+            max_value=8192
+        )
+        
+        settings['AM_LLAMA_UBATCH_SIZE'] = ConfigSetting(
+            key='AM_LLAMA_UBATCH_SIZE',
+            display_name='Llama Server Micro-batch Size',
+            description='Micro-batch size for llama.cpp server',
+            type=ConfigType.INTEGER,
+            default_value=1024,
+            current_value=int(os.getenv('AM_LLAMA_UBATCH_SIZE', '1024')),
+            category='Performance',
+            editable=True,
+            requires_restart=True,
+            min_value=128,
+            max_value=2048
+        )
+        
+        settings['AM_CONTINUOUS_BATCHING'] = ConfigSetting(
+            key='AM_CONTINUOUS_BATCHING',
+            display_name='Continuous Batching',
+            description='Enable continuous batching for better throughput',
+            type=ConfigType.BOOLEAN,
+            default_value=True,
+            current_value=os.getenv('AM_CONTINUOUS_BATCHING', 'true').lower() in ['true', '1', 'yes'],
+            category='Performance',
+            editable=True,
+            requires_restart=True
+        )
+        
+        settings['AM_PARALLEL_SEQUENCES'] = ConfigSetting(
+            key='AM_PARALLEL_SEQUENCES',
+            display_name='Parallel Sequences',
+            description='Number of sequences to process in parallel',
+            type=ConfigType.INTEGER,
+            default_value=8,
+            current_value=int(os.getenv('AM_PARALLEL_SEQUENCES', '8')),
+            category='Performance',
+            editable=True,
+            requires_restart=True,
+            min_value=1,
+            max_value=16
         )
         
         return settings

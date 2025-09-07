@@ -14,9 +14,9 @@ umap-learn>=0.5.9  # For dimensionality reduction
 torch>=2.0.0
 networkx>=3.0  # For graph-based clustering
 
-# Vector Search & Embeddings
+# Vector Search
 faiss-cpu>=1.7.4
-sentence-transformers>=2.2.2
+# Note: Embeddings now use llama.cpp server instead of sentence-transformers
 
 # Text Processing
 rank-bm25>=0.2.2

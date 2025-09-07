@@ -22,7 +22,7 @@ import tempfile
 import shutil
 from pathlib import Path
 
-from llama_server_client import LLMServerManager, ServerConfig, LlamaServerClient
+from llama_server_manager import LLMServerManager
 
 # Import document parser and memory router
 sys.path.insert(0, str(Path(__file__).parent))

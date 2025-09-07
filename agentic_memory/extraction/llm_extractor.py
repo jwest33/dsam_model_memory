@@ -5,8 +5,10 @@ import json
 from ..types import RawEvent, MemoryRecord, Who, Where
 from ..tokenization import TokenizerAdapter
 from ..config import cfg
-from sentence_transformers import SentenceTransformer
 import numpy as np
+
+# Use llama.cpp embeddings
+from ..embedding import get_llama_embedder
 
 # Initialize embedder once at module level to avoid reloading
 _embedder = None
@@ -14,7 +16,7 @@ _embedder = None
 def _get_embedder():
     global _embedder
     if _embedder is None:
-        _embedder = SentenceTransformer(cfg.embed_model_name)
+        _embedder = get_llama_embedder()
     return _embedder
 
 PROMPT = """You are a structured-information extractor that converts an interaction into 5W1H fields.

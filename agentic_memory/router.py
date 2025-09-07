@@ -3,12 +3,15 @@ from typing import List, Dict, Any, Optional
 import json
 from datetime import datetime
 import numpy as np
-from sentence_transformers import SentenceTransformer
+
+# Use llama.cpp embeddings
+from .embedding import get_llama_embedder
+_embedder = get_llama_embedder()
 
 from .config import cfg
 from .types import RawEvent, RetrievalQuery
 from .extraction.llm_extractor import extract_5w1h
-from .extraction.multi_part_extractor import extract_multi_part_5w1h
+from .extraction.multi_part_extractor import extract_multi_part_5w1h, extract_batch_5w1h
 from .storage.sql_store import MemoryStore
 from .storage.faiss_index import FaissIndex
 from .retrieval import HybridRetriever
@@ -23,7 +26,8 @@ class MemoryRouter:
         self.index = index
         self.retriever = HybridRetriever(store, index)
         self.builder = BlockBuilder(store)
-        self.embedder = SentenceTransformer(cfg.embed_model_name)
+        # Use global llama.cpp embedder
+        self.embedder = _embedder
         self.tok = TokenizerAdapter()
         
         # Initialize dynamic components if enabled
@@ -113,6 +117,63 @@ class MemoryRouter:
         self.index.add(rec.memory_id, vec)
         self.index.save()
         return rec.memory_id
+    
+    def ingest_batch(self, raw_events: List[RawEvent], context_hints: Optional[List[str]] = None) -> List[str]:
+        """
+        Batch ingest multiple raw events for better performance.
+        
+        Args:
+            raw_events: List of raw events to process
+            context_hints: Optional list of context hints (one per event)
+            
+        Returns:
+            List of comma-separated memory IDs created for each event
+        """
+        if not context_hints:
+            context_hints = [''] * len(raw_events)
+        
+        # Use batch extraction for efficiency
+        all_memories = extract_batch_5w1h(raw_events, context_hints)
+        
+        result_ids = []
+        all_vectors = []
+        all_records = []
+        
+        # Process all memories from all events
+        for event_memories in all_memories:
+            event_memory_ids = []
+            
+            for rec in event_memories:
+                vec = np.array(rec.extra.pop('embed_vector_np'), dtype='float32')
+                
+                # Apply adaptive embedding if enabled
+                if self.adaptive_embeddings:
+                    usage_stats = self.store.get_usage_stats([rec.memory_id])
+                    vec = self.adaptive_embeddings.encode_with_context(
+                        vec,
+                        usage_stats.get(rec.memory_id, {}),
+                        None
+                    )
+                
+                all_vectors.append(vec)
+                all_records.append(rec)
+                event_memory_ids.append(rec.memory_id)
+            
+            result_ids.append(','.join(event_memory_ids) if event_memory_ids else '')
+        
+        # Batch persist to database
+        for rec, vec in zip(all_records, all_vectors):
+            self.store.upsert_memory(rec, embedding=vec.tobytes(), dim=vec.shape[0])
+        
+        # Batch add to FAISS index
+        for rec, vec in zip(all_records, all_vectors):
+            self.index.add(rec.memory_id, vec)
+        
+        # Save index once after all additions
+        if all_records:
+            self.index.save()
+        
+        return result_ids
 
     def retrieve_block(self, session_id: str, context_messages: List[Dict[str, str]],
                        actor_hint: Optional[str] = None, spatial_hint: Optional[str] = None) -> Dict[str, Any]:

@@ -101,7 +101,7 @@ python -m agentic_memory.cli server start --all --daemon
 
 # Or start services individually:
 # 1. Start llama.cpp server
-python llama_server_client.py start
+python llama_server_manager.py both
 
 # 2. Start API wrapper (port 8001)
 python llama_api.py start
@@ -133,7 +133,7 @@ Open your browser to `http://127.0.0.1:5001` for the web interface, or use the A
 ### Tech Stack
 
 - **LLM**: llama.cpp for local inference
-- **Embeddings**: SentenceTransformers (all-MiniLM-L6-v2)
+- **Embeddings**: Llama.cpp server (using same model for LLM and embeddings)
 - **Vector Store**: FAISS for similarity search
 - **Database**: SQLite with FTS5 for full-text search
 - **API Framework**: FastAPI with automatic OpenAPI documentation
