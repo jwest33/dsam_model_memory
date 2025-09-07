@@ -10,12 +10,17 @@ from ..types import RawEvent
 from ..tools.tool_handler import ToolHandler
 from ..tools.memory_evaluator import MemoryEvaluator
 from ..import_export import MemoryExporter, MemoryImporter
+from ..cluster.concept_cluster import LiquidMemoryClusters
 
 import requests
 from datetime import datetime
 import json
 import tempfile
 from pathlib import Path
+import numpy as np
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
+import sqlite3
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 app.secret_key = os.urandom(24)  # For session management
@@ -28,6 +33,7 @@ store = MemoryStore(cfg.db_path)
 index = FaissIndex(dim=384, index_path=cfg.index_path)
 router = MemoryRouter(store, index)
 tool_handler = ToolHandler()
+liquid_clusters = LiquidMemoryClusters(n_clusters=16, dim=384)
 
 def llama_chat(messages, tools_enabled=False):
     url = f"{cfg.llm_base_url}/chat/completions"
@@ -670,6 +676,202 @@ def api_import_memories():
         return jsonify({'success': False, 'error': f'Invalid JSON file: {str(e)}'}), 400
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/clusters')
+def clusters_page():
+    """Clusters visualization page"""
+    return render_template('clusters.html')
+
+@app.route('/api/clusters/visualization', methods=['GET'])
+def api_clusters_visualization():
+    """Get cluster visualization data with dimensionality reduction"""
+    try:
+        method = request.args.get('method', 'tsne')
+        perplexity = int(request.args.get('perplexity', 30))
+        
+        # Fetch all memories with embeddings
+        con = sqlite3.connect(cfg.db_path)
+        con.row_factory = sqlite3.Row
+        
+        # Get memories and their embeddings
+        query = """
+        SELECT m.memory_id, m.what, m.when_ts, m.who_id,
+               e.vector, 
+               COALESCE(u.accesses, 0) as usage_count,
+               COALESCE(u.last_access, m.created_at) as last_accessed
+        FROM memories m
+        LEFT JOIN embeddings e ON m.memory_id = e.memory_id
+        LEFT JOIN usage_stats u ON m.memory_id = u.memory_id
+        WHERE e.vector IS NOT NULL
+        LIMIT 1000
+        """
+        
+        rows = con.execute(query).fetchall()
+        con.close()
+        
+        if not rows:
+            return jsonify({
+                'success': False,
+                'error': 'No memories with embeddings found'
+            })
+        
+        # Extract embeddings and metadata
+        embeddings_dict = {}
+        memory_metadata = {}
+        embeddings_array = []
+        memory_ids = []
+        
+        for row in rows:
+            memory_id = row['memory_id']
+            memory_ids.append(memory_id)
+            
+            # Decode embedding
+            vector = np.frombuffer(row['vector'], dtype='float32')
+            embeddings_dict[memory_id] = vector
+            embeddings_array.append(vector)
+            
+            # Store metadata
+            memory_metadata[memory_id] = {
+                'what': row['what'][:50] if row['what'] else 'N/A',
+                'when': row['when_ts'],
+                'who': row['who_id'],
+                'usage_count': row['usage_count'],
+                'last_accessed': row['last_accessed']
+            }
+        
+        embeddings_array = np.array(embeddings_array)
+        
+        # Adjust number of clusters based on sample size
+        n_samples = len(embeddings_array)
+        optimal_n_clusters = min(max(8, n_samples // 10), 64)  # Between 8 and 64 clusters
+        
+        # Reinitialize clusterer if needed with appropriate cluster count
+        if n_samples < liquid_clusters.base_clusterer.model.n_clusters:
+            liquid_clusters.base_clusterer.model.n_clusters = optimal_n_clusters
+        
+        # Initialize clusters properly if not already done
+        if not liquid_clusters.base_clusterer._fitted:
+            liquid_clusters.base_clusterer.partial_fit(embeddings_array)
+        
+        # Assign memories to clusters
+        cluster_assignments = liquid_clusters.base_clusterer.assign(embeddings_array)
+        for i, memory_id in enumerate(memory_ids):
+            cluster_id = int(cluster_assignments[i])
+            liquid_clusters.memory_clusters[memory_id] = cluster_id
+            
+            if cluster_id not in liquid_clusters.cluster_members:
+                liquid_clusters.cluster_members[cluster_id] = set()
+            liquid_clusters.cluster_members[cluster_id].add(memory_id)
+            
+            # Initialize cluster energy with some variation
+            if cluster_id not in liquid_clusters.cluster_energy:
+                liquid_clusters.cluster_energy[cluster_id] = 0.3 + np.random.random() * 0.4
+        
+        # Update liquid clusters with current data
+        liquid_clusters.flow_step(memory_ids, embeddings_dict, memory_metadata)
+        liquid_clusters.merge_similar_clusters(embeddings_dict)
+        
+        # Apply dimensionality reduction
+        if method == 'pca':
+            reducer = PCA(n_components=3)
+            coords_3d = reducer.fit_transform(embeddings_array)
+        elif method == 'tsne':
+            reducer = TSNE(n_components=3, perplexity=min(perplexity, len(memory_ids)-1), 
+                          random_state=42, max_iter=1000)
+            coords_3d = reducer.fit_transform(embeddings_array)
+        elif method == 'umap':
+            try:
+                import umap
+                reducer = umap.UMAP(n_components=3, n_neighbors=min(15, len(memory_ids)-1),
+                                   random_state=42)
+                coords_3d = reducer.fit_transform(embeddings_array)
+            except ImportError:
+                return jsonify({
+                    'success': False,
+                    'error': 'UMAP not installed. Use pip install umap-learn'
+                })
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'Unknown reduction method: {method}'
+            })
+        
+        # Calculate recency scores
+        now = datetime.now()
+        recency_scores = []
+        for memory_id in memory_ids:
+            last_accessed = memory_metadata[memory_id]['last_accessed']
+            if isinstance(last_accessed, str):
+                last_accessed = datetime.fromisoformat(last_accessed)
+            time_diff = (now - last_accessed).total_seconds()
+            recency_score = np.exp(-time_diff / (7 * 86400))  # 7-day decay
+            recency_scores.append(recency_score)
+        
+        # Prepare points for visualization
+        points = []
+        for i, memory_id in enumerate(memory_ids):
+            cluster_id = liquid_clusters.memory_clusters.get(memory_id, 0)
+            energy = liquid_clusters.cluster_energy.get(cluster_id, 0.5)
+            
+            points.append({
+                'memory_id': memory_id,
+                'x': float(coords_3d[i, 0]),
+                'y': float(coords_3d[i, 1]),
+                'z': float(coords_3d[i, 2]),
+                'cluster_id': cluster_id,
+                'energy': energy,
+                'what': memory_metadata[memory_id]['what'],
+                'usage_count': memory_metadata[memory_id]['usage_count'],
+                'recency_score': recency_scores[i]
+            })
+        
+        # Get cluster statistics
+        cluster_summary = liquid_clusters.get_cluster_summary()
+        stats = {
+            'total_memories': len(memory_ids),
+            'n_clusters': cluster_summary['n_clusters'],
+            'avg_energy': np.mean(list(cluster_summary['cluster_energies'].values())) 
+                         if cluster_summary['cluster_energies'] else 0,
+            'largest_cluster_size': max(cluster_summary['cluster_sizes'].values()) 
+                                  if cluster_summary['cluster_sizes'] else 0
+        }
+        
+        return jsonify({
+            'success': True,
+            'points': points,
+            'stats': stats,
+            'method': method
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+@app.route('/api/clusters/update-access', methods=['POST'])
+def api_update_cluster_access():
+    """Update cluster co-access patterns when memories are accessed"""
+    try:
+        data = request.get_json()
+        memory_ids = data.get('memory_ids', [])
+        
+        if memory_ids:
+            liquid_clusters.update_co_access(memory_ids)
+            liquid_clusters.update_cluster_energy(memory_ids)
+        
+        return jsonify({
+            'success': True,
+            'updated': len(memory_ids)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/api/memories/export-preview', methods=['POST'])
 def api_export_preview():

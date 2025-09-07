@@ -34,6 +34,12 @@ This framework provides agents with a memory system inspired by how humans actua
 - **No Cloud Dependencies**: Your data never leaves your system
 - **Open Source**: Full transparency and control
 
+### Liquid Memory Visualization
+- **3D Cluster Visualization**: Interactive exploration of memory topology in 3D space
+- **Dimensionality Reduction**: PCA, t-SNE, and UMAP for intuitive memory landscape mapping
+- **Dynamic Coloring**: Visualize clusters by ID, energy levels, recency, or usage patterns
+- **Real-time Updates**: Watch memory clusters flow and reorganize based on access patterns
+
 ## The Journal Memory Model
 
 ### 5W1H Semantic Normalization
@@ -49,7 +55,7 @@ Every piece of information is decomposed into fundamental semantic dimensions:
 
 This normalization enables memories to be compared, clustered, and retrieved across different modalities and contexts.
 
-### Fluid Memory Blocks
+### Liquid Memory Clusters
 
 Memories organize into fluid blocks that reshape based on access patterns:
 
