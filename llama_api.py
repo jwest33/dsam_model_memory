@@ -13,13 +13,22 @@ from contextlib import asynccontextmanager
 import signal
 import uvicorn
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 import httpx
+import tempfile
+import shutil
+from pathlib import Path
 
 from llama_server_client import LLMServerManager, ServerConfig, LlamaServerClient
+
+# Import document parser and memory router
+sys.path.insert(0, str(Path(__file__).parent))
+from agentic_memory.document_parser import DocumentParser, SentenceChunker, ParagraphChunker, SemanticChunker
+from agentic_memory.router import MemoryRouter
+from agentic_memory.config_manager import ConfigManager
 
 # Configure logging
 logging.basicConfig(
@@ -76,6 +85,24 @@ class ModelInfo(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
 
 
+class DocumentIngestionRequest(BaseModel):
+    chunking_strategy: Optional[str] = Field(default="semantic", pattern="^(semantic|paragraph|sentence)$")
+    max_chunk_size: Optional[int] = Field(default=2000, gt=100, le=10000)
+    chunk_overlap: Optional[int] = Field(default=200, ge=0, le=1000)
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class DocumentIngestionResponse(BaseModel):
+    file_name: str
+    file_type: str
+    chunks_created: int
+    memories_created: int
+    total_words: int
+    total_chars: int
+    errors: List[str]
+    success: bool
+
+
 class APIConfig(BaseModel):
     """Configuration for the API wrapper"""
     host: str = "0.0.0.0"
@@ -102,6 +129,8 @@ class LlamaAPIWrapper:
         self.request_count = 0
         self.start_time = datetime.now()
         self.cache: Dict[str, Any] = {}
+        self.memory_router: Optional[MemoryRouter] = None
+        self.document_parser: Optional[DocumentParser] = None
         
     async def startup(self):
         """Initialize resources on startup"""
@@ -115,6 +144,16 @@ class LlamaAPIWrapper:
             base_url=f"{self.config.llama_server_url}/v1",
             timeout=httpx.Timeout(60.0)
         )
+        
+        # Initialize memory router and document parser
+        try:
+            config_manager = ConfigManager()
+            self.memory_router = MemoryRouter(config_manager)
+            self.document_parser = DocumentParser()
+            logger.info("Memory router and document parser initialized")
+        except Exception as e:
+            logger.warning(f"Could not initialize memory components: {e}")
+        
         logger.info(f"API wrapper connected to llama server at {self.config.llama_server_url}")
         
     async def shutdown(self):
@@ -226,7 +265,7 @@ class LlamaAPIWrapper:
         """Get detailed statistics"""
         server_status = self.server_manager.get_status()
         
-        return {
+        stats = {
             "server": server_status,
             "api": {
                 "requests": self.request_count,
@@ -234,6 +273,78 @@ class LlamaAPIWrapper:
                 "cache_entries": len(self.cache)
             }
         }
+        
+        # Add memory stats if available
+        if self.memory_router:
+            try:
+                memory_stats = self.memory_router.get_stats()
+                stats["memory"] = memory_stats
+            except:
+                pass
+        
+        return stats
+    
+    async def ingest_document(self, file_path: str, request: DocumentIngestionRequest) -> DocumentIngestionResponse:
+        """Ingest a document into memory"""
+        if not self.document_parser or not self.memory_router:
+            raise HTTPException(status_code=503, detail="Document processing not available")
+        
+        # Select chunking strategy
+        if request.chunking_strategy == "sentence":
+            chunker = SentenceChunker(
+                max_chunk_size=request.max_chunk_size,
+                chunk_overlap=request.chunk_overlap
+            )
+        elif request.chunking_strategy == "paragraph":
+            chunker = ParagraphChunker(
+                max_chunk_size=request.max_chunk_size,
+                chunk_overlap=request.chunk_overlap
+            )
+        else:
+            chunker = SemanticChunker(
+                max_chunk_size=request.max_chunk_size,
+                chunk_overlap=request.chunk_overlap
+            )
+        
+        # Update parser with chunking strategy
+        self.document_parser.chunking_strategy = chunker
+        
+        # Parse document
+        parsed_doc = self.document_parser.parse(file_path)
+        
+        # Ingest chunks into memory
+        memories_created = 0
+        for chunk in parsed_doc.chunks:
+            try:
+                # Create memory text with metadata
+                memory_text = chunk.to_memory_text()
+                
+                # Add document metadata
+                metadata = {
+                    "source": "document",
+                    "file_name": Path(file_path).name,
+                    "chunk_index": chunk.chunk_index,
+                    "total_chunks": chunk.total_chunks,
+                    **(request.metadata or {})
+                }
+                
+                # Ingest into memory
+                memory = self.memory_router.ingest(memory_text, metadata=metadata)
+                if memory:
+                    memories_created += 1
+            except Exception as e:
+                logger.error(f"Error ingesting chunk {chunk.chunk_index}: {e}")
+        
+        return DocumentIngestionResponse(
+            file_name=Path(file_path).name,
+            file_type=parsed_doc.file_type,
+            chunks_created=len(parsed_doc.chunks),
+            memories_created=memories_created,
+            total_words=parsed_doc.total_words,
+            total_chars=parsed_doc.total_chars,
+            errors=parsed_doc.extraction_errors,
+            success=parsed_doc.success
+        )
 
 
 # Create FastAPI app
@@ -345,6 +456,51 @@ def create_app(config: Optional[APIConfig] = None) -> FastAPI:
             return {"status": "success", "message": "Server stopped"}
         else:
             raise HTTPException(status_code=500, detail="Failed to stop server")
+    
+    @app.post("/documents/upload")
+    async def upload_document(
+        file: UploadFile = File(...),
+        chunking_strategy: str = Form("semantic"),
+        max_chunk_size: int = Form(2000),
+        chunk_overlap: int = Form(200)
+    ):
+        """Upload and ingest a document into memory"""
+        # Create temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix) as tmp_file:
+            # Copy uploaded file
+            shutil.copyfileobj(file.file, tmp_file)
+            tmp_path = tmp_file.name
+        
+        try:
+            # Create request object
+            request = DocumentIngestionRequest(
+                chunking_strategy=chunking_strategy,
+                max_chunk_size=max_chunk_size,
+                chunk_overlap=chunk_overlap
+            )
+            
+            # Process document
+            result = await wrapper.ingest_document(tmp_path, request)
+            
+            return result
+        finally:
+            # Clean up temporary file
+            try:
+                Path(tmp_path).unlink()
+            except:
+                pass
+    
+    @app.post("/documents/ingest")
+    async def ingest_document_path(
+        file_path: str,
+        request: DocumentIngestionRequest
+    ):
+        """Ingest a document from a file path"""
+        if not Path(file_path).exists():
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        result = await wrapper.ingest_document(file_path, request)
+        return result
     
     return app
 

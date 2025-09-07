@@ -96,18 +96,24 @@ cd agentic_memory
 # Install dependencies
 pip install -r requirements.txt
 
-# Start llama.cpp server (in separate terminal)
-# Note: The system expects the server on port 8000
-./llama-server -m /path/to/qwen3-4b-instruct.gguf --port 8000 --host 127.0.0.1
+# Start all servers with the CLI (recommended)
+python -m agentic_memory.cli server start --all --daemon
 
-# Or use the Python client that can auto-start the server:
-python llama_server_client.py
+# Or start services individually:
+# 1. Start llama.cpp server
+python llama_server_client.py start
 
-# Launch the web interface
+# 2. Start API wrapper (port 8001)
+python llama_api.py start
+
+# 3. Launch web interface (port 5001)
 python -m agentic_memory.server.flask_app
+
+# Check server status
+python -m agentic_memory.cli server status
 ```
 
-Open your browser to `http://127.0.0.1:5001` and start chatting!
+Open your browser to `http://127.0.0.1:5001` for the web interface, or use the API at `http://127.0.0.1:8001`.
 
 ## Architecture
 
@@ -120,7 +126,9 @@ Open your browser to `http://127.0.0.1:5001` and start chatting!
 - **Hybrid Retrieval**: Multi-signal scoring combining 6 retrieval strategies
 - **Concept Clustering**: MiniBatchKMeans for incremental production-scale clustering
 - **Tool System**: Extensible framework with automatic detection and execution
+- **API Wrapper**: FastAPI server providing OpenAI-compatible endpoints with caching and metrics
 - **Flask Server**: Web interface with WebSocket-style updates and debug transparency
+- **CLI Tool**: Unified command-line interface for server management and memory operations
 
 ### Tech Stack
 
@@ -128,7 +136,9 @@ Open your browser to `http://127.0.0.1:5001` and start chatting!
 - **Embeddings**: SentenceTransformers (all-MiniLM-L6-v2)
 - **Vector Store**: FAISS for similarity search
 - **Database**: SQLite with FTS5 for full-text search
+- **API Framework**: FastAPI with automatic OpenAPI documentation
 - **Web Framework**: Flask with Jinja2 templates
+- **CLI Framework**: Click for command-line interface
 - **UI Theme**: Custom synthwave CSS with Michroma font
 
 ## Configuration
@@ -163,6 +173,33 @@ SEARCH_API_KEY=your_key_here  # Alternative search API
 ```
 
 ## Advanced Features
+
+### API Wrapper
+- **OpenAI-Compatible**: Drop-in replacement for OpenAI API clients
+- **Request Caching**: Reduces redundant LLM calls with TTL-based cache
+- **Metrics & Health**: Real-time request counting and health monitoring
+- **Background Mode**: Run as daemon process with PID management
+- **Admin Endpoints**: Remote server restart and management
+- **CORS Support**: Configurable cross-origin resource sharing
+
+### CLI Tools
+```bash
+# Server management
+jam server start --all --daemon    # Start all servers in background
+jam server stop --api              # Stop specific server
+jam server status                  # Check all server status
+jam server restart                 # Restart all servers
+
+# Memory operations
+jam memory add "Meeting at 3pm with team"
+jam memory search "meeting" --limit 10
+jam memory stats                   # Show database statistics
+
+# API testing
+jam api complete "Tell me a joke"
+jam api chat "Hello" --system "You are helpful"
+jam api health                     # Check API health
+```
 
 ### Memory Decay and Reinforcement
 - Frequently accessed memories gain priority through usage tracking

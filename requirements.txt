@@ -28,6 +28,8 @@ llama-cpp-python>=0.2.76
 requests>=2.31.0
 uvicorn>=0.35.0
 fastapi>=0.116.1
+httpx>=0.25.0  # Async HTTP client for API wrapper
+click>=8.1.0  # CLI framework
 
 # Web Search Tools (Optional but recommended)
 duckduckgo-search>=5.0.0  # For free web search
@@ -35,6 +37,17 @@ googlesearch-python>=1.2.0  # Alternative free search
 
 # System Monitoring
 psutil>=5.9.5
+
+# Document Parsing (Optional but recommended)
+PyPDF2>=3.0.0  # PDF parsing
+python-docx>=1.0.0  # DOCX parsing  
+markdown>=3.5.0  # Markdown parsing
+beautifulsoup4>=4.12.0  # HTML parsing
+pandas>=2.0.0  # CSV and data file parsing
+pytesseract>=0.3.10  # OCR for images (requires Tesseract OCR installed)
+Pillow>=10.0.0  # Image processing
+PyYAML>=6.0  # YAML parsing
+toml>=0.10.2  # TOML parsing
 
 # Development & Testing
 pytest>=7.4.0
