@@ -30,7 +30,7 @@ This framework provides agents with a memory system inspired by how humans actua
 - **Extensible Framework**: Easy to add new tools via base classes and registration
 
 ### Privacy-First
-- **100% Local**: Runs entirely on your machine!
+- **100% Local**: Runs entirely on your machine! 
 - **No Cloud Dependencies**: Your data never leaves your system
 - **Open Source**: Full transparency and control
 

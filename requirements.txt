@@ -26,6 +26,8 @@ llama-cpp-python>=0.2.76
 
 # Web & API
 requests>=2.31.0
+uvicorn>=0.35.0
+fastapi>=0.116.1
 
 # Web Search Tools (Optional but recommended)
 duckduckgo-search>=5.0.0  # For free web search
