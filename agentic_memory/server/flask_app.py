@@ -41,11 +41,12 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = upload_cfg['max_size']
 
 store = MemoryStore(cfg.db_path)
-# Assume dim from embed model default 384 for all-MiniLM-L6-v2; can be inferred dynamically
-index = FaissIndex(dim=384, index_path=cfg.index_path)
+# Get embedding dimension from config (1024 for Qwen3-Embedding)
+embed_dim = int(os.getenv('AM_EMBEDDING_DIM', '1024'))
+index = FaissIndex(dim=embed_dim, index_path=cfg.index_path)
 router = MemoryRouter(store, index)
 tool_handler = ToolHandler()
-liquid_clusters = LiquidMemoryClusters(n_clusters=16, dim=384)
+liquid_clusters = LiquidMemoryClusters(n_clusters=16, dim=embed_dim)
 
 def llama_chat(messages, tools_enabled=False):
     url = f"{cfg.llm_base_url}/chat/completions"
@@ -673,7 +674,7 @@ def api_import_memories():
         
         # Create importer with proper stores
         sql_store = MemoryStore(cfg.db_path)
-        vector_store = FaissIndex(dim=384, index_path=cfg.index_path)
+        vector_store = FaissIndex(dim=embed_dim, index_path=cfg.index_path)
         importer = MemoryImporter(sql_store, vector_store, cfg.embed_model)
         
         # Import memories

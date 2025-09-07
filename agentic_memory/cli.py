@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from agentic_memory.router import MemoryRouter
 from agentic_memory.config_manager import ConfigManager
-from llama_server_client import LLMServerManager, get_server_manager
+from llama_server_manager import LLMServerManager, EmbeddingServerManager, get_server_manager
 from llama_api import create_app, APIConfig
 
 # Configure logging
