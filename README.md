@@ -143,34 +143,41 @@ Open your browser to `http://127.0.0.1:5001` for the web interface, or use the A
 
 ## Configuration
 
-The system is highly configurable through environment variables:
+Configuration can be managed through:
+1. **Web UI**: Visit `http://localhost:5001/config` for runtime configuration
+2. **Environment Variables**: Copy `.env.example` to `.env` and customize
+3. **ConfigManager**: Provides all defaults automatically
+
+### Key Settings
 
 ```bash
-# LLM Settings
-AM_LLM_BASE_URL=http://localhost:8000/v1  # llama.cpp server URL
-AM_LLM_MODEL=Qwen3-4b-instruct-2507       # Model name
-AM_CONTEXT_WINDOW=8192                    # Context size
-AM_RESERVE_OUTPUT_TOKENS=1024             # Token budget for output
-AM_RESERVE_SYSTEM_TOKENS=512              # Token budget for system
+# Model Configuration (required)
+AM_MODEL_PATH=/path/to/model.gguf         # Path to GGUF model file
+AM_LLM_MODEL=Qwen3-4b-instruct-2507       # Model name/alias
 
-# Storage Paths
+# Server Ports
+AM_WEB_PORT=5001                          # Web interface port
+AM_API_PORT=8001                          # API wrapper port
+AM_LLAMA_PORT=8000                        # llama.cpp server port
+
+# Memory System
 AM_DB_PATH=./amemory.sqlite3              # SQLite database
 AM_INDEX_PATH=./faiss.index               # FAISS index
-AM_EMBED_MODEL=sentence-transformers/all-MiniLM-L6-v2
+AM_CONTEXT_WINDOW=8192                    # Context size
 
-# Retrieval Weights (must sum to 1.0)
-AM_W_SEMANTIC=0.55   # Semantic similarity weight
-AM_W_LEXICAL=0.20    # Lexical match weight  
-AM_W_RECENCY=0.10    # Recency bias weight
-AM_W_ACTOR=0.07      # Actor relevance weight
-AM_W_SPATIAL=0.03    # Spatial proximity weight
-AM_W_USAGE=0.05      # Usage pattern weight
-AM_MMR_LAMBDA=0.5    # MMR diversity parameter
+# Advanced Features (all optional)
+AM_USE_ATTENTION=true                     # Attention-based retrieval
+AM_USE_LIQUID_CLUSTERS=true               # Self-organizing clusters
+AM_USE_MULTI_PART=true                    # Multi-part extraction
 
-# Tool Configuration (optional)
-SERPER_API_KEY=your_key_here  # For paid web search
-SEARCH_API_KEY=your_key_here  # Alternative search API
+# Retrieval Weights (when attention disabled)
+AM_W_SEMANTIC=0.55   # Semantic similarity
+AM_W_LEXICAL=0.20    # Keyword matching
+AM_W_RECENCY=0.10    # Recency bias
+# ... see .env.example for complete list
 ```
+
+See `.env.example` for all available settings with documentation.
 
 ## Advanced Features
 
@@ -185,20 +192,26 @@ SEARCH_API_KEY=your_key_here  # Alternative search API
 ### CLI Tools
 ```bash
 # Server management
-jam server start --all --daemon    # Start all servers in background
-jam server stop --api              # Stop specific server
-jam server status                  # Check all server status
-jam server restart                 # Restart all servers
+python -m agentic_memory.cli server start --all --daemon  # Start all servers
+python -m agentic_memory.cli server stop --api           # Stop specific server
+python -m agentic_memory.cli server status               # Check server status
+python -m agentic_memory.cli server restart              # Restart all servers
 
 # Memory operations
-jam memory add "Meeting at 3pm with team"
-jam memory search "meeting" --limit 10
-jam memory stats                   # Show database statistics
+python -m agentic_memory.cli memory add "Meeting at 3pm with team"
+python -m agentic_memory.cli memory search "meeting" --limit 10
+python -m agentic_memory.cli memory stats                # Show statistics
 
 # API testing
-jam api complete "Tell me a joke"
-jam api chat "Hello" --system "You are helpful"
-jam api health                     # Check API health
+python -m agentic_memory.cli api complete "Tell me a joke"
+python -m agentic_memory.cli api chat "Hello" --system "You are helpful"
+python -m agentic_memory.cli api health                  # Check API health
+
+# Benchmarking
+python -m benchmarks.cli --preset standard               # Run standard benchmark
+python -m benchmarks.cli --scenario daily_productivity   # Run specific scenario
+python -m benchmarks.cli --interactive                   # Interactive setup
+python -m benchmarks.cli --analyze                       # Analyze existing memory
 ```
 
 ### Memory Decay and Reinforcement

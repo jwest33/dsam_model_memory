@@ -1,5 +1,5 @@
 """
-Benchmark testing system for JAM (Journalistic Agent Memory).
+Core benchmark testing system for JAM (Journalistic Agent Memory).
 Generates varied interactions using LLM and tests memory system performance.
 """
 

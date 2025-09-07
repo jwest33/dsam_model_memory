@@ -88,14 +88,14 @@ header h1 {
     text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
     font-size: 1.5rem;
     font-weight: 700;
-    letter-spacing: 2px;
+    letter-spacing: 1px;
     text-transform: uppercase;
 }
 
 header h4 {
     color: var(--synth-pink);
     text-shadow: 0 0 20px #ff68ff;
-    font-size: 1rem;
+    font-size: 1.5rem;
     font-weight: 700;
     letter-spacing: 1px;
 }
@@ -145,7 +145,7 @@ main {
 
 /* Panels */
 .panel {
-    background: var(--synth-card-bg);
+    background: rgba(0,0,0,0.3);
     border: 1px solid var(--synth-border);
     border-radius: 10px;
     padding: 1.2rem;
@@ -161,8 +161,8 @@ main {
     top: 0;
     left: 0;
     right: 0;
-    height: 2px;
-    background: var(--synth-gradient-primary);
+    height: 1px;
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(255, 16, 240, 0.3) 100%);
     opacity: 0.8;
 }
 
@@ -178,7 +178,7 @@ main {
 textarea, input[type="text"], input[type="search"], select {
     width: 100%;
     padding: 0.6rem;
-    background: var(--synth-surface);
+    background: rgba(0,0,0,0.5);
     color: var(--synth-text);
     border: 1px solid var(--synth-border);
     border-radius: 6px;
@@ -247,13 +247,13 @@ button:disabled {
 }
 
 .message.user {
-    background: var(--synth-gradient-subtle);
+    background: rgba(0,0,0,0.4);
     border-left: 4px solid var(--synth-cyan);
     margin-left: 10%;
 }
 
 .message.assistant {
-    background: rgba(168, 85, 247, 0.1);
+    background: rgba(0,0,0,0.3);
     border-left: 4px solid var(--synth-pink);
     margin-right: 10%;
 }
@@ -276,14 +276,14 @@ table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    background: var(--synth-card-bg);
+    background: rgba(0,0,0,0.3);
     border: 1px solid var(--synth-border);
     border-radius: 8px;
     overflow: hidden;
 }
 
 thead {
-    background: var(--synth-surface);
+    background: rgba(0,0,0,0.5);
 }
 
 th {
@@ -319,7 +319,7 @@ tbody tr:last-child td {
 /* Code Blocks */
 pre, code {
     font-family: 'Courier New', monospace;
-    background: var(--synth-surface);
+    background: rgba(0,0,0,0.5);
     color: var(--synth-cyan);
 }
 
@@ -335,6 +335,7 @@ pre {
 code {
     padding: 0.2rem 0.4rem;
     border-radius: 4px;
+    background: rgba(0,0,0,0.3);
 }
 
 /* Loading States */
@@ -345,7 +346,7 @@ code {
     flex-direction: column;
     padding: 2rem;
     margin: 2rem 0;
-    background: var(--synth-card-bg);
+    background: rgba(0,0,0,0.3);
     border-radius: 8px;
     border: 1px solid var(--synth-border);
 }
@@ -383,7 +384,7 @@ code {
 footer {
     background: var(--synth-surface);
     border-top: 1px solid var(--synth-border);
-    padding: 1.2rem;
+    padding: 0.8rem;
     text-align: center;
     position: relative;
     z-index: 10;
@@ -460,7 +461,7 @@ footer small::after {
 
 /* Memory Display Enhancements */
 .memory-item {
-    background: var(--synth-card-bg);
+    background: rgba(0,0,0,0.3);
     border: 1px solid var(--synth-border);
     border-radius: 6px;
     padding: 0.8rem;
@@ -504,16 +505,16 @@ footer small::after {
 
 /* Tool Results Styling */
 .tool-result {
-    background: rgba(0, 255, 255, 0.05);
-    border: 1px solid rgba(0, 255, 255, 0.3);
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(0, 255, 255, 0.2);
     border-radius: 8px;
     padding: 1rem;
     margin: 1rem 0;
 }
 
 .tool-call {
-    background: rgba(255, 16, 240, 0.05);
-    border: 1px solid rgba(255, 16, 240, 0.3);
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(255, 16, 240, 0.2);
     border-radius: 8px;
     padding: 1rem;
     margin: 1rem 0;
@@ -545,9 +546,9 @@ footer small::after {
 
 /* Glass Morphism Effect for Cards */
 .glass-card {
-    background: rgba(26, 22, 37, 0.6);
+    background: rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* Glow Effects */

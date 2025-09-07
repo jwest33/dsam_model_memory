@@ -161,8 +161,26 @@ class ServerConfig:
     
     @classmethod
     def from_env(cls) -> 'ServerConfig':
-        """Create config from environment variables"""
+        """Create config from environment variables and ConfigManager"""
         config = cls()
+        
+        try:
+            from agentic_memory.config import get_model_path, get_server_config, cfg
+            
+            # Get model path with OS handling
+            model_path = get_model_path()
+            if model_path and model_path != '.':  # Only use if valid path
+                config.model_path = model_path
+            
+            # Get port from config
+            server_cfg = get_server_config()
+            config.port = server_cfg['llama_port']
+            
+            # Get model alias from config
+            config.model_alias = cfg.llm_model
+        except ImportError:
+            # Fallback to environment variables if config not available
+            pass
         
         # Check for startup timeout override
         if os.getenv("LLM_STARTUP_TIMEOUT"):
@@ -172,22 +190,26 @@ class ServerConfig:
         if os.getenv("LLM_SERVER_HOST"):
             config.use_remote = True
             config.remote_host = os.getenv("LLM_SERVER_HOST")
-            config.remote_port = int(os.getenv("LLM_SERVER_PORT", "8000"))
+            config.remote_port = int(os.getenv("LLM_SERVER_PORT", str(config.port or 8000)))
             logger.info(f"Configured to use remote LLM server at {config.remote_host}:{config.remote_port}")
             return config
         
-        # Original local configuration
-        if os.getenv("LLM_MODEL_PATH"):
-            model_path = os.getenv("LLM_MODEL_PATH")
-            # Convert Unix-style paths to Windows paths on Windows
-            if platform.system() == "Windows" and model_path.startswith("/c/"):
-                # Convert /c/path to C:\path
-                model_path = model_path.replace("/c/", "C:\\").replace("/", "\\")
-            config.model_path = model_path
-        if os.getenv("LLM_MODEL"):
+        # Original local configuration fallback
+        if not config.model_path or config.model_path == '.':
+            if os.getenv("LLM_MODEL_PATH"):
+                model_path = os.getenv("LLM_MODEL_PATH")
+                # Convert Unix-style paths to Windows paths on Windows
+                if platform.system() == "Windows" and model_path.startswith("/c/"):
+                    # Convert /c/path to C:\path
+                    model_path = model_path.replace("/c/", "C:\\").replace("/", "\\")
+                config.model_path = model_path
+            # If still no valid path, keep the default from the dataclass
+        if not config.model_alias and os.getenv("LLM_MODEL"):
             config.model_alias = os.getenv("LLM_MODEL")
-        if os.getenv("LLM_PORT"):
-            config.port = int(os.getenv("LLM_PORT", 8000))
+        if config.port is None and os.getenv("LLM_PORT"):
+            config.port = int(os.getenv("LLM_PORT"))
+        elif config.port is None:
+            config.port = 8000  # Default fallback
         if os.getenv("LLM_HOST"):
             config.host = os.getenv("LLM_HOST")
         
