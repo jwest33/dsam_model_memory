@@ -223,6 +223,54 @@ class ConfigManager:
             advanced=True
         )
         
+        settings['AM_W_ACTOR'] = ConfigSetting(
+            key='AM_W_ACTOR',
+            display_name='Actor Weight',
+            description='Weight for actor relevance (when attention disabled)',
+            type=ConfigType.FLOAT,
+            default_value=0.07,
+            current_value=float(os.getenv('AM_W_ACTOR', '0.07')),
+            category='Weights',
+            editable=True,
+            requires_restart=False,
+            min_value=0.0,
+            max_value=1.0,
+            unit='%',
+            advanced=True
+        )
+        
+        settings['AM_W_SPATIAL'] = ConfigSetting(
+            key='AM_W_SPATIAL',
+            display_name='Spatial Weight',
+            description='Weight for spatial proximity (when attention disabled)',
+            type=ConfigType.FLOAT,
+            default_value=0.03,
+            current_value=float(os.getenv('AM_W_SPATIAL', '0.03')),
+            category='Weights',
+            editable=True,
+            requires_restart=False,
+            min_value=0.0,
+            max_value=1.0,
+            unit='%',
+            advanced=True
+        )
+        
+        settings['AM_W_USAGE'] = ConfigSetting(
+            key='AM_W_USAGE',
+            display_name='Usage Weight',
+            description='Weight for usage patterns (when attention disabled)',
+            type=ConfigType.FLOAT,
+            default_value=0.05,
+            current_value=float(os.getenv('AM_W_USAGE', '0.05')),
+            category='Weights',
+            editable=True,
+            requires_restart=False,
+            min_value=0.0,
+            max_value=1.0,
+            unit='%',
+            advanced=True
+        )
+        
         # Memory Management
         settings['AM_MEMORY_BUDGET'] = ConfigSetting(
             key='AM_MEMORY_BUDGET',
@@ -331,6 +379,210 @@ class ConfigManager:
             advanced=True
         )
         
+        # Server Settings
+        settings['AM_WEB_PORT'] = ConfigSetting(
+            key='AM_WEB_PORT',
+            display_name='Web Interface Port',
+            description='Port for the Flask web interface',
+            type=ConfigType.INTEGER,
+            default_value=5001,
+            current_value=int(os.getenv('AM_WEB_PORT', '5001')),
+            category='Server',
+            editable=True,
+            requires_restart=True,
+            min_value=1024,
+            max_value=65535
+        )
+        
+        settings['AM_API_PORT'] = ConfigSetting(
+            key='AM_API_PORT',
+            display_name='API Wrapper Port',
+            description='Port for the FastAPI wrapper server',
+            type=ConfigType.INTEGER,
+            default_value=8001,
+            current_value=int(os.getenv('AM_API_PORT', '8001')),
+            category='Server',
+            editable=True,
+            requires_restart=True,
+            min_value=1024,
+            max_value=65535
+        )
+        
+        settings['AM_LLAMA_PORT'] = ConfigSetting(
+            key='AM_LLAMA_PORT',
+            display_name='Llama Server Port',
+            description='Port for the llama.cpp server',
+            type=ConfigType.INTEGER,
+            default_value=8000,
+            current_value=int(os.getenv('AM_LLAMA_PORT', '8000')),
+            category='Server',
+            editable=True,
+            requires_restart=True,
+            min_value=1024,
+            max_value=65535
+        )
+        
+        settings['AM_CACHE_TTL'] = ConfigSetting(
+            key='AM_CACHE_TTL',
+            display_name='Cache TTL',
+            description='Time to live for cached API responses',
+            type=ConfigType.INTEGER,
+            default_value=300,
+            current_value=int(os.getenv('AM_CACHE_TTL', '300')),
+            category='Server',
+            editable=True,
+            requires_restart=False,
+            min_value=0,
+            max_value=3600,
+            unit='seconds'
+        )
+        
+        settings['AM_RATE_LIMIT_REQUESTS'] = ConfigSetting(
+            key='AM_RATE_LIMIT_REQUESTS',
+            display_name='Rate Limit Requests',
+            description='Maximum requests per time window',
+            type=ConfigType.INTEGER,
+            default_value=100,
+            current_value=int(os.getenv('AM_RATE_LIMIT_REQUESTS', '100')),
+            category='Server',
+            editable=True,
+            requires_restart=False,
+            min_value=10,
+            max_value=1000,
+            advanced=True
+        )
+        
+        settings['AM_RATE_LIMIT_WINDOW'] = ConfigSetting(
+            key='AM_RATE_LIMIT_WINDOW',
+            display_name='Rate Limit Window',
+            description='Time window for rate limiting',
+            type=ConfigType.INTEGER,
+            default_value=60,
+            current_value=int(os.getenv('AM_RATE_LIMIT_WINDOW', '60')),
+            category='Server',
+            editable=True,
+            requires_restart=False,
+            min_value=1,
+            max_value=600,
+            unit='seconds',
+            advanced=True
+        )
+        
+        # LLM Generation Settings
+        settings['AM_DEFAULT_TEMPERATURE'] = ConfigSetting(
+            key='AM_DEFAULT_TEMPERATURE',
+            display_name='Default Temperature',
+            description='Default temperature for LLM generation',
+            type=ConfigType.FLOAT,
+            default_value=0.3,
+            current_value=float(os.getenv('AM_DEFAULT_TEMPERATURE', '0.3')),
+            category='Generation',
+            editable=True,
+            requires_restart=False,
+            min_value=0.0,
+            max_value=2.0
+        )
+        
+        settings['AM_DEFAULT_MAX_TOKENS'] = ConfigSetting(
+            key='AM_DEFAULT_MAX_TOKENS',
+            display_name='Default Max Tokens',
+            description='Default maximum tokens for LLM generation',
+            type=ConfigType.INTEGER,
+            default_value=100,
+            current_value=int(os.getenv('AM_DEFAULT_MAX_TOKENS', '100')),
+            category='Generation',
+            editable=True,
+            requires_restart=False,
+            min_value=10,
+            max_value=4096,
+            unit='tokens'
+        )
+        
+        settings['AM_DEFAULT_REPETITION_PENALTY'] = ConfigSetting(
+            key='AM_DEFAULT_REPETITION_PENALTY',
+            display_name='Default Repetition Penalty',
+            description='Default repetition penalty for LLM generation',
+            type=ConfigType.FLOAT,
+            default_value=1.2,
+            current_value=float(os.getenv('AM_DEFAULT_REPETITION_PENALTY', '1.2')),
+            category='Generation',
+            editable=True,
+            requires_restart=False,
+            min_value=0.0,
+            max_value=2.0
+        )
+        
+        settings['AM_DEFAULT_TOP_P'] = ConfigSetting(
+            key='AM_DEFAULT_TOP_P',
+            display_name='Default Top-P',
+            description='Default top-p sampling parameter',
+            type=ConfigType.FLOAT,
+            default_value=0.9,
+            current_value=float(os.getenv('AM_DEFAULT_TOP_P', '0.9')),
+            category='Generation',
+            editable=True,
+            requires_restart=False,
+            min_value=0.0,
+            max_value=1.0,
+            advanced=True
+        )
+        
+        settings['AM_DEFAULT_TOP_K'] = ConfigSetting(
+            key='AM_DEFAULT_TOP_K',
+            display_name='Default Top-K',
+            description='Default top-k sampling parameter',
+            type=ConfigType.INTEGER,
+            default_value=40,
+            current_value=int(os.getenv('AM_DEFAULT_TOP_K', '40')),
+            category='Generation',
+            editable=True,
+            requires_restart=False,
+            min_value=0,
+            max_value=200,
+            advanced=True
+        )
+        
+        # File Upload Settings
+        settings['AM_MAX_UPLOAD_SIZE'] = ConfigSetting(
+            key='AM_MAX_UPLOAD_SIZE',
+            display_name='Max Upload Size',
+            description='Maximum file upload size',
+            type=ConfigType.INTEGER,
+            default_value=52428800,  # 50MB
+            current_value=int(os.getenv('AM_MAX_UPLOAD_SIZE', '52428800')),
+            category='Upload',
+            editable=True,
+            requires_restart=True,
+            min_value=1048576,  # 1MB
+            max_value=524288000,  # 500MB
+            unit='bytes'
+        )
+        
+        settings['AM_UPLOAD_EXTENSIONS'] = ConfigSetting(
+            key='AM_UPLOAD_EXTENSIONS',
+            display_name='Allowed Upload Extensions',
+            description='Comma-separated list of allowed file extensions',
+            type=ConfigType.STRING,
+            default_value='txt,pdf,docx,md,html,json,csv,xml,log,py,js,java,cpp,c,h',
+            current_value=os.getenv('AM_UPLOAD_EXTENSIONS', 'txt,pdf,docx,md,html,json,csv,xml,log,py,js,java,cpp,c,h'),
+            category='Upload',
+            editable=True,
+            requires_restart=False
+        )
+        
+        # Model Settings
+        settings['AM_MODEL_PATH'] = ConfigSetting(
+            key='AM_MODEL_PATH',
+            display_name='Model Path',
+            description='Path to the GGUF model file',
+            type=ConfigType.STRING,
+            default_value='',
+            current_value=os.getenv('AM_MODEL_PATH', os.getenv('LLM_MODEL_PATH', '')),
+            category='Model',
+            editable=True,
+            requires_restart=True
+        )
+        
         # System Settings (read-only)
         settings['AM_DB_PATH'] = ConfigSetting(
             key='AM_DB_PATH',
@@ -359,6 +611,161 @@ class ConfigManager:
                 'sentence-transformers/all-mpnet-base-v2',
                 'sentence-transformers/multi-qa-MiniLM-L6-cos-v1'
             ]
+        )
+        
+        settings['AM_INDEX_PATH'] = ConfigSetting(
+            key='AM_INDEX_PATH',
+            display_name='FAISS Index Path',
+            description='Path to FAISS vector index',
+            type=ConfigType.STRING,
+            default_value='./faiss.index',
+            current_value=os.getenv('AM_INDEX_PATH', './faiss.index'),
+            category='System',
+            editable=False,
+            requires_restart=True
+        )
+        
+        settings['AM_LLM_BASE_URL'] = ConfigSetting(
+            key='AM_LLM_BASE_URL',
+            display_name='LLM Base URL',
+            description='Base URL for LLM API',
+            type=ConfigType.STRING,
+            default_value='http://localhost:8000/v1',
+            current_value=os.getenv('AM_LLM_BASE_URL', 'http://localhost:8000/v1'),
+            category='System',
+            editable=True,
+            requires_restart=False
+        )
+        
+        settings['AM_LLM_MODEL'] = ConfigSetting(
+            key='AM_LLM_MODEL',
+            display_name='LLM Model Name',
+            description='Model name for LLM API',
+            type=ConfigType.STRING,
+            default_value='Qwen3-4b-instruct-2507',
+            current_value=os.getenv('AM_LLM_MODEL', 'Qwen3-4b-instruct-2507'),
+            category='System',
+            editable=True,
+            requires_restart=False
+        )
+        
+        settings['AM_RESERVE_SYSTEM_TOKENS'] = ConfigSetting(
+            key='AM_RESERVE_SYSTEM_TOKENS',
+            display_name='Reserved System Tokens',
+            description='Tokens reserved for system prompts',
+            type=ConfigType.INTEGER,
+            default_value=512,
+            current_value=int(os.getenv('AM_RESERVE_SYSTEM_TOKENS', '512')),
+            category='LLM',
+            editable=True,
+            requires_restart=False,
+            min_value=128,
+            max_value=2048,
+            unit='tokens',
+            advanced=True
+        )
+        
+        settings['AM_MMR_LAMBDA'] = ConfigSetting(
+            key='AM_MMR_LAMBDA',
+            display_name='MMR Lambda',
+            description='Lambda parameter for Maximal Marginal Relevance',
+            type=ConfigType.FLOAT,
+            default_value=0.5,
+            current_value=float(os.getenv('AM_MMR_LAMBDA', '0.5')),
+            category='Retrieval',
+            editable=True,
+            requires_restart=False,
+            min_value=0.0,
+            max_value=1.0,
+            advanced=True
+        )
+        
+        settings['AM_MULTI_PART_THRESHOLD'] = ConfigSetting(
+            key='AM_MULTI_PART_THRESHOLD',
+            display_name='Multi-Part Threshold',
+            description='Minimum characters to trigger multi-part extraction',
+            type=ConfigType.INTEGER,
+            default_value=200,
+            current_value=int(os.getenv('AM_MULTI_PART_THRESHOLD', '200')),
+            category='Extraction',
+            editable=True,
+            requires_restart=False,
+            min_value=50,
+            max_value=1000,
+            unit='characters',
+            advanced=True
+        )
+        
+        settings['AM_EMBED_DIM'] = ConfigSetting(
+            key='AM_EMBED_DIM',
+            display_name='Embedding Dimension',
+            description='Dimension of embedding vectors',
+            type=ConfigType.INTEGER,
+            default_value=384,
+            current_value=int(os.getenv('AM_EMBED_DIM', '384')),
+            category='System',
+            editable=False,
+            requires_restart=True
+        )
+        
+        settings['AM_ATTENTION_HEADS'] = ConfigSetting(
+            key='AM_ATTENTION_HEADS',
+            display_name='Attention Heads',
+            description='Number of attention heads',
+            type=ConfigType.INTEGER,
+            default_value=8,
+            current_value=int(os.getenv('AM_ATTENTION_HEADS', '8')),
+            category='Retrieval',
+            editable=True,
+            requires_restart=False,
+            min_value=1,
+            max_value=16,
+            advanced=True
+        )
+        
+        settings['AM_CLUSTER_ENERGY_DECAY'] = ConfigSetting(
+            key='AM_CLUSTER_ENERGY_DECAY',
+            display_name='Cluster Energy Decay',
+            description='Energy decay rate for liquid clusters',
+            type=ConfigType.FLOAT,
+            default_value=0.99,
+            current_value=float(os.getenv('AM_CLUSTER_ENERGY_DECAY', '0.99')),
+            category='Clustering',
+            editable=True,
+            requires_restart=False,
+            min_value=0.9,
+            max_value=0.999,
+            advanced=True
+        )
+        
+        settings['AM_EMBED_MOMENTUM'] = ConfigSetting(
+            key='AM_EMBED_MOMENTUM',
+            display_name='Embedding Momentum',
+            description='Momentum rate for embedding updates',
+            type=ConfigType.FLOAT,
+            default_value=0.95,
+            current_value=float(os.getenv('AM_EMBED_MOMENTUM', '0.95')),
+            category='Learning',
+            editable=True,
+            requires_restart=False,
+            min_value=0.8,
+            max_value=0.99,
+            advanced=True
+        )
+        
+        settings['AM_DRIFT_BLEND'] = ConfigSetting(
+            key='AM_DRIFT_BLEND',
+            display_name='Drift Blend Ratio',
+            description='How much drift affects embeddings',
+            type=ConfigType.FLOAT,
+            default_value=0.3,
+            current_value=float(os.getenv('AM_DRIFT_BLEND', '0.3')),
+            category='Learning',
+            editable=True,
+            requires_restart=False,
+            min_value=0.0,
+            max_value=0.5,
+            advanced=True
         )
         
         return settings

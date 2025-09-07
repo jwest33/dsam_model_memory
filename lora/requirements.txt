@@ -12,9 +12,10 @@ transformers>=4.36.0
 peft>=0.7.0
 accelerate>=0.25.0
 datasets>=2.14.0
+mistral-common==1.8.4
 
-# Quantization support (optional - not compatible with Python 3.13 yet)
-# bitsandbytes>=0.41.0  # Uncomment when using Python 3.12 or lower
+# Quantization support
+bitsandbytes-0.47.0
 
 # Async HTTP for llama.cpp communication (required)
 aiohttp>=3.9.0

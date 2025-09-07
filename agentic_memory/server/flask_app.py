@@ -2,8 +2,8 @@ from __future__ import annotations
 import os
 from flask import Flask, render_template, request, jsonify, session, send_file, flash, redirect, url_for
 from werkzeug.utils import secure_filename
-from ..config import cfg
-from ..config_manager import ConfigManager, ConfigType
+from ..config import cfg, get_config_manager, get_upload_config, get_generation_defaults
+from ..config_manager import ConfigType
 from ..storage.sql_store import MemoryStore
 from ..storage.faiss_index import FaissIndex
 from ..router import MemoryRouter
@@ -27,14 +27,18 @@ import sqlite3
 app = Flask(__name__, template_folder='templates', static_folder='static')
 app.secret_key = os.urandom(24)  # For session management
 
-# Configure file upload
-UPLOAD_FOLDER = tempfile.gettempdir()
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'md', 'html', 'json', 'csv', 'xml', 'log', 'py', 'js', 'java', 'cpp', 'c', 'h'}
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
+# Make range available in templates
+app.jinja_env.globals.update(range=range)
 
 # Initialize config manager
-config_manager = ConfigManager(cfg.db_path)
+config_manager = get_config_manager()
+
+# Configure file upload from config
+upload_cfg = get_upload_config()
+UPLOAD_FOLDER = tempfile.gettempdir()
+ALLOWED_EXTENSIONS = upload_cfg['allowed_extensions']
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = upload_cfg['max_size']
 
 store = MemoryStore(cfg.db_path)
 # Assume dim from embed model default 384 for all-MiniLM-L6-v2; can be inferred dynamically
@@ -46,10 +50,11 @@ liquid_clusters = LiquidMemoryClusters(n_clusters=16, dim=384)
 def llama_chat(messages, tools_enabled=False):
     url = f"{cfg.llm_base_url}/chat/completions"
     headers = {"Content-Type": "application/json"}
+    gen_defaults = get_generation_defaults()
     body = {
         "model": cfg.llm_model,
         "messages": messages,
-        "temperature": 0.2,
+        "temperature": gen_defaults['temperature'],
         "stream": False
     }
     
@@ -267,7 +272,7 @@ Please provide your response now:"""
 def list_memories():
     # Get query parameters
     page = int(request.args.get('page', 1))
-    per_page = int(request.args.get('per_page', 50))
+    per_page = int(request.args.get('per_page', 20))
     sort_by = request.args.get('sort_by', 'when_ts')
     sort_order = request.args.get('sort_order', 'desc')
     

@@ -44,6 +44,9 @@ import tempfile
 import shutil
 import platform
 import sys
+import importlib
+import psutil
+import warnings
 
 # Configure logging
 logging.basicConfig(
@@ -51,6 +54,297 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+class DependencyChecker:
+    """Check all required dependencies and system requirements before training"""
+    
+    @staticmethod
+    def check_python_version():
+        """Check Python version"""
+        version = sys.version_info
+        if version.major < 3 or (version.major == 3 and version.minor < 8):
+            return False, f"Python 3.8+ required, found {version.major}.{version.minor}.{version.micro}"
+        return True, f"Python {version.major}.{version.minor}.{version.micro} ✓"
+    
+    @staticmethod
+    def check_required_modules():
+        """Check all required Python modules"""
+        required_modules = {
+            'torch': 'torch>=2.0.0',
+            'transformers': 'transformers>=4.30.0',
+            'peft': 'peft>=0.4.0',
+            'datasets': 'datasets',
+            'numpy': 'numpy',
+            'aiohttp': 'aiohttp',
+            'tqdm': 'tqdm',
+            'psutil': 'psutil',
+            'yaml': 'pyyaml',
+            'requests': 'requests'
+        }
+        
+        missing_modules = []
+        warnings_list = []
+        
+        for module_name, pip_name in required_modules.items():
+            try:
+                importlib.import_module(module_name)
+            except ImportError:
+                missing_modules.append(pip_name)
+        
+        # Check optional modules
+        optional_modules = {
+            'bitsandbytes': 'bitsandbytes (for 4-bit quantization)',
+            'accelerate': 'accelerate (for distributed training)'
+        }
+        
+        for module_name, description in optional_modules.items():
+            try:
+                importlib.import_module(module_name)
+            except ImportError:
+                warnings_list.append(f"Optional: {description} not installed")
+        
+        if missing_modules:
+            return False, f"Missing required modules: {', '.join(missing_modules)}\nInstall with: pip install {' '.join(missing_modules)}"
+        
+        message = "All required modules installed ✓"
+        if warnings_list:
+            message += f"\n  Warnings: {'; '.join(warnings_list)}"
+        return True, message
+    
+    @staticmethod
+    def check_cuda_availability():
+        """Check CUDA availability and GPU memory"""
+        if not torch.cuda.is_available():
+            return False, "CUDA not available. Training will be slow on CPU"
+        
+        device_count = torch.cuda.device_count()
+        total_memory = 0
+        device_info = []
+        
+        for i in range(device_count):
+            props = torch.cuda.get_device_properties(i)
+            memory_gb = props.total_memory / (1024**3)
+            total_memory += memory_gb
+            device_info.append(f"{props.name} ({memory_gb:.1f}GB)")
+        
+        if total_memory < 6:
+            return False, f"Insufficient GPU memory: {total_memory:.1f}GB (minimum 6GB recommended)"
+        
+        return True, f"CUDA available: {', '.join(device_info)} ✓"
+    
+    @staticmethod
+    def check_disk_space(required_gb=10):
+        """Check available disk space"""
+        try:
+            disk_usage = psutil.disk_usage('.')
+            available_gb = disk_usage.free / (1024**3)
+            
+            if available_gb < required_gb:
+                return False, f"Insufficient disk space: {available_gb:.1f}GB available, {required_gb}GB required"
+            
+            return True, f"Disk space: {available_gb:.1f}GB available ✓"
+        except Exception as e:
+            return None, f"Could not check disk space: {e}"
+    
+    @staticmethod
+    def check_memory(required_gb=8):
+        """Check available RAM"""
+        try:
+            memory = psutil.virtual_memory()
+            available_gb = memory.available / (1024**3)
+            total_gb = memory.total / (1024**3)
+            
+            if available_gb < required_gb:
+                return False, f"Insufficient RAM: {available_gb:.1f}GB available, {required_gb}GB required"
+            
+            return True, f"RAM: {available_gb:.1f}GB/{total_gb:.1f}GB available ✓"
+        except Exception as e:
+            return None, f"Could not check memory: {e}"
+    
+    @staticmethod
+    def check_llama_cpp_server(base_url="http://localhost:8000"):
+        """Check if llama.cpp server is accessible"""
+        try:
+            response = requests.get(f"{base_url}/health", timeout=2)
+            if response.status_code == 200:
+                return True, f"llama.cpp server accessible at {base_url} ✓"
+        except:
+            pass
+        
+        return None, f"llama.cpp server not running at {base_url} (will start automatically)"
+    
+    @staticmethod
+    def check_model_files(model_path: str, model_name: str):
+        """Check if model files exist"""
+        checks = []
+        
+        # Check GGUF model file
+        if model_path and Path(model_path).exists():
+            size_gb = Path(model_path).stat().st_size / (1024**3)
+            checks.append((True, f"GGUF model found: {Path(model_path).name} ({size_gb:.1f}GB) ✓"))
+        elif model_path:
+            checks.append((False, f"GGUF model not found at: {model_path}"))
+        
+        # Check if HuggingFace model can be accessed
+        cache_dir = Path.home() / ".cache" / "huggingface" / "hub"
+        model_cache_pattern = model_name.replace("/", "--")
+        cached_models = list(cache_dir.glob(f"*{model_cache_pattern}*")) if cache_dir.exists() else []
+        
+        if cached_models:
+            checks.append((True, f"HuggingFace model cached: {model_name} ✓"))
+        else:
+            checks.append((None, f"HuggingFace model not cached: {model_name} (will download on first use)"))
+        
+        return checks
+    
+    @staticmethod
+    def check_llama_cpp_tools():
+        """Check for llama.cpp conversion tools"""
+        # Check for convert script
+        llama_cpp_path = os.environ.get('LLAMA_CPP_PATH')
+        
+        possible_paths = []
+        if llama_cpp_path:
+            possible_paths.extend([
+                os.path.join(llama_cpp_path, "convert_lora_to_gguf.py"),
+                os.path.join(llama_cpp_path, "convert-lora-to-gguf.py")
+            ])
+        
+        possible_paths.extend([
+            "convert-lora-to-gguf.py",
+            "convert_lora_to_gguf.py",
+            "./llama.cpp/convert-lora-to-gguf.py",
+            "./llama.cpp/convert_lora_to_gguf.py"
+        ])
+        
+        for path in possible_paths:
+            if Path(path).exists():
+                return True, f"LoRA conversion script found: {path} ✓"
+        
+        message = "LoRA conversion script not found (GGUF export will be skipped)"
+        if not llama_cpp_path:
+            message += "\n  Tip: Set LLAMA_CPP_PATH environment variable to your llama.cpp directory"
+        
+        return None, message
+    
+    @staticmethod
+    def check_llama_server_binary():
+        """Check if llama-server binary exists"""
+        server_cmd = "llama-server.exe" if platform.system() == "Windows" else "llama-server"
+        
+        if shutil.which(server_cmd):
+            return True, f"llama-server binary found in PATH ✓"
+        
+        # Check LLAMA_CPP_PATH
+        llama_cpp_path = os.environ.get('LLAMA_CPP_PATH')
+        if llama_cpp_path:
+            server_paths = [
+                os.path.join(llama_cpp_path, "build", "bin", "release", server_cmd),
+                os.path.join(llama_cpp_path, "build", "bin", server_cmd),
+                os.path.join(llama_cpp_path, server_cmd)
+            ]
+            
+            for path in server_paths:
+                if Path(path).exists():
+                    return True, f"llama-server binary found at: {path} ✓"
+        
+        # If server is already running, that's good enough
+        try:
+            response = requests.get("http://localhost:8000/health", timeout=1)
+            if response.status_code == 200:
+                return True, f"llama-server already running (binary location unknown) ✓"
+        except:
+            pass
+        
+        return False, f"{server_cmd} not found. Please install llama.cpp and add to PATH or set LLAMA_CPP_PATH"
+    
+    @staticmethod
+    def run_all_checks(config: 'TrainingConfig') -> Tuple[bool, List[str]]:
+        """Run all dependency checks and return results"""
+        results = []
+        has_errors = False
+        has_warnings = False
+        
+        print("\n" + "="*60)
+        print(" DEPENDENCY AND SYSTEM CHECK")
+        print("="*60 + "\n")
+        
+        # Python version
+        success, message = DependencyChecker.check_python_version()
+        results.append((success, message))
+        if not success:
+            has_errors = True
+        
+        # Required modules
+        success, message = DependencyChecker.check_required_modules()
+        results.append((success, message))
+        if not success:
+            has_errors = True
+        
+        # CUDA
+        success, message = DependencyChecker.check_cuda_availability()
+        results.append((success, message))
+        if success is False:
+            has_warnings = True
+        
+        # System resources
+        success, message = DependencyChecker.check_memory()
+        results.append((success, message))
+        if success is False:
+            has_errors = True
+        
+        success, message = DependencyChecker.check_disk_space()
+        results.append((success, message))
+        if success is False:
+            has_errors = True
+        
+        # llama.cpp components
+        success, message = DependencyChecker.check_llama_server_binary()
+        results.append((success, message))
+        if success is False:
+            has_errors = True
+        
+        success, message = DependencyChecker.check_llama_cpp_server(config.llama_cpp_url)
+        results.append((success, message))
+        
+        success, message = DependencyChecker.check_llama_cpp_tools()
+        results.append((success, message))
+        if success is None:
+            has_warnings = True
+        
+        # Model files
+        model_checks = DependencyChecker.check_model_files(config.llama_cpp_model_path, config.model_name)
+        for success, message in model_checks:
+            results.append((success, message))
+            if success is False:
+                has_errors = True
+            elif success is None:
+                has_warnings = True
+        
+        # Print results
+        for success, message in results:
+            if success is True:
+                print(f"Success: {message}")
+            elif success is False:
+                print(f"Fail: {message}")
+            else:  # None = warning
+                print(f"Warning:  {message}")
+        
+        print("\n" + "="*60)
+        
+        if has_errors:
+            print(" ERRORS FOUND: Please fix the issues above before proceeding")
+            print("="*60 + "\n")
+            return False, results
+        elif has_warnings:
+            print("  WARNINGS: Training can proceed, but some features may be limited")
+            print("="*60 + "\n")
+            return True, results
+        else:
+            print(" ALL CHECKS PASSED: Ready to start training!")
+            print("="*60 + "\n")
+            return True, results
 
 
 @dataclass
@@ -669,11 +963,22 @@ class LoRATrainer:
         
         # Look for convert script in common locations
         convert_script = None
-        possible_paths = [
+        possible_paths = []
+        
+        # Check environment variable first
+        llama_cpp_path = os.environ.get('LLAMA_CPP_PATH')
+        if llama_cpp_path:
+            possible_paths.append(os.path.join(llama_cpp_path, "convert_lora_to_gguf.py"))
+            possible_paths.append(os.path.join(llama_cpp_path, "convert-lora-to-gguf.py"))
+        
+        # Add common locations
+        possible_paths.extend([
             "convert-lora-to-gguf.py",
+            "convert_lora_to_gguf.py",
             "./llama.cpp/convert-lora-to-gguf.py",
+            "./llama.cpp/convert_lora_to_gguf.py",
             os.path.join(os.path.dirname(sys.executable), "Scripts", "convert-lora-to-gguf.py")
-        ]
+        ])
         
         for path in possible_paths:
             if Path(path).exists():
@@ -682,7 +987,9 @@ class LoRATrainer:
         
         if not convert_script:
             logger.warning("convert-lora-to-gguf.py not found. Skipping GGUF export.")
-            logger.info("Please install llama.cpp and ensure convert scripts are available.")
+            logger.info("Please set LLAMA_CPP_PATH environment variable to your llama.cpp directory,")
+            logger.info("or ensure convert_lora_to_gguf.py is in your PATH.")
+            logger.info(f"Searched in: {possible_paths[:3]}")  # Show first 3 paths tried
             return
         
         cmd = [
@@ -813,9 +1120,17 @@ class AutoLoRACreator:
         self.tools.append(tool)
         logger.info(f"Added tool: {tool.name}")
     
-    async def create_adapter(self, num_iterations: int = 3):
+    async def create_adapter(self, num_iterations: int = 3, skip_checks: bool = False):
         """Main pipeline to create and optimize LoRA adapter"""
         logger.info("Starting automatic LoRA adapter creation...")
+        
+        # Run dependency checks unless explicitly skipped
+        if not skip_checks:
+            checks_passed, check_results = DependencyChecker.run_all_checks(self.config)
+            if not checks_passed:
+                logger.error("Dependency checks failed. Please fix the issues and try again.")
+                logger.info("To skip checks (not recommended), use skip_checks=True")
+                return None, {"error": "Dependency checks failed"}
         
         # Ensure output directory exists
         Path(self.config.output_dir).mkdir(parents=True, exist_ok=True)
@@ -933,15 +1248,61 @@ class AutoLoRACreator:
             json.dump(error_patterns, f, indent=2)
 
 
-async def main():
-    """Main entry point"""
-    # Configuration
+def run_checks_only():
+    """Run dependency checks without training"""
+    print("\n" + "="*60)
+    print(" Running LoRA Training Dependency Checks")
+    print("="*60 + "\n")
+    
+    # Create a sample config for checking
     config = TrainingConfig(
         model_name="Qwen/Qwen3-4B-Instruct-2507",
         llama_cpp_url="http://localhost:8000",
         llama_cpp_model_path=r"C:\models\Qwen3-4B-Instruct-2507\Qwen3-4B-Instruct-2507-F16.gguf",
+        output_dir="./lora_adapters"
+    )
+    
+    checks_passed, results = DependencyChecker.run_all_checks(config)
+    
+    if checks_passed:
+        print("\n System is ready for LoRA training!")
+        print("\nTo start training, run:")
+        print("  python auto_lora.py --train")
+    else:
+        print("\n Please fix the issues above before training")
+        print("\nFor help:")
+        print("  - Install missing Python packages: pip install -r requirements.txt")
+        print("  - Set LLAMA_CPP_PATH: set LLAMA_CPP_PATH=C:\\path\\to\\llama.cpp")
+        print("  - Download model: huggingface-cli download Qwen/Qwen3-4B-Instruct-2507")
+    
+    return checks_passed
+
+
+async def main():
+    """Main entry point"""
+    # Parse command line arguments
+    import argparse
+    parser = argparse.ArgumentParser(description="Automatic LoRA Adapter Creator")
+    parser.add_argument("--check", action="store_true", help="Run dependency checks only")
+    parser.add_argument("--train", action="store_true", help="Start training")
+    parser.add_argument("--skip-checks", action="store_true", help="Skip dependency checks (not recommended)")
+    parser.add_argument("--model-path", type=str, help="Path to GGUF model file")
+    parser.add_argument("--examples", type=int, default=100, help="Number of synthetic examples to generate")
+    parser.add_argument("--iterations", type=int, default=3, help="Number of training iterations")
+    args = parser.parse_args()
+    
+    # If only checking dependencies
+    if args.check or (not args.train and not args.check):
+        checks_passed = run_checks_only()
+        return
+    
+    # Configuration
+    config = TrainingConfig(
+        model_name="Qwen/Qwen3-4B-Instruct-2507",
+        llama_cpp_url="http://localhost:8000",
+        llama_cpp_model_path=args.model_path or r"C:\models\Qwen3-4B-Instruct-2507\Qwen3-4B-Instruct-2507-F16.gguf",
         output_dir="./lora_adapters",
-        num_synthetic_examples=100,  # Start with fewer examples for testing
+        num_synthetic_examples=args.examples,
         num_epochs=3,
         batch_size=4,
         learning_rate=3e-4
@@ -1009,7 +1370,15 @@ async def main():
         creator.add_tool(tool)
     
     # Create and optimize adapter
-    best_adapter, metrics = await creator.create_adapter(num_iterations=3)
+    best_adapter, metrics = await creator.create_adapter(
+        num_iterations=args.iterations,
+        skip_checks=args.skip_checks
+    )
+    
+    # Check if training was successful
+    if best_adapter is None:
+        print("\n Training failed. Please check the logs above for errors.")
+        return
     
     print(f"\n LoRA adapter creation complete!")
     print(f" Best adapter saved to: {best_adapter}")

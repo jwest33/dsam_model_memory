@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import tempfile
 
-from agentic_memory.benchmark import (
+from benchmarks import (
     MemoryBenchmark,
     InteractionGenerator,
     InteractionScenario,
@@ -132,7 +132,7 @@ async def test_benchmark_metrics():
 
 def test_scenario_mix_parsing():
     """Test parsing of scenario mix from CLI."""
-    from run_benchmark import parse_scenario_mix
+    from benchmarks.cli import parse_scenario_mix
     
     # Test valid mix
     mix = parse_scenario_mix("simple:0.3,medium:0.5,complex:0.2")

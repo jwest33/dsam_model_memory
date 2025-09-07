@@ -25,7 +25,7 @@ class TestToolHandler:
         """Test parsing a single tool call from LLM response."""
         llm_response = """I'll search for that information.
         
-<tool_call>{"name": "web_search", "arguments": {"query": "Python async programming", "num_results": 3}}</tool_call>
+<tool_call>{"name": "web_search", "arguments": {"query": "Python async programming"}}</tool_call>
 
 Let me look that up for you."""
         
@@ -34,7 +34,6 @@ Let me look that up for you."""
         assert len(tool_calls) == 1
         assert tool_calls[0].name == "web_search"
         assert tool_calls[0].arguments["query"] == "Python async programming"
-        assert tool_calls[0].arguments["num_results"] == 3
         
         # Check cleaned response
         assert "<tool_call>" not in cleaned
@@ -182,34 +181,23 @@ Rest of response."""
         assert "arguments" in full_prompt
 
 
-class TestWebSearchTool:
+class TestLlamaAgentWebSearchTool:
     """Test suite for web search tool specifically."""
     
-    def test_web_search_duckduckgo_available(self):
-        """Test that DuckDuckGo backend is preferred when available."""
-        from agentic_memory.tools.web_search import WebSearchTool
+    def test_web_search_tool_available(self):
+        """Test that LlamaAgentWebSearchTool is available."""
+        from agentic_memory.tools.llama_agent_websearch import LlamaAgentWebSearchTool
         
-        with patch('agentic_memory.tools.web_search.DUCKDUCKGO_AVAILABLE', True):
-            tool = WebSearchTool()
-            assert tool.backend == "duckduckgo"
-    
-    def test_web_search_fallback_chain(self):
-        """Test backend fallback chain."""
-        from agentic_memory.tools.web_search import WebSearchTool
-        
-        with patch('agentic_memory.tools.web_search.DUCKDUCKGO_AVAILABLE', False):
-            with patch('agentic_memory.tools.web_search.GOOGLESEARCH_AVAILABLE', True):
-                tool = WebSearchTool()
-                assert tool.backend == "google"
+        tool = LlamaAgentWebSearchTool()
+        assert tool.name == "web_search"
     
     def test_web_search_parameters(self):
         """Test web search tool parameters."""
-        from agentic_memory.tools.web_search import WebSearchTool
+        from agentic_memory.tools.llama_agent_websearch import LlamaAgentWebSearchTool
         
-        tool = WebSearchTool()
+        tool = LlamaAgentWebSearchTool()
         params = tool.parameters
         
         assert params["type"] == "object"
         assert "query" in params["properties"]
         assert "query" in params["required"]
-        assert "num_results" in params["properties"]

@@ -3,19 +3,19 @@
 
 import os
 import json
-from agentic_memory.tools import WebSearchTool
+from agentic_memory.tools import LlamaAgentWebSearchTool
 from agentic_memory.tools.tool_handler import ToolHandler
 from agentic_memory.tools.base import ToolCall
 
 def test_web_search_direct():
     """Test the web search tool directly."""
-    print("Testing WebSearchTool directly...")
+    print("Testing LlamaAgentWebSearchTool directly...")
     
-    # Create tool with or without API key
-    tool = WebSearchTool()
+    # Create tool
+    tool = LlamaAgentWebSearchTool()
     
     # Test search
-    result = tool.execute(query="Python programming best practices", num_results=3)
+    result = tool.execute(query="Python programming best practices")
     print("Direct search result:")
     print(json.dumps(json.loads(result), indent=2))
     print()

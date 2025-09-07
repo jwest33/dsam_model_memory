@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="container">
-    <h1 class="page-title">📄 Document Upload</h1>
+    <h1 class="page-title">Document Upload</h1>
     
     <div class="upload-section">
         <div class="upload-card">
@@ -116,11 +116,11 @@
 }
 
 .upload-card, .results-card {
-    background: rgba(0, 0, 0, 0.7);
-    border: 1px solid var(--cyan);
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--synth-border);
     border-radius: 8px;
     padding: 2rem;
-    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+    box-shadow: 0 4px 20px rgba(168, 85, 247, 0.1);
 }
 
 .upload-card h2, .results-card h2 {
@@ -144,24 +144,58 @@
     font-weight: bold;
 }
 
-.form-group input[type="file"],
 .form-group input[type="number"],
 .form-group select {
     width: 100%;
     padding: 0.75rem;
     background: rgba(0, 0, 0, 0.5);
-    border: 1px solid var(--purple);
+    border: 1px solid var(--synth-border);
     color: white;
     border-radius: 4px;
-    font-family: 'Courier New', monospace;
+    font-family: 'Michroma', sans-serif;
+    font-size: 0.85rem;
+    transition: all 0.3s ease;
+}
+
+.form-group input[type="file"] {
+    width: 100%;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--synth-border);
+    color: var(--synth-cyan);
+    border-radius: 4px;
+    font-family: 'Michroma', sans-serif;
+    font-size: 0.85rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.form-group input[type="file"]::file-selector-button {
+    padding: 0.5rem 1rem;
+    margin-right: 1rem;
+    background: linear-gradient(135deg, var(--synth-purple), var(--synth-pink));
+    border: none;
+    border-radius: 4px;
+    color: white;
+    font-family: 'Michroma', sans-serif;
+    font-size: 0.8rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+}
+
+.form-group input[type="file"]::file-selector-button:hover {
+    background: linear-gradient(135deg, var(--synth-pink), var(--synth-purple));
+    box-shadow: 0 0 10px rgba(255, 16, 240, 0.5);
 }
 
 .form-group input[type="file"]:focus,
 .form-group input[type="number"]:focus,
 .form-group select:focus {
     outline: none;
-    border-color: var(--cyan);
-    box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+    border-color: var(--synth-pink);
+    box-shadow: 0 0 10px rgba(255, 16, 240, 0.3);
 }
 
 .form-group small {
@@ -214,8 +248,8 @@
 }
 
 .supported-formats {
-    background: rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--synth-border);
     border-radius: 8px;
     padding: 2rem;
 }
@@ -233,8 +267,8 @@
 }
 
 .format-item {
-    background: rgba(0, 0, 0, 0.7);
-    border: 1px solid var(--purple);
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--synth-border);
     border-radius: 4px;
     padding: 1rem;
     display: flex;
@@ -245,8 +279,9 @@
 }
 
 .format-item:hover {
-    border-color: var(--cyan);
-    box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+    border-color: var(--synth-pink);
+    box-shadow: 0 0 15px rgba(255, 16, 240, 0.3);
+    background: rgba(0, 0, 0, 0.6);
 }
 
 .format-icon {

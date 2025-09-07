@@ -33,7 +33,6 @@ click>=8.1.0  # CLI framework
 
 # Web Search Tools (Optional but recommended)
 duckduckgo-search>=5.0.0  # For free web search
-googlesearch-python>=1.2.0  # Alternative free search
 
 # System Monitoring
 psutil>=5.9.5
