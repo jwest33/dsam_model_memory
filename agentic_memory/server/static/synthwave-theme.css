@@ -34,15 +34,23 @@
     box-sizing: border-box;
 }
 
+html {
+    height: 100%;
+    font-size: 85%;
+}
+
 body {
     background: var(--synth-dark-bg);
     color: var(--synth-text);
     font-family: 'Michroma', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    font-size: 14px;
+    font-size: 0.875rem;
     line-height: 1.6;
-    min-height: 100vh;
+    height: 100vh;
     position: relative;
     overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
 }
 
 body::before {
@@ -69,15 +77,16 @@ header {
     background: linear-gradient(90deg, var(--synth-card-bg) 0%, var(--synth-surface) 50%, var(--synth-card-bg) 100%);
     border-bottom: 2px solid var(--synth-cyan);
     box-shadow: 0 2px 20px rgba(0, 255, 255, 0.2);
-    padding: 1rem 2rem;
+    padding: 0.8rem 1.5rem;
     position: relative;
     z-index: 100;
+    flex-shrink: 0;
 }
 
 header h1 {
     color: var(--synth-cyan);
     text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
-    font-size: 1.8rem;
+    font-size: 1.5rem;
     font-weight: 700;
     letter-spacing: 2px;
     text-transform: uppercase;
@@ -86,7 +95,7 @@ header h1 {
 header h4 {
     color: var(--synth-pink);
     text-shadow: 0 0 20px #ff68ff;
-    font-size: 1.2rem;
+    font-size: 1rem;
     font-weight: 700;
     letter-spacing: 1px;
 }
@@ -99,14 +108,14 @@ nav {
 nav a {
     color: var(--synth-text-muted);
     text-decoration: none;
-    padding: 0.5rem 1rem;
-    margin-right: 1rem;
+    padding: 0.4rem 0.8rem;
+    margin-right: 0.8rem;
     display: inline-block;
     border-bottom: 2px solid transparent;
     transition: all 0.3s ease;
     font-weight: 600;
     text-transform: uppercase;
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     letter-spacing: 1px;
 }
 
@@ -125,19 +134,22 @@ nav a:active {
 
 /* Main Content */
 main {
-    padding: 2rem;
+    padding: 1.5rem;
     position: relative;
     z-index: 10;
-    min-height: calc(100vh - 200px);
+    flex: 1 1 auto;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Panels */
 .panel {
     background: var(--synth-card-bg);
     border: 1px solid var(--synth-border);
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
+    border-radius: 10px;
+    padding: 1.2rem;
+    margin-bottom: 1.5rem;
     box-shadow: 0 4px 20px rgba(168, 85, 247, 0.1);
     position: relative;
     overflow: hidden;
@@ -159,18 +171,19 @@ main {
     margin-bottom: 1rem;
     text-transform: uppercase;
     letter-spacing: 1px;
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
 }
 
 /* Forms */
 textarea, input[type="text"], input[type="search"], select {
     width: 100%;
-    padding: 0.75rem;
+    padding: 0.6rem;
     background: var(--synth-surface);
     color: var(--synth-text);
     border: 1px solid var(--synth-border);
-    border-radius: 8px;
+    border-radius: 6px;
     font-family: 'Michroma', monospace;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     transition: all 0.3s ease;
 }
 
@@ -187,7 +200,7 @@ textarea:disabled, input:disabled, select:disabled {
 }
 
 textarea {
-    min-height: 120px;
+    min-height: 100px;
     resize: vertical;
 }
 
@@ -196,11 +209,11 @@ button {
     background: transparent;
     color: var(--synth-cyan);
     border: 1px solid var(--synth-cyan);
-    border-radius: 5px;
-    padding: 10px 20px;
+    border-radius: 4px;
+    padding: 8px 16px;
     font-family: 'Michroma', sans-serif;
     font-weight: 600;
-    font-size: 12px;
+    font-size: 10px;
     letter-spacing: 1px;
     text-transform: uppercase;
     cursor: pointer;
@@ -227,9 +240,9 @@ button:disabled {
 
 /* Chat Messages */
 .message {
-    margin-bottom: 1.5rem;
-    padding: 1rem;
-    border-radius: 8px;
+    margin-bottom: 1.2rem;
+    padding: 0.8rem;
+    border-radius: 6px;
     position: relative;
 }
 
@@ -249,9 +262,9 @@ button:disabled {
     color: var(--synth-cyan);
     font-weight: 600;
     text-transform: uppercase;
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     letter-spacing: 1px;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
 }
 
 .message.assistant .role {
@@ -274,18 +287,18 @@ thead {
 }
 
 th {
-    padding: 1rem;
+    padding: 0.8rem;
     text-align: left;
     color: var(--synth-cyan);
     font-weight: 600;
     text-transform: uppercase;
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     letter-spacing: 1px;
     border-bottom: 2px solid var(--synth-border);
 }
 
 td {
-    padding: 0.75rem 1rem;
+    padding: 0.6rem 0.8rem;
     border-bottom: 1px solid rgba(45, 36, 56, 0.3);
     color: var(--synth-text);
 }
@@ -370,15 +383,17 @@ code {
 footer {
     background: var(--synth-surface);
     border-top: 1px solid var(--synth-border);
-    padding: 1.5rem;
+    padding: 1.2rem;
     text-align: center;
     position: relative;
     z-index: 10;
+    margin-top: auto;
+    flex-shrink: 0;
 }
 
 footer small {
     color: var(--synth-text-muted);
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     letter-spacing: 1px;
 }
 
@@ -447,9 +462,9 @@ footer small::after {
 .memory-item {
     background: var(--synth-card-bg);
     border: 1px solid var(--synth-border);
-    border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 1rem;
+    border-radius: 6px;
+    padding: 0.8rem;
+    margin-bottom: 0.8rem;
     position: relative;
     transition: all 0.3s ease;
 }
@@ -461,10 +476,10 @@ footer small::after {
 
 .memory-item .timestamp {
     color: var(--synth-text-muted);
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     position: absolute;
-    top: 0.5rem;
-    right: 1rem;
+    top: 0.4rem;
+    right: 0.8rem;
 }
 
 /* Search Box Enhancement */
@@ -507,12 +522,12 @@ footer small::after {
 /* Responsive Design */
 @media (max-width: 768px) {
     header h1 {
-        font-size: 1.2rem;
+        font-size: 1rem;
     }
     
     nav a {
-        font-size: 0.7rem;
-        padding: 0.4rem 0.6rem;
+        font-size: 0.6rem;
+        padding: 0.3rem 0.5rem;
     }
     
     main {
@@ -547,8 +562,7 @@ footer small::after {
 /* Neon Text Effect */
 .neon-text {
     text-shadow: 
-        0 0 5px currentColor,
-        0 0 10px currentColor,
-        0 0 20px currentColor,
-        0 0 40px currentColor;
+        0 0 3px currentColor,
+        0 0 6px currentColor,
+        0 0 10px currentColor;
 }
