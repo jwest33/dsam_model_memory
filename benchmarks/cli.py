@@ -20,7 +20,7 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from benchmarks.analyze_lmsys import LMSYSAnalyzer
-import import_lmsys_data
+import benchmarks.import_lmsys_data as import_lmsys_data
 
 
 class BenchmarkCLI:

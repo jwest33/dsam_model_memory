@@ -69,3 +69,54 @@ class FaissIndex:
         self.id_map = []
         # Save the empty index
         self.save()
+    
+    def get_all_vectors(self, limit: int = None) -> Tuple[List[str], np.ndarray]:
+        """Get all vectors and their IDs from the index.
+        
+        Args:
+            limit: Maximum number of vectors to return (None for all)
+            
+        Returns:
+            Tuple of (memory_ids, vectors)
+        """
+        n_total = self.index.ntotal
+        if n_total == 0:
+            return [], np.array([])
+        
+        # Determine how many to retrieve
+        n_to_get = min(n_total, limit) if limit else n_total
+        
+        # Reconstruct vectors from FAISS
+        vectors = []
+        valid_ids = []
+        
+        for i in range(n_to_get):
+            if i < len(self.id_map) and self.id_map[i] and self.id_map[i] != "":
+                # Get the vector at position i
+                vec = self.index.reconstruct(i)
+                vectors.append(vec)
+                valid_ids.append(self.id_map[i])
+        
+        if vectors:
+            return valid_ids, np.array(vectors)
+        else:
+            return [], np.array([])
+    
+    def get_vector(self, memory_id: str) -> np.ndarray:
+        """Get a single vector by memory ID.
+        
+        Args:
+            memory_id: The memory ID to retrieve
+            
+        Returns:
+            The vector as numpy array, or None if not found
+        """
+        try:
+            # Find the index position for this memory_id
+            idx = self.id_map.index(memory_id)
+            if idx < self.index.ntotal:
+                # Reconstruct and return the vector
+                return self.index.reconstruct(idx)
+        except (ValueError, RuntimeError):
+            pass
+        return None

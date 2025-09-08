@@ -9,6 +9,6 @@ markdown>=3.5.0  # Markdown to HTML conversion
 pandas>=2.0.0  # CSV, Excel, and structured data parsing
 pytesseract>=0.3.10  # OCR for extracting text from images (requires Tesseract OCR binary)
 toml>=0.10.2  # TOML configuration file parsing
-
+matplotlib>=3.10.6
 # Note: beautifulsoup4, Pillow, and PyYAML are already in main requirements.txt
 # as they're used by other parts of the system
