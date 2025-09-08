@@ -1,10 +1,12 @@
 # JAM - Journalistic Agent Memory
+> [!CAUTION]
+> JAM is currently in pre-release and some functionality may be broken.
 
 > Give your AI assistant a memory that actually remembers
 
 JAM is a local-first memory system that gives AI assistants human-like memory capabilities. Every conversation, tool use, and interaction becomes a searchable memory that your AI can recall and build upon. Think of it as giving your AI assistant a journal that it actually reads and learns from.
 
-## 🎯 What It Does
+## What It Does
 
 JAM transforms AI assistants from goldfish (forgetting everything after each conversation) into elephants (remembering everything that matters). It runs entirely on your computer, keeping your data private while giving your AI:
 
@@ -13,7 +15,7 @@ JAM transforms AI assistants from goldfish (forgetting everything after each con
 - **Self-Organization**: Memories naturally cluster by topic, time, and importance
 - **Tool Memory**: Learns from past web searches, API calls, and tool usage
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Python 3.11 or newer
@@ -30,16 +32,19 @@ cd jam_model_memory
 # Install dependencies
 pip install -r requirements.txt
 
-# Start everything with one command
-python -m agentic_memory.cli server start --all --daemon
+# Start llama.cpp servers
+python llama_server_manager.py both start
+
+# Start web interface
+python run_web.py
 
 # Open the web interface
 # Navigate to: http://localhost:5001
 ```
 
-That's it! The system will start all necessary services and open a web interface where you can chat with your memory-enhanced AI.
+That's it! The system will start all necessary services. All you need to do is open a web interface where you can chat with your memory-enhanced AI.
 
-## 📸 Screenshots
+## Screenshots
 
 ### Chat Interface
 The main interface where you interact with your AI assistant. Notice how it recalls relevant past conversations and builds on previous context:
@@ -61,7 +66,7 @@ Watch your AI's memory organize itself in real-time with our 3D cluster visualiz
 
 ![Liquid Memory Visualization](docs/example-viz-liquid-flow.png)
 
-## 🧠 How It Works
+## How It Works
 
 JAM uses a journalistic approach to memory - every event is broken down into the fundamental questions: Who, What, When, Where, Why, and How. This allows the AI to:
 
@@ -80,7 +85,7 @@ When you interact with JAM:
 4. **Retrieve**: When needed, relevant memories are found using multiple search strategies
 5. **Apply**: The AI uses these memories to provide context-aware responses
 
-## 🔧 Configuration
+## Configuration
 
 JAM works out of the box with sensible defaults, but you can customize it through:
 
@@ -101,7 +106,7 @@ AM_USE_LIQUID_CLUSTERS=true            # Enable self-organizing memory
 AM_USE_ATTENTION=true                   # Track which memories are used
 ```
 
-## 🛠️ Advanced Features
+## Advanced Features
 
 ### Command Line Interface
 Control everything from the terminal:
@@ -138,7 +143,7 @@ The 3D visualization shows how memories cluster and relate:
 - **Movement**: Watch memories reorganize as you use them
 - **Exploration**: Click and drag to explore your memory landscape
 
-## 🎨 Features
+## Features
 
 ### Smart Memory Retrieval
 - **Semantic Search**: Finds memories by meaning, not just keywords
@@ -162,29 +167,7 @@ JAM remembers and learns from tool usage:
 - File operations and outcomes
 - Custom tool executions
 
-## 📚 Use Cases
-
-### Personal Assistant
-- Remembers your preferences, decisions, and context
-- Tracks ongoing projects and their history
-- Maintains conversation continuity across sessions
-
-### Research Helper
-- Keeps track of sources and findings
-- Remembers previous searches and their results
-- Builds knowledge over time
-
-### Development Companion
-- Remembers code decisions and architectural choices
-- Tracks debugging sessions and solutions
-- Maintains project context across coding sessions
-
-### Creative Partner
-- Remembers story elements and character details
-- Tracks creative decisions and iterations
-- Maintains narrative consistency
-
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Whether it's bug fixes, new features, or documentation improvements, please feel free to:
 
@@ -193,20 +176,16 @@ We welcome contributions! Whether it's bug fixes, new features, or documentation
 3. Make your changes
 4. Submit a pull request
 
-## 📄 License
+## License
 
 MIT License - see [LICENSE](LICENSE) for details
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
-JAM builds on amazing open-source projects:
 - [llama.cpp](https://github.com/ggerganov/llama.cpp) for local LLM inference
 - [FAISS](https://github.com/facebookresearch/faiss) for vector similarity search
-- [Sentence Transformers](https://www.sbert.net/) for embeddings
-- The entire Python ecosystem that makes this possible
+- [Qwen3](https://qwen.readthedocs.io/en/latest/) for providing an awesome family of models
 
 ---
-
-**Ready to give your AI a memory?** Get started with JAM today and transform your AI from a goldfish into an elephant! 🐘
 
 *For technical details and architecture information, see [docs/TECHNICAL.md](docs/TECHNICAL.md)*
