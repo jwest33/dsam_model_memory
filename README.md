@@ -101,7 +101,7 @@ python -m agentic_memory.cli server start --all --daemon
 
 # Or start services individually:
 # 1. Start llama.cpp server
-python llama_server_manager.py both
+python llama_server_manager.py both start
 
 # 2. Start API wrapper (port 8001)
 python llama_api.py start
@@ -206,13 +206,6 @@ python -m agentic_memory.cli memory stats                # Show statistics
 python -m agentic_memory.cli api complete "Tell me a joke"
 python -m agentic_memory.cli api chat "Hello" --system "You are helpful"
 python -m agentic_memory.cli api health                  # Check API health
-
-# Benchmarking
-python -m benchmarks.cli --preset standard               # Run standard benchmark
-python -m benchmarks.cli --scenario daily_productivity   # Run specific scenario
-python -m benchmarks.cli --interactive                   # Interactive setup
-python -m benchmarks.cli --analyze                       # Analyze existing memory
-```
 
 ### Memory Decay and Reinforcement
 - Frequently accessed memories gain priority through usage tracking

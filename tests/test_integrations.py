@@ -243,7 +243,7 @@ def main():
         print(f"\n{BLUE}Optional parsers available:{RESET} {', '.join(optional_available)}")
     
     print(f"\n{BLUE}Quick Start:{RESET}")
-    print("1. Start LLM server: python llama_server_manager.py both")
+    print("1. Start LLM server: python llama_server_manager.py both start")
     print("2. Start web interface: python -m agentic_memory.server.flask_app")
     print("3. Or start all: python -m agentic_memory.cli server start --all")
     
