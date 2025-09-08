@@ -60,9 +60,20 @@ def llama_chat(messages, tools_enabled=False):
     }
     
     r = requests.post(url, headers=headers, json=body, timeout=120)
+    if r.status_code != 200:
+        print(f"LLM API Error: Status {r.status_code}")
+        print(f"Request body: {body}")
+        print(f"Response: {r.text}")
     r.raise_for_status()
     response_json = r.json()
+    
+    # Debug response structure
+    print(f"Response keys: {response_json.keys()}")
+    if "choices" in response_json and response_json["choices"]:
+        print(f"First choice keys: {response_json['choices'][0].keys()}")
+        
     content = response_json["choices"][0]["message"]["content"]
+    print(f"Extracted content length: {len(content)}")
     
     return content, response_json
 
@@ -85,6 +96,9 @@ def api_chat():
 
     mem_texts = []
     if block and block.get('members'):
+        # Debug: show block info
+        print(f"Block info: budget={block.get('budget_tokens', 0)}, used={block.get('used_tokens', 0)}, members={len(block['members'])}")
+        
         rows = store.fetch_memories(block['members'])
         for r in rows:
             mem_texts.append(f"[MEM:{r['memory_id']}] WHO={r['who_type']}:{r['who_id']} WHEN={r['when_ts']} WHERE={r['where_value']}\nWHAT={r['what']}\nWHY={r['why']}\nHOW={r['how']}\nRAW={r['raw_text']}\n")
@@ -114,6 +128,7 @@ You may reference the [MEM:<id>] annotations to ground your reply."""
     
     llm_messages = [{"role":"system","content":sys_prompt}]
     if mem_texts:
+        # The BlockBuilder already handled token budgeting, just use what it selected
         llm_messages.append({"role":"system","content":"\n\n".join(mem_texts)})
 
     llm_messages += messages
@@ -174,7 +189,8 @@ Format your tool call as:
     
     # Debug logging
     print(f"\n=== LLM Response Debug ===")
-    print(f"Raw LLM reply (first 500 chars): {reply[:500]}")
+    print(f"Raw LLM reply (first 500 chars): {reply[:500] if reply else 'No reply'}")
+    print(f"Full reply length: {len(reply) if reply else 0}")
     print(f"===========================\n")
     
     # Check for tool calls

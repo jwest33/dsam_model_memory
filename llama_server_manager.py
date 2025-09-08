@@ -28,15 +28,15 @@ class BaseLlamaServerConfig:
     # Server settings
     host: str = "0.0.0.0"
     port: int = 8000
-    context_size: int = 2048
-    threads: int = 4
+    context_size: int = 15360
+    threads: int = 1
     
     # GPU/VRAM optimization settings
     n_gpu_layers: int = -1  # Use ALL layers on GPU
     no_mmap: bool = True  # Keep entire model in VRAM
     lock_memory: bool = True  # Lock model in memory
-    batch_size: int = 2048
-    ubatch_size: int = 512
+    batch_size: int = 15360
+    ubatch_size: int = 1024
     
     # Model settings (to be overridden)
     model_path: str = ""
@@ -52,16 +52,16 @@ class BaseLlamaServerConfig:
 class LLMServerConfig(BaseLlamaServerConfig):
     """Configuration for LLM inference server."""
     # Model settings
-    model_path: str = r"C:\models\Qwen3-4B-Instruct-2507\Qwen3-4B-Instruct-2507-F16.gguf"
+    model_path: str = r"C:\models\Qwen3-4B-Instruct-2507\Qwen3-4B-Instruct-2507-Q8_0.gguf"
     model_alias: str = "qwen3-4b-instruct"
     port: int = 8000
-    context_size: int = 10000
-    batch_size: int = 4096
+    context_size: int = 15360
+    batch_size: int = 15360
     ubatch_size: int = 1024
     
     # Performance optimizations
     continuous_batching: bool = True
-    parallel_sequences: int = 8
+    parallel_sequences: int = 1
     offload_kqv: bool = True  # Offload K,Q,V to GPU
     flash_attention: bool = False  # May not be supported on all GPUs
     
@@ -100,10 +100,10 @@ class EmbeddingServerConfig(BaseLlamaServerConfig):
     model_path: str = r"C:\models\Qwen3-Embedding-0.6B\qwen3-embedding-0.6b-q8_0.gguf"
     model_alias: str = "qwen3-embedding"
     port: int = 8002
-    context_size: int = 2048  # Smaller context for embeddings
-    batch_size: int = 2048
-    ubatch_size: int = 512
-    
+    context_size: int = 15360  # Smaller context for embeddings
+    batch_size: int = 15360
+    ubatch_size: int = 1024
+
     # Embedding specific settings
     pooling_type: str = "mean"  # Required for OpenAI-compatible embeddings
     embedding_enabled: bool = True
@@ -330,31 +330,53 @@ class BaseLlamaServerManager:
     def stop(self) -> bool:
         """Stop the llama.cpp server."""
         if not self._process:
+            # Also try to kill any orphaned process on the port
+            self._kill_existing_server()
             return True
         
         logger.info(f"Stopping {self.server_type} server...")
         
         try:
+            # First try graceful termination
             if platform.system() == "Windows":
-                self._process.send_signal(signal.CTRL_BREAK_EVENT)
+                # On Windows, use terminate() which is more reliable
+                self._process.terminate()
             else:
+                # On Unix, send SIGTERM to process group
                 os.killpg(os.getpgid(self._process.pid), signal.SIGTERM)
             
+            # Wait for graceful shutdown
             self._process.wait(timeout=self._config.shutdown_timeout)
             logger.info(f"{self.server_type} server stopped gracefully")
             
         except subprocess.TimeoutExpired:
+            # Force kill if graceful shutdown fails
             logger.warning(f"{self.server_type} server didn't stop gracefully, forcing...")
-            self._process.kill()
-            self._process.wait()
+            try:
+                self._process.kill()
+                self._process.wait(timeout=5)
+            except:
+                # If kill also fails, try to terminate by port
+                self._kill_existing_server()
         except Exception as e:
             logger.error(f"Error stopping {self.server_type} server: {e}")
+            # Try to kill by port as fallback
+            self._kill_existing_server()
         finally:
             self._process = None
             if self._log_file:
-                self._log_file.close()
+                try:
+                    self._log_file.close()
+                except:
+                    pass
                 self._log_file = None
             self._started = False
+        
+        # Double-check that nothing is running on the port
+        time.sleep(0.5)
+        if self.is_running():
+            logger.warning(f"Server still running on port {self._config.port}, forcing kill...")
+            self._kill_existing_server()
         
         return True
     
@@ -438,6 +460,33 @@ def main():
         llm_manager = LLMServerManager()
         emb_manager = EmbeddingServerManager()
         
+        # Setup signal handlers for clean shutdown
+        def shutdown_handler(signum, frame):
+            print("\nReceived shutdown signal, stopping servers...")
+            llm_manager.stop()
+            emb_manager.stop()
+            print("Servers stopped cleanly")
+            sys.exit(0)
+        
+        # Register signal handlers
+        signal.signal(signal.SIGINT, shutdown_handler)
+        signal.signal(signal.SIGTERM, shutdown_handler)
+        if platform.system() == "Windows":
+            # Windows-specific signal handling
+            try:
+                signal.signal(signal.SIGBREAK, shutdown_handler)
+            except AttributeError:
+                pass  # SIGBREAK might not be available
+        
+        # Also ensure cleanup on normal exit
+        def cleanup_on_exit():
+            if llm_manager._process or emb_manager._process:
+                logger.info("Cleaning up servers on exit...")
+                llm_manager.stop()
+                emb_manager.stop()
+        
+        atexit.register(cleanup_on_exit)
+        
         if command == "start":
             llm_success = llm_manager.start()
             emb_success = emb_manager.start()
@@ -455,10 +504,12 @@ def main():
                             print("One or both servers stopped unexpectedly")
                             break
                 except KeyboardInterrupt:
-                    print("\nShutting down servers...")
-                    llm_manager.stop()
-                    emb_manager.stop()
-                    print("Servers stopped")
+                    # Signal handler will take care of cleanup
+                    pass
+            else:
+                # Clean up if startup failed
+                llm_manager.stop()
+                emb_manager.stop()
             sys.exit(0 if (llm_success and emb_success) else 1)
         elif command == "stop":
             llm_manager.stop()

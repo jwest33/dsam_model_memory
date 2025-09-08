@@ -33,7 +33,7 @@ class AttentionWeights:
 class MemoryAttentionHead(nn.Module):
     """Multi-head attention for memory retrieval with learned relevance"""
     
-    def __init__(self, embed_dim: int = 384, num_heads: int = 8, context_dim: int = 768):
+    def __init__(self, embed_dim: int = 1024, num_heads: int = 8, context_dim: int = 768):
         super().__init__()
         self.embed_dim = embed_dim
         self.num_heads = num_heads
@@ -131,7 +131,7 @@ class MemoryAttentionHead(nn.Module):
 class AdaptiveEmbeddingSpace:
     """Embeddings that evolve based on access patterns"""
     
-    def __init__(self, base_dim: int = 384, meta_dim: int = 64):
+    def __init__(self, base_dim: int = 1024, meta_dim: int = 64):
         self.base_dim = base_dim
         self.meta_dim = meta_dim
         
@@ -155,6 +155,17 @@ class AdaptiveEmbeddingSpace:
                             usage_stats: Dict,
                             co_access_patterns: Optional[Dict] = None) -> np.ndarray:
         """Transform embedding based on usage context"""
+        
+        # Check if embedding dimension matches expected dimension
+        if base_embedding.shape[0] != self.base_dim:
+            # Re-initialize the transformation layers with the correct dimensions
+            self.base_dim = base_embedding.shape[0]
+            self.usage_transform = nn.Sequential(
+                nn.Linear(self.base_dim + self.meta_dim, self.base_dim),
+                nn.LayerNorm(self.base_dim),
+                nn.ReLU(),
+                nn.Linear(self.base_dim, self.base_dim)
+            )
         
         # Create usage feature vector
         usage_features = np.zeros(self.meta_dim)
