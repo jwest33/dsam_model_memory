@@ -49,7 +49,7 @@ That's it! The system will start all necessary services. All you need to do is o
 ### Chat Interface
 The main interface where you interact with your AI assistant. Notice how it recalls relevant past conversations and builds on previous context:
 
-![Memory Store Interface](docs\example-memory-store-recall.png)
+![Memory Store Interface](docs/example-memory-store-recall.png)
 
 ### Memory Explorer
 Browse through all stored memories, see how they're categorized, and understand what your AI remembers:
