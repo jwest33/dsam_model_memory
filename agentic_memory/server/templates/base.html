@@ -4,7 +4,58 @@
   <meta charset="utf-8">
   <title>{% block title %}Journalistic Agent Memory{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
+  <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='synthwave-theme.css') }}">
+  <style>
+    footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      opacity: 0;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+    }
+    
+    footer.visible {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    
+    body {
+      padding-bottom: 0;
+    }
+    
+    /* Overscroll indicator */
+    .overscroll-indicator {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 9;
+      pointer-events: none;
+    }
+    
+    .overscroll-indicator.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 0.6;
+    }
+    
+    .overscroll-indicator svg {
+      width: 30px;
+      height: 30px;
+      animation: bounce 1.5s infinite;
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+  </style>
   {% block head %}{% endblock %}
 </head>
 <body>
@@ -16,14 +67,123 @@
     <nav>
       <a href="/" {% if request.endpoint == 'index' %}class="active"{% endif %}>Chat</a>
       <a href="/memories" {% if request.endpoint == 'list_memories' %}class="active"{% endif %}>Memories</a>
+      <a href="/documents" {% if request.endpoint == 'documents' %}class="active"{% endif %}>Documents</a>
+      <a href="/clusters" {% if request.endpoint == 'clusters_page' %}class="active"{% endif %}>Clusters</a>
       <a href="/settings" {% if request.endpoint == 'settings_page' %}class="active"{% endif %}>Settings</a>
     </nav>
   </header>
   <main>
     {% block content %}{% endblock %}
   </main>
-  <footer>
+  
+  <!-- Overscroll indicator -->
+  <div class="overscroll-indicator" id="overscroll-indicator">
+    <svg viewBox="0 0 24 24" fill="none" stroke="var(--synth-cyan)" stroke-width="2">
+      <path d="M12 5v14M5 12l7 7 7-7"/>
+    </svg>
+  </div>
+  
+  <footer id="footer">
     <small>Local-first • 5W1H • FAISS • SQLite FTS5</small>
   </footer>
+  
+  <script>
+    (function() {
+      let overscrollTimer = null;
+      let isFooterVisible = false;
+      let overscrollCount = 0;
+      const footer = document.getElementById('footer');
+      const indicator = document.getElementById('overscroll-indicator');
+      
+      function checkOverscroll() {
+        const scrollHeight = document.documentElement.scrollHeight;
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const clientHeight = window.innerHeight;
+        
+        // Check if at bottom
+        const atBottom = scrollTop + clientHeight >= scrollHeight - 5;
+        
+        if (atBottom) {
+          overscrollCount++;
+          
+          // Show indicator after first scroll at bottom
+          if (overscrollCount > 0 && !isFooterVisible) {
+            indicator.classList.add('show');
+          }
+          
+          // Show footer after continued scrolling attempts
+          if (overscrollCount > 2 && !isFooterVisible) {
+            footer.classList.add('visible');
+            indicator.classList.remove('show');
+            isFooterVisible = true;
+            
+            // Auto-hide after 3 seconds
+            clearTimeout(overscrollTimer);
+            overscrollTimer = setTimeout(() => {
+              footer.classList.remove('visible');
+              isFooterVisible = false;
+              overscrollCount = 0;
+            }, 3000);
+          }
+        } else {
+          // Reset if scrolled away from bottom
+          if (scrollTop + clientHeight < scrollHeight - 100) {
+            overscrollCount = 0;
+            indicator.classList.remove('show');
+            if (isFooterVisible) {
+              footer.classList.remove('visible');
+              isFooterVisible = false;
+              clearTimeout(overscrollTimer);
+            }
+          }
+        }
+      }
+      
+      // Listen for scroll and wheel events
+      let scrollTimer = null;
+      window.addEventListener('scroll', () => {
+        checkOverscroll();
+        
+        // Reset counter if no scroll for 1 second
+        clearTimeout(scrollTimer);
+        scrollTimer = setTimeout(() => {
+          if (!isFooterVisible) {
+            overscrollCount = 0;
+            indicator.classList.remove('show');
+          }
+        }, 1000);
+      });
+      
+      // Detect mouse wheel at bottom
+      window.addEventListener('wheel', (e) => {
+        const scrollHeight = document.documentElement.scrollHeight;
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const clientHeight = window.innerHeight;
+        const atBottom = scrollTop + clientHeight >= scrollHeight - 5;
+        
+        if (atBottom && e.deltaY > 0) {
+          checkOverscroll();
+        }
+      });
+      
+      // Touch support for mobile
+      let touchStartY = 0;
+      window.addEventListener('touchstart', (e) => {
+        touchStartY = e.touches[0].clientY;
+      });
+      
+      window.addEventListener('touchmove', (e) => {
+        const touchY = e.touches[0].clientY;
+        const scrollHeight = document.documentElement.scrollHeight;
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const clientHeight = window.innerHeight;
+        const atBottom = scrollTop + clientHeight >= scrollHeight - 5;
+        
+        if (atBottom && touchY < touchStartY) {
+          checkOverscroll();
+        }
+      });
+    })();
+  </script>
 </body>
 </html>

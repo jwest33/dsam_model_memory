@@ -4,12 +4,24 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='modal.css') }}">
 <script src="{{ url_for('static', filename='modal.js') }}"></script>
 <style>
+/* Override main element constraints for memories page */
+main {
+    overflow-y: auto !important;
+    flex: 1 1 auto !important;
+}
+
+.panel {
+    overflow: visible !important;
+}
+
 .filter-panel {
     background: rgba(0,0,0,0.3);
-    border: 1px solid var(--synth-cyan);
+    border: 1px solid var(--synth-border);
     border-radius: 5px;
-    padding: 1rem;
+    padding: 1.5rem;
     margin-bottom: 1rem;
+    min-height: auto !important;
+    overflow: visible;
 }
 
 .filter-row {
@@ -34,7 +46,7 @@
 .filter-group input,
 .filter-group select {
     background: rgba(0,0,0,0.5);
-    border: 1px solid var(--synth-cyan);
+    border: 1px solid var(--synth-border);
     color: white;
     padding: 0.4rem;
     border-radius: 3px;
@@ -53,10 +65,12 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
     margin-top: 1rem;
     padding: 1rem;
     background: rgba(0,0,0,0.3);
-    border: 1px solid var(--synth-cyan);
+    border: 1px solid var(--synth-border);
     border-radius: 5px;
 }
 
@@ -73,7 +87,7 @@
 
 .pagination-button {
     background: transparent;
-    border: 1px solid var(--synth-cyan);
+    border: 1px solid var(--synth-border);
     color: var(--synth-cyan);
     padding: 0.4rem 0.8rem;
     border-radius: 3px;
@@ -97,6 +111,33 @@
 .pagination-button.active {
     background: var(--synth-cyan);
     color: black;
+}
+
+.memories-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 1200px;
+}
+
+.memories-table th,
+.memories-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(168, 85, 247, 0.2);
+}
+
+.memories-table thead th {
+    background: rgba(168, 85, 247, 0.1);
+    color: var(--synth-cyan);
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.memories-table tbody tr:hover {
+    background: rgba(168, 85, 247, 0.05);
+    cursor: pointer;
 }
 
 .sort-header {
@@ -256,10 +297,10 @@
 {% endblock %}
 
 {% block content %}
-<div class="panel">
-  <div style="display: flex; justify-content: space-between; align-items: center;">
-    <div>
-      <h3 class="neon-text" style="color: var(--synth-pink);">Memory Store</h3>
+<div class="panel" style="padding: 1.5rem; min-height: auto; overflow: visible;">
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+    <div style="flex: 1; min-height: auto;">
+      <h3 style="color: var(--synth-pink); margin-bottom: 0.5rem;">Memory Store</h3>
       <p class="text-muted" style="margin-top: 0.5rem; font-size: 0.8rem;">
         {% if pagination %}
           {% set end_item = pagination.page * pagination.per_page %}
@@ -320,7 +361,7 @@
 
 <!-- Filter Panel -->
 <div class="panel filter-panel">
-  <h4 class="neon-text" style="color: var(--synth-cyan); margin-bottom: 1rem;">Filters</h4>
+  <h4 style="color: var(--synth-cyan); margin-bottom: 1rem;">Filters</h4>
   
   <form id="filter-form" method="GET" action="/memories">
     <div class="filter-row">
@@ -467,7 +508,7 @@
           <td><code style="color: var(--synth-purple); font-size: 0.75rem;">{{ r['memory_id'][:8] }}...</code></td>
           <td>
             <button class="btn-delete-memory" data-memory-id="{{ r['memory_id'] }}" 
-                    onclick="event.stopPropagation(); deleteMemoryWithConfirm('{{ r['memory_id'] }}')"
+                    onclick="event.stopPropagation(); deleteMemoryWithConfirm('{{ r.memory_id }}')"
                     style="
               background: transparent;
               border: 1px solid var(--synth-pink);
@@ -497,10 +538,31 @@
 </div>
 {% endif %}
 
-{% if pagination and pagination.total_pages > 1 %}
+{% if pagination %}
 <div class="pagination-controls">
-  <div class="pagination-info">
-    Page {{ pagination.page }} of {{ pagination.total_pages }} ({{ pagination.total }} total memories)
+  <div class="pagination-info" style="display: flex; align-items: center; gap: 1rem;">
+    <span>Page {{ pagination.page }} of {{ pagination.total_pages }} ({{ pagination.total }} total memories)</span>
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <label for="per-page" style="margin: 0; color: var(--synth-purple); font-size: 0.8rem; font-family: 'Michroma', sans-serif;">Per Page:</label>
+      <select id="per-page" onchange="changePerPage(this.value)" style="
+        width: auto; 
+        padding: 0.4rem 0.6rem; 
+        font-size: 0.8rem;
+        background: rgba(0,0,0,0.5);
+        border: 1px solid var(--synth-border);
+        color: var(--synth-cyan);
+        border-radius: 3px;
+        font-family: 'Michroma', sans-serif;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      " onmouseover="this.style.borderColor='var(--synth-pink)'; this.style.boxShadow='0 0 5px rgba(255, 16, 240, 0.3)'" 
+         onmouseout="this.style.borderColor='var(--synth-border)'; this.style.boxShadow='none'">
+        <option value="20"{% if pagination.per_page == 20 %} selected{% endif %}>20</option>
+        <option value="50"{% if pagination.per_page == 50 %} selected{% endif %}>50</option>
+        <option value="100"{% if pagination.per_page == 100 %} selected{% endif %}>100</option>
+        <option value="200"{% if pagination.per_page == 200 %} selected{% endif %}>200</option>
+      </select>
+    </div>
   </div>
   
   <div class="pagination-buttons">
@@ -510,7 +572,7 @@
       First
     </button>
     <button class="pagination-button" 
-            onclick="goToPage({{ pagination.prev_page }})" 
+            {% if pagination.has_prev %}onclick="goToPage({{ pagination.prev_page }})"{% endif %}
             {% if not pagination.has_prev %}disabled{% endif %}>
       Previous
     </button>
@@ -525,33 +587,26 @@
       {% set page_range_end = pagination.page + 2 %}
     {% endif %}
     
-    {% for page_num in range(page_range_start, page_range_end + 1) %}
-      <button class="pagination-button {% if page_num == pagination.page %}active{% endif %}" 
-              onclick="goToPage({{ page_num }})">
-        {{ page_num }}
-      </button>
-    {% endfor %}
+    {% if pagination.total_pages > 1 %}
+      {% for page_num in range(page_range_start, page_range_end + 1) %}
+        <button class="pagination-button {% if page_num == pagination.page %}active{% endif %}" 
+                data-page="{{ page_num }}"
+                onclick="goToPage(parseInt(this.dataset.page))">
+          {{ page_num }}
+        </button>
+      {% endfor %}
+    {% endif %}
     
     <button class="pagination-button" 
-            onclick="goToPage({{ pagination.next_page }})" 
+            {% if pagination.has_next %}onclick="goToPage({{ pagination.next_page }})"{% endif %}
             {% if not pagination.has_next %}disabled{% endif %}>
       Next
     </button>
     <button class="pagination-button" 
-            onclick="goToPage({{ pagination.total_pages }})" 
+            {% if pagination.total_pages %}onclick="goToPage({{ pagination.total_pages }})"{% endif %}
             {% if not pagination.has_next %}disabled{% endif %}>
       Last
     </button>
-  </div>
-  
-  <div class="filter-group" style="display: flex; align-items: center; gap: 0.5rem;">
-    <label for="per-page" style="margin-bottom: 0;">Per Page:</label>
-    <select id="per-page" onchange="changePerPage(this.value)" style="width: auto;">
-      <option value="25" {% if pagination.per_page == 25 %}selected{% endif %}>25</option>
-      <option value="50" {% if pagination.per_page == 50 %}selected{% endif %}>50</option>
-      <option value="100" {% if pagination.per_page == 100 %}selected{% endif %}>100</option>
-      <option value="200" {% if pagination.per_page == 200 %}selected{% endif %}>200</option>
-    </select>
   </div>
 </div>
 {% endif %}
@@ -767,12 +822,8 @@ async function deleteAllMemories() {
         const data = await response.json();
         
         if (data.success) {
-            synthModal.alert({
-                title: 'Success',
-                message: data.message || 'All memories deleted successfully',
-                type: 'success',
-                onClose: () => location.reload()
-            });
+            // Force immediate page refresh after successful deletion
+            location.reload();
         } else {
             alert(`Failed to delete memories: ${data.error}`);
         }

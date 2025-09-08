@@ -1,0 +1,431 @@
+{% extends "base.html" %}
+
+{% block title %}Document Upload - JAM{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="page-title">Document Upload</h1>
+    
+    <div class="upload-section">
+        <div class="upload-card">
+            <h2>Upload Document</h2>
+            <p class="description">Upload documents to extract and store their content as memories. Supports PDF, DOCX, TXT, MD, HTML, JSON, CSV, and more.</p>
+            
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="file">Select File:</label>
+                    <input type="file" id="file" name="file" accept=".txt,.pdf,.docx,.md,.html,.json,.csv,.xml,.log,.py,.js,.java,.cpp,.c,.h" required>
+                    <div class="file-info" id="fileInfo"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="chunking_strategy">Chunking Strategy:</label>
+                    <select id="chunking_strategy" name="chunking_strategy">
+                        <option value="semantic" selected>Semantic (Smart sections)</option>
+                        <option value="paragraph">Paragraph-based</option>
+                        <option value="sentence">Sentence-based</option>
+                    </select>
+                    <small>How to split the document into memory chunks</small>
+                </div>
+                
+                <div class="advanced-options">
+                    <h3>Advanced Options</h3>
+                    
+                    <div class="form-group">
+                        <label for="max_chunk_size">Max Chunk Size:</label>
+                        <input type="number" id="max_chunk_size" name="max_chunk_size" value="2000" min="100" max="10000">
+                        <small>Maximum characters per chunk</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="chunk_overlap">Chunk Overlap:</label>
+                        <input type="number" id="chunk_overlap" name="chunk_overlap" value="200" min="0" max="1000">
+                        <small>Overlap between chunks for context continuity</small>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-primary" id="uploadBtn">
+                    <span class="btn-text">Upload & Process</span>
+                    <span class="btn-loading" style="display: none;">Processing...</span>
+                </button>
+            </form>
+        </div>
+        
+        <div class="results-card" id="resultsCard" style="display: none;">
+            <h2>Processing Results</h2>
+            <div id="results"></div>
+        </div>
+    </div>
+    
+    <div class="supported-formats">
+        <h3>Supported Formats</h3>
+        <div class="format-grid">
+            <div class="format-item">
+                <span class="format-icon">📝</span>
+                <span class="format-name">Text Files</span>
+                <span class="format-ext">.txt, .md, .log</span>
+            </div>
+            <div class="format-item">
+                <span class="format-icon">📄</span>
+                <span class="format-name">Documents</span>
+                <span class="format-ext">.pdf, .docx</span>
+            </div>
+            <div class="format-item">
+                <span class="format-icon">🌐</span>
+                <span class="format-name">Web</span>
+                <span class="format-ext">.html, .xml</span>
+            </div>
+            <div class="format-item">
+                <span class="format-icon">📊</span>
+                <span class="format-name">Data</span>
+                <span class="format-ext">.json, .csv</span>
+            </div>
+            <div class="format-item">
+                <span class="format-icon">💻</span>
+                <span class="format-name">Code</span>
+                <span class="format-ext">.py, .js, .java, .cpp</span>
+            </div>
+            <div class="format-item">
+                <span class="format-icon">⚙️</span>
+                <span class="format-name">Config</span>
+                <span class="format-ext">.yaml, .toml, .ini</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.page-title {
+    color: var(--cyan);
+    text-align: center;
+    margin-bottom: 2rem;
+    font-size: 2.5rem;
+    text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+}
+
+.upload-section {
+    display: grid;
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+
+.upload-card, .results-card {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--synth-border);
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 4px 20px rgba(168, 85, 247, 0.1);
+}
+
+.upload-card h2, .results-card h2 {
+    color: var(--pink);
+    margin-bottom: 1rem;
+}
+
+.description {
+    color: #a0a0a0;
+    margin-bottom: 2rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    color: var(--cyan);
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+.form-group input[type="number"],
+.form-group select {
+    width: 100%;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--synth-border);
+    color: white;
+    border-radius: 4px;
+    font-family: 'Michroma', sans-serif;
+    font-size: 0.85rem;
+    transition: all 0.3s ease;
+}
+
+.form-group input[type="file"] {
+    width: 100%;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--synth-border);
+    color: var(--synth-cyan);
+    border-radius: 4px;
+    font-family: 'Michroma', sans-serif;
+    font-size: 0.85rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.form-group input[type="file"]::file-selector-button {
+    padding: 0.5rem 1rem;
+    margin-right: 1rem;
+    background: linear-gradient(135deg, var(--synth-purple), var(--synth-pink));
+    border: none;
+    border-radius: 4px;
+    color: white;
+    font-family: 'Michroma', sans-serif;
+    font-size: 0.8rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+}
+
+.form-group input[type="file"]::file-selector-button:hover {
+    background: linear-gradient(135deg, var(--synth-pink), var(--synth-purple));
+    box-shadow: 0 0 10px rgba(255, 16, 240, 0.5);
+}
+
+.form-group input[type="file"]:focus,
+.form-group input[type="number"]:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--synth-pink);
+    box-shadow: 0 0 10px rgba(255, 16, 240, 0.3);
+}
+
+.form-group small {
+    display: block;
+    color: #808080;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.file-info {
+    margin-top: 0.5rem;
+    color: var(--pink);
+    font-size: 0.9rem;
+}
+
+.advanced-options {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.advanced-options h3 {
+    color: var(--purple);
+    margin-bottom: 1rem;
+}
+
+.btn-primary {
+    width: 100%;
+    padding: 1rem;
+    background: linear-gradient(135deg, var(--cyan), var(--purple));
+    border: none;
+    color: white;
+    font-size: 1.1rem;
+    font-weight: bold;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.btn-primary:hover {
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+    transform: translateY(-2px);
+}
+
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.supported-formats {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--synth-border);
+    border-radius: 8px;
+    padding: 2rem;
+}
+
+.supported-formats h3 {
+    color: var(--cyan);
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.format-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.format-item {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--synth-border);
+    border-radius: 4px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.format-item:hover {
+    border-color: var(--synth-pink);
+    box-shadow: 0 0 15px rgba(255, 16, 240, 0.3);
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.format-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.format-name {
+    color: var(--pink);
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+}
+
+.format-ext {
+    color: #808080;
+    font-size: 0.875rem;
+}
+
+.results-card .success {
+    color: #00ff00;
+}
+
+.results-card .error {
+    color: #ff0000;
+}
+
+.results-card .info {
+    color: var(--cyan);
+}
+
+.result-stat {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.result-stat:last-child {
+    border-bottom: none;
+}
+
+.result-label {
+    color: var(--purple);
+}
+
+.result-value {
+    color: white;
+    font-weight: bold;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('uploadForm');
+    const fileInput = document.getElementById('file');
+    const fileInfo = document.getElementById('fileInfo');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const btnText = uploadBtn.querySelector('.btn-text');
+    const btnLoading = uploadBtn.querySelector('.btn-loading');
+    const resultsCard = document.getElementById('resultsCard');
+    const results = document.getElementById('results');
+    
+    // File selection handler
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            const file = this.files[0];
+            const fileSize = (file.size / 1024 / 1024).toFixed(2);
+            fileInfo.textContent = `Selected: ${file.name} (${fileSize} MB)`;
+        } else {
+            fileInfo.textContent = '';
+        }
+    });
+    
+    // Form submission handler
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(form);
+        
+        // Disable form during upload
+        uploadBtn.disabled = true;
+        btnText.style.display = 'none';
+        btnLoading.style.display = 'inline';
+        resultsCard.style.display = 'none';
+        
+        try {
+            const response = await fetch('/api/documents/upload', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            // Display results
+            resultsCard.style.display = 'block';
+            
+            if (data.success) {
+                results.innerHTML = `
+                    <div class="success">✅ Document processed successfully!</div>
+                    <div class="result-stat">
+                        <span class="result-label">File Name:</span>
+                        <span class="result-value">${data.file_name}</span>
+                    </div>
+                    <div class="result-stat">
+                        <span class="result-label">File Type:</span>
+                        <span class="result-value">${data.file_type}</span>
+                    </div>
+                    <div class="result-stat">
+                        <span class="result-label">Chunks Created:</span>
+                        <span class="result-value">${data.chunks_created}</span>
+                    </div>
+                    <div class="result-stat">
+                        <span class="result-label">Memories Created:</span>
+                        <span class="result-value">${data.memories_created}</span>
+                    </div>
+                    <div class="result-stat">
+                        <span class="result-label">Total Words:</span>
+                        <span class="result-value">${data.total_words.toLocaleString()}</span>
+                    </div>
+                    <div class="result-stat">
+                        <span class="result-label">Total Characters:</span>
+                        <span class="result-value">${data.total_chars.toLocaleString()}</span>
+                    </div>
+                    ${data.failed_chunks && data.failed_chunks.length > 0 ? 
+                        `<div class="error">⚠️ ${data.failed_chunks.length} chunks failed to process</div>` : ''}
+                    ${data.extraction_errors && data.extraction_errors.length > 0 ?
+                        `<div class="error">⚠️ Extraction errors: ${data.extraction_errors.join(', ')}</div>` : ''}
+                `;
+            } else {
+                results.innerHTML = `
+                    <div class="error">❌ Error: ${data.error}</div>
+                    ${data.details ? `<div class="error">Details: ${data.details.join(', ')}</div>` : ''}
+                `;
+            }
+        } catch (error) {
+            resultsCard.style.display = 'block';
+            results.innerHTML = `<div class="error">❌ Upload failed: ${error.message}</div>`;
+        } finally {
+            // Re-enable form
+            uploadBtn.disabled = false;
+            btnText.style.display = 'inline';
+            btnLoading.style.display = 'none';
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,2286 @@
+{% extends "base.html" %}
+
+{% block title %}Liquid Memory Clusters - JAM{% endblock %}
+
+{% block head %}
+<!-- D3.js for advanced visualizations -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<!-- Chart.js for simpler charts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+    /* Main Layout */
+    .clusters-container {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        gap: 0.75rem;
+        height: calc(100vh - 80px);
+        margin-top: 0.5rem;
+        padding: 0 0.5rem;
+    }
+    
+    /* Sidebar Navigation */
+    .sidebar {
+        background: rgba(30,30,60,0.5);
+        border: 1px solid var(--purple);
+        border-radius: 8px;
+        padding: 1rem;
+        overflow-y: auto;
+    }
+    
+    .sidebar h3 {
+        color: var(--cyan);
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+    }
+    
+    .view-tabs {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .view-tab {
+        background: rgba(40,40,80,0.3);
+        border: 1px solid rgba(0,255,255,0.3);
+        color: var(--cyan);
+        padding: 0.75rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-align: center;
+        font-size: 0.9rem;
+    }
+    
+    .view-tab:hover {
+        background: rgba(60,60,100,0.5);
+        border-color: var(--cyan);
+        box-shadow: 0 0 10px rgba(0,255,255,0.3);
+    }
+    
+    .view-tab.active {
+        background: linear-gradient(135deg, var(--purple) 0%, var(--pink) 100%);
+        border-color: var(--pink);
+        box-shadow: 0 0 15px rgba(255,0,255,0.5);
+    }
+    
+    .view-tab-icon {
+        margin-right: 0.5rem;
+    }
+    
+    /* Main Content Area */
+    .main-content {
+        background: rgba(30,30,60,0.3);
+        border: 1px solid var(--cyan);
+        border-radius: 8px;
+        padding: 1rem;
+        overflow-y: auto;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* Header with controls */
+    .content-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid rgba(0,255,255,0.3);
+        flex-shrink: 0;
+    }
+    
+    .content-title {
+        color: var(--cyan);
+        font-size: 1.5rem;
+        text-shadow: 0 0 20px currentColor;
+    }
+    
+    .content-controls {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+    
+    .control-btn {
+        background: linear-gradient(135deg, rgba(128,0,128,0.3) 0%, rgba(255,0,127,0.3) 100%);
+        color: var(--cyan);
+        border: 1px solid var(--cyan);
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 0.85rem;
+    }
+    
+    .control-btn:hover {
+        background: linear-gradient(135deg, var(--purple) 0%, var(--pink) 100%);
+        box-shadow: 0 0 10px rgba(255,0,255,0.5);
+    }
+    
+    /* Flow Animation Styles */
+    @keyframes flow-particle {
+        0% { opacity: 0.8; }
+        50% { opacity: 1; }
+        100% { opacity: 0; }
+    }
+    
+    @keyframes energy-pulse {
+        0%, 100% { 
+            box-shadow: 0 0 10px rgba(255,0,127,0.5);
+            transform: scale(1);
+        }
+        50% { 
+            box-shadow: 0 0 30px rgba(255,0,127,0.8);
+            transform: scale(1.05);
+        }
+    }
+    
+    @keyframes energy-glow {
+        0%, 100% { filter: brightness(1); }
+        50% { filter: brightness(1.3); }
+    }
+    
+    /* Liquid Flow Visualization */
+    .liquid-container {
+        width: 100%;
+        height: calc(100vh - 280px);
+        min-height: 400px;
+        max-height: 800px;
+        background: radial-gradient(ellipse at center, rgba(20,20,40,0.8) 0%, rgba(10,10,20,0.95) 100%);
+        border: 1px solid rgba(0,255,255,0.3);
+        border-radius: 8px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .flow-particle {
+        position: absolute;
+        width: 4px;
+        height: 4px;
+        background: radial-gradient(circle, rgba(0,255,255,0.9) 0%, rgba(0,255,255,0) 100%);
+        border-radius: 50%;
+        pointer-events: none;
+        animation: flow-particle 2s linear;
+    }
+    
+    .cluster-node {
+        position: absolute;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(5px);
+    }
+    
+    .cluster-node.high-energy {
+        animation: energy-pulse 2s infinite;
+        background: radial-gradient(circle, rgba(255,0,127,0.6) 0%, rgba(128,0,128,0.4) 100%);
+        border: 2px solid var(--pink);
+    }
+    
+    .cluster-node.medium-energy {
+        background: radial-gradient(circle, rgba(0,255,255,0.5) 0%, rgba(0,128,128,0.3) 100%);
+        border: 2px solid var(--cyan);
+    }
+    
+    .cluster-node.low-energy {
+        background: radial-gradient(circle, rgba(100,100,200,0.4) 0%, rgba(50,50,100,0.2) 100%);
+        border: 2px solid rgba(100,100,200,0.6);
+    }
+    
+    .cluster-label {
+        color: #fff;
+        font-size: 0.9rem;
+        font-weight: bold;
+        text-shadow: 0 0 10px rgba(0,0,0,0.8);
+    }
+    
+    .cluster-size {
+        color: rgba(255,255,255,0.8);
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+    }
+    
+    .cluster-energy-bar {
+        position: absolute;
+        bottom: -25px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60px;
+        height: 6px;
+        background: rgba(0,0,0,0.5);
+        border: 1px solid rgba(0,255,255,0.3);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    
+    .cluster-energy-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--purple) 0%, var(--pink) 100%);
+        transition: width 0.5s ease;
+        box-shadow: 0 0 10px currentColor;
+    }
+    
+    /* Affinity Matrix */
+    .affinity-matrix {
+        position: relative;
+        /* Remove width: 100% to allow JavaScript to set the size */
+        min-height: 500px;
+        display: inline-block; /* Ensure it sizes to content */
+    }
+    
+    .matrix-cell {
+        position: absolute;
+        border: 0.5px solid rgba(0,255,255,0.1);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .matrix-cell:hover {
+        z-index: 10;
+        border: 1px solid var(--cyan);
+        box-shadow: 0 0 15px rgba(0,255,255,0.5);
+    }
+    
+    #matrix-tooltip {
+        position: fixed;
+        background: rgba(20,20,40,0.95);
+        border: 1px solid var(--cyan);
+        border-radius: 4px;
+        padding: 0.75rem;
+        color: #fff;
+        font-size: 0.85rem;
+        pointer-events: none;
+        z-index: 1000;
+        max-width: 300px;
+        box-shadow: 0 0 20px rgba(0,255,255,0.4);
+    }
+    
+    /* Memory Block Visualization */
+    .block-chain {
+        display: flex;
+        gap: 1rem;
+        padding: 1rem;
+        overflow-x: auto;
+        background: rgba(20,20,40,0.5);
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+    
+    .memory-block {
+        min-width: 250px;
+        background: rgba(40,40,80,0.6);
+        border: 1px solid var(--purple);
+        border-radius: 6px;
+        padding: 1rem;
+        position: relative;
+    }
+    
+    .memory-block.current {
+        border-color: var(--pink);
+        box-shadow: 0 0 15px rgba(255,0,127,0.5);
+    }
+    
+    .block-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid rgba(0,255,255,0.2);
+    }
+    
+    .block-id {
+        color: var(--pink);
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+    
+    .block-tokens {
+        color: var(--cyan);
+        font-size: 0.85rem;
+    }
+    
+    .token-usage-bar {
+        width: 100%;
+        height: 8px;
+        background: rgba(0,0,0,0.5);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 0.75rem;
+    }
+    
+    .token-usage-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--cyan) 0%, var(--purple) 100%);
+        transition: width 0.3s ease;
+    }
+    
+    .block-members {
+        max-height: 200px;
+        overflow-y: auto;
+        font-size: 0.8rem;
+        color: rgba(255,255,255,0.8);
+    }
+    
+    .block-link {
+        position: absolute;
+        right: -2rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--cyan);
+        font-size: 1.5rem;
+    }
+    
+    /* Dynamics Dashboard */
+    .dynamics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .dynamics-card {
+        background: rgba(40,40,80,0.5);
+        border: 1px solid var(--purple);
+        border-radius: 6px;
+        padding: 1rem;
+    }
+    
+    .dynamics-title {
+        color: var(--cyan);
+        font-size: 0.9rem;
+        margin-bottom: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .dynamics-value {
+        font-size: 1.8rem;
+        color: var(--pink);
+        font-weight: bold;
+        text-shadow: 0 0 10px currentColor;
+    }
+    
+    .dynamics-label {
+        font-size: 0.8rem;
+        color: rgba(0,255,255,0.7);
+        margin-top: 0.25rem;
+    }
+    
+    .flow-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        background: rgba(0,255,255,0.1);
+        border-radius: 4px;
+        margin-top: 0.5rem;
+    }
+    
+    .flow-arrow {
+        color: var(--cyan);
+        animation: flow-particle 1s infinite;
+    }
+    
+    /* Interactive Controls */
+    .control-panel {
+        background: rgba(30,30,60,0.4);
+        border: 1px solid rgba(128,0,128,0.5);
+        border-radius: 6px;
+        padding: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .control-row {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .control-row:last-child {
+        margin-bottom: 0;
+    }
+    
+    .control-label {
+        color: var(--cyan);
+        font-size: 0.9rem;
+        min-width: 120px;
+    }
+    
+    .control-slider {
+        flex: 1;
+        height: 6px;
+        background: rgba(0,255,255,0.2);
+        border-radius: 3px;
+        appearance: none;
+        outline: none;
+    }
+    
+    .control-slider::-webkit-slider-thumb {
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        background: var(--pink);
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 0 10px currentColor;
+    }
+    
+    /* Custom styling for affinity threshold slider */
+    #affinity-threshold {
+        background: linear-gradient(to right, var(--cyan) 0%, var(--cyan) 30%, rgba(0,255,255,0.2) 30%, rgba(0,255,255,0.2) 100%);
+    }
+    
+    #affinity-threshold::-webkit-slider-thumb {
+        width: 18px;
+        height: 18px;
+        background: var(--pink);
+        border: 2px solid rgba(255,255,255,0.9);
+        box-shadow: 0 0 15px rgba(255,0,255,0.6);
+    }
+    
+    #affinity-threshold::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        background: var(--pink);
+        border: 2px solid rgba(255,255,255,0.9);
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 0 15px rgba(255,0,255,0.6);
+    }
+    
+    .control-value {
+        color: var(--pink);
+        font-weight: bold;
+        min-width: 50px;
+        text-align: right;
+    }
+    
+    .play-controls {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: center;
+        margin-top: 1rem;
+    }
+    
+    .play-btn {
+        background: rgba(0,255,255,0.1);
+        border: 1px solid var(--cyan);
+        color: var(--cyan);
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .play-btn:hover {
+        background: rgba(0,255,255,0.2);
+        box-shadow: 0 0 10px rgba(0,255,255,0.5);
+    }
+    
+    .play-btn.active {
+        background: linear-gradient(135deg, var(--cyan), var(--purple));
+        color: #fff;
+        border-color: var(--pink);
+        box-shadow: 0 0 15px rgba(0,255,255,0.6), inset 0 0 10px rgba(255,0,255,0.2);
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 15px rgba(0,255,255,0.6), inset 0 0 10px rgba(255,0,255,0.2); }
+        50% { box-shadow: 0 0 25px rgba(0,255,255,0.8), inset 0 0 15px rgba(255,0,255,0.3); }
+        100% { box-shadow: 0 0 15px rgba(0,255,255,0.6), inset 0 0 10px rgba(255,0,255,0.2); }
+    }
+    
+    /* Journey Tracker */
+    .journey-timeline {
+        position: relative;
+        padding: 1rem 0;
+    }
+    
+    .journey-line {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, var(--purple) 0%, var(--pink) 100%);
+    }
+    
+    .journey-point {
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        background: var(--cyan);
+        border: 2px solid #000;
+        border-radius: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        cursor: pointer;
+        z-index: 2;
+    }
+    
+    .journey-point:hover {
+        width: 16px;
+        height: 16px;
+        box-shadow: 0 0 15px currentColor;
+    }
+    
+    .journey-label {
+        position: absolute;
+        top: -25px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: var(--cyan);
+        font-size: 0.75rem;
+        white-space: nowrap;
+    }
+    
+    /* Predictive Indicators */
+    .prediction-badge {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: var(--pink);
+        color: #fff;
+        font-size: 0.7rem;
+        padding: 2px 6px;
+        border-radius: 10px;
+        animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.1); opacity: 0.8; }
+    }
+    
+    /* Loading Overlay */
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        border-radius: 8px;
+    }
+    
+    .loading-spinner {
+        color: var(--cyan);
+        font-size: 1.2rem;
+        text-shadow: 0 0 20px currentColor;
+        animation: pulse 1.5s infinite;
+    }
+    
+    /* Enhanced Stats */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    
+    .stat-card {
+        background: rgba(40,40,80,0.5);
+        border: 1px solid var(--purple);
+        border-radius: 4px;
+        padding: 0.75rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stat-card.animated {
+        background: linear-gradient(135deg, rgba(128,0,128,0.3) 0%, rgba(255,0,127,0.3) 100%);
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+        color: var(--pink);
+        font-weight: bold;
+        text-shadow: 0 0 10px currentColor;
+    }
+    
+    .stat-change {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        font-size: 0.75rem;
+        color: var(--cyan);
+    }
+    
+    .stat-label {
+        font-size: 0.75rem;
+        color: var(--cyan);
+        margin-top: 0.25rem;
+        text-transform: uppercase;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="height: 100vh; display: flex; flex-direction: column;">
+    <div class="clusters-container" style="margin-top: 1rem;">
+        <!-- Enhanced Sidebar -->
+        <aside class="sidebar">
+            <h3>Liquid Memories</h3>
+            <div class="view-tabs">
+                <div class="view-tab active text-center" data-view="liquid-flow">Memory Flow</div>
+                <div class="view-tab text-center" data-view="affinity-matrix">Affinity Matrix</div>
+                <div class="view-tab text-center" data-view="journey">Memory Journey</div>
+                <div class="view-tab text-center" data-view="network">Network Graph</div>
+                <div class="view-tab text-center" data-view="predictions">Predictions</div>
+            </div>
+            
+            <h3 style="margin-top: 2rem;">Memory Settings</h3>
+            <div style="margin-bottom: 1rem;">
+                <label style="color: var(--cyan); font-size: 0.8rem; display: block; margin-bottom: 0.25rem;">
+                    Memory Limit
+                </label>
+                <input type="number" id="memory-limit" value="1000" min="100" max="5000" step="100"
+                       style="width: 100px; background: rgba(50,25,60,0.9); color: var(--cyan); 
+                              border: 2px solid var(--pink); padding: 0.4rem 0.5rem; margin-right: 0.5rem;
+                              border-radius: 6px; font-size: 0.9rem; font-weight: bold;
+                              box-shadow: 0 0 10px rgba(255,0,255,0.3), inset 0 0 8px rgba(0,0,0,0.4);
+                              transition: all 0.3s ease; text-align: center;"
+                       onfocus="this.style.borderColor='var(--cyan)'; this.style.background='rgba(60,30,70,0.9)'; this.style.boxShadow='0 0 15px rgba(0,255,255,0.5), inset 0 0 8px rgba(0,0,0,0.4)';"
+                       onblur="this.style.borderColor='var(--pink)'; this.style.background='rgba(50,25,60,0.9)'; this.style.boxShadow='0 0 10px rgba(255,0,255,0.3), inset 0 0 8px rgba(0,0,0,0.4)';">
+                <button class="play-btn" onclick="reloadWithMemoryLimit()" 
+                        style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                    Reload
+                </button>
+                <div style="color: rgba(0,255,255,0.6); font-size: 0.7rem; margin-top: 0.25rem;">
+                    Currently loaded: <span id="loaded-count">0</span> memories
+                </div>
+            </div>
+            
+            <h3 style="margin-top: 1.5rem;">Live Metrics</h3>
+            <div id="live-metrics">
+                <div class="stat-card animated" style="margin-bottom: 0.5rem;">
+                    <div class="stat-value" id="flow-activity">0</div>
+                    <div class="stat-label">Active Flows</div>
+                    <div class="stat-change" id="flow-change">+0</div>
+                </div>
+                <div class="stat-card" style="margin-bottom: 0.5rem;">
+                    <div class="stat-value" id="avg-energy">0%</div>
+                    <div class="stat-label">Avg Energy</div>
+                </div>
+                <div class="stat-card" style="margin-bottom: 0.5rem;">
+                    <div class="stat-value" id="merge-candidates">0</div>
+                    <div class="stat-label">Merge Ready</div>
+                </div>
+            </div>
+            
+            <h3 style="margin-top: 2rem;">Controls</h3>
+            <div class="control-row" style="margin-bottom: 0.5rem;">
+                <label style="color: var(--cyan); font-size: 0.8rem;">Animation Speed</label>
+                <input type="range" id="speed-slider" min="1" max="10" value="5" 
+                       style="width: 100px;" onchange="updateAnimationSpeed(this.value)">
+                <span id="speed-value" style="color: var(--pink); font-size: 0.8rem;">5</span>
+            </div>
+            <div class="control-row" style="margin-bottom: 0.5rem;">
+                <label style="color: var(--cyan); font-size: 0.8rem;">Particle Density</label>
+                <input type="range" id="density-slider" min="1" max="20" value="10" 
+                       style="width: 100px;" onchange="updateParticleDensity(this.value)">
+                <span id="density-value" style="color: var(--pink); font-size: 0.8rem;">10</span>
+            </div>
+            <div class="control-row" style="margin-bottom: 0.5rem;">
+                <label style="color: var(--cyan); font-size: 0.8rem;">Flow Rate</label>
+                <input type="range" id="flow-rate-control" min="0" max="100" value="10" 
+                       style="width: 100px;" onchange="updateFlowRate(this.value)">
+                <span id="flow-rate-value" style="color: var(--pink); font-size: 0.8rem;">0.1</span>
+            </div>
+            <div class="control-row" style="margin-bottom: 0.5rem;">
+                <label style="color: var(--cyan); font-size: 0.8rem;">Merge Threshold</label>
+                <input type="range" id="merge-threshold-control" min="50" max="100" value="85" 
+                       style="width: 100px;" onchange="updateMergeThreshold(this.value)">
+                <span id="merge-threshold-value" style="color: var(--pink); font-size: 0.8rem;">0.85</span>
+            </div>
+            
+            <div class="play-controls">
+                <button class="play-btn" id="play-btn" onclick="toggleAnimation()">▶ Play</button>
+                <button class="play-btn" onclick="stepAnimation()">⏭ Step</button>
+                <button class="play-btn" onclick="resetAnimation()">⏮ Reset</button>
+            </div>
+            
+            <h3 style="margin-top: 1.5rem;">View Controls</h3>
+            <div class="play-controls">
+                <button class="play-btn" onclick="zoomIn()">+</button>
+                <button class="play-btn" onclick="zoomOut()">-</button>
+                <button class="play-btn" onclick="resetView()">Reset</button>
+                <button class="play-btn" onclick="fitToScreen()">Fit</button>
+            </div>
+        </aside>
+        
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <div class="content-header">
+                <h3 class="content-title" id="view-title">Liquid Flow Visualization</h3>
+                <div class="content-controls">
+                    <button class="control-btn" onclick="refreshData()">
+                        Refresh
+                    </button>
+                    <button class="control-btn" onclick="exportVisualization()">
+                        Snapshot
+                    </button>
+                    <button class="control-btn" onclick="showSettings()">
+                        Settings
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Dynamic Content Area -->
+            <div id="content-area" style="flex: 1; display: flex; flex-direction: column;">
+                <!-- Content will be dynamically loaded here -->
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+// Global state
+let currentView = 'liquid-flow';
+let animationRunning = true;  // Default to playing
+let animationFrame = null;
+let clusterData = null;
+let affinityData = null;
+let flowSimulation = null;
+let selectedMemory = null;
+let flowRate = 0.1;
+let mergeThreshold = 0.85;
+let flowParticles = [];
+let clusterNodes = {};
+let memoryPositions = {};
+let currentZoom = 1;
+let currentPanX = 0;
+let currentPanY = 0;
+let isPanning = false;
+let panStartX = 0;
+let panStartY = 0;
+let networkZoomBehavior = null;  // Store D3 zoom behavior for network graph
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', function() {
+    // Setup view tab handlers
+    document.querySelectorAll('.view-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            switchView(this.dataset.view);
+        });
+    });
+    
+    // Load initial view
+    loadView('liquid-flow');
+    
+    // Start metrics update loop
+    setInterval(updateLiveMetrics, 2000);
+    
+    // Set initial play button state
+    const btn = document.getElementById('play-btn');
+    btn.textContent = '⏸ Pause';
+    btn.classList.add('active');
+});
+
+// View switching
+function switchView(view) {
+    currentView = view;
+    
+    // Stop animation when switching views
+    if (animationRunning) {
+        toggleAnimation();
+    }
+    
+    // Update active tab
+    document.querySelectorAll('.view-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.view === view) {
+            tab.classList.add('active');
+        }
+    });
+    
+    // Update title
+    const titles = {
+        'liquid-flow': 'Liquid Flow Visualization',
+        'affinity-matrix': 'Memory Affinity Matrix',
+        'journey': 'Memory Journey Tracker',
+        'network': 'Cluster Network Graph',
+        'predictions': 'Predictive Analytics'
+    };
+    document.getElementById('view-title').textContent = titles[view] || 'Cluster Analysis';
+    
+    // Load view
+    loadView(view);
+}
+
+// Load view content
+async function loadView(view) {
+    const contentArea = document.getElementById('content-area');
+    contentArea.innerHTML = '<div class="loading-overlay"><div class="loading-spinner">Loading visualization...</div></div>';
+    
+    try {
+        switch(view) {
+            case 'liquid-flow':
+                await loadLiquidFlowView();
+                break;
+            case 'affinity-matrix':
+                await loadAffinityMatrixView();
+                break;
+            case 'journey':
+                await loadJourneyTracker();
+                break;
+            case 'network':
+                await loadNetworkView();
+                break;
+            case 'predictions':
+                await loadPredictionsView();
+                break;
+        }
+    } catch (error) {
+        console.error('Error loading view:', error);
+        contentArea.innerHTML = `<div style="color: var(--pink); text-align: center;">Error loading view: ${error.message}</div>`;
+    }
+}
+
+// Liquid Flow Visualization
+async function loadLiquidFlowView(memoryLimit = null) {
+    const limit = memoryLimit || document.getElementById('memory-limit')?.value || 1000;
+    const response = await fetch(`/api/clusters/liquid-state?init_limit=${limit}`);
+    const data = await response.json();
+    
+    if (!data.success) {
+        throw new Error(data.error || 'Failed to load liquid state');
+    }
+    
+    clusterData = data;
+    
+    const contentArea = document.getElementById('content-area');
+    contentArea.innerHTML = `
+        <div class="liquid-container" id="liquid-container" style="flex: 1; position: relative; overflow: hidden;">
+            <div id="viewport" style="position: absolute; transform-origin: 0 0; width: 100%; height: 100%; transition: none;"></div>
+        </div>
+        <div class="stats-grid" id="flow-stats" style="flex-shrink: 0;"></div>
+    `;
+    
+    initializeLiquidFlow(data);
+}
+
+function initializeLiquidFlow(data) {
+    const container = document.getElementById('liquid-container');
+    const viewport = document.getElementById('viewport');
+    
+    // Use client dimensions for accurate sizing
+    const width = container.clientWidth || container.offsetWidth;
+    const height = container.clientHeight || container.offsetHeight || 500;
+    
+    // Clear existing content
+    viewport.innerHTML = '';
+    clusterNodes = {};
+    
+    // Setup pan and zoom handlers
+    setupPanZoomHandlers(container, viewport);
+    
+    // Calculate positions for clusters using force simulation
+    const clusters = data.clusters || [];
+    const links = data.flows || [];
+    
+    // Create D3 force simulation for positioning
+    const simulation = d3.forceSimulation(clusters)
+        .force('charge', d3.forceManyBody().strength(-200))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collision', d3.forceCollide().radius(d => Math.sqrt(d.size) * 20 + 30))
+        .stop();
+    
+    // Run simulation
+    for (let i = 0; i < 100; i++) simulation.tick();
+    
+    // Create cluster nodes - tighter spacing for better interaction
+    const gridCols = Math.ceil(Math.sqrt(clusters.length));
+    const gridRows = Math.ceil(clusters.length / gridCols);
+    const cellWidth = width * 0.8 / gridCols;  // Tighter grid within viewport
+    const cellHeight = height * 0.8 / gridRows;
+    
+    clusters.forEach((cluster, index) => {
+        const node = createClusterNode(cluster, viewport);
+        
+        // Grid-based initial positioning with some randomness, centered in viewport
+        const col = index % gridCols;
+        const row = Math.floor(index / gridCols);
+        const offsetX = (width - gridCols * cellWidth) / 2;  // Center horizontally
+        const offsetY = (height - gridRows * cellHeight) / 2;  // Center vertically
+        const x = cluster.x || (offsetX + col * cellWidth + cellWidth/2 + (Math.random() - 0.5) * cellWidth * 0.3);
+        const y = cluster.y || (offsetY + row * cellHeight + cellHeight/2 + (Math.random() - 0.5) * cellHeight * 0.3);
+        
+        node.style.left = `${x}px`;
+        node.style.top = `${y}px`;
+        
+        clusterNodes[cluster.id] = {
+            element: node,
+            x: x,
+            y: y,
+            data: cluster
+        };
+        
+        viewport.appendChild(node);
+    });
+    
+    // Auto-fit to show all clusters
+    setTimeout(() => fitToScreen(), 100);
+    
+    // Always start animation for liquid flow view
+    if (animationRunning || currentView === 'liquid-flow') {
+        animateFlows();
+    }
+    
+    // Update stats
+    updateFlowStats(data);
+    
+    // Update loaded count
+    const loadedCount = document.getElementById('loaded-count');
+    if (loadedCount) {
+        loadedCount.textContent = data.total_memories || 0;
+    }
+}
+
+function reloadWithMemoryLimit() {
+    const limit = document.getElementById('memory-limit').value;
+    // Clear existing clusters to force reload
+    fetch('/api/clusters/clear', { method: 'POST' })
+        .then(() => loadLiquidFlowView(limit))
+        .catch(error => console.error('Error reloading:', error));
+}
+
+function createClusterNode(cluster, container) {
+    const node = document.createElement('div');
+    node.className = 'cluster-node';
+    node.id = `cluster-${cluster.id}`;
+    
+    // Determine energy level
+    const energy = cluster.energy || 0;
+    if (energy > 0.7) {
+        node.classList.add('high-energy');
+    } else if (energy > 0.4) {
+        node.classList.add('medium-energy');
+    } else {
+        node.classList.add('low-energy');
+    }
+    
+    // Set size based on member count
+    const size = Math.min(150, Math.max(60, Math.sqrt(cluster.size || 1) * 20));
+    node.style.width = `${size}px`;
+    node.style.height = `${size}px`;
+    
+    // Add content
+    node.innerHTML = `
+        <div class="cluster-label">${cluster.name || `Cluster ${cluster.id}`}</div>
+        <div class="cluster-size">${cluster.size || 0} memories</div>
+        ${cluster.likely_to_merge ? '<div class="prediction-badge">MERGE</div>' : ''}
+        <div class="cluster-energy-bar">
+            <div class="cluster-energy-fill" style="width: ${energy * 100}%"></div>
+        </div>
+    `;
+    
+    // Add hover tooltip
+    const tooltip = document.createElement('div');
+    tooltip.className = 'cluster-tooltip';
+    tooltip.style.cssText = `
+        position: absolute;
+        background: rgba(20,20,40,0.95);
+        border: 1px solid var(--cyan);
+        border-radius: 4px;
+        padding: 0.75rem;
+        color: #fff;
+        font-size: 0.85rem;
+        pointer-events: none;
+        z-index: 1000;
+        display: none;
+        min-width: 200px;
+        box-shadow: 0 0 20px rgba(0,255,255,0.4);
+    `;
+    tooltip.innerHTML = `
+        <div style="color: var(--pink); font-weight: bold; margin-bottom: 0.5rem;">
+            ${cluster.name || `Cluster ${cluster.id}`}
+        </div>
+        <div style="margin-bottom: 0.25rem;">
+            <span style="color: var(--cyan);">Size:</span> ${cluster.size || 0} memories
+        </div>
+        <div style="margin-bottom: 0.25rem;">
+            <span style="color: var(--cyan);">Energy:</span> ${((cluster.energy || 0) * 100).toFixed(1)}%
+        </div>
+        <div style="font-size: 0.8rem; color: rgba(255,255,255,0.7);">
+            Click to view details
+        </div>
+    `;
+    document.body.appendChild(tooltip);
+    
+    // Show tooltip on hover
+    node.onmouseenter = (e) => {
+        tooltip.style.display = 'block';
+        tooltip.style.left = `${e.pageX + 10}px`;
+        tooltip.style.top = `${e.pageY - 10}px`;
+    };
+    
+    node.onmousemove = (e) => {
+        tooltip.style.left = `${e.pageX + 10}px`;
+        tooltip.style.top = `${e.pageY - 10}px`;
+    };
+    
+    node.onmouseleave = () => {
+        tooltip.style.display = 'none';
+    };
+    
+    // Add interaction
+    node.onclick = () => {
+        tooltip.style.display = 'none';
+        showClusterDetails(cluster);
+    };
+    
+    // Make draggable (but don't interfere with hover)
+    makeDraggable(node);
+    
+    return node;
+}
+
+function makeDraggable(element) {
+    let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+    
+    element.onmousedown = dragMouseDown;
+    
+    function dragMouseDown(e) {
+        e = e || window.event;
+        e.preventDefault();
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        document.onmouseup = closeDragElement;
+        document.onmousemove = elementDrag;
+    }
+    
+    function elementDrag(e) {
+        e = e || window.event;
+        e.preventDefault();
+        pos1 = pos3 - e.clientX;
+        pos2 = pos4 - e.clientY;
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        element.style.top = (element.offsetTop - pos2) + "px";
+        element.style.left = (element.offsetLeft - pos1) + "px";
+        
+        // Update stored position
+        const clusterId = element.id.replace('cluster-', '');
+        if (clusterNodes[clusterId]) {
+            clusterNodes[clusterId].x = element.offsetLeft;
+            clusterNodes[clusterId].y = element.offsetTop;
+        }
+    }
+    
+    function closeDragElement() {
+        document.onmouseup = null;
+        document.onmousemove = null;
+    }
+}
+
+function animateFlows() {
+    if (!animationRunning) return;
+    
+    const viewport = document.getElementById('viewport');
+    if (!viewport) return;
+    
+    // Create flow particles between clusters with affinity
+    if (clusterData && clusterData.flows) {
+        clusterData.flows.forEach(flow => {
+            if (Math.random() < flow.strength * 0.1) { // Probability based on flow strength
+                createFlowParticle(flow.source, flow.target, viewport);
+            }
+        });
+    }
+    
+    // Continue animation
+    animationFrame = requestAnimationFrame(() => {
+        setTimeout(() => animateFlows(), 100);
+    });
+}
+
+function createFlowParticle(sourceId, targetId, container) {
+    const source = clusterNodes[sourceId];
+    const target = clusterNodes[targetId];
+    
+    if (!source || !target) return;
+    
+    const particle = document.createElement('div');
+    particle.className = 'flow-particle';
+    
+    // Start position
+    const startX = source.x + source.element.offsetWidth / 2;
+    const startY = source.y + source.element.offsetHeight / 2;
+    
+    // End position
+    const endX = target.x + target.element.offsetWidth / 2;
+    const endY = target.y + target.element.offsetHeight / 2;
+    
+    particle.style.left = `${startX}px`;
+    particle.style.top = `${startY}px`;
+    
+    container.appendChild(particle);
+    
+    // Animate particle
+    const duration = 2000;
+    const startTime = Date.now();
+    
+    function moveParticle() {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Bezier curve for more natural movement
+        const t = progress;
+        const x = startX + (endX - startX) * t;
+        const y = startY + (endY - startY) * t + Math.sin(t * Math.PI) * 30;
+        
+        particle.style.left = `${x}px`;
+        particle.style.top = `${y}px`;
+        particle.style.opacity = 1 - progress * 0.5;
+        
+        if (progress < 1) {
+            requestAnimationFrame(moveParticle);
+        } else {
+            particle.remove();
+        }
+    }
+    
+    requestAnimationFrame(moveParticle);
+}
+
+// Affinity Matrix View
+let matrixOffset = 0;
+let matrixLimit = 20;
+
+async function loadAffinityMatrixView(offset = 0) {
+    matrixOffset = offset;
+    const response = await fetch(`/api/clusters/affinity-matrix?limit=${matrixLimit}&offset=${matrixOffset}`);
+    const data = await response.json();
+    
+    if (!data.success) {
+        throw new Error(data.error || 'Failed to load affinity matrix');
+    }
+    
+    affinityData = data;
+    
+    const contentArea = document.getElementById('content-area');
+    contentArea.innerHTML = `
+        <div class="control-panel">
+            <div class="control-row">
+                <span class="control-label">Matrix Size</span>
+                <input type="number" id="matrix-size" value="${matrixLimit}" min="5" max="50" 
+                       style="width: 60px; background: rgba(20,20,40,0.8); color: var(--cyan); 
+                              border: 1px solid var(--purple); padding: 0.25rem; margin-right: 0.5rem;">
+                <button class="control-btn" onclick="updateMatrixSize()" style="padding: 0.25rem 0.5rem;">
+                    Update
+                </button>
+            </div>
+            <div class="control-row">
+                <span class="control-label">Navigation</span>
+                <button class="control-btn" onclick="loadAffinityMatrixView(Math.max(0, matrixOffset - matrixLimit))" 
+                        style="padding: 0.25rem 0.5rem; margin-right: 0.5rem;">
+                    ← Previous
+                </button>
+                <span style="color: var(--cyan); margin: 0 0.5rem;">
+                    ${matrixOffset + 1} - ${matrixOffset + matrixLimit}
+                </span>
+                <button class="control-btn" onclick="loadAffinityMatrixView(matrixOffset + matrixLimit)" 
+                        style="padding: 0.25rem 0.5rem;">
+                    Next →
+                </button>
+            </div>
+            <div class="control-row">
+                <span class="control-label">Min Affinity</span>
+                <input type="range" class="control-slider" id="affinity-threshold" 
+                       min="0" max="100" value="30" 
+                       onchange="updateAffinityThreshold(this.value)"
+                       oninput="this.style.background = 'linear-gradient(to right, var(--cyan) 0%, var(--cyan) ' + this.value + '%, rgba(0,255,255,0.2) ' + this.value + '%, rgba(0,255,255,0.2) 100%)'">
+                <span class="control-value" id="affinity-value">0.3</span>
+            </div>
+        </div>
+        <div style="overflow-x: auto; width: 100%; margin-top: 1rem;">
+            <div style="display: flex; align-items: flex-start; justify-content: center; gap: 2rem; min-width: fit-content; padding: 0 1rem;">
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <div style="color: var(--cyan); margin-bottom: 0.5rem; font-size: 0.9rem;">
+                        Showing memories ${matrixOffset + 1} to ${Math.min(matrixOffset + matrixLimit, matrixOffset + (data.memories?.length || matrixLimit))}
+                    </div>
+                    <div class="affinity-matrix" id="affinity-matrix"></div>
+                </div>
+                <div style="background: rgba(30,30,60,0.5); border: 1px solid var(--purple); border-radius: 8px; padding: 1rem; min-width: 200px; flex-shrink: 0;">
+                <h4 style="color: var(--cyan); margin: 0 0 1rem 0; font-size: 1rem;">Affinity Legend</h4>
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="width: 20px; height: 20px; background: hsl(120, 100%, 50%); border: 1px solid var(--cyan);"></div>
+                        <span style="color: #fff; font-size: 0.85rem;">High Affinity (>0.8)</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="width: 20px; height: 20px; background: hsl(90, 100%, 45%); border: 1px solid var(--cyan);"></div>
+                        <span style="color: #fff; font-size: 0.85rem;">Good Affinity (0.6-0.8)</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="width: 20px; height: 20px; background: hsl(60, 100%, 40%); border: 1px solid var(--cyan);"></div>
+                        <span style="color: #fff; font-size: 0.85rem;">Medium (0.4-0.6)</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="width: 20px; height: 20px; background: hsl(30, 100%, 35%); border: 1px solid var(--cyan);"></div>
+                        <span style="color: #fff; font-size: 0.85rem;">Low Affinity (0.2-0.4)</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="width: 20px; height: 20px; background: hsl(0, 100%, 30%); border: 1px solid var(--cyan);"></div>
+                        <span style="color: #fff; font-size: 0.85rem;">Very Low (<0.2)</span>
+                    </div>
+                </div>
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(0,255,255,0.3);">
+                    <h5 style="color: var(--pink); margin: 0 0 0.5rem 0; font-size: 0.9rem;">Components</h5>
+                    <div style="font-size: 0.75rem; color: rgba(255,255,255,0.7); line-height: 1.4;">
+                        <div style="margin-bottom: 0.25rem;">• <span style="color: var(--cyan);">Co-access:</span> How often accessed together</div>
+                        <div style="margin-bottom: 0.25rem;">• <span style="color: var(--cyan);">Temporal:</span> Time proximity of access</div>
+                        <div>• <span style="color: var(--cyan);">Semantic:</span> Content similarity</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+        <div id="matrix-tooltip" style="display: none;"></div>
+    `;
+    
+    renderAffinityMatrix(data);
+}
+
+function updateMatrixSize() {
+    const newSize = parseInt(document.getElementById('matrix-size').value);
+    if (newSize >= 5 && newSize <= 50) {
+        matrixLimit = newSize;
+        loadAffinityMatrixView(matrixOffset);
+    }
+}
+
+function renderAffinityMatrix(data) {
+    const container = document.getElementById('affinity-matrix');
+    // Reduced to 675px (25% less than 900px) for better screen fit
+    const size = 675;
+    const cellSize = size / data.memories.length;
+    
+    container.style.width = `${size}px`;
+    container.style.height = `${size}px`;
+    container.innerHTML = '';
+    
+    // Create matrix cells
+    data.matrix.forEach((row, i) => {
+        row.forEach((affinity, j) => {
+            if (i >= j) return; // Only show upper triangle
+            
+            const cell = document.createElement('div');
+            cell.className = 'matrix-cell';
+            cell.style.left = `${j * cellSize}px`;
+            cell.style.top = `${i * cellSize}px`;
+            cell.style.width = `${cellSize}px`;
+            cell.style.height = `${cellSize}px`;
+            
+            // Improved color scaling with better distribution
+            let hue, saturation, lightness;
+            
+            if (affinity < 0.2) {
+                // Very Low: Red
+                hue = 0;
+                saturation = 100;
+                lightness = 30 + affinity * 50; // 30-40%
+            } else if (affinity < 0.4) {
+                // Low: Orange
+                hue = 30;
+                saturation = 100;
+                lightness = 35 + (affinity - 0.2) * 50; // 35-45%
+            } else if (affinity < 0.6) {
+                // Medium: Yellow
+                hue = 60;
+                saturation = 100;
+                lightness = 40 + (affinity - 0.4) * 50; // 40-50%
+            } else if (affinity < 0.8) {
+                // Good: Yellow-Green
+                hue = 90;
+                saturation = 100;
+                lightness = 45 + (affinity - 0.6) * 50; // 45-55%
+            } else {
+                // High: Green
+                hue = 120;
+                saturation = 100;
+                lightness = 50 + (affinity - 0.8) * 30; // 50-56%
+            }
+            
+            cell.style.background = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+            
+            // Tooltip on hover - follows mouse
+            cell.onmouseenter = (e) => {
+                showAffinityTooltip(e, i, j, affinity, data);
+            };
+            cell.onmousemove = (e) => {
+                const tooltip = document.getElementById('matrix-tooltip');
+                if (tooltip && tooltip.style.display === 'block') {
+                    // Position tooltip next to mouse with small offset
+                    tooltip.style.left = `${e.clientX + 15}px`;
+                    tooltip.style.top = `${e.clientY - 10}px`;
+                }
+            };
+            cell.onmouseleave = () => hideAffinityTooltip();
+            
+            container.appendChild(cell);
+        });
+    });
+}
+
+function showAffinityTooltip(event, i, j, affinity, data) {
+    const tooltip = document.getElementById('matrix-tooltip');
+    const mem1 = data.memories[i];
+    const mem2 = data.memories[j];
+    
+    tooltip.innerHTML = `
+        <div style="color: var(--pink); font-weight: bold; margin-bottom: 0.5rem;">
+            Affinity: ${(affinity * 100).toFixed(1)}%
+        </div>
+        <div style="margin-bottom: 0.25rem;">
+            <span style="color: var(--cyan);">Memory ${i}:</span> ${mem1.preview}
+        </div>
+        <div style="margin-bottom: 0.5rem;">
+            <span style="color: var(--cyan);">Memory ${j}:</span> ${mem2.preview}
+        </div>
+        <div style="font-size: 0.8rem; color: rgba(255,255,255,0.7);">
+            Co-access: ${data.details[`${i}-${j}`]?.co_access || 0} times<br>
+            Temporal: ${(data.details[`${i}-${j}`]?.temporal || 0).toFixed(2)}<br>
+            Semantic: ${(data.details[`${i}-${j}`]?.semantic || 0).toFixed(2)}
+        </div>
+    `;
+    
+    tooltip.style.display = 'block';
+    // Position tooltip next to mouse cursor
+    tooltip.style.left = `${event.clientX + 15}px`;
+    tooltip.style.top = `${event.clientY - 10}px`;
+}
+
+function hideAffinityTooltip() {
+    document.getElementById('matrix-tooltip').style.display = 'none';
+}
+
+// Dynamics Dashboard
+async function loadDynamicsDashboard() {
+    const response = await fetch('/api/clusters/dynamics');
+    const data = await response.json();
+    
+    if (!data.success) {
+        throw new Error(data.error || 'Failed to load dynamics');
+    }
+    
+    const contentArea = document.getElementById('content-area');
+    contentArea.innerHTML = `
+        <div class="dynamics-grid">
+            <div class="dynamics-card">
+                <div class="dynamics-title">Flow Activity</div>
+                <div class="dynamics-value">${data.flow_activity || 0}</div>
+                <div class="dynamics-label">migrations/min</div>
+                <div class="flow-indicator">
+                    <span class="flow-arrow">→</span>
+                    <span>${data.recent_flows || 0} in last hour</span>
+                </div>
+            </div>
+            <div class="dynamics-card">
+                <div class="dynamics-title">Merge Candidates</div>
+                <div class="dynamics-value">${data.merge_candidates || 0}</div>
+                <div class="dynamics-label">clusters ready</div>
+                ${data.next_merge ? `
+                    <div style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--cyan);">
+                        Next: ${data.next_merge.cluster1} + ${data.next_merge.cluster2}
+                    </div>
+                ` : ''}
+            </div>
+            <div class="dynamics-card">
+                <div class="dynamics-title">Energy Distribution</div>
+                <canvas id="energy-chart" style="height: 100px;"></canvas>
+            </div>
+            <div class="dynamics-card">
+                <div class="dynamics-title">Token Efficiency</div>
+                <div class="dynamics-value">${data.token_efficiency || 0}%</div>
+                <div class="dynamics-label">average utilization</div>
+            </div>
+        </div>
+        <h4 style="color: var(--cyan); margin: 1.5rem 0 1rem;">Co-Access Patterns</h4>
+        <div id="co-access-chart" style="height: 300px;"></div>
+    `;
+    
+    // Render energy distribution
+    if (data.energy_distribution) {
+        renderEnergyChart(data.energy_distribution);
+    }
+    
+    // Render co-access patterns
+    if (data.co_access_patterns) {
+        renderCoAccessChart(data.co_access_patterns);
+    }
+}
+
+function renderEnergyChart(distribution) {
+    const ctx = document.getElementById('energy-chart').getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['High', 'Medium', 'Low'],
+            datasets: [{
+                data: [distribution.high || 0, distribution.medium || 0, distribution.low || 0],
+                backgroundColor: [
+                    'rgba(255, 0, 127, 0.8)',
+                    'rgba(0, 255, 255, 0.8)',
+                    'rgba(100, 100, 200, 0.8)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+}
+
+// Journey Tracker
+async function loadJourneyTracker() {
+    const contentArea = document.getElementById('content-area');
+    contentArea.innerHTML = `
+        <div class="control-panel">
+            <div class="control-row">
+                <span class="control-label">Select Memory</span>
+                <input type="text" id="memory-search" placeholder="Enter memory ID or search..." 
+                       style="flex: 1; background: rgba(20,20,40,0.8); color: var(--cyan); 
+                              border: 1px solid var(--purple); padding: 0.5rem; border-radius: 4px;">
+                <button class="control-btn" onclick="searchMemory()" style="margin-left: 0.5rem;">
+                    Search
+                </button>
+            </div>
+        </div>
+        <div id="journey-content"></div>
+    `;
+}
+
+async function searchMemory() {
+    const searchTerm = document.getElementById('memory-search').value;
+    if (!searchTerm) return;
+    
+    const response = await fetch(`/api/clusters/memory-journey/${searchTerm}`);
+    const data = await response.json();
+    
+    if (!data.success) {
+        document.getElementById('journey-content').innerHTML = 
+            `<div style="color: var(--pink); text-align: center; margin-top: 2rem;">
+                Memory not found or no journey history available
+            </div>`;
+        return;
+    }
+    
+    renderJourney(data.journey);
+}
+
+function renderJourney(journey) {
+    const content = document.getElementById('journey-content');
+    content.innerHTML = `
+        <h4 style="color: var(--cyan); margin: 1.5rem 0 1rem;">Memory Journey Timeline</h4>
+        <div class="journey-timeline" style="height: 100px; position: relative;">
+            <div class="journey-line"></div>
+            ${journey.map((point, i) => `
+                <div class="journey-point" style="left: ${(i / (journey.length - 1)) * 100}%;"
+                     onclick="showJourneyDetails(${i})">
+                    <div class="journey-label">${point.cluster_name}</div>
+                </div>
+            `).join('')}
+        </div>
+        <div id="journey-details" style="margin-top: 2rem;"></div>
+    `;
+}
+
+// Network View
+async function loadNetworkView() {
+    const response = await fetch('/api/clusters/network');
+    const data = await response.json();
+    
+    if (!data.success) {
+        throw new Error(data.error || 'Failed to load network');
+    }
+    
+    const contentArea = document.getElementById('content-area');
+    contentArea.innerHTML = `
+        <div style="display: flex; flex-direction: column; height: 100%;">
+            <div style="background: rgba(30,30,60,0.5); padding: 0.75rem; border-radius: 8px; margin-bottom: 0.75rem;">
+                <div style="display: flex; gap: 2rem; align-items: center;">
+                    <div>
+                        <label style="color: var(--cyan); font-size: 0.8rem; margin-right: 0.5rem;">Node Spacing</label>
+                        <input type="range" id="node-spacing" min="50" max="300" value="150" 
+                               onchange="updateNodeSpacing(this.value)"
+                               style="width: 120px;">
+                        <span id="spacing-value" style="color: var(--pink); margin-left: 0.5rem;">150</span>
+                    </div>
+                    <div>
+                        <label style="color: var(--cyan); font-size: 0.8rem; margin-right: 0.5rem;">Min Size</label>
+                        <input type="number" id="min-cluster-size" min="1" max="100" value="5" 
+                               style="width: 60px; background: rgba(30,30,60,0.9); color: var(--cyan);
+                                      border: 1px solid var(--purple); padding: 0.25rem; border-radius: 4px;"
+                               onchange="filterClustersBySize()">
+                    </div>
+                    <div>
+                        <label style="color: var(--cyan); font-size: 0.8rem; margin-right: 0.5rem;">Min Energy</label>
+                        <input type="range" id="min-energy" min="0" max="100" value="0" 
+                               onchange="filterClustersByEnergy(this.value)"
+                               style="width: 100px;">
+                        <span id="energy-filter-value" style="color: var(--pink); margin-left: 0.5rem;">0%</span>
+                    </div>
+                    <button class="play-btn" onclick="refreshNetworkGraph()" 
+                            style="padding: 0.25rem 0.75rem; font-size: 0.8rem;">
+                        🔄 Apply Filters
+                    </button>
+                </div>
+                <div style="margin-top: 0.5rem; color: rgba(0,255,255,0.7); font-size: 0.75rem;">
+                    Showing <span id="visible-nodes">0</span> of <span id="total-nodes">0</span> clusters | 
+                    <span id="visible-links">0</span> connections
+                </div>
+            </div>
+            <div style="width: 100%; flex: 1; position: relative;">
+                <svg id="network-svg" style="width: 100%; height: 100%; cursor: grab;"></svg>
+                <div style="position: absolute; bottom: 1rem; right: 1rem; display: flex; gap: 0.5rem;">
+                    <button class="play-btn" onclick="networkZoomIn()" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">+</button>
+                    <button class="play-btn" onclick="networkZoomOut()" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">-</button>
+                    <button class="play-btn" onclick="networkResetView()" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Reset</button>
+                    <button class="play-btn" onclick="networkFitView()" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Fit</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Store original data for filtering
+    window.networkData = data.network;
+    renderNetworkGraph(data.network);
+}
+
+function renderNetworkGraph(network, nodeSpacing = 150) {
+    const svg = d3.select('#network-svg');
+    const container = svg.node().parentNode;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    
+    svg.attr('viewBox', `0 0 ${width} ${height}`);
+    svg.selectAll('*').remove();
+    
+    // Update stats
+    document.getElementById('visible-nodes').textContent = network.nodes.length;
+    document.getElementById('total-nodes').textContent = window.networkData?.nodes?.length || network.nodes.length;
+    document.getElementById('visible-links').textContent = network.links.length;
+    
+    // Create zoom behavior
+    const zoom = d3.zoom()
+        .scaleExtent([0.1, 5])
+        .on('zoom', (event) => {
+            g.attr('transform', event.transform);
+        });
+    
+    svg.call(zoom);
+    
+    // Store zoom behavior globally for control buttons
+    networkZoomBehavior = zoom;
+    window.networkSvg = svg;  // Store svg reference
+    
+    // Create main group for zoom/pan
+    const g = svg.append('g');
+    
+    // Enhanced force simulation with adjustable spacing
+    const simulation = d3.forceSimulation(network.nodes)
+        .force('link', d3.forceLink(network.links)
+            .id(d => d.id)
+            .distance(d => nodeSpacing - d.value * 10))
+        .force('charge', d3.forceManyBody().strength(-nodeSpacing * 2.5))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collision', d3.forceCollide().radius(d => Math.sqrt(d.size) * 5 + nodeSpacing/7));
+    
+    // Create gradient definitions
+    const defs = svg.append('defs');
+    const gradient = defs.append('linearGradient')
+        .attr('id', 'link-gradient');
+    gradient.append('stop')
+        .attr('offset', '0%')
+        .attr('stop-color', '#800080')
+        .attr('stop-opacity', 0.6);
+    gradient.append('stop')
+        .attr('offset', '100%')
+        .attr('stop-color', '#ff007f')
+        .attr('stop-opacity', 0.6);
+    
+    // Create links (in main group)
+    const link = g.append('g')
+        .selectAll('line')
+        .data(network.links)
+        .enter()
+        .append('line')
+        .style('stroke', 'url(#link-gradient)')
+        .style('stroke-width', d => Math.sqrt(d.value) * 2);
+    
+    // Create nodes (in main group)
+    const node = g.append('g')
+        .selectAll('circle')
+        .data(network.nodes)
+        .enter()
+        .append('circle')
+        .attr('r', d => Math.sqrt(d.size) * 3 + 8)
+        .style('fill', d => {
+            const energy = d.energy || 0;
+            return `rgba(${255 * energy}, ${127 * (1 - energy)}, ${255 * (1 - energy)}, 0.8)`;
+        })
+        .style('stroke', '#00ffff')
+        .style('stroke-width', 2)
+        .style('cursor', 'pointer')
+        .on('click', (event, d) => {
+            event.stopPropagation();
+            showClusterDetails(d);
+        })
+        .on('mouseover', function(event, d) {
+            d3.select(this)
+                .style('stroke-width', 4)
+                .style('stroke', '#ff00ff');
+            
+            // Show tooltip
+            const tooltip = d3.select('body').append('div')
+                .attr('id', 'network-tooltip')
+                .style('position', 'fixed')
+                .style('background', 'rgba(20,20,40,0.95)')
+                .style('border', '1px solid var(--cyan)')
+                .style('border-radius', '4px')
+                .style('padding', '0.5rem')
+                .style('pointer-events', 'none')
+                .style('z-index', 1000)
+                .style('left', `${event.clientX + 10}px`)
+                .style('top', `${event.clientY - 10}px`)
+                .html(`
+                    <div style="color: var(--pink); font-weight: bold;">${d.label || `Cluster ${d.id}`}</div>
+                    <div style="color: var(--cyan); font-size: 0.85rem;">
+                        Size: ${d.size} | Energy: ${((d.energy || 0) * 100).toFixed(0)}%
+                    </div>
+                `);
+        })
+        .on('mouseout', function(event, d) {
+            d3.select(this)
+                .style('stroke-width', 2)
+                .style('stroke', '#00ffff');
+            d3.select('#network-tooltip').remove();
+        })
+        .call(d3.drag()
+            .on('start', dragstarted)
+            .on('drag', dragged)
+            .on('end', dragended));
+    
+    // Add labels (in main group)
+    const label = g.append('g')
+        .selectAll('text')
+        .data(network.nodes)
+        .enter()
+        .append('text')
+        .text(d => d.label || `C${d.id}`)
+        .style('font-size', '12px')
+        .style('fill', '#fff')
+        .style('text-anchor', 'middle')
+        .style('pointer-events', 'none')
+        .style('user-select', 'none');
+    
+    // Update positions
+    simulation.on('tick', () => {
+        link
+            .attr('x1', d => d.source.x)
+            .attr('y1', d => d.source.y)
+            .attr('x2', d => d.target.x)
+            .attr('y2', d => d.target.y);
+        
+        node
+            .attr('cx', d => d.x)
+            .attr('cy', d => d.y);
+        
+        label
+            .attr('x', d => d.x)
+            .attr('y', d => d.y + 25);
+    });
+    
+    function dragstarted(event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+    }
+    
+    function dragged(event, d) {
+        d.fx = event.x;
+        d.fy = event.y;
+    }
+    
+    function dragended(event, d) {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+    }
+}
+
+// Network control functions
+function updateNodeSpacing(value) {
+    document.getElementById('spacing-value').textContent = value;
+    if (window.networkData) {
+        const filtered = applyCurrentFilters();
+        renderNetworkGraph(filtered, parseInt(value));
+    }
+}
+
+function filterClustersBySize() {
+    refreshNetworkGraph();
+}
+
+function filterClustersByEnergy(value) {
+    document.getElementById('energy-filter-value').textContent = value + '%';
+}
+
+function applyCurrentFilters() {
+    if (!window.networkData) return { nodes: [], links: [] };
+    
+    const minSize = parseInt(document.getElementById('min-cluster-size').value) || 0;
+    const minEnergy = parseInt(document.getElementById('min-energy').value) / 100 || 0;
+    
+    // Filter nodes
+    const filteredNodes = window.networkData.nodes.filter(node => 
+        node.size >= minSize && (node.energy || 0) >= minEnergy
+    );
+    
+    const nodeIds = new Set(filteredNodes.map(n => n.id));
+    
+    // Filter links to only include those between visible nodes
+    const filteredLinks = window.networkData.links.filter(link =>
+        nodeIds.has(link.source.id || link.source) && 
+        nodeIds.has(link.target.id || link.target)
+    );
+    
+    return {
+        nodes: filteredNodes,
+        links: filteredLinks
+    };
+}
+
+function refreshNetworkGraph() {
+    const filtered = applyCurrentFilters();
+    const spacing = parseInt(document.getElementById('node-spacing').value) || 150;
+    renderNetworkGraph(filtered, spacing);
+}
+
+// Network zoom control functions
+function networkZoomIn() {
+    if (window.networkSvg && networkZoomBehavior) {
+        window.networkSvg.transition()
+            .duration(300)
+            .call(networkZoomBehavior.scaleBy, 1.3);
+    }
+}
+
+function networkZoomOut() {
+    if (window.networkSvg && networkZoomBehavior) {
+        window.networkSvg.transition()
+            .duration(300)
+            .call(networkZoomBehavior.scaleBy, 0.7);
+    }
+}
+
+function networkResetView() {
+    if (window.networkSvg && networkZoomBehavior) {
+        window.networkSvg.transition()
+            .duration(500)
+            .call(networkZoomBehavior.transform, d3.zoomIdentity);
+    }
+}
+
+function networkFitView() {
+    if (window.networkSvg && window.networkData) {
+        const svg = window.networkSvg;
+        const g = svg.select('g');
+        const bounds = g.node().getBBox();
+        const width = svg.node().clientWidth;
+        const height = svg.node().clientHeight;
+        
+        const midX = bounds.x + bounds.width / 2;
+        const midY = bounds.y + bounds.height / 2;
+        
+        const scale = 0.9 / Math.max(bounds.width / width, bounds.height / height);
+        const translate = [width / 2 - scale * midX, height / 2 - scale * midY];
+        
+        svg.transition()
+            .duration(750)
+            .call(
+                networkZoomBehavior.transform,
+                d3.zoomIdentity
+                    .translate(translate[0], translate[1])
+                    .scale(scale)
+            );
+    }
+}
+
+// Predictions View
+async function loadPredictionsView() {
+    const response = await fetch('/api/clusters/predictions');
+    const data = await response.json();
+    
+    if (!data.success) {
+        throw new Error(data.error || 'Failed to load predictions');
+    }
+    
+    const contentArea = document.getElementById('content-area');
+    contentArea.innerHTML = `
+        <h4 style="color: var(--cyan); margin-bottom: 1rem;">Predicted Memory Migrations</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
+            ${data.likely_migrations.map(m => `
+                <div class="dynamics-card">
+                    <div style="color: var(--pink); font-weight: bold;">Memory ${m.memory_id}</div>
+                    <div style="margin: 0.5rem 0;">
+                        <span style="color: var(--cyan);">From:</span> ${m.from_cluster}<br>
+                        <span style="color: var(--cyan);">To:</span> ${m.to_cluster}<br>
+                        <span style="color: var(--cyan);">Pull Strength:</span> ${(m.pull_strength * 100).toFixed(1)}%
+                    </div>
+                    <div style="font-size: 0.8rem; color: rgba(255,255,255,0.7);">
+                        ${m.reason}
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+        
+        <h4 style="color: var(--cyan); margin: 2rem 0 1rem;">Cluster Merge Predictions</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem;">
+            ${data.merge_predictions.map(m => `
+                <div class="dynamics-card">
+                    <div style="color: var(--pink); font-weight: bold;">
+                        ${m.cluster1} + ${m.cluster2}
+                    </div>
+                    <div style="margin: 0.5rem 0;">
+                        <span style="color: var(--cyan);">Similarity:</span> ${(m.similarity * 100).toFixed(1)}%<br>
+                        <span style="color: var(--cyan);">Combined Size:</span> ${m.combined_size}
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+// Control Functions
+function toggleAnimation() {
+    animationRunning = !animationRunning;
+    const btn = document.getElementById('play-btn');
+    btn.textContent = animationRunning ? '⏸ Pause' : '▶ Play';
+    btn.classList.toggle('active', animationRunning);
+    
+    if (animationRunning && currentView === 'liquid-flow') {
+        animateFlows();
+    } else if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+    }
+}
+
+function stepAnimation() {
+    if (currentView === 'liquid-flow' && clusterData) {
+        // Perform one flow step
+        fetch('/api/clusters/flow-step', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadLiquidFlowView();
+                }
+            });
+    }
+}
+
+function resetAnimation() {
+    if (animationRunning) {
+        toggleAnimation();
+    }
+    loadView(currentView);
+}
+
+function updateFlowRate(value) {
+    flowRate = value / 100;
+    document.getElementById('flow-rate-value').textContent = flowRate.toFixed(2);
+    
+    // Update server
+    fetch('/api/clusters/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ flow_rate: flowRate })
+    });
+}
+
+function updateMergeThreshold(value) {
+    mergeThreshold = value / 100;
+    document.getElementById('merge-threshold-value').textContent = mergeThreshold.toFixed(2);
+    
+    // Update server
+    fetch('/api/clusters/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ merge_threshold: mergeThreshold })
+    });
+}
+
+function updateAffinityThreshold(value) {
+    const threshold = value / 100;
+    document.getElementById('affinity-value').textContent = threshold.toFixed(2);
+    
+    // Re-render matrix with new threshold
+    if (affinityData) {
+        renderAffinityMatrix(affinityData);
+    }
+}
+
+// Live Metrics Update
+async function updateLiveMetrics() {
+    try {
+        const response = await fetch('/api/clusters/metrics');
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('flow-activity').textContent = data.flow_activity || 0;
+            document.getElementById('avg-energy').textContent = `${(data.avg_energy * 100).toFixed(0)}%`;
+            document.getElementById('merge-candidates').textContent = data.merge_candidates || 0;
+            
+            // Show change indicator
+            const changeEl = document.getElementById('flow-change');
+            if (data.flow_change > 0) {
+                changeEl.textContent = `+${data.flow_change}`;
+                changeEl.style.color = 'var(--cyan)';
+            } else if (data.flow_change < 0) {
+                changeEl.textContent = `${data.flow_change}`;
+                changeEl.style.color = 'var(--pink)';
+            }
+        }
+    } catch (error) {
+        console.error('Failed to update metrics:', error);
+    }
+}
+
+// Utility Functions
+function refreshData() {
+    loadView(currentView);
+}
+
+function showClusterDetails(cluster) {
+    // Create a modal or detailed view for cluster
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(135deg, #1a1a2e, #0f0f1e);
+        border: 1px solid var(--cyan);
+        border-radius: 10px;
+        padding: 2.5rem;
+        width: 750px;
+        max-width: 85%;
+        max-height: 85vh;
+        overflow-y: auto;
+        z-index: 10001;
+        box-shadow: 0 0 20px rgba(0,255,255,0.3);
+        transition: all 0.3s ease;
+    `;
+    
+    modal.innerHTML = `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+            <h3 style="color: var(--pink); margin: 0;">${cluster.name || `Cluster ${cluster.id}`}</h3>
+            <button id="modal-close-btn" style="background: none; border: 1px solid var(--cyan); color: var(--cyan); 
+                           padding: 0.25rem 0.5rem; cursor: pointer; border-radius: 4px;">✕</button>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1rem;">
+            <div style="background: rgba(40,40,80,0.5); padding: 0.75rem; border-radius: 4px;">
+                <div style="color: var(--cyan); font-size: 0.9rem;">Size</div>
+                <div style="color: var(--pink); font-size: 1.5rem; font-weight: bold;">${cluster.size || 0}</div>
+            </div>
+            <div style="background: rgba(40,40,80,0.5); padding: 0.75rem; border-radius: 4px;">
+                <div style="color: var(--cyan); font-size: 0.9rem;">Energy</div>
+                <div style="color: var(--pink); font-size: 1.5rem; font-weight: bold;">
+                    ${((cluster.energy || 0) * 100).toFixed(1)}%
+                </div>
+            </div>
+        </div>
+        <div style="color: var(--cyan); margin-bottom: 0.5rem;">Cluster Members:</div>
+        <div id="cluster-members-${cluster.id}" style="background: rgba(40,40,80,0.3); padding: 1rem; border-radius: 4px; 
+                    max-height: 450px; overflow-y: auto;">
+            <div style="color: rgba(255,255,255,0.7); text-align: center; padding: 2rem;">
+                <i class="fas fa-spinner fa-spin"></i> Loading cluster members...
+            </div>
+        </div>
+    `;
+    
+    // Add backdrop
+    const backdrop = document.createElement('div');
+    backdrop.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.7);
+        z-index: 10000;
+        transition: opacity 0.3s ease;
+    `;
+    backdrop.onclick = () => {
+        modal.style.opacity = '0';
+        modal.style.transform = 'translate(-50%, -50%) scale(0.9)';
+        backdrop.style.opacity = '0';
+        setTimeout(() => {
+            modal.remove();
+            backdrop.remove();
+        }, 300);
+    };
+    
+    // Add transition for smooth appearance
+    backdrop.style.opacity = '0';
+    modal.style.opacity = '0';
+    modal.style.transform = 'translate(-50%, -50%) scale(0.9)';
+    
+    document.body.appendChild(backdrop);
+    document.body.appendChild(modal);
+    
+    // Trigger animations
+    requestAnimationFrame(() => {
+        backdrop.style.transition = 'opacity 0.3s ease';
+        backdrop.style.opacity = '1';
+        modal.style.opacity = '1';
+        modal.style.transform = 'translate(-50%, -50%) scale(1)';
+    });
+    
+    // Auto-load members
+    loadClusterMembers(cluster.id, modal);
+    
+    // Add close button handler
+    const closeBtn = modal.querySelector('#modal-close-btn');
+    if (closeBtn) {
+        closeBtn.onclick = () => {
+            modal.style.opacity = '0';
+            modal.style.transform = 'translate(-50%, -50%) scale(0.9)';
+            backdrop.style.opacity = '0';
+            setTimeout(() => {
+                modal.remove();
+                backdrop.remove();
+            }, 300);
+        };
+    }
+}
+
+async function loadClusterMembers(clusterId, modalElement) {
+    try {
+        const response = await fetch(`/api/clusters/${clusterId}/members`);
+        const data = await response.json();
+        
+        const membersContainer = modalElement.querySelector(`#cluster-members-${clusterId}`) || modalElement.querySelector('[style*="max-height"]');
+        if (data.success && data.members) {
+            membersContainer.innerHTML = data.members.map(m => `
+                <div style="padding: 0.5rem; border-bottom: 1px solid rgba(0,255,255,0.2);">
+                    <div style="color: var(--pink); font-size: 0.85rem;">ID: ${m.memory_id}</div>
+                    <div style="color: rgba(255,255,255,0.9); margin: 0.25rem 0;">${m.what || 'No description'}</div>
+                    <div style="color: rgba(0,255,255,0.6); font-size: 0.8rem;">
+                        Usage: ${m.usage_count || 0} | Last: ${m.last_accessed || 'Never'}
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            membersContainer.innerHTML = '<div style="color: var(--pink); text-align: center;">No members found</div>';
+        }
+    } catch (error) {
+        console.error('Error loading cluster members:', error);
+    }
+}
+
+function updateFlowStats(data) {
+    const statsEl = document.getElementById('flow-stats');
+    if (!statsEl) return;
+    
+    statsEl.innerHTML = `
+        <div class="stat-card">
+            <div class="stat-value">${data.total_clusters || 0}</div>
+            <div class="stat-label">Active Clusters</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">${data.total_memories || 0}</div>
+            <div class="stat-label">Total Memories</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">${data.active_flows || 0}</div>
+            <div class="stat-label">Active Flows</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">${((data.avg_affinity || 0) * 100).toFixed(0)}%</div>
+            <div class="stat-label">Avg Affinity</div>
+        </div>
+    `;
+}
+
+// Pan and Zoom Functions
+function setupPanZoomHandlers(container, viewport) {
+    // Mouse wheel zoom
+    container.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        const newZoom = currentZoom * delta;
+        
+        // Limit zoom range
+        if (newZoom >= 0.1 && newZoom <= 5) {
+            // Get mouse position relative to container center
+            const rect = container.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            // Calculate the point in world space that the mouse is over
+            const worldX = (mouseX - currentPanX) / currentZoom;
+            const worldY = (mouseY - currentPanY) / currentZoom;
+            
+            // Apply the new zoom
+            currentZoom = newZoom;
+            
+            // Calculate new pan to keep the world point under the mouse
+            currentPanX = mouseX - worldX * currentZoom;
+            currentPanY = mouseY - worldY * currentZoom;
+            
+            updateViewportTransform(viewport);
+        }
+    });
+    
+    // Mouse drag panning
+    container.addEventListener('mousedown', function(e) {
+        if (e.button === 0) { // Left click
+            isPanning = true;
+            panStartX = e.clientX - currentPanX;
+            panStartY = e.clientY - currentPanY;
+            container.style.cursor = 'grabbing';
+            e.preventDefault();
+        }
+    });
+    
+    document.addEventListener('mousemove', function(e) {
+        if (isPanning) {
+            currentPanX = e.clientX - panStartX;
+            currentPanY = e.clientY - panStartY;
+            updateViewportTransform(viewport);
+        }
+    });
+    
+    document.addEventListener('mouseup', function() {
+        if (isPanning) {
+            isPanning = false;
+            const container = document.getElementById('liquid-container');
+            if (container) container.style.cursor = 'grab';
+        }
+    });
+    
+    // Initial cursor
+    container.style.cursor = 'grab';
+}
+
+function updateViewportTransform(viewport) {
+    if (!viewport) viewport = document.getElementById('viewport');
+    if (viewport) {
+        viewport.style.transform = `translate(${currentPanX}px, ${currentPanY}px) scale(${currentZoom})`;
+    }
+}
+
+function zoomIn() {
+    const container = document.getElementById('liquid-container');
+    if (!container) return;
+    
+    const newZoom = Math.min(currentZoom * 1.2, 5);
+    
+    // Zoom from center of viewport
+    const centerX = container.clientWidth / 2;
+    const centerY = container.clientHeight / 2;
+    
+    // Calculate the point in world space at the center
+    const worldX = (centerX - currentPanX) / currentZoom;
+    const worldY = (centerY - currentPanY) / currentZoom;
+    
+    // Apply new zoom
+    currentZoom = newZoom;
+    
+    // Recalculate pan to keep center point fixed
+    currentPanX = centerX - worldX * currentZoom;
+    currentPanY = centerY - worldY * currentZoom;
+    
+    updateViewportTransform();
+}
+
+function zoomOut() {
+    const container = document.getElementById('liquid-container');
+    if (!container) return;
+    
+    const newZoom = Math.max(currentZoom * 0.8, 0.1);
+    
+    // Zoom from center of viewport
+    const centerX = container.clientWidth / 2;
+    const centerY = container.clientHeight / 2;
+    
+    // Calculate the point in world space at the center
+    const worldX = (centerX - currentPanX) / currentZoom;
+    const worldY = (centerY - currentPanY) / currentZoom;
+    
+    // Apply new zoom
+    currentZoom = newZoom;
+    
+    // Recalculate pan to keep center point fixed
+    currentPanX = centerX - worldX * currentZoom;
+    currentPanY = centerY - worldY * currentZoom;
+    
+    updateViewportTransform();
+}
+
+function resetView() {
+    currentZoom = 1;
+    currentPanX = 0;
+    currentPanY = 0;
+    updateViewportTransform();
+}
+
+function fitToScreen() {
+    const container = document.getElementById('liquid-container');
+    const viewport = document.getElementById('viewport');
+    if (!container || !viewport) return;
+    
+    // Find bounds of all clusters
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    
+    Object.values(clusterNodes).forEach(node => {
+        minX = Math.min(minX, node.x);
+        maxX = Math.max(maxX, node.x + 100); // Assume 100px width
+        minY = Math.min(minY, node.y);
+        maxY = Math.max(maxY, node.y + 100); // Assume 100px height
+    });
+    
+    if (minX === Infinity) return; // No clusters
+    
+    const clusterWidth = maxX - minX;
+    const clusterHeight = maxY - minY;
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    
+    // Calculate zoom to fit
+    const scaleX = containerWidth / clusterWidth;
+    const scaleY = containerHeight / clusterHeight;
+    currentZoom = Math.min(scaleX, scaleY) * 0.9; // 90% to add padding
+    currentZoom = Math.max(0.1, Math.min(currentZoom, 2)); // Limit range
+    
+    // Center the view
+    currentPanX = (containerWidth - clusterWidth * currentZoom) / 2 - minX * currentZoom;
+    currentPanY = (containerHeight - clusterHeight * currentZoom) / 2 - minY * currentZoom;
+    
+    updateViewportTransform(viewport);
+}
+</script>
+{% endblock %}

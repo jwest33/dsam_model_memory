@@ -10,7 +10,7 @@ from .types import MemoryRecord, Who, Where, RawEvent, EventType
 from .storage.sql_store import MemoryStore
 from .storage.faiss_index import FaissIndex
 from .config import cfg
-from sentence_transformers import SentenceTransformer
+from .embedding import get_llama_embedder
 import numpy as np
 
 
@@ -139,7 +139,7 @@ class MemoryImporter:
                  embed_model_name: str = None):
         self.sql_store = sql_store
         self.vector_store = vector_store
-        self.embed_model = SentenceTransformer(embed_model_name or cfg.embed_model_name)
+        self.embed_model = get_llama_embedder()
         
     def validate_import_data(self, data: Dict[str, Any]) -> Tuple[bool, List[str]]:
         """
