@@ -51234,3 +51234,2303 @@ slot      release: id  0 | task 12886 | stop processing: n_past = 43, truncated 
 srv  update_slots: all slots are idle
 srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
 srv  log_server_r: request: GET /health 127.0.0.1 200
+srv  log_server_r: request: GET /health 127.0.0.1 200
+slot launch_slot_: id  0 | task 12919 | processing task
+slot update_slots: id  0 | task 12919 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 12
+slot update_slots: id  0 | task 12919 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12919 | prompt processing progress, n_past = 12, n_tokens = 12, progress = 1.000000
+slot update_slots: id  0 | task 12919 | prompt done, n_past = 12, n_tokens = 12
+slot      release: id  0 | task 12919 | stop processing: n_past = 12, truncated = 0
+slot launch_slot_: id  0 | task 12920 | processing task
+slot update_slots: id  0 | task 12920 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 94
+slot update_slots: id  0 | task 12920 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12920 | prompt processing progress, n_past = 94, n_tokens = 94, progress = 1.000000
+slot update_slots: id  0 | task 12920 | prompt done, n_past = 94, n_tokens = 94
+slot      release: id  0 | task 12920 | stop processing: n_past = 94, truncated = 0
+slot launch_slot_: id  0 | task 12921 | processing task
+slot update_slots: id  0 | task 12921 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 46
+slot update_slots: id  0 | task 12921 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12921 | prompt processing progress, n_past = 46, n_tokens = 46, progress = 1.000000
+slot update_slots: id  0 | task 12921 | prompt done, n_past = 46, n_tokens = 46
+slot      release: id  0 | task 12921 | stop processing: n_past = 46, truncated = 0
+slot launch_slot_: id  0 | task 12922 | processing task
+slot update_slots: id  0 | task 12922 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 89
+slot update_slots: id  0 | task 12922 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12922 | prompt processing progress, n_past = 89, n_tokens = 89, progress = 1.000000
+slot update_slots: id  0 | task 12922 | prompt done, n_past = 89, n_tokens = 89
+slot      release: id  0 | task 12922 | stop processing: n_past = 89, truncated = 0
+slot launch_slot_: id  0 | task 12923 | processing task
+slot update_slots: id  0 | task 12923 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 18
+slot update_slots: id  0 | task 12923 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12923 | prompt processing progress, n_past = 18, n_tokens = 18, progress = 1.000000
+slot update_slots: id  0 | task 12923 | prompt done, n_past = 18, n_tokens = 18
+slot      release: id  0 | task 12923 | stop processing: n_past = 18, truncated = 0
+slot launch_slot_: id  0 | task 12924 | processing task
+slot update_slots: id  0 | task 12924 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 98
+slot update_slots: id  0 | task 12924 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12924 | prompt processing progress, n_past = 98, n_tokens = 98, progress = 1.000000
+slot update_slots: id  0 | task 12924 | prompt done, n_past = 98, n_tokens = 98
+slot      release: id  0 | task 12924 | stop processing: n_past = 98, truncated = 0
+slot launch_slot_: id  0 | task 12925 | processing task
+slot update_slots: id  0 | task 12925 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 22
+slot update_slots: id  0 | task 12925 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12925 | prompt processing progress, n_past = 22, n_tokens = 22, progress = 1.000000
+slot update_slots: id  0 | task 12925 | prompt done, n_past = 22, n_tokens = 22
+slot      release: id  0 | task 12925 | stop processing: n_past = 22, truncated = 0
+slot launch_slot_: id  0 | task 12926 | processing task
+slot update_slots: id  0 | task 12926 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 91
+slot update_slots: id  0 | task 12926 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12926 | prompt processing progress, n_past = 91, n_tokens = 91, progress = 1.000000
+slot update_slots: id  0 | task 12926 | prompt done, n_past = 91, n_tokens = 91
+slot      release: id  0 | task 12926 | stop processing: n_past = 91, truncated = 0
+slot launch_slot_: id  0 | task 12927 | processing task
+slot update_slots: id  0 | task 12927 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 26
+slot update_slots: id  0 | task 12927 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12927 | prompt processing progress, n_past = 26, n_tokens = 26, progress = 1.000000
+slot update_slots: id  0 | task 12927 | prompt done, n_past = 26, n_tokens = 26
+slot      release: id  0 | task 12927 | stop processing: n_past = 26, truncated = 0
+slot launch_slot_: id  0 | task 12928 | processing task
+slot update_slots: id  0 | task 12928 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 110
+slot update_slots: id  0 | task 12928 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12928 | prompt processing progress, n_past = 110, n_tokens = 110, progress = 1.000000
+slot update_slots: id  0 | task 12928 | prompt done, n_past = 110, n_tokens = 110
+slot      release: id  0 | task 12928 | stop processing: n_past = 110, truncated = 0
+slot launch_slot_: id  0 | task 12929 | processing task
+slot update_slots: id  0 | task 12929 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 34
+slot update_slots: id  0 | task 12929 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12929 | prompt processing progress, n_past = 34, n_tokens = 34, progress = 1.000000
+slot update_slots: id  0 | task 12929 | prompt done, n_past = 34, n_tokens = 34
+slot      release: id  0 | task 12929 | stop processing: n_past = 34, truncated = 0
+slot launch_slot_: id  0 | task 12930 | processing task
+slot update_slots: id  0 | task 12930 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 38
+slot update_slots: id  0 | task 12930 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12930 | prompt processing progress, n_past = 38, n_tokens = 38, progress = 1.000000
+slot update_slots: id  0 | task 12930 | prompt done, n_past = 38, n_tokens = 38
+slot      release: id  0 | task 12930 | stop processing: n_past = 38, truncated = 0
+slot launch_slot_: id  0 | task 12931 | processing task
+slot update_slots: id  0 | task 12931 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 78
+slot update_slots: id  0 | task 12931 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12931 | prompt processing progress, n_past = 78, n_tokens = 78, progress = 1.000000
+slot update_slots: id  0 | task 12931 | prompt done, n_past = 78, n_tokens = 78
+slot      release: id  0 | task 12931 | stop processing: n_past = 78, truncated = 0
+slot launch_slot_: id  0 | task 12932 | processing task
+slot update_slots: id  0 | task 12932 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 138
+slot update_slots: id  0 | task 12932 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12932 | prompt processing progress, n_past = 138, n_tokens = 138, progress = 1.000000
+slot update_slots: id  0 | task 12932 | prompt done, n_past = 138, n_tokens = 138
+slot      release: id  0 | task 12932 | stop processing: n_past = 138, truncated = 0
+slot launch_slot_: id  0 | task 12933 | processing task
+slot update_slots: id  0 | task 12933 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 35
+slot update_slots: id  0 | task 12933 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12933 | prompt processing progress, n_past = 35, n_tokens = 35, progress = 1.000000
+slot update_slots: id  0 | task 12933 | prompt done, n_past = 35, n_tokens = 35
+slot      release: id  0 | task 12933 | stop processing: n_past = 35, truncated = 0
+slot launch_slot_: id  0 | task 12934 | processing task
+slot update_slots: id  0 | task 12934 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 101
+slot update_slots: id  0 | task 12934 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12934 | prompt processing progress, n_past = 101, n_tokens = 101, progress = 1.000000
+slot update_slots: id  0 | task 12934 | prompt done, n_past = 101, n_tokens = 101
+slot      release: id  0 | task 12934 | stop processing: n_past = 101, truncated = 0
+slot launch_slot_: id  0 | task 12935 | processing task
+slot update_slots: id  0 | task 12935 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 12935 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12935 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 12935 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 12935 | stop processing: n_past = 2, truncated = 0
+slot launch_slot_: id  0 | task 12936 | processing task
+slot update_slots: id  0 | task 12936 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 5
+slot update_slots: id  0 | task 12936 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12936 | prompt processing progress, n_past = 5, n_tokens = 5, progress = 1.000000
+slot update_slots: id  0 | task 12936 | prompt done, n_past = 5, n_tokens = 5
+slot      release: id  0 | task 12936 | stop processing: n_past = 5, truncated = 0
+slot launch_slot_: id  0 | task 12937 | processing task
+slot update_slots: id  0 | task 12937 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 34
+slot update_slots: id  0 | task 12937 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12937 | prompt processing progress, n_past = 34, n_tokens = 34, progress = 1.000000
+slot update_slots: id  0 | task 12937 | prompt done, n_past = 34, n_tokens = 34
+slot      release: id  0 | task 12937 | stop processing: n_past = 34, truncated = 0
+slot launch_slot_: id  0 | task 12938 | processing task
+slot update_slots: id  0 | task 12938 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 119
+slot update_slots: id  0 | task 12938 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12938 | prompt processing progress, n_past = 119, n_tokens = 119, progress = 1.000000
+slot update_slots: id  0 | task 12938 | prompt done, n_past = 119, n_tokens = 119
+slot      release: id  0 | task 12938 | stop processing: n_past = 119, truncated = 0
+slot launch_slot_: id  0 | task 12939 | processing task
+slot update_slots: id  0 | task 12939 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 60
+slot update_slots: id  0 | task 12939 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12939 | prompt processing progress, n_past = 60, n_tokens = 60, progress = 1.000000
+slot update_slots: id  0 | task 12939 | prompt done, n_past = 60, n_tokens = 60
+slot      release: id  0 | task 12939 | stop processing: n_past = 60, truncated = 0
+slot launch_slot_: id  0 | task 12940 | processing task
+slot update_slots: id  0 | task 12940 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 133
+slot update_slots: id  0 | task 12940 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12940 | prompt processing progress, n_past = 133, n_tokens = 133, progress = 1.000000
+slot update_slots: id  0 | task 12940 | prompt done, n_past = 133, n_tokens = 133
+slot      release: id  0 | task 12940 | stop processing: n_past = 133, truncated = 0
+slot launch_slot_: id  0 | task 12941 | processing task
+slot update_slots: id  0 | task 12941 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 108
+slot update_slots: id  0 | task 12941 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12941 | prompt processing progress, n_past = 108, n_tokens = 108, progress = 1.000000
+slot update_slots: id  0 | task 12941 | prompt done, n_past = 108, n_tokens = 108
+slot      release: id  0 | task 12941 | stop processing: n_past = 108, truncated = 0
+slot launch_slot_: id  0 | task 12942 | processing task
+slot update_slots: id  0 | task 12942 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 78
+slot update_slots: id  0 | task 12942 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12942 | prompt processing progress, n_past = 78, n_tokens = 78, progress = 1.000000
+slot update_slots: id  0 | task 12942 | prompt done, n_past = 78, n_tokens = 78
+slot      release: id  0 | task 12942 | stop processing: n_past = 78, truncated = 0
+slot launch_slot_: id  0 | task 12943 | processing task
+slot update_slots: id  0 | task 12943 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 46
+slot update_slots: id  0 | task 12943 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12943 | prompt processing progress, n_past = 46, n_tokens = 46, progress = 1.000000
+slot update_slots: id  0 | task 12943 | prompt done, n_past = 46, n_tokens = 46
+slot      release: id  0 | task 12943 | stop processing: n_past = 46, truncated = 0
+slot launch_slot_: id  0 | task 12944 | processing task
+slot update_slots: id  0 | task 12944 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 107
+slot update_slots: id  0 | task 12944 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12944 | prompt processing progress, n_past = 107, n_tokens = 107, progress = 1.000000
+slot update_slots: id  0 | task 12944 | prompt done, n_past = 107, n_tokens = 107
+slot      release: id  0 | task 12944 | stop processing: n_past = 107, truncated = 0
+slot launch_slot_: id  0 | task 12945 | processing task
+slot update_slots: id  0 | task 12945 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 40
+slot update_slots: id  0 | task 12945 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12945 | prompt processing progress, n_past = 40, n_tokens = 40, progress = 1.000000
+slot update_slots: id  0 | task 12945 | prompt done, n_past = 40, n_tokens = 40
+slot      release: id  0 | task 12945 | stop processing: n_past = 40, truncated = 0
+slot launch_slot_: id  0 | task 12946 | processing task
+slot update_slots: id  0 | task 12946 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 62
+slot update_slots: id  0 | task 12946 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12946 | prompt processing progress, n_past = 62, n_tokens = 62, progress = 1.000000
+slot update_slots: id  0 | task 12946 | prompt done, n_past = 62, n_tokens = 62
+slot      release: id  0 | task 12946 | stop processing: n_past = 62, truncated = 0
+slot launch_slot_: id  0 | task 12947 | processing task
+slot update_slots: id  0 | task 12947 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 20
+slot update_slots: id  0 | task 12947 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12947 | prompt processing progress, n_past = 20, n_tokens = 20, progress = 1.000000
+slot update_slots: id  0 | task 12947 | prompt done, n_past = 20, n_tokens = 20
+slot      release: id  0 | task 12947 | stop processing: n_past = 20, truncated = 0
+slot launch_slot_: id  0 | task 12948 | processing task
+slot update_slots: id  0 | task 12948 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 32
+slot update_slots: id  0 | task 12948 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12948 | prompt processing progress, n_past = 32, n_tokens = 32, progress = 1.000000
+slot update_slots: id  0 | task 12948 | prompt done, n_past = 32, n_tokens = 32
+slot      release: id  0 | task 12948 | stop processing: n_past = 32, truncated = 0
+slot launch_slot_: id  0 | task 12949 | processing task
+slot update_slots: id  0 | task 12949 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 21
+slot update_slots: id  0 | task 12949 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12949 | prompt processing progress, n_past = 21, n_tokens = 21, progress = 1.000000
+slot update_slots: id  0 | task 12949 | prompt done, n_past = 21, n_tokens = 21
+slot      release: id  0 | task 12949 | stop processing: n_past = 21, truncated = 0
+slot launch_slot_: id  0 | task 12950 | processing task
+slot update_slots: id  0 | task 12950 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 43
+slot update_slots: id  0 | task 12950 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12950 | prompt processing progress, n_past = 43, n_tokens = 43, progress = 1.000000
+slot update_slots: id  0 | task 12950 | prompt done, n_past = 43, n_tokens = 43
+slot      release: id  0 | task 12950 | stop processing: n_past = 43, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+srv  log_server_r: request: GET /health 127.0.0.1 200
+slot launch_slot_: id  0 | task 12983 | processing task
+slot update_slots: id  0 | task 12983 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 12
+slot update_slots: id  0 | task 12983 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12983 | prompt processing progress, n_past = 12, n_tokens = 12, progress = 1.000000
+slot update_slots: id  0 | task 12983 | prompt done, n_past = 12, n_tokens = 12
+slot      release: id  0 | task 12983 | stop processing: n_past = 12, truncated = 0
+slot launch_slot_: id  0 | task 12984 | processing task
+slot update_slots: id  0 | task 12984 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 94
+slot update_slots: id  0 | task 12984 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12984 | prompt processing progress, n_past = 94, n_tokens = 94, progress = 1.000000
+slot update_slots: id  0 | task 12984 | prompt done, n_past = 94, n_tokens = 94
+slot      release: id  0 | task 12984 | stop processing: n_past = 94, truncated = 0
+slot launch_slot_: id  0 | task 12985 | processing task
+slot update_slots: id  0 | task 12985 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 46
+slot update_slots: id  0 | task 12985 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12985 | prompt processing progress, n_past = 46, n_tokens = 46, progress = 1.000000
+slot update_slots: id  0 | task 12985 | prompt done, n_past = 46, n_tokens = 46
+slot      release: id  0 | task 12985 | stop processing: n_past = 46, truncated = 0
+slot launch_slot_: id  0 | task 12986 | processing task
+slot update_slots: id  0 | task 12986 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 89
+slot update_slots: id  0 | task 12986 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12986 | prompt processing progress, n_past = 89, n_tokens = 89, progress = 1.000000
+slot update_slots: id  0 | task 12986 | prompt done, n_past = 89, n_tokens = 89
+slot      release: id  0 | task 12986 | stop processing: n_past = 89, truncated = 0
+slot launch_slot_: id  0 | task 12987 | processing task
+slot update_slots: id  0 | task 12987 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 18
+slot update_slots: id  0 | task 12987 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12987 | prompt processing progress, n_past = 18, n_tokens = 18, progress = 1.000000
+slot update_slots: id  0 | task 12987 | prompt done, n_past = 18, n_tokens = 18
+slot      release: id  0 | task 12987 | stop processing: n_past = 18, truncated = 0
+slot launch_slot_: id  0 | task 12988 | processing task
+slot update_slots: id  0 | task 12988 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 98
+slot update_slots: id  0 | task 12988 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12988 | prompt processing progress, n_past = 98, n_tokens = 98, progress = 1.000000
+slot update_slots: id  0 | task 12988 | prompt done, n_past = 98, n_tokens = 98
+slot      release: id  0 | task 12988 | stop processing: n_past = 98, truncated = 0
+slot launch_slot_: id  0 | task 12989 | processing task
+slot update_slots: id  0 | task 12989 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 22
+slot update_slots: id  0 | task 12989 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12989 | prompt processing progress, n_past = 22, n_tokens = 22, progress = 1.000000
+slot update_slots: id  0 | task 12989 | prompt done, n_past = 22, n_tokens = 22
+slot      release: id  0 | task 12989 | stop processing: n_past = 22, truncated = 0
+slot launch_slot_: id  0 | task 12990 | processing task
+slot update_slots: id  0 | task 12990 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 91
+slot update_slots: id  0 | task 12990 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12990 | prompt processing progress, n_past = 91, n_tokens = 91, progress = 1.000000
+slot update_slots: id  0 | task 12990 | prompt done, n_past = 91, n_tokens = 91
+slot      release: id  0 | task 12990 | stop processing: n_past = 91, truncated = 0
+slot launch_slot_: id  0 | task 12991 | processing task
+slot update_slots: id  0 | task 12991 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 26
+slot update_slots: id  0 | task 12991 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12991 | prompt processing progress, n_past = 26, n_tokens = 26, progress = 1.000000
+slot update_slots: id  0 | task 12991 | prompt done, n_past = 26, n_tokens = 26
+slot      release: id  0 | task 12991 | stop processing: n_past = 26, truncated = 0
+slot launch_slot_: id  0 | task 12992 | processing task
+slot update_slots: id  0 | task 12992 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 110
+slot update_slots: id  0 | task 12992 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12992 | prompt processing progress, n_past = 110, n_tokens = 110, progress = 1.000000
+slot update_slots: id  0 | task 12992 | prompt done, n_past = 110, n_tokens = 110
+slot      release: id  0 | task 12992 | stop processing: n_past = 110, truncated = 0
+slot launch_slot_: id  0 | task 12993 | processing task
+slot update_slots: id  0 | task 12993 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 34
+slot update_slots: id  0 | task 12993 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12993 | prompt processing progress, n_past = 34, n_tokens = 34, progress = 1.000000
+slot update_slots: id  0 | task 12993 | prompt done, n_past = 34, n_tokens = 34
+slot      release: id  0 | task 12993 | stop processing: n_past = 34, truncated = 0
+slot launch_slot_: id  0 | task 12994 | processing task
+slot update_slots: id  0 | task 12994 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 38
+slot update_slots: id  0 | task 12994 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12994 | prompt processing progress, n_past = 38, n_tokens = 38, progress = 1.000000
+slot update_slots: id  0 | task 12994 | prompt done, n_past = 38, n_tokens = 38
+slot      release: id  0 | task 12994 | stop processing: n_past = 38, truncated = 0
+slot launch_slot_: id  0 | task 12995 | processing task
+slot update_slots: id  0 | task 12995 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 78
+slot update_slots: id  0 | task 12995 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12995 | prompt processing progress, n_past = 78, n_tokens = 78, progress = 1.000000
+slot update_slots: id  0 | task 12995 | prompt done, n_past = 78, n_tokens = 78
+slot      release: id  0 | task 12995 | stop processing: n_past = 78, truncated = 0
+slot launch_slot_: id  0 | task 12996 | processing task
+slot update_slots: id  0 | task 12996 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 138
+slot update_slots: id  0 | task 12996 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12996 | prompt processing progress, n_past = 138, n_tokens = 138, progress = 1.000000
+slot update_slots: id  0 | task 12996 | prompt done, n_past = 138, n_tokens = 138
+slot      release: id  0 | task 12996 | stop processing: n_past = 138, truncated = 0
+slot launch_slot_: id  0 | task 12997 | processing task
+slot update_slots: id  0 | task 12997 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 35
+slot update_slots: id  0 | task 12997 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12997 | prompt processing progress, n_past = 35, n_tokens = 35, progress = 1.000000
+slot update_slots: id  0 | task 12997 | prompt done, n_past = 35, n_tokens = 35
+slot      release: id  0 | task 12997 | stop processing: n_past = 35, truncated = 0
+slot launch_slot_: id  0 | task 12998 | processing task
+slot update_slots: id  0 | task 12998 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 101
+slot update_slots: id  0 | task 12998 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12998 | prompt processing progress, n_past = 101, n_tokens = 101, progress = 1.000000
+slot update_slots: id  0 | task 12998 | prompt done, n_past = 101, n_tokens = 101
+slot      release: id  0 | task 12998 | stop processing: n_past = 101, truncated = 0
+slot launch_slot_: id  0 | task 12999 | processing task
+slot update_slots: id  0 | task 12999 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 12999 | kv cache rm [0, end)
+slot update_slots: id  0 | task 12999 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 12999 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 12999 | stop processing: n_past = 2, truncated = 0
+slot launch_slot_: id  0 | task 13000 | processing task
+slot update_slots: id  0 | task 13000 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 5
+slot update_slots: id  0 | task 13000 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13000 | prompt processing progress, n_past = 5, n_tokens = 5, progress = 1.000000
+slot update_slots: id  0 | task 13000 | prompt done, n_past = 5, n_tokens = 5
+slot      release: id  0 | task 13000 | stop processing: n_past = 5, truncated = 0
+slot launch_slot_: id  0 | task 13001 | processing task
+slot update_slots: id  0 | task 13001 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 34
+slot update_slots: id  0 | task 13001 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13001 | prompt processing progress, n_past = 34, n_tokens = 34, progress = 1.000000
+slot update_slots: id  0 | task 13001 | prompt done, n_past = 34, n_tokens = 34
+slot      release: id  0 | task 13001 | stop processing: n_past = 34, truncated = 0
+slot launch_slot_: id  0 | task 13002 | processing task
+slot update_slots: id  0 | task 13002 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 119
+slot update_slots: id  0 | task 13002 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13002 | prompt processing progress, n_past = 119, n_tokens = 119, progress = 1.000000
+slot update_slots: id  0 | task 13002 | prompt done, n_past = 119, n_tokens = 119
+slot      release: id  0 | task 13002 | stop processing: n_past = 119, truncated = 0
+slot launch_slot_: id  0 | task 13003 | processing task
+slot update_slots: id  0 | task 13003 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 60
+slot update_slots: id  0 | task 13003 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13003 | prompt processing progress, n_past = 60, n_tokens = 60, progress = 1.000000
+slot update_slots: id  0 | task 13003 | prompt done, n_past = 60, n_tokens = 60
+slot      release: id  0 | task 13003 | stop processing: n_past = 60, truncated = 0
+slot launch_slot_: id  0 | task 13004 | processing task
+slot update_slots: id  0 | task 13004 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 133
+slot update_slots: id  0 | task 13004 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13004 | prompt processing progress, n_past = 133, n_tokens = 133, progress = 1.000000
+slot update_slots: id  0 | task 13004 | prompt done, n_past = 133, n_tokens = 133
+slot      release: id  0 | task 13004 | stop processing: n_past = 133, truncated = 0
+slot launch_slot_: id  0 | task 13005 | processing task
+slot update_slots: id  0 | task 13005 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 108
+slot update_slots: id  0 | task 13005 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13005 | prompt processing progress, n_past = 108, n_tokens = 108, progress = 1.000000
+slot update_slots: id  0 | task 13005 | prompt done, n_past = 108, n_tokens = 108
+slot      release: id  0 | task 13005 | stop processing: n_past = 108, truncated = 0
+slot launch_slot_: id  0 | task 13006 | processing task
+slot update_slots: id  0 | task 13006 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 78
+slot update_slots: id  0 | task 13006 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13006 | prompt processing progress, n_past = 78, n_tokens = 78, progress = 1.000000
+slot update_slots: id  0 | task 13006 | prompt done, n_past = 78, n_tokens = 78
+slot      release: id  0 | task 13006 | stop processing: n_past = 78, truncated = 0
+slot launch_slot_: id  0 | task 13007 | processing task
+slot update_slots: id  0 | task 13007 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 46
+slot update_slots: id  0 | task 13007 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13007 | prompt processing progress, n_past = 46, n_tokens = 46, progress = 1.000000
+slot update_slots: id  0 | task 13007 | prompt done, n_past = 46, n_tokens = 46
+slot      release: id  0 | task 13007 | stop processing: n_past = 46, truncated = 0
+slot launch_slot_: id  0 | task 13008 | processing task
+slot update_slots: id  0 | task 13008 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 107
+slot update_slots: id  0 | task 13008 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13008 | prompt processing progress, n_past = 107, n_tokens = 107, progress = 1.000000
+slot update_slots: id  0 | task 13008 | prompt done, n_past = 107, n_tokens = 107
+slot      release: id  0 | task 13008 | stop processing: n_past = 107, truncated = 0
+slot launch_slot_: id  0 | task 13009 | processing task
+slot update_slots: id  0 | task 13009 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 40
+slot update_slots: id  0 | task 13009 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13009 | prompt processing progress, n_past = 40, n_tokens = 40, progress = 1.000000
+slot update_slots: id  0 | task 13009 | prompt done, n_past = 40, n_tokens = 40
+slot      release: id  0 | task 13009 | stop processing: n_past = 40, truncated = 0
+slot launch_slot_: id  0 | task 13010 | processing task
+slot update_slots: id  0 | task 13010 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 62
+slot update_slots: id  0 | task 13010 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13010 | prompt processing progress, n_past = 62, n_tokens = 62, progress = 1.000000
+slot update_slots: id  0 | task 13010 | prompt done, n_past = 62, n_tokens = 62
+slot      release: id  0 | task 13010 | stop processing: n_past = 62, truncated = 0
+slot launch_slot_: id  0 | task 13011 | processing task
+slot update_slots: id  0 | task 13011 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 20
+slot update_slots: id  0 | task 13011 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13011 | prompt processing progress, n_past = 20, n_tokens = 20, progress = 1.000000
+slot update_slots: id  0 | task 13011 | prompt done, n_past = 20, n_tokens = 20
+slot      release: id  0 | task 13011 | stop processing: n_past = 20, truncated = 0
+slot launch_slot_: id  0 | task 13012 | processing task
+slot update_slots: id  0 | task 13012 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 32
+slot update_slots: id  0 | task 13012 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13012 | prompt processing progress, n_past = 32, n_tokens = 32, progress = 1.000000
+slot update_slots: id  0 | task 13012 | prompt done, n_past = 32, n_tokens = 32
+slot      release: id  0 | task 13012 | stop processing: n_past = 32, truncated = 0
+slot launch_slot_: id  0 | task 13013 | processing task
+slot update_slots: id  0 | task 13013 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 21
+slot update_slots: id  0 | task 13013 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13013 | prompt processing progress, n_past = 21, n_tokens = 21, progress = 1.000000
+slot update_slots: id  0 | task 13013 | prompt done, n_past = 21, n_tokens = 21
+slot      release: id  0 | task 13013 | stop processing: n_past = 21, truncated = 0
+slot launch_slot_: id  0 | task 13014 | processing task
+slot update_slots: id  0 | task 13014 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 43
+slot update_slots: id  0 | task 13014 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13014 | prompt processing progress, n_past = 43, n_tokens = 43, progress = 1.000000
+slot update_slots: id  0 | task 13014 | prompt done, n_past = 43, n_tokens = 43
+slot      release: id  0 | task 13014 | stop processing: n_past = 43, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+srv  log_server_r: request: GET /health 127.0.0.1 200
+slot launch_slot_: id  0 | task 13047 | processing task
+slot update_slots: id  0 | task 13047 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13047 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13047 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13047 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13047 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+srv  log_server_r: request: GET /health 127.0.0.1 200
+slot launch_slot_: id  0 | task 13049 | processing task
+slot update_slots: id  0 | task 13049 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13049 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13049 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13049 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13049 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13051 | processing task
+slot update_slots: id  0 | task 13051 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13051 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13051 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13051 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13051 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13053 | processing task
+slot update_slots: id  0 | task 13053 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13053 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13053 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13053 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13053 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13055 | processing task
+slot update_slots: id  0 | task 13055 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13055 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13055 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13055 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13055 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13057 | processing task
+slot update_slots: id  0 | task 13057 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13057 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13057 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13057 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13057 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13059 | processing task
+slot update_slots: id  0 | task 13059 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13059 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13059 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13059 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13059 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13061 | processing task
+slot update_slots: id  0 | task 13061 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13061 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13061 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13061 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13061 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13063 | processing task
+slot update_slots: id  0 | task 13063 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13063 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13063 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13063 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13063 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13065 | processing task
+slot update_slots: id  0 | task 13065 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13065 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13065 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13065 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13065 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13067 | processing task
+slot update_slots: id  0 | task 13067 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13067 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13067 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13067 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13067 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13069 | processing task
+slot update_slots: id  0 | task 13069 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13069 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13069 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13069 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13069 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13071 | processing task
+slot update_slots: id  0 | task 13071 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13071 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13071 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13071 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13071 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13073 | processing task
+slot update_slots: id  0 | task 13073 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13073 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13073 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13073 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13073 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13075 | processing task
+slot update_slots: id  0 | task 13075 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13075 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13075 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13075 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13075 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13077 | processing task
+slot update_slots: id  0 | task 13077 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13077 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13077 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13077 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13077 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13079 | processing task
+slot update_slots: id  0 | task 13079 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13079 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13079 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13079 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13079 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13081 | processing task
+slot update_slots: id  0 | task 13081 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13081 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13081 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13081 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13081 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13083 | processing task
+slot update_slots: id  0 | task 13083 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13083 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13083 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13083 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13083 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13085 | processing task
+slot update_slots: id  0 | task 13085 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13085 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13085 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13085 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13085 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13087 | processing task
+slot update_slots: id  0 | task 13087 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13087 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13087 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13087 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13087 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13089 | processing task
+slot update_slots: id  0 | task 13089 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 12
+slot update_slots: id  0 | task 13089 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13089 | prompt processing progress, n_past = 12, n_tokens = 12, progress = 1.000000
+slot update_slots: id  0 | task 13089 | prompt done, n_past = 12, n_tokens = 12
+slot      release: id  0 | task 13089 | stop processing: n_past = 12, truncated = 0
+slot launch_slot_: id  0 | task 13090 | processing task
+slot update_slots: id  0 | task 13090 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 94
+slot update_slots: id  0 | task 13090 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13090 | prompt processing progress, n_past = 94, n_tokens = 94, progress = 1.000000
+slot update_slots: id  0 | task 13090 | prompt done, n_past = 94, n_tokens = 94
+slot      release: id  0 | task 13090 | stop processing: n_past = 94, truncated = 0
+slot launch_slot_: id  0 | task 13091 | processing task
+slot update_slots: id  0 | task 13091 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 46
+slot update_slots: id  0 | task 13091 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13091 | prompt processing progress, n_past = 46, n_tokens = 46, progress = 1.000000
+slot update_slots: id  0 | task 13091 | prompt done, n_past = 46, n_tokens = 46
+slot      release: id  0 | task 13091 | stop processing: n_past = 46, truncated = 0
+slot launch_slot_: id  0 | task 13092 | processing task
+slot update_slots: id  0 | task 13092 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 89
+slot update_slots: id  0 | task 13092 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13092 | prompt processing progress, n_past = 89, n_tokens = 89, progress = 1.000000
+slot update_slots: id  0 | task 13092 | prompt done, n_past = 89, n_tokens = 89
+slot      release: id  0 | task 13092 | stop processing: n_past = 89, truncated = 0
+slot launch_slot_: id  0 | task 13093 | processing task
+slot update_slots: id  0 | task 13093 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 18
+slot update_slots: id  0 | task 13093 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13093 | prompt processing progress, n_past = 18, n_tokens = 18, progress = 1.000000
+slot update_slots: id  0 | task 13093 | prompt done, n_past = 18, n_tokens = 18
+slot      release: id  0 | task 13093 | stop processing: n_past = 18, truncated = 0
+slot launch_slot_: id  0 | task 13094 | processing task
+slot update_slots: id  0 | task 13094 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 98
+slot update_slots: id  0 | task 13094 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13094 | prompt processing progress, n_past = 98, n_tokens = 98, progress = 1.000000
+slot update_slots: id  0 | task 13094 | prompt done, n_past = 98, n_tokens = 98
+slot      release: id  0 | task 13094 | stop processing: n_past = 98, truncated = 0
+slot launch_slot_: id  0 | task 13095 | processing task
+slot update_slots: id  0 | task 13095 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 22
+slot update_slots: id  0 | task 13095 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13095 | prompt processing progress, n_past = 22, n_tokens = 22, progress = 1.000000
+slot update_slots: id  0 | task 13095 | prompt done, n_past = 22, n_tokens = 22
+slot      release: id  0 | task 13095 | stop processing: n_past = 22, truncated = 0
+slot launch_slot_: id  0 | task 13096 | processing task
+slot update_slots: id  0 | task 13096 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 91
+slot update_slots: id  0 | task 13096 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13096 | prompt processing progress, n_past = 91, n_tokens = 91, progress = 1.000000
+slot update_slots: id  0 | task 13096 | prompt done, n_past = 91, n_tokens = 91
+slot      release: id  0 | task 13096 | stop processing: n_past = 91, truncated = 0
+slot launch_slot_: id  0 | task 13097 | processing task
+slot update_slots: id  0 | task 13097 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 26
+slot update_slots: id  0 | task 13097 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13097 | prompt processing progress, n_past = 26, n_tokens = 26, progress = 1.000000
+slot update_slots: id  0 | task 13097 | prompt done, n_past = 26, n_tokens = 26
+slot      release: id  0 | task 13097 | stop processing: n_past = 26, truncated = 0
+slot launch_slot_: id  0 | task 13098 | processing task
+slot update_slots: id  0 | task 13098 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 110
+slot update_slots: id  0 | task 13098 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13098 | prompt processing progress, n_past = 110, n_tokens = 110, progress = 1.000000
+slot update_slots: id  0 | task 13098 | prompt done, n_past = 110, n_tokens = 110
+slot      release: id  0 | task 13098 | stop processing: n_past = 110, truncated = 0
+slot launch_slot_: id  0 | task 13099 | processing task
+slot update_slots: id  0 | task 13099 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 34
+slot update_slots: id  0 | task 13099 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13099 | prompt processing progress, n_past = 34, n_tokens = 34, progress = 1.000000
+slot update_slots: id  0 | task 13099 | prompt done, n_past = 34, n_tokens = 34
+slot      release: id  0 | task 13099 | stop processing: n_past = 34, truncated = 0
+slot launch_slot_: id  0 | task 13100 | processing task
+slot update_slots: id  0 | task 13100 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 38
+slot update_slots: id  0 | task 13100 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13100 | prompt processing progress, n_past = 38, n_tokens = 38, progress = 1.000000
+slot update_slots: id  0 | task 13100 | prompt done, n_past = 38, n_tokens = 38
+slot      release: id  0 | task 13100 | stop processing: n_past = 38, truncated = 0
+slot launch_slot_: id  0 | task 13101 | processing task
+slot update_slots: id  0 | task 13101 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 78
+slot update_slots: id  0 | task 13101 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13101 | prompt processing progress, n_past = 78, n_tokens = 78, progress = 1.000000
+slot update_slots: id  0 | task 13101 | prompt done, n_past = 78, n_tokens = 78
+slot      release: id  0 | task 13101 | stop processing: n_past = 78, truncated = 0
+slot launch_slot_: id  0 | task 13102 | processing task
+slot update_slots: id  0 | task 13102 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 138
+slot update_slots: id  0 | task 13102 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13102 | prompt processing progress, n_past = 138, n_tokens = 138, progress = 1.000000
+slot update_slots: id  0 | task 13102 | prompt done, n_past = 138, n_tokens = 138
+slot      release: id  0 | task 13102 | stop processing: n_past = 138, truncated = 0
+slot launch_slot_: id  0 | task 13103 | processing task
+slot update_slots: id  0 | task 13103 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 35
+slot update_slots: id  0 | task 13103 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13103 | prompt processing progress, n_past = 35, n_tokens = 35, progress = 1.000000
+slot update_slots: id  0 | task 13103 | prompt done, n_past = 35, n_tokens = 35
+slot      release: id  0 | task 13103 | stop processing: n_past = 35, truncated = 0
+slot launch_slot_: id  0 | task 13104 | processing task
+slot update_slots: id  0 | task 13104 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 101
+slot update_slots: id  0 | task 13104 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13104 | prompt processing progress, n_past = 101, n_tokens = 101, progress = 1.000000
+slot update_slots: id  0 | task 13104 | prompt done, n_past = 101, n_tokens = 101
+slot      release: id  0 | task 13104 | stop processing: n_past = 101, truncated = 0
+slot launch_slot_: id  0 | task 13105 | processing task
+slot update_slots: id  0 | task 13105 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13105 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13105 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13105 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13105 | stop processing: n_past = 2, truncated = 0
+slot launch_slot_: id  0 | task 13106 | processing task
+slot update_slots: id  0 | task 13106 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 5
+slot update_slots: id  0 | task 13106 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13106 | prompt processing progress, n_past = 5, n_tokens = 5, progress = 1.000000
+slot update_slots: id  0 | task 13106 | prompt done, n_past = 5, n_tokens = 5
+slot      release: id  0 | task 13106 | stop processing: n_past = 5, truncated = 0
+slot launch_slot_: id  0 | task 13107 | processing task
+slot update_slots: id  0 | task 13107 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 34
+slot update_slots: id  0 | task 13107 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13107 | prompt processing progress, n_past = 34, n_tokens = 34, progress = 1.000000
+slot update_slots: id  0 | task 13107 | prompt done, n_past = 34, n_tokens = 34
+slot      release: id  0 | task 13107 | stop processing: n_past = 34, truncated = 0
+slot launch_slot_: id  0 | task 13108 | processing task
+slot update_slots: id  0 | task 13108 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 119
+slot update_slots: id  0 | task 13108 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13108 | prompt processing progress, n_past = 119, n_tokens = 119, progress = 1.000000
+slot update_slots: id  0 | task 13108 | prompt done, n_past = 119, n_tokens = 119
+slot      release: id  0 | task 13108 | stop processing: n_past = 119, truncated = 0
+slot launch_slot_: id  0 | task 13109 | processing task
+slot update_slots: id  0 | task 13109 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 60
+slot update_slots: id  0 | task 13109 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13109 | prompt processing progress, n_past = 60, n_tokens = 60, progress = 1.000000
+slot update_slots: id  0 | task 13109 | prompt done, n_past = 60, n_tokens = 60
+slot      release: id  0 | task 13109 | stop processing: n_past = 60, truncated = 0
+slot launch_slot_: id  0 | task 13110 | processing task
+slot update_slots: id  0 | task 13110 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 133
+slot update_slots: id  0 | task 13110 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13110 | prompt processing progress, n_past = 133, n_tokens = 133, progress = 1.000000
+slot update_slots: id  0 | task 13110 | prompt done, n_past = 133, n_tokens = 133
+slot      release: id  0 | task 13110 | stop processing: n_past = 133, truncated = 0
+slot launch_slot_: id  0 | task 13111 | processing task
+slot update_slots: id  0 | task 13111 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 108
+slot update_slots: id  0 | task 13111 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13111 | prompt processing progress, n_past = 108, n_tokens = 108, progress = 1.000000
+slot update_slots: id  0 | task 13111 | prompt done, n_past = 108, n_tokens = 108
+slot      release: id  0 | task 13111 | stop processing: n_past = 108, truncated = 0
+slot launch_slot_: id  0 | task 13112 | processing task
+slot update_slots: id  0 | task 13112 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 78
+slot update_slots: id  0 | task 13112 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13112 | prompt processing progress, n_past = 78, n_tokens = 78, progress = 1.000000
+slot update_slots: id  0 | task 13112 | prompt done, n_past = 78, n_tokens = 78
+slot      release: id  0 | task 13112 | stop processing: n_past = 78, truncated = 0
+slot launch_slot_: id  0 | task 13113 | processing task
+slot update_slots: id  0 | task 13113 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 46
+slot update_slots: id  0 | task 13113 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13113 | prompt processing progress, n_past = 46, n_tokens = 46, progress = 1.000000
+slot update_slots: id  0 | task 13113 | prompt done, n_past = 46, n_tokens = 46
+slot      release: id  0 | task 13113 | stop processing: n_past = 46, truncated = 0
+slot launch_slot_: id  0 | task 13114 | processing task
+slot update_slots: id  0 | task 13114 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 107
+slot update_slots: id  0 | task 13114 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13114 | prompt processing progress, n_past = 107, n_tokens = 107, progress = 1.000000
+slot update_slots: id  0 | task 13114 | prompt done, n_past = 107, n_tokens = 107
+slot      release: id  0 | task 13114 | stop processing: n_past = 107, truncated = 0
+slot launch_slot_: id  0 | task 13115 | processing task
+slot update_slots: id  0 | task 13115 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 40
+slot update_slots: id  0 | task 13115 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13115 | prompt processing progress, n_past = 40, n_tokens = 40, progress = 1.000000
+slot update_slots: id  0 | task 13115 | prompt done, n_past = 40, n_tokens = 40
+slot      release: id  0 | task 13115 | stop processing: n_past = 40, truncated = 0
+slot launch_slot_: id  0 | task 13116 | processing task
+slot update_slots: id  0 | task 13116 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 62
+slot update_slots: id  0 | task 13116 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13116 | prompt processing progress, n_past = 62, n_tokens = 62, progress = 1.000000
+slot update_slots: id  0 | task 13116 | prompt done, n_past = 62, n_tokens = 62
+slot      release: id  0 | task 13116 | stop processing: n_past = 62, truncated = 0
+slot launch_slot_: id  0 | task 13117 | processing task
+slot update_slots: id  0 | task 13117 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 20
+slot update_slots: id  0 | task 13117 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13117 | prompt processing progress, n_past = 20, n_tokens = 20, progress = 1.000000
+slot update_slots: id  0 | task 13117 | prompt done, n_past = 20, n_tokens = 20
+slot      release: id  0 | task 13117 | stop processing: n_past = 20, truncated = 0
+slot launch_slot_: id  0 | task 13118 | processing task
+slot update_slots: id  0 | task 13118 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 32
+slot update_slots: id  0 | task 13118 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13118 | prompt processing progress, n_past = 32, n_tokens = 32, progress = 1.000000
+slot update_slots: id  0 | task 13118 | prompt done, n_past = 32, n_tokens = 32
+slot      release: id  0 | task 13118 | stop processing: n_past = 32, truncated = 0
+slot launch_slot_: id  0 | task 13119 | processing task
+slot update_slots: id  0 | task 13119 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 21
+slot update_slots: id  0 | task 13119 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13119 | prompt processing progress, n_past = 21, n_tokens = 21, progress = 1.000000
+slot update_slots: id  0 | task 13119 | prompt done, n_past = 21, n_tokens = 21
+slot      release: id  0 | task 13119 | stop processing: n_past = 21, truncated = 0
+slot launch_slot_: id  0 | task 13120 | processing task
+slot update_slots: id  0 | task 13120 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 43
+slot update_slots: id  0 | task 13120 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13120 | prompt processing progress, n_past = 43, n_tokens = 43, progress = 1.000000
+slot update_slots: id  0 | task 13120 | prompt done, n_past = 43, n_tokens = 43
+slot      release: id  0 | task 13120 | stop processing: n_past = 43, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13153 | processing task
+slot update_slots: id  0 | task 13153 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 14
+slot update_slots: id  0 | task 13153 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13153 | prompt processing progress, n_past = 14, n_tokens = 14, progress = 1.000000
+slot update_slots: id  0 | task 13153 | prompt done, n_past = 14, n_tokens = 14
+slot      release: id  0 | task 13153 | stop processing: n_past = 14, truncated = 0
+slot launch_slot_: id  0 | task 13154 | processing task
+slot update_slots: id  0 | task 13154 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 101
+slot update_slots: id  0 | task 13154 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13154 | prompt processing progress, n_past = 101, n_tokens = 101, progress = 1.000000
+slot update_slots: id  0 | task 13154 | prompt done, n_past = 101, n_tokens = 101
+slot      release: id  0 | task 13154 | stop processing: n_past = 101, truncated = 0
+slot launch_slot_: id  0 | task 13155 | processing task
+slot update_slots: id  0 | task 13155 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 48
+slot update_slots: id  0 | task 13155 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13155 | prompt processing progress, n_past = 48, n_tokens = 48, progress = 1.000000
+slot update_slots: id  0 | task 13155 | prompt done, n_past = 48, n_tokens = 48
+slot      release: id  0 | task 13155 | stop processing: n_past = 48, truncated = 0
+slot launch_slot_: id  0 | task 13156 | processing task
+slot update_slots: id  0 | task 13156 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 111
+slot update_slots: id  0 | task 13156 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13156 | prompt processing progress, n_past = 111, n_tokens = 111, progress = 1.000000
+slot update_slots: id  0 | task 13156 | prompt done, n_past = 111, n_tokens = 111
+slot      release: id  0 | task 13156 | stop processing: n_past = 111, truncated = 0
+slot launch_slot_: id  0 | task 13157 | processing task
+slot update_slots: id  0 | task 13157 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 12
+slot update_slots: id  0 | task 13157 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13157 | prompt processing progress, n_past = 12, n_tokens = 12, progress = 1.000000
+slot update_slots: id  0 | task 13157 | prompt done, n_past = 12, n_tokens = 12
+slot      release: id  0 | task 13157 | stop processing: n_past = 12, truncated = 0
+slot launch_slot_: id  0 | task 13158 | processing task
+slot update_slots: id  0 | task 13158 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 101
+slot update_slots: id  0 | task 13158 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13158 | prompt processing progress, n_past = 101, n_tokens = 101, progress = 1.000000
+slot update_slots: id  0 | task 13158 | prompt done, n_past = 101, n_tokens = 101
+slot      release: id  0 | task 13158 | stop processing: n_past = 101, truncated = 0
+slot launch_slot_: id  0 | task 13159 | processing task
+slot update_slots: id  0 | task 13159 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 124
+slot update_slots: id  0 | task 13159 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13159 | prompt processing progress, n_past = 124, n_tokens = 124, progress = 1.000000
+slot update_slots: id  0 | task 13159 | prompt done, n_past = 124, n_tokens = 124
+slot      release: id  0 | task 13159 | stop processing: n_past = 124, truncated = 0
+slot launch_slot_: id  0 | task 13160 | processing task
+slot update_slots: id  0 | task 13160 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 110
+slot update_slots: id  0 | task 13160 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13160 | prompt processing progress, n_past = 110, n_tokens = 110, progress = 1.000000
+slot update_slots: id  0 | task 13160 | prompt done, n_past = 110, n_tokens = 110
+slot      release: id  0 | task 13160 | stop processing: n_past = 110, truncated = 0
+slot launch_slot_: id  0 | task 13161 | processing task
+slot update_slots: id  0 | task 13161 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 9
+slot update_slots: id  0 | task 13161 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13161 | prompt processing progress, n_past = 9, n_tokens = 9, progress = 1.000000
+slot update_slots: id  0 | task 13161 | prompt done, n_past = 9, n_tokens = 9
+slot      release: id  0 | task 13161 | stop processing: n_past = 9, truncated = 0
+slot launch_slot_: id  0 | task 13162 | processing task
+slot update_slots: id  0 | task 13162 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 129
+slot update_slots: id  0 | task 13162 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13162 | prompt processing progress, n_past = 129, n_tokens = 129, progress = 1.000000
+slot update_slots: id  0 | task 13162 | prompt done, n_past = 129, n_tokens = 129
+slot      release: id  0 | task 13162 | stop processing: n_past = 129, truncated = 0
+slot launch_slot_: id  0 | task 13163 | processing task
+slot update_slots: id  0 | task 13163 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 7
+slot update_slots: id  0 | task 13163 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13163 | prompt processing progress, n_past = 7, n_tokens = 7, progress = 1.000000
+slot update_slots: id  0 | task 13163 | prompt done, n_past = 7, n_tokens = 7
+slot      release: id  0 | task 13163 | stop processing: n_past = 7, truncated = 0
+slot launch_slot_: id  0 | task 13164 | processing task
+slot update_slots: id  0 | task 13164 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 24
+slot update_slots: id  0 | task 13164 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13164 | prompt processing progress, n_past = 24, n_tokens = 24, progress = 1.000000
+slot update_slots: id  0 | task 13164 | prompt done, n_past = 24, n_tokens = 24
+slot      release: id  0 | task 13164 | stop processing: n_past = 24, truncated = 0
+slot launch_slot_: id  0 | task 13165 | processing task
+slot update_slots: id  0 | task 13165 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 103
+slot update_slots: id  0 | task 13165 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13165 | prompt processing progress, n_past = 103, n_tokens = 103, progress = 1.000000
+slot update_slots: id  0 | task 13165 | prompt done, n_past = 103, n_tokens = 103
+slot      release: id  0 | task 13165 | stop processing: n_past = 103, truncated = 0
+slot launch_slot_: id  0 | task 13166 | processing task
+slot update_slots: id  0 | task 13166 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 66
+slot update_slots: id  0 | task 13166 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13166 | prompt processing progress, n_past = 66, n_tokens = 66, progress = 1.000000
+slot update_slots: id  0 | task 13166 | prompt done, n_past = 66, n_tokens = 66
+slot      release: id  0 | task 13166 | stop processing: n_past = 66, truncated = 0
+slot launch_slot_: id  0 | task 13167 | processing task
+slot update_slots: id  0 | task 13167 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 13
+slot update_slots: id  0 | task 13167 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13167 | prompt processing progress, n_past = 13, n_tokens = 13, progress = 1.000000
+slot update_slots: id  0 | task 13167 | prompt done, n_past = 13, n_tokens = 13
+slot      release: id  0 | task 13167 | stop processing: n_past = 13, truncated = 0
+slot launch_slot_: id  0 | task 13168 | processing task
+slot update_slots: id  0 | task 13168 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 102
+slot update_slots: id  0 | task 13168 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13168 | prompt processing progress, n_past = 102, n_tokens = 102, progress = 1.000000
+slot update_slots: id  0 | task 13168 | prompt done, n_past = 102, n_tokens = 102
+slot      release: id  0 | task 13168 | stop processing: n_past = 102, truncated = 0
+slot launch_slot_: id  0 | task 13169 | processing task
+slot update_slots: id  0 | task 13169 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 64
+slot update_slots: id  0 | task 13169 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13169 | prompt processing progress, n_past = 64, n_tokens = 64, progress = 1.000000
+slot update_slots: id  0 | task 13169 | prompt done, n_past = 64, n_tokens = 64
+slot      release: id  0 | task 13169 | stop processing: n_past = 64, truncated = 0
+slot launch_slot_: id  0 | task 13170 | processing task
+slot update_slots: id  0 | task 13170 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13170 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13170 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13170 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13170 | stop processing: n_past = 2, truncated = 0
+slot launch_slot_: id  0 | task 13171 | processing task
+slot update_slots: id  0 | task 13171 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 7
+slot update_slots: id  0 | task 13171 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13171 | prompt processing progress, n_past = 7, n_tokens = 7, progress = 1.000000
+slot update_slots: id  0 | task 13171 | prompt done, n_past = 7, n_tokens = 7
+slot      release: id  0 | task 13171 | stop processing: n_past = 7, truncated = 0
+slot launch_slot_: id  0 | task 13172 | processing task
+slot update_slots: id  0 | task 13172 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 100
+slot update_slots: id  0 | task 13172 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13172 | prompt processing progress, n_past = 100, n_tokens = 100, progress = 1.000000
+slot update_slots: id  0 | task 13172 | prompt done, n_past = 100, n_tokens = 100
+slot      release: id  0 | task 13172 | stop processing: n_past = 100, truncated = 0
+slot launch_slot_: id  0 | task 13173 | processing task
+slot update_slots: id  0 | task 13173 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 55
+slot update_slots: id  0 | task 13173 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13173 | prompt processing progress, n_past = 55, n_tokens = 55, progress = 1.000000
+slot update_slots: id  0 | task 13173 | prompt done, n_past = 55, n_tokens = 55
+slot      release: id  0 | task 13173 | stop processing: n_past = 55, truncated = 0
+slot launch_slot_: id  0 | task 13174 | processing task
+slot update_slots: id  0 | task 13174 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 114
+slot update_slots: id  0 | task 13174 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13174 | prompt processing progress, n_past = 114, n_tokens = 114, progress = 1.000000
+slot update_slots: id  0 | task 13174 | prompt done, n_past = 114, n_tokens = 114
+slot      release: id  0 | task 13174 | stop processing: n_past = 114, truncated = 0
+slot launch_slot_: id  0 | task 13175 | processing task
+slot update_slots: id  0 | task 13175 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 7
+slot update_slots: id  0 | task 13175 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13175 | prompt processing progress, n_past = 7, n_tokens = 7, progress = 1.000000
+slot update_slots: id  0 | task 13175 | prompt done, n_past = 7, n_tokens = 7
+slot      release: id  0 | task 13175 | stop processing: n_past = 7, truncated = 0
+slot launch_slot_: id  0 | task 13176 | processing task
+slot update_slots: id  0 | task 13176 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 84
+slot update_slots: id  0 | task 13176 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13176 | prompt processing progress, n_past = 84, n_tokens = 84, progress = 1.000000
+slot update_slots: id  0 | task 13176 | prompt done, n_past = 84, n_tokens = 84
+slot      release: id  0 | task 13176 | stop processing: n_past = 84, truncated = 0
+slot launch_slot_: id  0 | task 13177 | processing task
+slot update_slots: id  0 | task 13177 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 113
+slot update_slots: id  0 | task 13177 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13177 | prompt processing progress, n_past = 113, n_tokens = 113, progress = 1.000000
+slot update_slots: id  0 | task 13177 | prompt done, n_past = 113, n_tokens = 113
+slot      release: id  0 | task 13177 | stop processing: n_past = 113, truncated = 0
+slot launch_slot_: id  0 | task 13178 | processing task
+slot update_slots: id  0 | task 13178 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 110
+slot update_slots: id  0 | task 13178 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13178 | prompt processing progress, n_past = 110, n_tokens = 110, progress = 1.000000
+slot update_slots: id  0 | task 13178 | prompt done, n_past = 110, n_tokens = 110
+slot      release: id  0 | task 13178 | stop processing: n_past = 110, truncated = 0
+slot launch_slot_: id  0 | task 13179 | processing task
+slot update_slots: id  0 | task 13179 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 35
+slot update_slots: id  0 | task 13179 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13179 | prompt processing progress, n_past = 35, n_tokens = 35, progress = 1.000000
+slot update_slots: id  0 | task 13179 | prompt done, n_past = 35, n_tokens = 35
+slot      release: id  0 | task 13179 | stop processing: n_past = 35, truncated = 0
+slot launch_slot_: id  0 | task 13180 | processing task
+slot update_slots: id  0 | task 13180 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 115
+slot update_slots: id  0 | task 13180 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13180 | prompt processing progress, n_past = 115, n_tokens = 115, progress = 1.000000
+slot update_slots: id  0 | task 13180 | prompt done, n_past = 115, n_tokens = 115
+slot      release: id  0 | task 13180 | stop processing: n_past = 115, truncated = 0
+slot launch_slot_: id  0 | task 13181 | processing task
+slot update_slots: id  0 | task 13181 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 3
+slot update_slots: id  0 | task 13181 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13181 | prompt processing progress, n_past = 3, n_tokens = 3, progress = 1.000000
+slot update_slots: id  0 | task 13181 | prompt done, n_past = 3, n_tokens = 3
+slot      release: id  0 | task 13181 | stop processing: n_past = 3, truncated = 0
+slot launch_slot_: id  0 | task 13182 | processing task
+slot update_slots: id  0 | task 13182 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 124
+slot update_slots: id  0 | task 13182 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13182 | prompt processing progress, n_past = 124, n_tokens = 124, progress = 1.000000
+slot update_slots: id  0 | task 13182 | prompt done, n_past = 124, n_tokens = 124
+slot      release: id  0 | task 13182 | stop processing: n_past = 124, truncated = 0
+slot launch_slot_: id  0 | task 13183 | processing task
+slot update_slots: id  0 | task 13183 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 3
+slot update_slots: id  0 | task 13183 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13183 | prompt processing progress, n_past = 3, n_tokens = 3, progress = 1.000000
+slot update_slots: id  0 | task 13183 | prompt done, n_past = 3, n_tokens = 3
+slot      release: id  0 | task 13183 | stop processing: n_past = 3, truncated = 0
+slot launch_slot_: id  0 | task 13184 | processing task
+slot update_slots: id  0 | task 13184 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 113
+slot update_slots: id  0 | task 13184 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13184 | prompt processing progress, n_past = 113, n_tokens = 113, progress = 1.000000
+slot update_slots: id  0 | task 13184 | prompt done, n_past = 113, n_tokens = 113
+slot      release: id  0 | task 13184 | stop processing: n_past = 113, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13217 | processing task
+slot update_slots: id  0 | task 13217 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13217 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13217 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13217 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13217 | stop processing: n_past = 2, truncated = 0
+slot launch_slot_: id  0 | task 13218 | processing task
+slot update_slots: id  0 | task 13218 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 10
+slot update_slots: id  0 | task 13218 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13218 | prompt processing progress, n_past = 10, n_tokens = 10, progress = 1.000000
+slot update_slots: id  0 | task 13218 | prompt done, n_past = 10, n_tokens = 10
+slot      release: id  0 | task 13218 | stop processing: n_past = 10, truncated = 0
+slot launch_slot_: id  0 | task 13219 | processing task
+slot update_slots: id  0 | task 13219 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 18
+slot update_slots: id  0 | task 13219 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13219 | prompt processing progress, n_past = 18, n_tokens = 18, progress = 1.000000
+slot update_slots: id  0 | task 13219 | prompt done, n_past = 18, n_tokens = 18
+slot      release: id  0 | task 13219 | stop processing: n_past = 18, truncated = 0
+slot launch_slot_: id  0 | task 13220 | processing task
+slot update_slots: id  0 | task 13220 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 164
+slot update_slots: id  0 | task 13220 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13220 | prompt processing progress, n_past = 164, n_tokens = 164, progress = 1.000000
+slot update_slots: id  0 | task 13220 | prompt done, n_past = 164, n_tokens = 164
+slot      release: id  0 | task 13220 | stop processing: n_past = 164, truncated = 0
+slot launch_slot_: id  0 | task 13221 | processing task
+slot update_slots: id  0 | task 13221 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 22
+slot update_slots: id  0 | task 13221 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13221 | prompt processing progress, n_past = 22, n_tokens = 22, progress = 1.000000
+slot update_slots: id  0 | task 13221 | prompt done, n_past = 22, n_tokens = 22
+slot      release: id  0 | task 13221 | stop processing: n_past = 22, truncated = 0
+slot launch_slot_: id  0 | task 13222 | processing task
+slot update_slots: id  0 | task 13222 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 110
+slot update_slots: id  0 | task 13222 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13222 | prompt processing progress, n_past = 110, n_tokens = 110, progress = 1.000000
+slot update_slots: id  0 | task 13222 | prompt done, n_past = 110, n_tokens = 110
+slot      release: id  0 | task 13222 | stop processing: n_past = 110, truncated = 0
+slot launch_slot_: id  0 | task 13223 | processing task
+slot update_slots: id  0 | task 13223 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 11
+slot update_slots: id  0 | task 13223 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13223 | prompt processing progress, n_past = 11, n_tokens = 11, progress = 1.000000
+slot update_slots: id  0 | task 13223 | prompt done, n_past = 11, n_tokens = 11
+slot      release: id  0 | task 13223 | stop processing: n_past = 11, truncated = 0
+slot launch_slot_: id  0 | task 13224 | processing task
+slot update_slots: id  0 | task 13224 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 92
+slot update_slots: id  0 | task 13224 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13224 | prompt processing progress, n_past = 92, n_tokens = 92, progress = 1.000000
+slot update_slots: id  0 | task 13224 | prompt done, n_past = 92, n_tokens = 92
+slot      release: id  0 | task 13224 | stop processing: n_past = 92, truncated = 0
+slot launch_slot_: id  0 | task 13225 | processing task
+slot update_slots: id  0 | task 13225 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 22
+slot update_slots: id  0 | task 13225 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13225 | prompt processing progress, n_past = 22, n_tokens = 22, progress = 1.000000
+slot update_slots: id  0 | task 13225 | prompt done, n_past = 22, n_tokens = 22
+slot      release: id  0 | task 13225 | stop processing: n_past = 22, truncated = 0
+slot launch_slot_: id  0 | task 13226 | processing task
+slot update_slots: id  0 | task 13226 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 96
+slot update_slots: id  0 | task 13226 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13226 | prompt processing progress, n_past = 96, n_tokens = 96, progress = 1.000000
+slot update_slots: id  0 | task 13226 | prompt done, n_past = 96, n_tokens = 96
+slot      release: id  0 | task 13226 | stop processing: n_past = 96, truncated = 0
+slot launch_slot_: id  0 | task 13227 | processing task
+slot update_slots: id  0 | task 13227 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 9
+slot update_slots: id  0 | task 13227 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13227 | prompt processing progress, n_past = 9, n_tokens = 9, progress = 1.000000
+slot update_slots: id  0 | task 13227 | prompt done, n_past = 9, n_tokens = 9
+slot      release: id  0 | task 13227 | stop processing: n_past = 9, truncated = 0
+slot launch_slot_: id  0 | task 13228 | processing task
+slot update_slots: id  0 | task 13228 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 17
+slot update_slots: id  0 | task 13228 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13228 | prompt processing progress, n_past = 17, n_tokens = 17, progress = 1.000000
+slot update_slots: id  0 | task 13228 | prompt done, n_past = 17, n_tokens = 17
+slot      release: id  0 | task 13228 | stop processing: n_past = 17, truncated = 0
+slot launch_slot_: id  0 | task 13229 | processing task
+slot update_slots: id  0 | task 13229 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 22
+slot update_slots: id  0 | task 13229 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13229 | prompt processing progress, n_past = 22, n_tokens = 22, progress = 1.000000
+slot update_slots: id  0 | task 13229 | prompt done, n_past = 22, n_tokens = 22
+slot      release: id  0 | task 13229 | stop processing: n_past = 22, truncated = 0
+slot launch_slot_: id  0 | task 13230 | processing task
+slot update_slots: id  0 | task 13230 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 155
+slot update_slots: id  0 | task 13230 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13230 | prompt processing progress, n_past = 155, n_tokens = 155, progress = 1.000000
+slot update_slots: id  0 | task 13230 | prompt done, n_past = 155, n_tokens = 155
+slot      release: id  0 | task 13230 | stop processing: n_past = 155, truncated = 0
+slot launch_slot_: id  0 | task 13231 | processing task
+slot update_slots: id  0 | task 13231 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 7
+slot update_slots: id  0 | task 13231 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13231 | prompt processing progress, n_past = 7, n_tokens = 7, progress = 1.000000
+slot update_slots: id  0 | task 13231 | prompt done, n_past = 7, n_tokens = 7
+slot      release: id  0 | task 13231 | stop processing: n_past = 7, truncated = 0
+slot launch_slot_: id  0 | task 13232 | processing task
+slot update_slots: id  0 | task 13232 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 95
+slot update_slots: id  0 | task 13232 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13232 | prompt processing progress, n_past = 95, n_tokens = 95, progress = 1.000000
+slot update_slots: id  0 | task 13232 | prompt done, n_past = 95, n_tokens = 95
+slot      release: id  0 | task 13232 | stop processing: n_past = 95, truncated = 0
+slot launch_slot_: id  0 | task 13233 | processing task
+slot update_slots: id  0 | task 13233 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 8
+slot update_slots: id  0 | task 13233 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13233 | prompt processing progress, n_past = 8, n_tokens = 8, progress = 1.000000
+slot update_slots: id  0 | task 13233 | prompt done, n_past = 8, n_tokens = 8
+slot      release: id  0 | task 13233 | stop processing: n_past = 8, truncated = 0
+slot launch_slot_: id  0 | task 13234 | processing task
+slot update_slots: id  0 | task 13234 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 88
+slot update_slots: id  0 | task 13234 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13234 | prompt processing progress, n_past = 88, n_tokens = 88, progress = 1.000000
+slot update_slots: id  0 | task 13234 | prompt done, n_past = 88, n_tokens = 88
+slot      release: id  0 | task 13234 | stop processing: n_past = 88, truncated = 0
+slot launch_slot_: id  0 | task 13235 | processing task
+slot update_slots: id  0 | task 13235 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 14
+slot update_slots: id  0 | task 13235 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13235 | prompt processing progress, n_past = 14, n_tokens = 14, progress = 1.000000
+slot update_slots: id  0 | task 13235 | prompt done, n_past = 14, n_tokens = 14
+slot      release: id  0 | task 13235 | stop processing: n_past = 14, truncated = 0
+slot launch_slot_: id  0 | task 13236 | processing task
+slot update_slots: id  0 | task 13236 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 135
+slot update_slots: id  0 | task 13236 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13236 | prompt processing progress, n_past = 135, n_tokens = 135, progress = 1.000000
+slot update_slots: id  0 | task 13236 | prompt done, n_past = 135, n_tokens = 135
+slot      release: id  0 | task 13236 | stop processing: n_past = 135, truncated = 0
+slot launch_slot_: id  0 | task 13237 | processing task
+slot update_slots: id  0 | task 13237 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 9
+slot update_slots: id  0 | task 13237 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13237 | prompt processing progress, n_past = 9, n_tokens = 9, progress = 1.000000
+slot update_slots: id  0 | task 13237 | prompt done, n_past = 9, n_tokens = 9
+slot      release: id  0 | task 13237 | stop processing: n_past = 9, truncated = 0
+slot launch_slot_: id  0 | task 13238 | processing task
+slot update_slots: id  0 | task 13238 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 217
+slot update_slots: id  0 | task 13238 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13238 | prompt processing progress, n_past = 217, n_tokens = 217, progress = 1.000000
+slot update_slots: id  0 | task 13238 | prompt done, n_past = 217, n_tokens = 217
+slot      release: id  0 | task 13238 | stop processing: n_past = 217, truncated = 0
+slot launch_slot_: id  0 | task 13239 | processing task
+slot update_slots: id  0 | task 13239 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 6
+slot update_slots: id  0 | task 13239 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13239 | prompt processing progress, n_past = 6, n_tokens = 6, progress = 1.000000
+slot update_slots: id  0 | task 13239 | prompt done, n_past = 6, n_tokens = 6
+slot      release: id  0 | task 13239 | stop processing: n_past = 6, truncated = 0
+slot launch_slot_: id  0 | task 13240 | processing task
+slot update_slots: id  0 | task 13240 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 30
+slot update_slots: id  0 | task 13240 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13240 | prompt processing progress, n_past = 30, n_tokens = 30, progress = 1.000000
+slot update_slots: id  0 | task 13240 | prompt done, n_past = 30, n_tokens = 30
+slot      release: id  0 | task 13240 | stop processing: n_past = 30, truncated = 0
+slot launch_slot_: id  0 | task 13241 | processing task
+slot update_slots: id  0 | task 13241 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 8
+slot update_slots: id  0 | task 13241 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13241 | prompt processing progress, n_past = 8, n_tokens = 8, progress = 1.000000
+slot update_slots: id  0 | task 13241 | prompt done, n_past = 8, n_tokens = 8
+slot      release: id  0 | task 13241 | stop processing: n_past = 8, truncated = 0
+slot launch_slot_: id  0 | task 13242 | processing task
+slot update_slots: id  0 | task 13242 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 36
+slot update_slots: id  0 | task 13242 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13242 | prompt processing progress, n_past = 36, n_tokens = 36, progress = 1.000000
+slot update_slots: id  0 | task 13242 | prompt done, n_past = 36, n_tokens = 36
+slot      release: id  0 | task 13242 | stop processing: n_past = 36, truncated = 0
+slot launch_slot_: id  0 | task 13243 | processing task
+slot update_slots: id  0 | task 13243 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 7
+slot update_slots: id  0 | task 13243 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13243 | prompt processing progress, n_past = 7, n_tokens = 7, progress = 1.000000
+slot update_slots: id  0 | task 13243 | prompt done, n_past = 7, n_tokens = 7
+slot      release: id  0 | task 13243 | stop processing: n_past = 7, truncated = 0
+slot launch_slot_: id  0 | task 13244 | processing task
+slot update_slots: id  0 | task 13244 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 62
+slot update_slots: id  0 | task 13244 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13244 | prompt processing progress, n_past = 62, n_tokens = 62, progress = 1.000000
+slot update_slots: id  0 | task 13244 | prompt done, n_past = 62, n_tokens = 62
+slot      release: id  0 | task 13244 | stop processing: n_past = 62, truncated = 0
+slot launch_slot_: id  0 | task 13245 | processing task
+slot update_slots: id  0 | task 13245 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 28
+slot update_slots: id  0 | task 13245 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13245 | prompt processing progress, n_past = 28, n_tokens = 28, progress = 1.000000
+slot update_slots: id  0 | task 13245 | prompt done, n_past = 28, n_tokens = 28
+slot      release: id  0 | task 13245 | stop processing: n_past = 28, truncated = 0
+slot launch_slot_: id  0 | task 13246 | processing task
+slot update_slots: id  0 | task 13246 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 96
+slot update_slots: id  0 | task 13246 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13246 | prompt processing progress, n_past = 96, n_tokens = 96, progress = 1.000000
+slot update_slots: id  0 | task 13246 | prompt done, n_past = 96, n_tokens = 96
+slot      release: id  0 | task 13246 | stop processing: n_past = 96, truncated = 0
+slot launch_slot_: id  0 | task 13247 | processing task
+slot update_slots: id  0 | task 13247 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 16
+slot update_slots: id  0 | task 13247 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13247 | prompt processing progress, n_past = 16, n_tokens = 16, progress = 1.000000
+slot update_slots: id  0 | task 13247 | prompt done, n_past = 16, n_tokens = 16
+slot      release: id  0 | task 13247 | stop processing: n_past = 16, truncated = 0
+slot launch_slot_: id  0 | task 13248 | processing task
+slot update_slots: id  0 | task 13248 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 62
+slot update_slots: id  0 | task 13248 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13248 | prompt processing progress, n_past = 62, n_tokens = 62, progress = 1.000000
+slot update_slots: id  0 | task 13248 | prompt done, n_past = 62, n_tokens = 62
+slot      release: id  0 | task 13248 | stop processing: n_past = 62, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13281 | processing task
+slot update_slots: id  0 | task 13281 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 120
+slot update_slots: id  0 | task 13281 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13281 | prompt processing progress, n_past = 120, n_tokens = 120, progress = 1.000000
+slot update_slots: id  0 | task 13281 | prompt done, n_past = 120, n_tokens = 120
+slot      release: id  0 | task 13281 | stop processing: n_past = 120, truncated = 0
+slot launch_slot_: id  0 | task 13282 | processing task
+slot update_slots: id  0 | task 13282 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 16
+slot update_slots: id  0 | task 13282 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13282 | prompt processing progress, n_past = 16, n_tokens = 16, progress = 1.000000
+slot update_slots: id  0 | task 13282 | prompt done, n_past = 16, n_tokens = 16
+slot      release: id  0 | task 13282 | stop processing: n_past = 16, truncated = 0
+slot launch_slot_: id  0 | task 13283 | processing task
+slot update_slots: id  0 | task 13283 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 12
+slot update_slots: id  0 | task 13283 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13283 | prompt processing progress, n_past = 12, n_tokens = 12, progress = 1.000000
+slot update_slots: id  0 | task 13283 | prompt done, n_past = 12, n_tokens = 12
+slot      release: id  0 | task 13283 | stop processing: n_past = 12, truncated = 0
+slot launch_slot_: id  0 | task 13284 | processing task
+slot update_slots: id  0 | task 13284 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 87
+slot update_slots: id  0 | task 13284 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13284 | prompt processing progress, n_past = 87, n_tokens = 87, progress = 1.000000
+slot update_slots: id  0 | task 13284 | prompt done, n_past = 87, n_tokens = 87
+slot      release: id  0 | task 13284 | stop processing: n_past = 87, truncated = 0
+slot launch_slot_: id  0 | task 13285 | processing task
+slot update_slots: id  0 | task 13285 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 37
+slot update_slots: id  0 | task 13285 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13285 | prompt processing progress, n_past = 37, n_tokens = 37, progress = 1.000000
+slot update_slots: id  0 | task 13285 | prompt done, n_past = 37, n_tokens = 37
+slot      release: id  0 | task 13285 | stop processing: n_past = 37, truncated = 0
+slot launch_slot_: id  0 | task 13286 | processing task
+slot update_slots: id  0 | task 13286 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 29
+slot update_slots: id  0 | task 13286 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13286 | prompt processing progress, n_past = 29, n_tokens = 29, progress = 1.000000
+slot update_slots: id  0 | task 13286 | prompt done, n_past = 29, n_tokens = 29
+slot      release: id  0 | task 13286 | stop processing: n_past = 29, truncated = 0
+slot launch_slot_: id  0 | task 13287 | processing task
+slot update_slots: id  0 | task 13287 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 11
+slot update_slots: id  0 | task 13287 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13287 | prompt processing progress, n_past = 11, n_tokens = 11, progress = 1.000000
+slot update_slots: id  0 | task 13287 | prompt done, n_past = 11, n_tokens = 11
+slot      release: id  0 | task 13287 | stop processing: n_past = 11, truncated = 0
+slot launch_slot_: id  0 | task 13288 | processing task
+slot update_slots: id  0 | task 13288 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 104
+slot update_slots: id  0 | task 13288 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13288 | prompt processing progress, n_past = 104, n_tokens = 104, progress = 1.000000
+slot update_slots: id  0 | task 13288 | prompt done, n_past = 104, n_tokens = 104
+slot      release: id  0 | task 13288 | stop processing: n_past = 104, truncated = 0
+slot launch_slot_: id  0 | task 13289 | processing task
+slot update_slots: id  0 | task 13289 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 29
+slot update_slots: id  0 | task 13289 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13289 | prompt processing progress, n_past = 29, n_tokens = 29, progress = 1.000000
+slot update_slots: id  0 | task 13289 | prompt done, n_past = 29, n_tokens = 29
+slot      release: id  0 | task 13289 | stop processing: n_past = 29, truncated = 0
+slot launch_slot_: id  0 | task 13290 | processing task
+slot update_slots: id  0 | task 13290 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 100
+slot update_slots: id  0 | task 13290 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13290 | prompt processing progress, n_past = 100, n_tokens = 100, progress = 1.000000
+slot update_slots: id  0 | task 13290 | prompt done, n_past = 100, n_tokens = 100
+slot      release: id  0 | task 13290 | stop processing: n_past = 100, truncated = 0
+slot launch_slot_: id  0 | task 13291 | processing task
+slot update_slots: id  0 | task 13291 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 40
+slot update_slots: id  0 | task 13291 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13291 | prompt processing progress, n_past = 40, n_tokens = 40, progress = 1.000000
+slot update_slots: id  0 | task 13291 | prompt done, n_past = 40, n_tokens = 40
+slot      release: id  0 | task 13291 | stop processing: n_past = 40, truncated = 0
+slot launch_slot_: id  0 | task 13292 | processing task
+slot update_slots: id  0 | task 13292 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 122
+slot update_slots: id  0 | task 13292 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13292 | prompt processing progress, n_past = 122, n_tokens = 122, progress = 1.000000
+slot update_slots: id  0 | task 13292 | prompt done, n_past = 122, n_tokens = 122
+slot      release: id  0 | task 13292 | stop processing: n_past = 122, truncated = 0
+slot launch_slot_: id  0 | task 13293 | processing task
+slot update_slots: id  0 | task 13293 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 18
+slot update_slots: id  0 | task 13293 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13293 | prompt processing progress, n_past = 18, n_tokens = 18, progress = 1.000000
+slot update_slots: id  0 | task 13293 | prompt done, n_past = 18, n_tokens = 18
+slot      release: id  0 | task 13293 | stop processing: n_past = 18, truncated = 0
+slot launch_slot_: id  0 | task 13294 | processing task
+slot update_slots: id  0 | task 13294 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 58
+slot update_slots: id  0 | task 13294 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13294 | prompt processing progress, n_past = 58, n_tokens = 58, progress = 1.000000
+slot update_slots: id  0 | task 13294 | prompt done, n_past = 58, n_tokens = 58
+slot      release: id  0 | task 13294 | stop processing: n_past = 58, truncated = 0
+slot launch_slot_: id  0 | task 13295 | processing task
+slot update_slots: id  0 | task 13295 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 20
+slot update_slots: id  0 | task 13295 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13295 | prompt processing progress, n_past = 20, n_tokens = 20, progress = 1.000000
+slot update_slots: id  0 | task 13295 | prompt done, n_past = 20, n_tokens = 20
+slot      release: id  0 | task 13295 | stop processing: n_past = 20, truncated = 0
+slot launch_slot_: id  0 | task 13296 | processing task
+slot update_slots: id  0 | task 13296 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 24
+slot update_slots: id  0 | task 13296 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13296 | prompt processing progress, n_past = 24, n_tokens = 24, progress = 1.000000
+slot update_slots: id  0 | task 13296 | prompt done, n_past = 24, n_tokens = 24
+slot      release: id  0 | task 13296 | stop processing: n_past = 24, truncated = 0
+slot launch_slot_: id  0 | task 13297 | processing task
+slot update_slots: id  0 | task 13297 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 9
+slot update_slots: id  0 | task 13297 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13297 | prompt processing progress, n_past = 9, n_tokens = 9, progress = 1.000000
+slot update_slots: id  0 | task 13297 | prompt done, n_past = 9, n_tokens = 9
+slot      release: id  0 | task 13297 | stop processing: n_past = 9, truncated = 0
+slot launch_slot_: id  0 | task 13298 | processing task
+slot update_slots: id  0 | task 13298 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 19
+slot update_slots: id  0 | task 13298 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13298 | prompt processing progress, n_past = 19, n_tokens = 19, progress = 1.000000
+slot update_slots: id  0 | task 13298 | prompt done, n_past = 19, n_tokens = 19
+slot      release: id  0 | task 13298 | stop processing: n_past = 19, truncated = 0
+slot launch_slot_: id  0 | task 13299 | processing task
+slot update_slots: id  0 | task 13299 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 96
+slot update_slots: id  0 | task 13299 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13299 | prompt processing progress, n_past = 96, n_tokens = 96, progress = 1.000000
+slot update_slots: id  0 | task 13299 | prompt done, n_past = 96, n_tokens = 96
+slot      release: id  0 | task 13299 | stop processing: n_past = 96, truncated = 0
+slot launch_slot_: id  0 | task 13300 | processing task
+slot update_slots: id  0 | task 13300 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13300 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13300 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13300 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13300 | stop processing: n_past = 2, truncated = 0
+slot launch_slot_: id  0 | task 13301 | processing task
+slot update_slots: id  0 | task 13301 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 19
+slot update_slots: id  0 | task 13301 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13301 | prompt processing progress, n_past = 19, n_tokens = 19, progress = 1.000000
+slot update_slots: id  0 | task 13301 | prompt done, n_past = 19, n_tokens = 19
+slot      release: id  0 | task 13301 | stop processing: n_past = 19, truncated = 0
+slot launch_slot_: id  0 | task 13302 | processing task
+slot update_slots: id  0 | task 13302 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 17
+slot update_slots: id  0 | task 13302 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13302 | prompt processing progress, n_past = 17, n_tokens = 17, progress = 1.000000
+slot update_slots: id  0 | task 13302 | prompt done, n_past = 17, n_tokens = 17
+slot      release: id  0 | task 13302 | stop processing: n_past = 17, truncated = 0
+slot launch_slot_: id  0 | task 13303 | processing task
+slot update_slots: id  0 | task 13303 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 19
+slot update_slots: id  0 | task 13303 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13303 | prompt processing progress, n_past = 19, n_tokens = 19, progress = 1.000000
+slot update_slots: id  0 | task 13303 | prompt done, n_past = 19, n_tokens = 19
+slot      release: id  0 | task 13303 | stop processing: n_past = 19, truncated = 0
+slot launch_slot_: id  0 | task 13304 | processing task
+slot update_slots: id  0 | task 13304 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 92
+slot update_slots: id  0 | task 13304 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13304 | prompt processing progress, n_past = 92, n_tokens = 92, progress = 1.000000
+slot update_slots: id  0 | task 13304 | prompt done, n_past = 92, n_tokens = 92
+slot      release: id  0 | task 13304 | stop processing: n_past = 92, truncated = 0
+slot launch_slot_: id  0 | task 13305 | processing task
+slot update_slots: id  0 | task 13305 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 17
+slot update_slots: id  0 | task 13305 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13305 | prompt processing progress, n_past = 17, n_tokens = 17, progress = 1.000000
+slot update_slots: id  0 | task 13305 | prompt done, n_past = 17, n_tokens = 17
+slot      release: id  0 | task 13305 | stop processing: n_past = 17, truncated = 0
+slot launch_slot_: id  0 | task 13306 | processing task
+slot update_slots: id  0 | task 13306 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 3
+slot update_slots: id  0 | task 13306 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13306 | prompt processing progress, n_past = 3, n_tokens = 3, progress = 1.000000
+slot update_slots: id  0 | task 13306 | prompt done, n_past = 3, n_tokens = 3
+slot      release: id  0 | task 13306 | stop processing: n_past = 3, truncated = 0
+slot launch_slot_: id  0 | task 13307 | processing task
+slot update_slots: id  0 | task 13307 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 53
+slot update_slots: id  0 | task 13307 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13307 | prompt processing progress, n_past = 53, n_tokens = 53, progress = 1.000000
+slot update_slots: id  0 | task 13307 | prompt done, n_past = 53, n_tokens = 53
+slot      release: id  0 | task 13307 | stop processing: n_past = 53, truncated = 0
+slot launch_slot_: id  0 | task 13308 | processing task
+slot update_slots: id  0 | task 13308 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 82
+slot update_slots: id  0 | task 13308 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13308 | prompt processing progress, n_past = 82, n_tokens = 82, progress = 1.000000
+slot update_slots: id  0 | task 13308 | prompt done, n_past = 82, n_tokens = 82
+slot      release: id  0 | task 13308 | stop processing: n_past = 82, truncated = 0
+slot launch_slot_: id  0 | task 13309 | processing task
+slot update_slots: id  0 | task 13309 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 19
+slot update_slots: id  0 | task 13309 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13309 | prompt processing progress, n_past = 19, n_tokens = 19, progress = 1.000000
+slot update_slots: id  0 | task 13309 | prompt done, n_past = 19, n_tokens = 19
+slot      release: id  0 | task 13309 | stop processing: n_past = 19, truncated = 0
+slot launch_slot_: id  0 | task 13310 | processing task
+slot update_slots: id  0 | task 13310 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 25
+slot update_slots: id  0 | task 13310 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13310 | prompt processing progress, n_past = 25, n_tokens = 25, progress = 1.000000
+slot update_slots: id  0 | task 13310 | prompt done, n_past = 25, n_tokens = 25
+slot      release: id  0 | task 13310 | stop processing: n_past = 25, truncated = 0
+slot launch_slot_: id  0 | task 13311 | processing task
+slot update_slots: id  0 | task 13311 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 13
+slot update_slots: id  0 | task 13311 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13311 | prompt processing progress, n_past = 13, n_tokens = 13, progress = 1.000000
+slot update_slots: id  0 | task 13311 | prompt done, n_past = 13, n_tokens = 13
+slot      release: id  0 | task 13311 | stop processing: n_past = 13, truncated = 0
+slot launch_slot_: id  0 | task 13312 | processing task
+slot update_slots: id  0 | task 13312 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 92
+slot update_slots: id  0 | task 13312 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13312 | prompt processing progress, n_past = 92, n_tokens = 92, progress = 1.000000
+slot update_slots: id  0 | task 13312 | prompt done, n_past = 92, n_tokens = 92
+slot      release: id  0 | task 13312 | stop processing: n_past = 92, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13345 | processing task
+slot update_slots: id  0 | task 13345 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 42
+slot update_slots: id  0 | task 13345 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13345 | prompt processing progress, n_past = 42, n_tokens = 42, progress = 1.000000
+slot update_slots: id  0 | task 13345 | prompt done, n_past = 42, n_tokens = 42
+slot      release: id  0 | task 13345 | stop processing: n_past = 42, truncated = 0
+slot launch_slot_: id  0 | task 13346 | processing task
+slot update_slots: id  0 | task 13346 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 105
+slot update_slots: id  0 | task 13346 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13346 | prompt processing progress, n_past = 105, n_tokens = 105, progress = 1.000000
+slot update_slots: id  0 | task 13346 | prompt done, n_past = 105, n_tokens = 105
+slot      release: id  0 | task 13346 | stop processing: n_past = 105, truncated = 0
+slot launch_slot_: id  0 | task 13347 | processing task
+slot update_slots: id  0 | task 13347 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 25
+slot update_slots: id  0 | task 13347 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13347 | prompt processing progress, n_past = 25, n_tokens = 25, progress = 1.000000
+slot update_slots: id  0 | task 13347 | prompt done, n_past = 25, n_tokens = 25
+slot      release: id  0 | task 13347 | stop processing: n_past = 25, truncated = 0
+slot launch_slot_: id  0 | task 13348 | processing task
+slot update_slots: id  0 | task 13348 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 96
+slot update_slots: id  0 | task 13348 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13348 | prompt processing progress, n_past = 96, n_tokens = 96, progress = 1.000000
+slot update_slots: id  0 | task 13348 | prompt done, n_past = 96, n_tokens = 96
+slot      release: id  0 | task 13348 | stop processing: n_past = 96, truncated = 0
+slot launch_slot_: id  0 | task 13349 | processing task
+slot update_slots: id  0 | task 13349 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 247
+slot update_slots: id  0 | task 13349 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13349 | prompt processing progress, n_past = 247, n_tokens = 247, progress = 1.000000
+slot update_slots: id  0 | task 13349 | prompt done, n_past = 247, n_tokens = 247
+slot      release: id  0 | task 13349 | stop processing: n_past = 247, truncated = 0
+slot launch_slot_: id  0 | task 13350 | processing task
+slot update_slots: id  0 | task 13350 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 130
+slot update_slots: id  0 | task 13350 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13350 | prompt processing progress, n_past = 130, n_tokens = 130, progress = 1.000000
+slot update_slots: id  0 | task 13350 | prompt done, n_past = 130, n_tokens = 130
+slot      release: id  0 | task 13350 | stop processing: n_past = 130, truncated = 0
+slot launch_slot_: id  0 | task 13351 | processing task
+slot update_slots: id  0 | task 13351 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 144
+slot update_slots: id  0 | task 13351 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13351 | prompt processing progress, n_past = 144, n_tokens = 144, progress = 1.000000
+slot update_slots: id  0 | task 13351 | prompt done, n_past = 144, n_tokens = 144
+slot      release: id  0 | task 13351 | stop processing: n_past = 144, truncated = 0
+slot launch_slot_: id  0 | task 13352 | processing task
+slot update_slots: id  0 | task 13352 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 4
+slot update_slots: id  0 | task 13352 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13352 | prompt processing progress, n_past = 4, n_tokens = 4, progress = 1.000000
+slot update_slots: id  0 | task 13352 | prompt done, n_past = 4, n_tokens = 4
+slot      release: id  0 | task 13352 | stop processing: n_past = 4, truncated = 0
+slot launch_slot_: id  0 | task 13353 | processing task
+slot update_slots: id  0 | task 13353 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13353 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13353 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13353 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13353 | stop processing: n_past = 2, truncated = 0
+slot launch_slot_: id  0 | task 13354 | processing task
+slot update_slots: id  0 | task 13354 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 10
+slot update_slots: id  0 | task 13354 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13354 | prompt processing progress, n_past = 10, n_tokens = 10, progress = 1.000000
+slot update_slots: id  0 | task 13354 | prompt done, n_past = 10, n_tokens = 10
+slot      release: id  0 | task 13354 | stop processing: n_past = 10, truncated = 0
+slot launch_slot_: id  0 | task 13355 | processing task
+slot update_slots: id  0 | task 13355 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 6
+slot update_slots: id  0 | task 13355 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13355 | prompt processing progress, n_past = 6, n_tokens = 6, progress = 1.000000
+slot update_slots: id  0 | task 13355 | prompt done, n_past = 6, n_tokens = 6
+slot      release: id  0 | task 13355 | stop processing: n_past = 6, truncated = 0
+slot launch_slot_: id  0 | task 13356 | processing task
+slot update_slots: id  0 | task 13356 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 44
+slot update_slots: id  0 | task 13356 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13356 | prompt processing progress, n_past = 44, n_tokens = 44, progress = 1.000000
+slot update_slots: id  0 | task 13356 | prompt done, n_past = 44, n_tokens = 44
+slot      release: id  0 | task 13356 | stop processing: n_past = 44, truncated = 0
+slot launch_slot_: id  0 | task 13357 | processing task
+slot update_slots: id  0 | task 13357 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 77
+slot update_slots: id  0 | task 13357 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13357 | prompt processing progress, n_past = 77, n_tokens = 77, progress = 1.000000
+slot update_slots: id  0 | task 13357 | prompt done, n_past = 77, n_tokens = 77
+slot      release: id  0 | task 13357 | stop processing: n_past = 77, truncated = 0
+slot launch_slot_: id  0 | task 13358 | processing task
+slot update_slots: id  0 | task 13358 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 123
+slot update_slots: id  0 | task 13358 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13358 | prompt processing progress, n_past = 123, n_tokens = 123, progress = 1.000000
+slot update_slots: id  0 | task 13358 | prompt done, n_past = 123, n_tokens = 123
+slot      release: id  0 | task 13358 | stop processing: n_past = 123, truncated = 0
+slot launch_slot_: id  0 | task 13359 | processing task
+slot update_slots: id  0 | task 13359 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 18
+slot update_slots: id  0 | task 13359 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13359 | prompt processing progress, n_past = 18, n_tokens = 18, progress = 1.000000
+slot update_slots: id  0 | task 13359 | prompt done, n_past = 18, n_tokens = 18
+slot      release: id  0 | task 13359 | stop processing: n_past = 18, truncated = 0
+slot launch_slot_: id  0 | task 13360 | processing task
+slot update_slots: id  0 | task 13360 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 92
+slot update_slots: id  0 | task 13360 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13360 | prompt processing progress, n_past = 92, n_tokens = 92, progress = 1.000000
+slot update_slots: id  0 | task 13360 | prompt done, n_past = 92, n_tokens = 92
+slot      release: id  0 | task 13360 | stop processing: n_past = 92, truncated = 0
+slot launch_slot_: id  0 | task 13361 | processing task
+slot update_slots: id  0 | task 13361 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 12
+slot update_slots: id  0 | task 13361 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13361 | prompt processing progress, n_past = 12, n_tokens = 12, progress = 1.000000
+slot update_slots: id  0 | task 13361 | prompt done, n_past = 12, n_tokens = 12
+slot      release: id  0 | task 13361 | stop processing: n_past = 12, truncated = 0
+slot launch_slot_: id  0 | task 13362 | processing task
+slot update_slots: id  0 | task 13362 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 159
+slot update_slots: id  0 | task 13362 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13362 | prompt processing progress, n_past = 159, n_tokens = 159, progress = 1.000000
+slot update_slots: id  0 | task 13362 | prompt done, n_past = 159, n_tokens = 159
+slot      release: id  0 | task 13362 | stop processing: n_past = 159, truncated = 0
+slot launch_slot_: id  0 | task 13363 | processing task
+slot update_slots: id  0 | task 13363 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 40
+slot update_slots: id  0 | task 13363 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13363 | prompt processing progress, n_past = 40, n_tokens = 40, progress = 1.000000
+slot update_slots: id  0 | task 13363 | prompt done, n_past = 40, n_tokens = 40
+slot      release: id  0 | task 13363 | stop processing: n_past = 40, truncated = 0
+slot launch_slot_: id  0 | task 13364 | processing task
+slot update_slots: id  0 | task 13364 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 107
+slot update_slots: id  0 | task 13364 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13364 | prompt processing progress, n_past = 107, n_tokens = 107, progress = 1.000000
+slot update_slots: id  0 | task 13364 | prompt done, n_past = 107, n_tokens = 107
+slot      release: id  0 | task 13364 | stop processing: n_past = 107, truncated = 0
+slot launch_slot_: id  0 | task 13365 | processing task
+slot update_slots: id  0 | task 13365 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 20
+slot update_slots: id  0 | task 13365 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13365 | prompt processing progress, n_past = 20, n_tokens = 20, progress = 1.000000
+slot update_slots: id  0 | task 13365 | prompt done, n_past = 20, n_tokens = 20
+slot      release: id  0 | task 13365 | stop processing: n_past = 20, truncated = 0
+slot launch_slot_: id  0 | task 13366 | processing task
+slot update_slots: id  0 | task 13366 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 95
+slot update_slots: id  0 | task 13366 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13366 | prompt processing progress, n_past = 95, n_tokens = 95, progress = 1.000000
+slot update_slots: id  0 | task 13366 | prompt done, n_past = 95, n_tokens = 95
+slot      release: id  0 | task 13366 | stop processing: n_past = 95, truncated = 0
+slot launch_slot_: id  0 | task 13367 | processing task
+slot update_slots: id  0 | task 13367 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 16
+slot update_slots: id  0 | task 13367 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13367 | prompt processing progress, n_past = 16, n_tokens = 16, progress = 1.000000
+slot update_slots: id  0 | task 13367 | prompt done, n_past = 16, n_tokens = 16
+slot      release: id  0 | task 13367 | stop processing: n_past = 16, truncated = 0
+slot launch_slot_: id  0 | task 13368 | processing task
+slot update_slots: id  0 | task 13368 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 94
+slot update_slots: id  0 | task 13368 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13368 | prompt processing progress, n_past = 94, n_tokens = 94, progress = 1.000000
+slot update_slots: id  0 | task 13368 | prompt done, n_past = 94, n_tokens = 94
+slot      release: id  0 | task 13368 | stop processing: n_past = 94, truncated = 0
+slot launch_slot_: id  0 | task 13369 | processing task
+slot update_slots: id  0 | task 13369 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 7
+slot update_slots: id  0 | task 13369 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13369 | prompt processing progress, n_past = 7, n_tokens = 7, progress = 1.000000
+slot update_slots: id  0 | task 13369 | prompt done, n_past = 7, n_tokens = 7
+slot      release: id  0 | task 13369 | stop processing: n_past = 7, truncated = 0
+slot launch_slot_: id  0 | task 13370 | processing task
+slot update_slots: id  0 | task 13370 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 10
+slot update_slots: id  0 | task 13370 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13370 | prompt processing progress, n_past = 10, n_tokens = 10, progress = 1.000000
+slot update_slots: id  0 | task 13370 | prompt done, n_past = 10, n_tokens = 10
+slot      release: id  0 | task 13370 | stop processing: n_past = 10, truncated = 0
+slot launch_slot_: id  0 | task 13371 | processing task
+slot update_slots: id  0 | task 13371 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 114
+slot update_slots: id  0 | task 13371 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13371 | prompt processing progress, n_past = 114, n_tokens = 114, progress = 1.000000
+slot update_slots: id  0 | task 13371 | prompt done, n_past = 114, n_tokens = 114
+slot      release: id  0 | task 13371 | stop processing: n_past = 114, truncated = 0
+slot launch_slot_: id  0 | task 13372 | processing task
+slot update_slots: id  0 | task 13372 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 151
+slot update_slots: id  0 | task 13372 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13372 | prompt processing progress, n_past = 151, n_tokens = 151, progress = 1.000000
+slot update_slots: id  0 | task 13372 | prompt done, n_past = 151, n_tokens = 151
+slot      release: id  0 | task 13372 | stop processing: n_past = 151, truncated = 0
+slot launch_slot_: id  0 | task 13373 | processing task
+slot update_slots: id  0 | task 13373 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 13
+slot update_slots: id  0 | task 13373 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13373 | prompt processing progress, n_past = 13, n_tokens = 13, progress = 1.000000
+slot update_slots: id  0 | task 13373 | prompt done, n_past = 13, n_tokens = 13
+slot      release: id  0 | task 13373 | stop processing: n_past = 13, truncated = 0
+slot launch_slot_: id  0 | task 13374 | processing task
+slot update_slots: id  0 | task 13374 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 155
+slot update_slots: id  0 | task 13374 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13374 | prompt processing progress, n_past = 155, n_tokens = 155, progress = 1.000000
+slot update_slots: id  0 | task 13374 | prompt done, n_past = 155, n_tokens = 155
+slot      release: id  0 | task 13374 | stop processing: n_past = 155, truncated = 0
+slot launch_slot_: id  0 | task 13375 | processing task
+slot update_slots: id  0 | task 13375 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 18
+slot update_slots: id  0 | task 13375 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13375 | prompt processing progress, n_past = 18, n_tokens = 18, progress = 1.000000
+slot update_slots: id  0 | task 13375 | prompt done, n_past = 18, n_tokens = 18
+slot      release: id  0 | task 13375 | stop processing: n_past = 18, truncated = 0
+slot launch_slot_: id  0 | task 13376 | processing task
+slot update_slots: id  0 | task 13376 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 121
+slot update_slots: id  0 | task 13376 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13376 | prompt processing progress, n_past = 121, n_tokens = 121, progress = 1.000000
+slot update_slots: id  0 | task 13376 | prompt done, n_past = 121, n_tokens = 121
+slot      release: id  0 | task 13376 | stop processing: n_past = 121, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13409 | processing task
+slot update_slots: id  0 | task 13409 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 10
+slot update_slots: id  0 | task 13409 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13409 | prompt processing progress, n_past = 10, n_tokens = 10, progress = 1.000000
+slot update_slots: id  0 | task 13409 | prompt done, n_past = 10, n_tokens = 10
+slot      release: id  0 | task 13409 | stop processing: n_past = 10, truncated = 0
+slot launch_slot_: id  0 | task 13410 | processing task
+slot update_slots: id  0 | task 13410 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 134
+slot update_slots: id  0 | task 13410 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13410 | prompt processing progress, n_past = 134, n_tokens = 134, progress = 1.000000
+slot update_slots: id  0 | task 13410 | prompt done, n_past = 134, n_tokens = 134
+slot      release: id  0 | task 13410 | stop processing: n_past = 134, truncated = 0
+slot launch_slot_: id  0 | task 13411 | processing task
+slot update_slots: id  0 | task 13411 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 20
+slot update_slots: id  0 | task 13411 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13411 | prompt processing progress, n_past = 20, n_tokens = 20, progress = 1.000000
+slot update_slots: id  0 | task 13411 | prompt done, n_past = 20, n_tokens = 20
+slot      release: id  0 | task 13411 | stop processing: n_past = 20, truncated = 0
+slot launch_slot_: id  0 | task 13412 | processing task
+slot update_slots: id  0 | task 13412 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 12
+slot update_slots: id  0 | task 13412 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13412 | prompt processing progress, n_past = 12, n_tokens = 12, progress = 1.000000
+slot update_slots: id  0 | task 13412 | prompt done, n_past = 12, n_tokens = 12
+slot      release: id  0 | task 13412 | stop processing: n_past = 12, truncated = 0
+slot launch_slot_: id  0 | task 13413 | processing task
+slot update_slots: id  0 | task 13413 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 11
+slot update_slots: id  0 | task 13413 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13413 | prompt processing progress, n_past = 11, n_tokens = 11, progress = 1.000000
+slot update_slots: id  0 | task 13413 | prompt done, n_past = 11, n_tokens = 11
+slot      release: id  0 | task 13413 | stop processing: n_past = 11, truncated = 0
+slot launch_slot_: id  0 | task 13414 | processing task
+slot update_slots: id  0 | task 13414 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 90
+slot update_slots: id  0 | task 13414 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13414 | prompt processing progress, n_past = 90, n_tokens = 90, progress = 1.000000
+slot update_slots: id  0 | task 13414 | prompt done, n_past = 90, n_tokens = 90
+slot      release: id  0 | task 13414 | stop processing: n_past = 90, truncated = 0
+slot launch_slot_: id  0 | task 13415 | processing task
+slot update_slots: id  0 | task 13415 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 84
+slot update_slots: id  0 | task 13415 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13415 | prompt processing progress, n_past = 84, n_tokens = 84, progress = 1.000000
+slot update_slots: id  0 | task 13415 | prompt done, n_past = 84, n_tokens = 84
+slot      release: id  0 | task 13415 | stop processing: n_past = 84, truncated = 0
+slot launch_slot_: id  0 | task 13416 | processing task
+slot update_slots: id  0 | task 13416 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 115
+slot update_slots: id  0 | task 13416 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13416 | prompt processing progress, n_past = 115, n_tokens = 115, progress = 1.000000
+slot update_slots: id  0 | task 13416 | prompt done, n_past = 115, n_tokens = 115
+slot      release: id  0 | task 13416 | stop processing: n_past = 115, truncated = 0
+slot launch_slot_: id  0 | task 13417 | processing task
+slot update_slots: id  0 | task 13417 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 11
+slot update_slots: id  0 | task 13417 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13417 | prompt processing progress, n_past = 11, n_tokens = 11, progress = 1.000000
+slot update_slots: id  0 | task 13417 | prompt done, n_past = 11, n_tokens = 11
+slot      release: id  0 | task 13417 | stop processing: n_past = 11, truncated = 0
+slot launch_slot_: id  0 | task 13418 | processing task
+slot update_slots: id  0 | task 13418 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 100
+slot update_slots: id  0 | task 13418 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13418 | prompt processing progress, n_past = 100, n_tokens = 100, progress = 1.000000
+slot update_slots: id  0 | task 13418 | prompt done, n_past = 100, n_tokens = 100
+slot      release: id  0 | task 13418 | stop processing: n_past = 100, truncated = 0
+slot launch_slot_: id  0 | task 13419 | processing task
+slot update_slots: id  0 | task 13419 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 9
+slot update_slots: id  0 | task 13419 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13419 | prompt processing progress, n_past = 9, n_tokens = 9, progress = 1.000000
+slot update_slots: id  0 | task 13419 | prompt done, n_past = 9, n_tokens = 9
+slot      release: id  0 | task 13419 | stop processing: n_past = 9, truncated = 0
+slot launch_slot_: id  0 | task 13420 | processing task
+slot update_slots: id  0 | task 13420 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 88
+slot update_slots: id  0 | task 13420 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13420 | prompt processing progress, n_past = 88, n_tokens = 88, progress = 1.000000
+slot update_slots: id  0 | task 13420 | prompt done, n_past = 88, n_tokens = 88
+slot      release: id  0 | task 13420 | stop processing: n_past = 88, truncated = 0
+slot launch_slot_: id  0 | task 13421 | processing task
+slot update_slots: id  0 | task 13421 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 96
+slot update_slots: id  0 | task 13421 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13421 | prompt processing progress, n_past = 96, n_tokens = 96, progress = 1.000000
+slot update_slots: id  0 | task 13421 | prompt done, n_past = 96, n_tokens = 96
+slot      release: id  0 | task 13421 | stop processing: n_past = 96, truncated = 0
+slot launch_slot_: id  0 | task 13422 | processing task
+slot update_slots: id  0 | task 13422 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 99
+slot update_slots: id  0 | task 13422 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13422 | prompt processing progress, n_past = 99, n_tokens = 99, progress = 1.000000
+slot update_slots: id  0 | task 13422 | prompt done, n_past = 99, n_tokens = 99
+slot      release: id  0 | task 13422 | stop processing: n_past = 99, truncated = 0
+slot launch_slot_: id  0 | task 13423 | processing task
+slot update_slots: id  0 | task 13423 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 8
+slot update_slots: id  0 | task 13423 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13423 | prompt processing progress, n_past = 8, n_tokens = 8, progress = 1.000000
+slot update_slots: id  0 | task 13423 | prompt done, n_past = 8, n_tokens = 8
+slot      release: id  0 | task 13423 | stop processing: n_past = 8, truncated = 0
+slot launch_slot_: id  0 | task 13424 | processing task
+slot update_slots: id  0 | task 13424 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 96
+slot update_slots: id  0 | task 13424 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13424 | prompt processing progress, n_past = 96, n_tokens = 96, progress = 1.000000
+slot update_slots: id  0 | task 13424 | prompt done, n_past = 96, n_tokens = 96
+slot      release: id  0 | task 13424 | stop processing: n_past = 96, truncated = 0
+slot launch_slot_: id  0 | task 13425 | processing task
+slot update_slots: id  0 | task 13425 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 31
+slot update_slots: id  0 | task 13425 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13425 | prompt processing progress, n_past = 31, n_tokens = 31, progress = 1.000000
+slot update_slots: id  0 | task 13425 | prompt done, n_past = 31, n_tokens = 31
+slot      release: id  0 | task 13425 | stop processing: n_past = 31, truncated = 0
+slot launch_slot_: id  0 | task 13426 | processing task
+slot update_slots: id  0 | task 13426 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 42
+slot update_slots: id  0 | task 13426 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13426 | prompt processing progress, n_past = 42, n_tokens = 42, progress = 1.000000
+slot update_slots: id  0 | task 13426 | prompt done, n_past = 42, n_tokens = 42
+slot      release: id  0 | task 13426 | stop processing: n_past = 42, truncated = 0
+slot launch_slot_: id  0 | task 13427 | processing task
+slot update_slots: id  0 | task 13427 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 11
+slot update_slots: id  0 | task 13427 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13427 | prompt processing progress, n_past = 11, n_tokens = 11, progress = 1.000000
+slot update_slots: id  0 | task 13427 | prompt done, n_past = 11, n_tokens = 11
+slot      release: id  0 | task 13427 | stop processing: n_past = 11, truncated = 0
+slot launch_slot_: id  0 | task 13428 | processing task
+slot update_slots: id  0 | task 13428 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 92
+slot update_slots: id  0 | task 13428 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13428 | prompt processing progress, n_past = 92, n_tokens = 92, progress = 1.000000
+slot update_slots: id  0 | task 13428 | prompt done, n_past = 92, n_tokens = 92
+slot      release: id  0 | task 13428 | stop processing: n_past = 92, truncated = 0
+slot launch_slot_: id  0 | task 13429 | processing task
+slot update_slots: id  0 | task 13429 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 11
+slot update_slots: id  0 | task 13429 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13429 | prompt processing progress, n_past = 11, n_tokens = 11, progress = 1.000000
+slot update_slots: id  0 | task 13429 | prompt done, n_past = 11, n_tokens = 11
+slot      release: id  0 | task 13429 | stop processing: n_past = 11, truncated = 0
+slot launch_slot_: id  0 | task 13430 | processing task
+slot update_slots: id  0 | task 13430 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 21
+slot update_slots: id  0 | task 13430 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13430 | prompt processing progress, n_past = 21, n_tokens = 21, progress = 1.000000
+slot update_slots: id  0 | task 13430 | prompt done, n_past = 21, n_tokens = 21
+slot      release: id  0 | task 13430 | stop processing: n_past = 21, truncated = 0
+slot launch_slot_: id  0 | task 13431 | processing task
+slot update_slots: id  0 | task 13431 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 13
+slot update_slots: id  0 | task 13431 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13431 | prompt processing progress, n_past = 13, n_tokens = 13, progress = 1.000000
+slot update_slots: id  0 | task 13431 | prompt done, n_past = 13, n_tokens = 13
+slot      release: id  0 | task 13431 | stop processing: n_past = 13, truncated = 0
+slot launch_slot_: id  0 | task 13432 | processing task
+slot update_slots: id  0 | task 13432 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 101
+slot update_slots: id  0 | task 13432 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13432 | prompt processing progress, n_past = 101, n_tokens = 101, progress = 1.000000
+slot update_slots: id  0 | task 13432 | prompt done, n_past = 101, n_tokens = 101
+slot      release: id  0 | task 13432 | stop processing: n_past = 101, truncated = 0
+slot launch_slot_: id  0 | task 13433 | processing task
+slot update_slots: id  0 | task 13433 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 19
+slot update_slots: id  0 | task 13433 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13433 | prompt processing progress, n_past = 19, n_tokens = 19, progress = 1.000000
+slot update_slots: id  0 | task 13433 | prompt done, n_past = 19, n_tokens = 19
+slot      release: id  0 | task 13433 | stop processing: n_past = 19, truncated = 0
+slot launch_slot_: id  0 | task 13434 | processing task
+slot update_slots: id  0 | task 13434 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 104
+slot update_slots: id  0 | task 13434 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13434 | prompt processing progress, n_past = 104, n_tokens = 104, progress = 1.000000
+slot update_slots: id  0 | task 13434 | prompt done, n_past = 104, n_tokens = 104
+slot      release: id  0 | task 13434 | stop processing: n_past = 104, truncated = 0
+slot launch_slot_: id  0 | task 13435 | processing task
+slot update_slots: id  0 | task 13435 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 11
+slot update_slots: id  0 | task 13435 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13435 | prompt processing progress, n_past = 11, n_tokens = 11, progress = 1.000000
+slot update_slots: id  0 | task 13435 | prompt done, n_past = 11, n_tokens = 11
+slot      release: id  0 | task 13435 | stop processing: n_past = 11, truncated = 0
+slot launch_slot_: id  0 | task 13436 | processing task
+slot update_slots: id  0 | task 13436 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 99
+slot update_slots: id  0 | task 13436 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13436 | prompt processing progress, n_past = 99, n_tokens = 99, progress = 1.000000
+slot update_slots: id  0 | task 13436 | prompt done, n_past = 99, n_tokens = 99
+slot      release: id  0 | task 13436 | stop processing: n_past = 99, truncated = 0
+slot launch_slot_: id  0 | task 13437 | processing task
+slot update_slots: id  0 | task 13437 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 18
+slot update_slots: id  0 | task 13437 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13437 | prompt processing progress, n_past = 18, n_tokens = 18, progress = 1.000000
+slot update_slots: id  0 | task 13437 | prompt done, n_past = 18, n_tokens = 18
+slot      release: id  0 | task 13437 | stop processing: n_past = 18, truncated = 0
+slot launch_slot_: id  0 | task 13438 | processing task
+slot update_slots: id  0 | task 13438 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 116
+slot update_slots: id  0 | task 13438 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13438 | prompt processing progress, n_past = 116, n_tokens = 116, progress = 1.000000
+slot update_slots: id  0 | task 13438 | prompt done, n_past = 116, n_tokens = 116
+slot      release: id  0 | task 13438 | stop processing: n_past = 116, truncated = 0
+slot launch_slot_: id  0 | task 13439 | processing task
+slot update_slots: id  0 | task 13439 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 6
+slot update_slots: id  0 | task 13439 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13439 | prompt processing progress, n_past = 6, n_tokens = 6, progress = 1.000000
+slot update_slots: id  0 | task 13439 | prompt done, n_past = 6, n_tokens = 6
+slot      release: id  0 | task 13439 | stop processing: n_past = 6, truncated = 0
+slot launch_slot_: id  0 | task 13440 | processing task
+slot update_slots: id  0 | task 13440 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 31
+slot update_slots: id  0 | task 13440 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13440 | prompt processing progress, n_past = 31, n_tokens = 31, progress = 1.000000
+slot update_slots: id  0 | task 13440 | prompt done, n_past = 31, n_tokens = 31
+slot      release: id  0 | task 13440 | stop processing: n_past = 31, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13473 | processing task
+slot update_slots: id  0 | task 13473 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 32
+slot update_slots: id  0 | task 13473 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13473 | prompt processing progress, n_past = 32, n_tokens = 32, progress = 1.000000
+slot update_slots: id  0 | task 13473 | prompt done, n_past = 32, n_tokens = 32
+slot      release: id  0 | task 13473 | stop processing: n_past = 32, truncated = 0
+slot launch_slot_: id  0 | task 13474 | processing task
+slot update_slots: id  0 | task 13474 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 54
+slot update_slots: id  0 | task 13474 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13474 | prompt processing progress, n_past = 54, n_tokens = 54, progress = 1.000000
+slot update_slots: id  0 | task 13474 | prompt done, n_past = 54, n_tokens = 54
+slot      release: id  0 | task 13474 | stop processing: n_past = 54, truncated = 0
+slot launch_slot_: id  0 | task 13475 | processing task
+slot update_slots: id  0 | task 13475 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 10
+slot update_slots: id  0 | task 13475 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13475 | prompt processing progress, n_past = 10, n_tokens = 10, progress = 1.000000
+slot update_slots: id  0 | task 13475 | prompt done, n_past = 10, n_tokens = 10
+slot      release: id  0 | task 13475 | stop processing: n_past = 10, truncated = 0
+slot launch_slot_: id  0 | task 13476 | processing task
+slot update_slots: id  0 | task 13476 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 112
+slot update_slots: id  0 | task 13476 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13476 | prompt processing progress, n_past = 112, n_tokens = 112, progress = 1.000000
+slot update_slots: id  0 | task 13476 | prompt done, n_past = 112, n_tokens = 112
+slot      release: id  0 | task 13476 | stop processing: n_past = 112, truncated = 0
+slot launch_slot_: id  0 | task 13477 | processing task
+slot update_slots: id  0 | task 13477 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 43
+slot update_slots: id  0 | task 13477 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13477 | prompt processing progress, n_past = 43, n_tokens = 43, progress = 1.000000
+slot update_slots: id  0 | task 13477 | prompt done, n_past = 43, n_tokens = 43
+slot      release: id  0 | task 13477 | stop processing: n_past = 43, truncated = 0
+slot launch_slot_: id  0 | task 13478 | processing task
+slot update_slots: id  0 | task 13478 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 96
+slot update_slots: id  0 | task 13478 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13478 | prompt processing progress, n_past = 96, n_tokens = 96, progress = 1.000000
+slot update_slots: id  0 | task 13478 | prompt done, n_past = 96, n_tokens = 96
+slot      release: id  0 | task 13478 | stop processing: n_past = 96, truncated = 0
+slot launch_slot_: id  0 | task 13479 | processing task
+slot update_slots: id  0 | task 13479 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 43
+slot update_slots: id  0 | task 13479 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13479 | prompt processing progress, n_past = 43, n_tokens = 43, progress = 1.000000
+slot update_slots: id  0 | task 13479 | prompt done, n_past = 43, n_tokens = 43
+slot      release: id  0 | task 13479 | stop processing: n_past = 43, truncated = 0
+slot launch_slot_: id  0 | task 13480 | processing task
+slot update_slots: id  0 | task 13480 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 96
+slot update_slots: id  0 | task 13480 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13480 | prompt processing progress, n_past = 96, n_tokens = 96, progress = 1.000000
+slot update_slots: id  0 | task 13480 | prompt done, n_past = 96, n_tokens = 96
+slot      release: id  0 | task 13480 | stop processing: n_past = 96, truncated = 0
+slot launch_slot_: id  0 | task 13481 | processing task
+slot update_slots: id  0 | task 13481 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 6
+slot update_slots: id  0 | task 13481 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13481 | prompt processing progress, n_past = 6, n_tokens = 6, progress = 1.000000
+slot update_slots: id  0 | task 13481 | prompt done, n_past = 6, n_tokens = 6
+slot      release: id  0 | task 13481 | stop processing: n_past = 6, truncated = 0
+slot launch_slot_: id  0 | task 13482 | processing task
+slot update_slots: id  0 | task 13482 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 20
+slot update_slots: id  0 | task 13482 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13482 | prompt processing progress, n_past = 20, n_tokens = 20, progress = 1.000000
+slot update_slots: id  0 | task 13482 | prompt done, n_past = 20, n_tokens = 20
+slot      release: id  0 | task 13482 | stop processing: n_past = 20, truncated = 0
+slot launch_slot_: id  0 | task 13483 | processing task
+slot update_slots: id  0 | task 13483 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 3
+slot update_slots: id  0 | task 13483 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13483 | prompt processing progress, n_past = 3, n_tokens = 3, progress = 1.000000
+slot update_slots: id  0 | task 13483 | prompt done, n_past = 3, n_tokens = 3
+slot      release: id  0 | task 13483 | stop processing: n_past = 3, truncated = 0
+slot launch_slot_: id  0 | task 13484 | processing task
+slot update_slots: id  0 | task 13484 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 25
+slot update_slots: id  0 | task 13484 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13484 | prompt processing progress, n_past = 25, n_tokens = 25, progress = 1.000000
+slot update_slots: id  0 | task 13484 | prompt done, n_past = 25, n_tokens = 25
+slot      release: id  0 | task 13484 | stop processing: n_past = 25, truncated = 0
+slot launch_slot_: id  0 | task 13485 | processing task
+slot update_slots: id  0 | task 13485 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 10
+slot update_slots: id  0 | task 13485 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13485 | prompt processing progress, n_past = 10, n_tokens = 10, progress = 1.000000
+slot update_slots: id  0 | task 13485 | prompt done, n_past = 10, n_tokens = 10
+slot      release: id  0 | task 13485 | stop processing: n_past = 10, truncated = 0
+slot launch_slot_: id  0 | task 13486 | processing task
+slot update_slots: id  0 | task 13486 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 75
+slot update_slots: id  0 | task 13486 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13486 | prompt processing progress, n_past = 75, n_tokens = 75, progress = 1.000000
+slot update_slots: id  0 | task 13486 | prompt done, n_past = 75, n_tokens = 75
+slot      release: id  0 | task 13486 | stop processing: n_past = 75, truncated = 0
+slot launch_slot_: id  0 | task 13487 | processing task
+slot update_slots: id  0 | task 13487 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 45
+slot update_slots: id  0 | task 13487 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13487 | prompt processing progress, n_past = 45, n_tokens = 45, progress = 1.000000
+slot update_slots: id  0 | task 13487 | prompt done, n_past = 45, n_tokens = 45
+slot      release: id  0 | task 13487 | stop processing: n_past = 45, truncated = 0
+slot launch_slot_: id  0 | task 13488 | processing task
+slot update_slots: id  0 | task 13488 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 156
+slot update_slots: id  0 | task 13488 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13488 | prompt processing progress, n_past = 156, n_tokens = 156, progress = 1.000000
+slot update_slots: id  0 | task 13488 | prompt done, n_past = 156, n_tokens = 156
+slot      release: id  0 | task 13488 | stop processing: n_past = 156, truncated = 0
+slot launch_slot_: id  0 | task 13489 | processing task
+slot update_slots: id  0 | task 13489 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 27
+slot update_slots: id  0 | task 13489 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13489 | prompt processing progress, n_past = 27, n_tokens = 27, progress = 1.000000
+slot update_slots: id  0 | task 13489 | prompt done, n_past = 27, n_tokens = 27
+slot      release: id  0 | task 13489 | stop processing: n_past = 27, truncated = 0
+slot launch_slot_: id  0 | task 13490 | processing task
+slot update_slots: id  0 | task 13490 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 115
+slot update_slots: id  0 | task 13490 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13490 | prompt processing progress, n_past = 115, n_tokens = 115, progress = 1.000000
+slot update_slots: id  0 | task 13490 | prompt done, n_past = 115, n_tokens = 115
+slot      release: id  0 | task 13490 | stop processing: n_past = 115, truncated = 0
+slot launch_slot_: id  0 | task 13491 | processing task
+slot update_slots: id  0 | task 13491 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 91
+slot update_slots: id  0 | task 13491 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13491 | prompt processing progress, n_past = 91, n_tokens = 91, progress = 1.000000
+slot update_slots: id  0 | task 13491 | prompt done, n_past = 91, n_tokens = 91
+slot      release: id  0 | task 13491 | stop processing: n_past = 91, truncated = 0
+slot launch_slot_: id  0 | task 13492 | processing task
+slot update_slots: id  0 | task 13492 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 29
+slot update_slots: id  0 | task 13492 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13492 | prompt processing progress, n_past = 29, n_tokens = 29, progress = 1.000000
+slot update_slots: id  0 | task 13492 | prompt done, n_past = 29, n_tokens = 29
+slot      release: id  0 | task 13492 | stop processing: n_past = 29, truncated = 0
+slot launch_slot_: id  0 | task 13493 | processing task
+slot update_slots: id  0 | task 13493 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 53
+slot update_slots: id  0 | task 13493 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13493 | prompt processing progress, n_past = 53, n_tokens = 53, progress = 1.000000
+slot update_slots: id  0 | task 13493 | prompt done, n_past = 53, n_tokens = 53
+slot      release: id  0 | task 13493 | stop processing: n_past = 53, truncated = 0
+slot launch_slot_: id  0 | task 13494 | processing task
+slot update_slots: id  0 | task 13494 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 78
+slot update_slots: id  0 | task 13494 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13494 | prompt processing progress, n_past = 78, n_tokens = 78, progress = 1.000000
+slot update_slots: id  0 | task 13494 | prompt done, n_past = 78, n_tokens = 78
+slot      release: id  0 | task 13494 | stop processing: n_past = 78, truncated = 0
+slot launch_slot_: id  0 | task 13495 | processing task
+slot update_slots: id  0 | task 13495 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 12
+slot update_slots: id  0 | task 13495 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13495 | prompt processing progress, n_past = 12, n_tokens = 12, progress = 1.000000
+slot update_slots: id  0 | task 13495 | prompt done, n_past = 12, n_tokens = 12
+slot      release: id  0 | task 13495 | stop processing: n_past = 12, truncated = 0
+slot launch_slot_: id  0 | task 13496 | processing task
+slot update_slots: id  0 | task 13496 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 113
+slot update_slots: id  0 | task 13496 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13496 | prompt processing progress, n_past = 113, n_tokens = 113, progress = 1.000000
+slot update_slots: id  0 | task 13496 | prompt done, n_past = 113, n_tokens = 113
+slot      release: id  0 | task 13496 | stop processing: n_past = 113, truncated = 0
+slot launch_slot_: id  0 | task 13497 | processing task
+slot update_slots: id  0 | task 13497 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 37
+slot update_slots: id  0 | task 13497 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13497 | prompt processing progress, n_past = 37, n_tokens = 37, progress = 1.000000
+slot update_slots: id  0 | task 13497 | prompt done, n_past = 37, n_tokens = 37
+slot      release: id  0 | task 13497 | stop processing: n_past = 37, truncated = 0
+slot launch_slot_: id  0 | task 13498 | processing task
+slot update_slots: id  0 | task 13498 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 60
+slot update_slots: id  0 | task 13498 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13498 | prompt processing progress, n_past = 60, n_tokens = 60, progress = 1.000000
+slot update_slots: id  0 | task 13498 | prompt done, n_past = 60, n_tokens = 60
+slot      release: id  0 | task 13498 | stop processing: n_past = 60, truncated = 0
+slot launch_slot_: id  0 | task 13499 | processing task
+slot update_slots: id  0 | task 13499 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 26
+slot update_slots: id  0 | task 13499 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13499 | prompt processing progress, n_past = 26, n_tokens = 26, progress = 1.000000
+slot update_slots: id  0 | task 13499 | prompt done, n_past = 26, n_tokens = 26
+slot      release: id  0 | task 13499 | stop processing: n_past = 26, truncated = 0
+slot launch_slot_: id  0 | task 13500 | processing task
+slot update_slots: id  0 | task 13500 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 81
+slot update_slots: id  0 | task 13500 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13500 | prompt processing progress, n_past = 81, n_tokens = 81, progress = 1.000000
+slot update_slots: id  0 | task 13500 | prompt done, n_past = 81, n_tokens = 81
+slot      release: id  0 | task 13500 | stop processing: n_past = 81, truncated = 0
+slot launch_slot_: id  0 | task 13501 | processing task
+slot update_slots: id  0 | task 13501 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 35
+slot update_slots: id  0 | task 13501 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13501 | prompt processing progress, n_past = 35, n_tokens = 35, progress = 1.000000
+slot update_slots: id  0 | task 13501 | prompt done, n_past = 35, n_tokens = 35
+slot      release: id  0 | task 13501 | stop processing: n_past = 35, truncated = 0
+slot launch_slot_: id  0 | task 13502 | processing task
+slot update_slots: id  0 | task 13502 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 159
+slot update_slots: id  0 | task 13502 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13502 | prompt processing progress, n_past = 159, n_tokens = 159, progress = 1.000000
+slot update_slots: id  0 | task 13502 | prompt done, n_past = 159, n_tokens = 159
+slot      release: id  0 | task 13502 | stop processing: n_past = 159, truncated = 0
+slot launch_slot_: id  0 | task 13503 | processing task
+slot update_slots: id  0 | task 13503 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 76
+slot update_slots: id  0 | task 13503 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13503 | prompt processing progress, n_past = 76, n_tokens = 76, progress = 1.000000
+slot update_slots: id  0 | task 13503 | prompt done, n_past = 76, n_tokens = 76
+slot      release: id  0 | task 13503 | stop processing: n_past = 76, truncated = 0
+slot launch_slot_: id  0 | task 13504 | processing task
+slot update_slots: id  0 | task 13504 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 126
+slot update_slots: id  0 | task 13504 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13504 | prompt processing progress, n_past = 126, n_tokens = 126, progress = 1.000000
+slot update_slots: id  0 | task 13504 | prompt done, n_past = 126, n_tokens = 126
+slot      release: id  0 | task 13504 | stop processing: n_past = 126, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13537 | processing task
+slot update_slots: id  0 | task 13537 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 23
+slot update_slots: id  0 | task 13537 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13537 | prompt processing progress, n_past = 23, n_tokens = 23, progress = 1.000000
+slot update_slots: id  0 | task 13537 | prompt done, n_past = 23, n_tokens = 23
+slot      release: id  0 | task 13537 | stop processing: n_past = 23, truncated = 0
+slot launch_slot_: id  0 | task 13538 | processing task
+slot update_slots: id  0 | task 13538 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 92
+slot update_slots: id  0 | task 13538 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13538 | prompt processing progress, n_past = 92, n_tokens = 92, progress = 1.000000
+slot update_slots: id  0 | task 13538 | prompt done, n_past = 92, n_tokens = 92
+slot      release: id  0 | task 13538 | stop processing: n_past = 92, truncated = 0
+slot launch_slot_: id  0 | task 13539 | processing task
+slot update_slots: id  0 | task 13539 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 47
+slot update_slots: id  0 | task 13539 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13539 | prompt processing progress, n_past = 47, n_tokens = 47, progress = 1.000000
+slot update_slots: id  0 | task 13539 | prompt done, n_past = 47, n_tokens = 47
+slot      release: id  0 | task 13539 | stop processing: n_past = 47, truncated = 0
+slot launch_slot_: id  0 | task 13540 | processing task
+slot update_slots: id  0 | task 13540 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 106
+slot update_slots: id  0 | task 13540 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13540 | prompt processing progress, n_past = 106, n_tokens = 106, progress = 1.000000
+slot update_slots: id  0 | task 13540 | prompt done, n_past = 106, n_tokens = 106
+slot      release: id  0 | task 13540 | stop processing: n_past = 106, truncated = 0
+slot launch_slot_: id  0 | task 13541 | processing task
+slot update_slots: id  0 | task 13541 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 23
+slot update_slots: id  0 | task 13541 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13541 | prompt processing progress, n_past = 23, n_tokens = 23, progress = 1.000000
+slot update_slots: id  0 | task 13541 | prompt done, n_past = 23, n_tokens = 23
+slot      release: id  0 | task 13541 | stop processing: n_past = 23, truncated = 0
+slot launch_slot_: id  0 | task 13542 | processing task
+slot update_slots: id  0 | task 13542 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 97
+slot update_slots: id  0 | task 13542 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13542 | prompt processing progress, n_past = 97, n_tokens = 97, progress = 1.000000
+slot update_slots: id  0 | task 13542 | prompt done, n_past = 97, n_tokens = 97
+slot      release: id  0 | task 13542 | stop processing: n_past = 97, truncated = 0
+slot launch_slot_: id  0 | task 13543 | processing task
+slot update_slots: id  0 | task 13543 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 80
+slot update_slots: id  0 | task 13543 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13543 | prompt processing progress, n_past = 80, n_tokens = 80, progress = 1.000000
+slot update_slots: id  0 | task 13543 | prompt done, n_past = 80, n_tokens = 80
+slot      release: id  0 | task 13543 | stop processing: n_past = 80, truncated = 0
+slot launch_slot_: id  0 | task 13544 | processing task
+slot update_slots: id  0 | task 13544 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 148
+slot update_slots: id  0 | task 13544 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13544 | prompt processing progress, n_past = 148, n_tokens = 148, progress = 1.000000
+slot update_slots: id  0 | task 13544 | prompt done, n_past = 148, n_tokens = 148
+slot      release: id  0 | task 13544 | stop processing: n_past = 148, truncated = 0
+slot launch_slot_: id  0 | task 13545 | processing task
+slot update_slots: id  0 | task 13545 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 85
+slot update_slots: id  0 | task 13545 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13545 | prompt processing progress, n_past = 85, n_tokens = 85, progress = 1.000000
+slot update_slots: id  0 | task 13545 | prompt done, n_past = 85, n_tokens = 85
+slot      release: id  0 | task 13545 | stop processing: n_past = 85, truncated = 0
+slot launch_slot_: id  0 | task 13546 | processing task
+slot update_slots: id  0 | task 13546 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 96
+slot update_slots: id  0 | task 13546 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13546 | prompt processing progress, n_past = 96, n_tokens = 96, progress = 1.000000
+slot update_slots: id  0 | task 13546 | prompt done, n_past = 96, n_tokens = 96
+slot      release: id  0 | task 13546 | stop processing: n_past = 96, truncated = 0
+slot launch_slot_: id  0 | task 13547 | processing task
+slot update_slots: id  0 | task 13547 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 3
+slot update_slots: id  0 | task 13547 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13547 | prompt processing progress, n_past = 3, n_tokens = 3, progress = 1.000000
+slot update_slots: id  0 | task 13547 | prompt done, n_past = 3, n_tokens = 3
+slot      release: id  0 | task 13547 | stop processing: n_past = 3, truncated = 0
+slot launch_slot_: id  0 | task 13548 | processing task
+slot update_slots: id  0 | task 13548 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 10
+slot update_slots: id  0 | task 13548 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13548 | prompt processing progress, n_past = 10, n_tokens = 10, progress = 1.000000
+slot update_slots: id  0 | task 13548 | prompt done, n_past = 10, n_tokens = 10
+slot      release: id  0 | task 13548 | stop processing: n_past = 10, truncated = 0
+slot launch_slot_: id  0 | task 13549 | processing task
+slot update_slots: id  0 | task 13549 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 10
+slot update_slots: id  0 | task 13549 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13549 | prompt processing progress, n_past = 10, n_tokens = 10, progress = 1.000000
+slot update_slots: id  0 | task 13549 | prompt done, n_past = 10, n_tokens = 10
+slot      release: id  0 | task 13549 | stop processing: n_past = 10, truncated = 0
+slot launch_slot_: id  0 | task 13550 | processing task
+slot update_slots: id  0 | task 13550 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 100
+slot update_slots: id  0 | task 13550 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13550 | prompt processing progress, n_past = 100, n_tokens = 100, progress = 1.000000
+slot update_slots: id  0 | task 13550 | prompt done, n_past = 100, n_tokens = 100
+slot      release: id  0 | task 13550 | stop processing: n_past = 100, truncated = 0
+slot launch_slot_: id  0 | task 13551 | processing task
+slot update_slots: id  0 | task 13551 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 10
+slot update_slots: id  0 | task 13551 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13551 | prompt processing progress, n_past = 10, n_tokens = 10, progress = 1.000000
+slot update_slots: id  0 | task 13551 | prompt done, n_past = 10, n_tokens = 10
+slot      release: id  0 | task 13551 | stop processing: n_past = 10, truncated = 0
+slot launch_slot_: id  0 | task 13552 | processing task
+slot update_slots: id  0 | task 13552 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 93
+slot update_slots: id  0 | task 13552 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13552 | prompt processing progress, n_past = 93, n_tokens = 93, progress = 1.000000
+slot update_slots: id  0 | task 13552 | prompt done, n_past = 93, n_tokens = 93
+slot      release: id  0 | task 13552 | stop processing: n_past = 93, truncated = 0
+slot launch_slot_: id  0 | task 13553 | processing task
+slot update_slots: id  0 | task 13553 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 20
+slot update_slots: id  0 | task 13553 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13553 | prompt processing progress, n_past = 20, n_tokens = 20, progress = 1.000000
+slot update_slots: id  0 | task 13553 | prompt done, n_past = 20, n_tokens = 20
+slot      release: id  0 | task 13553 | stop processing: n_past = 20, truncated = 0
+slot launch_slot_: id  0 | task 13554 | processing task
+slot update_slots: id  0 | task 13554 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 9
+slot update_slots: id  0 | task 13554 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13554 | prompt processing progress, n_past = 9, n_tokens = 9, progress = 1.000000
+slot update_slots: id  0 | task 13554 | prompt done, n_past = 9, n_tokens = 9
+slot      release: id  0 | task 13554 | stop processing: n_past = 9, truncated = 0
+slot launch_slot_: id  0 | task 13555 | processing task
+slot update_slots: id  0 | task 13555 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 95
+slot update_slots: id  0 | task 13555 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13555 | prompt processing progress, n_past = 95, n_tokens = 95, progress = 1.000000
+slot update_slots: id  0 | task 13555 | prompt done, n_past = 95, n_tokens = 95
+slot      release: id  0 | task 13555 | stop processing: n_past = 95, truncated = 0
+slot launch_slot_: id  0 | task 13556 | processing task
+slot update_slots: id  0 | task 13556 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 96
+slot update_slots: id  0 | task 13556 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13556 | prompt processing progress, n_past = 96, n_tokens = 96, progress = 1.000000
+slot update_slots: id  0 | task 13556 | prompt done, n_past = 96, n_tokens = 96
+slot      release: id  0 | task 13556 | stop processing: n_past = 96, truncated = 0
+slot launch_slot_: id  0 | task 13557 | processing task
+slot update_slots: id  0 | task 13557 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 49
+slot update_slots: id  0 | task 13557 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13557 | prompt processing progress, n_past = 49, n_tokens = 49, progress = 1.000000
+slot update_slots: id  0 | task 13557 | prompt done, n_past = 49, n_tokens = 49
+slot      release: id  0 | task 13557 | stop processing: n_past = 49, truncated = 0
+slot launch_slot_: id  0 | task 13558 | processing task
+slot update_slots: id  0 | task 13558 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 81
+slot update_slots: id  0 | task 13558 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13558 | prompt processing progress, n_past = 81, n_tokens = 81, progress = 1.000000
+slot update_slots: id  0 | task 13558 | prompt done, n_past = 81, n_tokens = 81
+slot      release: id  0 | task 13558 | stop processing: n_past = 81, truncated = 0
+slot launch_slot_: id  0 | task 13559 | processing task
+slot update_slots: id  0 | task 13559 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 77
+slot update_slots: id  0 | task 13559 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13559 | prompt processing progress, n_past = 77, n_tokens = 77, progress = 1.000000
+slot update_slots: id  0 | task 13559 | prompt done, n_past = 77, n_tokens = 77
+slot      release: id  0 | task 13559 | stop processing: n_past = 77, truncated = 0
+slot launch_slot_: id  0 | task 13560 | processing task
+slot update_slots: id  0 | task 13560 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 135
+slot update_slots: id  0 | task 13560 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13560 | prompt processing progress, n_past = 135, n_tokens = 135, progress = 1.000000
+slot update_slots: id  0 | task 13560 | prompt done, n_past = 135, n_tokens = 135
+slot      release: id  0 | task 13560 | stop processing: n_past = 135, truncated = 0
+slot launch_slot_: id  0 | task 13561 | processing task
+slot update_slots: id  0 | task 13561 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 8
+slot update_slots: id  0 | task 13561 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13561 | prompt processing progress, n_past = 8, n_tokens = 8, progress = 1.000000
+slot update_slots: id  0 | task 13561 | prompt done, n_past = 8, n_tokens = 8
+slot      release: id  0 | task 13561 | stop processing: n_past = 8, truncated = 0
+slot launch_slot_: id  0 | task 13562 | processing task
+slot update_slots: id  0 | task 13562 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 42
+slot update_slots: id  0 | task 13562 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13562 | prompt processing progress, n_past = 42, n_tokens = 42, progress = 1.000000
+slot update_slots: id  0 | task 13562 | prompt done, n_past = 42, n_tokens = 42
+slot      release: id  0 | task 13562 | stop processing: n_past = 42, truncated = 0
+slot launch_slot_: id  0 | task 13563 | processing task
+slot update_slots: id  0 | task 13563 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 25
+slot update_slots: id  0 | task 13563 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13563 | prompt processing progress, n_past = 25, n_tokens = 25, progress = 1.000000
+slot update_slots: id  0 | task 13563 | prompt done, n_past = 25, n_tokens = 25
+slot      release: id  0 | task 13563 | stop processing: n_past = 25, truncated = 0
+slot launch_slot_: id  0 | task 13564 | processing task
+slot update_slots: id  0 | task 13564 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 51
+slot update_slots: id  0 | task 13564 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13564 | prompt processing progress, n_past = 51, n_tokens = 51, progress = 1.000000
+slot update_slots: id  0 | task 13564 | prompt done, n_past = 51, n_tokens = 51
+slot      release: id  0 | task 13564 | stop processing: n_past = 51, truncated = 0
+slot launch_slot_: id  0 | task 13565 | processing task
+slot update_slots: id  0 | task 13565 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 90
+slot update_slots: id  0 | task 13565 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13565 | prompt processing progress, n_past = 90, n_tokens = 90, progress = 1.000000
+slot update_slots: id  0 | task 13565 | prompt done, n_past = 90, n_tokens = 90
+slot      release: id  0 | task 13565 | stop processing: n_past = 90, truncated = 0
+slot launch_slot_: id  0 | task 13566 | processing task
+slot update_slots: id  0 | task 13566 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 86
+slot update_slots: id  0 | task 13566 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13566 | prompt processing progress, n_past = 86, n_tokens = 86, progress = 1.000000
+slot update_slots: id  0 | task 13566 | prompt done, n_past = 86, n_tokens = 86
+slot      release: id  0 | task 13566 | stop processing: n_past = 86, truncated = 0
+slot launch_slot_: id  0 | task 13567 | processing task
+slot update_slots: id  0 | task 13567 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13567 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13567 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13567 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13567 | stop processing: n_past = 2, truncated = 0
+slot launch_slot_: id  0 | task 13568 | processing task
+slot update_slots: id  0 | task 13568 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13568 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13568 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13568 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13568 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13601 | processing task
+slot update_slots: id  0 | task 13601 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 5
+slot update_slots: id  0 | task 13601 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13601 | prompt processing progress, n_past = 5, n_tokens = 5, progress = 1.000000
+slot update_slots: id  0 | task 13601 | prompt done, n_past = 5, n_tokens = 5
+slot      release: id  0 | task 13601 | stop processing: n_past = 5, truncated = 0
+slot launch_slot_: id  0 | task 13602 | processing task
+slot update_slots: id  0 | task 13602 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 8
+slot update_slots: id  0 | task 13602 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13602 | prompt processing progress, n_past = 8, n_tokens = 8, progress = 1.000000
+slot update_slots: id  0 | task 13602 | prompt done, n_past = 8, n_tokens = 8
+slot      release: id  0 | task 13602 | stop processing: n_past = 8, truncated = 0
+slot launch_slot_: id  0 | task 13603 | processing task
+slot update_slots: id  0 | task 13603 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 6
+slot update_slots: id  0 | task 13603 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13603 | prompt processing progress, n_past = 6, n_tokens = 6, progress = 1.000000
+slot update_slots: id  0 | task 13603 | prompt done, n_past = 6, n_tokens = 6
+slot      release: id  0 | task 13603 | stop processing: n_past = 6, truncated = 0
+slot launch_slot_: id  0 | task 13604 | processing task
+slot update_slots: id  0 | task 13604 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 18
+slot update_slots: id  0 | task 13604 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13604 | prompt processing progress, n_past = 18, n_tokens = 18, progress = 1.000000
+slot update_slots: id  0 | task 13604 | prompt done, n_past = 18, n_tokens = 18
+slot      release: id  0 | task 13604 | stop processing: n_past = 18, truncated = 0
+slot launch_slot_: id  0 | task 13605 | processing task
+slot update_slots: id  0 | task 13605 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 3
+slot update_slots: id  0 | task 13605 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13605 | prompt processing progress, n_past = 3, n_tokens = 3, progress = 1.000000
+slot update_slots: id  0 | task 13605 | prompt done, n_past = 3, n_tokens = 3
+slot      release: id  0 | task 13605 | stop processing: n_past = 3, truncated = 0
+slot launch_slot_: id  0 | task 13606 | processing task
+slot update_slots: id  0 | task 13606 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 11
+slot update_slots: id  0 | task 13606 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13606 | prompt processing progress, n_past = 11, n_tokens = 11, progress = 1.000000
+slot update_slots: id  0 | task 13606 | prompt done, n_past = 11, n_tokens = 11
+slot      release: id  0 | task 13606 | stop processing: n_past = 11, truncated = 0
+slot launch_slot_: id  0 | task 13607 | processing task
+slot update_slots: id  0 | task 13607 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 63
+slot update_slots: id  0 | task 13607 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13607 | prompt processing progress, n_past = 63, n_tokens = 63, progress = 1.000000
+slot update_slots: id  0 | task 13607 | prompt done, n_past = 63, n_tokens = 63
+slot      release: id  0 | task 13607 | stop processing: n_past = 63, truncated = 0
+slot launch_slot_: id  0 | task 13608 | processing task
+slot update_slots: id  0 | task 13608 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 92
+slot update_slots: id  0 | task 13608 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13608 | prompt processing progress, n_past = 92, n_tokens = 92, progress = 1.000000
+slot update_slots: id  0 | task 13608 | prompt done, n_past = 92, n_tokens = 92
+slot      release: id  0 | task 13608 | stop processing: n_past = 92, truncated = 0
+slot launch_slot_: id  0 | task 13609 | processing task
+slot update_slots: id  0 | task 13609 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 12
+slot update_slots: id  0 | task 13609 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13609 | prompt processing progress, n_past = 12, n_tokens = 12, progress = 1.000000
+slot update_slots: id  0 | task 13609 | prompt done, n_past = 12, n_tokens = 12
+slot      release: id  0 | task 13609 | stop processing: n_past = 12, truncated = 0
+slot launch_slot_: id  0 | task 13610 | processing task
+slot update_slots: id  0 | task 13610 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 122
+slot update_slots: id  0 | task 13610 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13610 | prompt processing progress, n_past = 122, n_tokens = 122, progress = 1.000000
+slot update_slots: id  0 | task 13610 | prompt done, n_past = 122, n_tokens = 122
+slot      release: id  0 | task 13610 | stop processing: n_past = 122, truncated = 0
+slot launch_slot_: id  0 | task 13611 | processing task
+slot update_slots: id  0 | task 13611 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 19
+slot update_slots: id  0 | task 13611 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13611 | prompt processing progress, n_past = 19, n_tokens = 19, progress = 1.000000
+slot update_slots: id  0 | task 13611 | prompt done, n_past = 19, n_tokens = 19
+slot      release: id  0 | task 13611 | stop processing: n_past = 19, truncated = 0
+slot launch_slot_: id  0 | task 13612 | processing task
+slot update_slots: id  0 | task 13612 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 94
+slot update_slots: id  0 | task 13612 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13612 | prompt processing progress, n_past = 94, n_tokens = 94, progress = 1.000000
+slot update_slots: id  0 | task 13612 | prompt done, n_past = 94, n_tokens = 94
+slot      release: id  0 | task 13612 | stop processing: n_past = 94, truncated = 0
+slot launch_slot_: id  0 | task 13613 | processing task
+slot update_slots: id  0 | task 13613 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 76
+slot update_slots: id  0 | task 13613 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13613 | prompt processing progress, n_past = 76, n_tokens = 76, progress = 1.000000
+slot update_slots: id  0 | task 13613 | prompt done, n_past = 76, n_tokens = 76
+slot      release: id  0 | task 13613 | stop processing: n_past = 76, truncated = 0
+slot launch_slot_: id  0 | task 13614 | processing task
+slot update_slots: id  0 | task 13614 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 4
+slot update_slots: id  0 | task 13614 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13614 | prompt processing progress, n_past = 4, n_tokens = 4, progress = 1.000000
+slot update_slots: id  0 | task 13614 | prompt done, n_past = 4, n_tokens = 4
+slot      release: id  0 | task 13614 | stop processing: n_past = 4, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13629 | processing task
+slot update_slots: id  0 | task 13629 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13629 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13629 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13629 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13629 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13631 | processing task
+slot update_slots: id  0 | task 13631 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13631 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13631 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13631 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13631 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13633 | processing task
+slot update_slots: id  0 | task 13633 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13633 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13633 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13633 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13633 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13635 | processing task
+slot update_slots: id  0 | task 13635 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13635 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13635 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13635 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13635 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13637 | processing task
+slot update_slots: id  0 | task 13637 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13637 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13637 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13637 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13637 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+srv  log_server_r: request: GET /health 127.0.0.1 200
+slot launch_slot_: id  0 | task 13639 | processing task
+slot update_slots: id  0 | task 13639 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13639 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13639 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13639 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13639 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13641 | processing task
+slot update_slots: id  0 | task 13641 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 12
+slot update_slots: id  0 | task 13641 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13641 | prompt processing progress, n_past = 12, n_tokens = 12, progress = 1.000000
+slot update_slots: id  0 | task 13641 | prompt done, n_past = 12, n_tokens = 12
+slot      release: id  0 | task 13641 | stop processing: n_past = 12, truncated = 0
+slot launch_slot_: id  0 | task 13642 | processing task
+slot update_slots: id  0 | task 13642 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 94
+slot update_slots: id  0 | task 13642 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13642 | prompt processing progress, n_past = 94, n_tokens = 94, progress = 1.000000
+slot update_slots: id  0 | task 13642 | prompt done, n_past = 94, n_tokens = 94
+slot      release: id  0 | task 13642 | stop processing: n_past = 94, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13645 | processing task
+slot update_slots: id  0 | task 13645 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13645 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13645 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13645 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13645 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13647 | processing task
+slot update_slots: id  0 | task 13647 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13647 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13647 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13647 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13647 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+srv  log_server_r: request: GET /health 127.0.0.1 200
+slot launch_slot_: id  0 | task 13649 | processing task
+slot update_slots: id  0 | task 13649 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 12
+slot update_slots: id  0 | task 13649 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13649 | prompt processing progress, n_past = 12, n_tokens = 12, progress = 1.000000
+slot update_slots: id  0 | task 13649 | prompt done, n_past = 12, n_tokens = 12
+slot      release: id  0 | task 13649 | stop processing: n_past = 12, truncated = 0
+slot launch_slot_: id  0 | task 13650 | processing task
+slot update_slots: id  0 | task 13650 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 94
+slot update_slots: id  0 | task 13650 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13650 | prompt processing progress, n_past = 94, n_tokens = 94, progress = 1.000000
+slot update_slots: id  0 | task 13650 | prompt done, n_past = 94, n_tokens = 94
+slot      release: id  0 | task 13650 | stop processing: n_past = 94, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
+slot launch_slot_: id  0 | task 13653 | processing task
+slot update_slots: id  0 | task 13653 | new prompt, n_ctx_slot = 2048, n_keep = 0, n_prompt_tokens = 2
+slot update_slots: id  0 | task 13653 | kv cache rm [0, end)
+slot update_slots: id  0 | task 13653 | prompt processing progress, n_past = 2, n_tokens = 2, progress = 1.000000
+slot update_slots: id  0 | task 13653 | prompt done, n_past = 2, n_tokens = 2
+slot      release: id  0 | task 13653 | stop processing: n_past = 2, truncated = 0
+srv  update_slots: all slots are idle
+srv  log_server_r: request: POST /v1/embeddings 127.0.0.1 200
