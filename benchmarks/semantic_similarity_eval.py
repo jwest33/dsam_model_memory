@@ -64,7 +64,7 @@ class SemanticSimilarityEvaluator:
             self.embedder_available = False
             
         # Test data directory
-        self.test_data_dir =  "test_data"
+        self.test_data_dir = Path("test_data")
         
     def load_test_set(self, filename: str = None) -> List[SemanticTestCase]:
         """Load test set from file."""
@@ -301,7 +301,7 @@ class SemanticSimilarityEvaluator:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"semantic_eval_results_{timestamp}.json"
         
-        results_dir =  "results"
+        results_dir = Path("results")
         results_dir.mkdir(exist_ok=True)
         
         filepath = results_dir / filename

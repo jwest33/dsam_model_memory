@@ -46,7 +46,7 @@ class SemanticTestGenerator:
         self.llm_model = cfg.get('llm_model', 'local-model')
         
         # Output directory
-        self.output_dir =  "test_data"
+        self.output_dir = Path("test_data")
         self.output_dir.mkdir(exist_ok=True)
         
     def generate_paraphrase(self, text: str, style: str = "paraphrase") -> Optional[str]:

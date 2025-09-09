@@ -330,7 +330,7 @@ def main():
     if args.output:
         output_file = args.output
     else:
-        results_dir =  "results"
+        results_dir = Path("results")
         results_dir.mkdir(exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_file = results_dir / f"temporal_recall_{timestamp}.json"

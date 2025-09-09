@@ -454,11 +454,11 @@ def main():
     )
     
     # Always save results for analysis
-    results_dir = "results"
+    results_dir = Path("results")
     results_dir.mkdir(exist_ok=True)
     
     if args.output:
-        output_file = args.output
+        output_file = Path(args.output)
     else:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_file = results_dir / f"recall_benchmark_{timestamp}.json"

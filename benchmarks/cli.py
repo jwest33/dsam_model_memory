@@ -306,7 +306,7 @@ Examples:
                 print(f"  {key}: {value:.2f}")
         
         # Always save results for analysis
-        results_dir =  "results"
+        results_dir = Path("results")
         results_dir.mkdir(exist_ok=True)
         
         if args.output:

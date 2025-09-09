@@ -394,7 +394,7 @@ class MemoryBenchmark:
     
     def save_results(self, result: BenchmarkResult, filename: str = None):
         """Save benchmark results to JSON file."""
-        results_dir =  "results"
+        results_dir = Path("results")
         results_dir.mkdir(exist_ok=True)
         
         if filename:
