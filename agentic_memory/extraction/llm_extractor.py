@@ -26,7 +26,7 @@ Return ONLY valid JSON in the following schema:
   "who": {{ "type": "user|llm|tool|system", "id": "<string>", "label": "<optional string>" }},
   "what": "<concise description of the key action or content>",
   "when": "<ISO 8601 timestamp>",
-  "where": {{ "type": "physical|digital", "value": "<context like UI path, URL, file, or location>" }},
+  "where": {{ "type": "<context type e.g. physical, digital, financial, academic, conceptual, social>", "value": "<specific context like UI path, URL, file, location, or domain>" }},
   "why": "<best-effort intent or reason>",
   "how": "<method used, tool/procedure/parameters>"
 }}

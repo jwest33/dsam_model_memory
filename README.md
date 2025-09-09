@@ -6,10 +6,7 @@
 
 JAM is a local-first memory system that gives AI assistants human-like memory capabilities. Every conversation, tool use, and interaction becomes a searchable memory that your AI can recall and build upon. Think of it as giving your AI assistant a journal that it actually reads and learns from.
 
-## What It Does
-
-JAM transforms AI assistants from goldfish (forgetting everything after each conversation) into elephants (remembering everything that matters). It runs entirely on your computer, keeping your data private while giving your AI:
-
+JAM features:
 - **Persistent Memory**: Your AI remembers past conversations, decisions, and context across sessions
 - **Smart Recall**: Finds relevant memories using multiple strategies - not just keyword matching
 - **Self-Organization**: Memories naturally cluster by topic, time, and importance
@@ -18,9 +15,50 @@ JAM transforms AI assistants from goldfish (forgetting everything after each con
 ## Quick Start
 
 ### Prerequisites
+
+#### System Requirements
 - Python 3.11 or newer
-- 8GB+ RAM recommended
-- A local LLM model (we recommend Qwen-4B in GGUF format)
+- 8GB+ RAM recommended (16GB+ for larger models)
+- 10GB+ free disk space
+
+#### External Dependencies
+
+##### llama.cpp Server (Required)
+JAM requires llama.cpp to be installed and accessible on your system. The `llama_server_manager.py` script will automatically start and manage the llama.cpp server instances.
+
+**Installation Options:**
+
+1. **Pre-built Binary (Recommended for most users)**
+   - Download from: https://github.com/ggerganov/llama.cpp/releases
+   - Choose the appropriate binary for your platform (Windows, macOS, Linux)
+   - Extract and add to your system PATH, or note the full path to `llama-server` executable
+
+2. **Build from Source**
+   ```bash
+   git clone https://github.com/ggerganov/llama.cpp
+   cd llama.cpp
+   make  # On Linux/macOS
+   # Or for Windows, use cmake or follow the project's build instructions
+   ```
+
+3. **Verify Installation**
+   ```bash
+   # The llama-server executable should be accessible
+   llama-server --version
+   # Or specify full path if not in PATH
+   /path/to/llama-server --version
+   ```
+
+If llama.cpp is not in your PATH, you can configure the path in your `.env` file:
+```bash
+LLAMA_CPP_PATH=/path/to/llama-server
+```
+
+##### LLM Model File (Required)
+- Download a GGUF format model (we recommend Qwen2.5-3B or Qwen2.5-7B)
+- Download from: https://huggingface.co/models?search=qwen+gguf
+- Place the model file in an accessible location
+- Configure the path in your `.env` file or via the web interface
 
 ### Installation
 
@@ -29,10 +67,26 @@ JAM transforms AI assistants from goldfish (forgetting everything after each con
 git clone https://github.com/jwest33/jam_model_memory.git
 cd jam_model_memory
 
-# Install dependencies
+# Create and activate virtual environment (recommended)
+python -m venv .venv
+# On Windows PowerShell:
+.\.venv\Scripts\Activate.ps1
+# On Windows Command Prompt:
+.venv\Scripts\activate.bat
+# On Linux/macOS:
+source .venv/bin/activate
+
+# Install Python dependencies
 pip install -r requirements.txt
 
+# Optional: Install document parsing dependencies
+pip install -r requirements-optional.txt
+
+# Configure your model path (create .env file)
+echo "AM_MODEL_PATH=/path/to/your/model.gguf" > .env
+
 # Start llama.cpp servers
+# This will use the llama-server executable from your PATH or configured location
 python llama_server_manager.py both start
 
 # Start web interface
@@ -42,12 +96,22 @@ python run_web.py
 # Navigate to: http://localhost:5001
 ```
 
-That's it! The system will start all necessary services. All you need to do is open a web interface where you can chat with your memory-enhanced AI.
+**First Run Checklist:**
+1. llama.cpp installed and accessible
+2. GGUF model downloaded and path configured
+3. Python dependencies installed
+4. Servers started successfully
+5. Web interface accessible at http://localhost:5001
+
+If any server fails to start, check:
+- Is llama-server in your PATH or LLAMA_CPP_PATH configured?
+- Is your model path correct in .env or config?
+- Are ports 8000, 8001, and 5001 available?
 
 ## Screenshots
 
 ### Chat Interface
-The main interface where you interact with your AI assistant. Notice how it recalls relevant past conversations and builds on previous context:
+The main interface where you interact with your AI assistant where it can recall relevant past conversations and build on previous context:
 
 ![Memory Store Interface](docs/example-memory-store-recall.png)
 

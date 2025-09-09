@@ -88,6 +88,52 @@ class HybridRetriever:
             recency_score = exp_recency(row['when_ts'], now, half_life_hours=168.0)
             results.append((row['memory_id'], recency_score))
         return results
+    
+    def _temporal_based(self, temporal_hint: Union[str, Tuple[str, str], Dict], topk: int) -> List[Tuple[str, float]]:
+        """Retrieve memories based on temporal hint.
+        
+        Supports:
+        - Single date: "2024-01-15"
+        - Date range: ("2024-01-10", "2024-01-20")
+        - Relative time: {"relative": "yesterday"}
+        """
+        from typing import Union, Tuple, Dict
+        
+        # Parse temporal hint and retrieve memories
+        if isinstance(temporal_hint, str):
+            # Single date
+            rows = self.store.get_by_date(temporal_hint, limit=topk)
+        elif isinstance(temporal_hint, tuple) and len(temporal_hint) == 2:
+            # Date range
+            start, end = temporal_hint
+            rows = self.store.get_by_date_range(start, end, limit=topk)
+        elif isinstance(temporal_hint, dict):
+            if "relative" in temporal_hint:
+                # Relative time like "yesterday", "last_week"
+                rows = self.store.get_by_relative_time(temporal_hint["relative"])
+            elif "start" in temporal_hint and "end" in temporal_hint:
+                # Timestamp range - extract dates
+                start = temporal_hint["start"].split("T")[0] if "T" in temporal_hint["start"] else temporal_hint["start"]
+                end = temporal_hint["end"].split("T")[0] if "T" in temporal_hint["end"] else temporal_hint["end"]
+                rows = self.store.get_by_date_range(start, end, limit=topk)
+            else:
+                return []
+        else:
+            return []
+        
+        if not rows:
+            return []
+        
+        # Score based on being in temporal window
+        # All memories in the window get high base score (0.8)
+        # with slight variation based on exact time for ranking
+        results = []
+        for i, row in enumerate(rows):
+            # Higher score for earlier results (they're already sorted by time)
+            score = 0.8 - (i * 0.001)  # Small decay for ranking
+            results.append((row['memory_id'], score))
+        
+        return results
 
     def merge_scores(self, sem: List[Tuple[str, float]], lex: List[Tuple[str, float]], 
                      attention_scores: Optional[Dict[str, float]] = None) -> Dict[str, float]:
@@ -114,7 +160,8 @@ class HybridRetriever:
         return by_id
 
     def rerank(self, merged: Dict[str, float], rq: RetrievalQuery, 
-               memory_embeddings: Optional[Dict[str, np.ndarray]] = None) -> List[Candidate]:
+               memory_embeddings: Optional[Dict[str, np.ndarray]] = None,
+               temporal_candidate_ids: Optional[List[str]] = None) -> List[Candidate]:
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         metas = self._fetch_meta(list(merged.keys()))
         cands = []
@@ -125,6 +172,7 @@ class HybridRetriever:
         # Determine if we have hints to adjust weights
         has_actor_hint = bool(rq.actor_hint)
         has_spatial_hint = bool(rq.spatial_hint and rq.spatial_hint != 'flask_ui')
+        has_temporal_hint = bool(rq.temporal_hint)
         
         for mid, base in merged.items():
             m = metas.get(mid)
@@ -139,20 +187,49 @@ class HybridRetriever:
             actor_match = 1.0 if (rq.actor_hint and m['who_id'] == rq.actor_hint) else 0.0
             spatial_match = 1.0 if (rq.spatial_hint and m['where_value'] == rq.spatial_hint) else 0.0
             
+            # Check temporal match
+            temporal_match = 0.0
+            if has_temporal_hint:
+                mem_date = m['when_ts'].split('T')[0] if 'T' in m['when_ts'] else m['when_ts'][:10]
+                
+                if isinstance(rq.temporal_hint, str):
+                    # Single date match
+                    temporal_match = 1.0 if mem_date == rq.temporal_hint else 0.0
+                elif isinstance(rq.temporal_hint, tuple) and len(rq.temporal_hint) == 2:
+                    # Date range match
+                    start, end = rq.temporal_hint
+                    temporal_match = 1.0 if start <= mem_date <= end else 0.0
+                elif isinstance(rq.temporal_hint, dict):
+                    # For relative times, we'd need to compute the actual date range
+                    # This is handled by the retrieval method, so memories retrieved
+                    # via temporal_candidates already match
+                    if temporal_candidate_ids and mid in temporal_candidate_ids:
+                        temporal_match = 1.0
+            
             # Get actual usage count if available
             usage_data = usage_stats.get(mid, {})
             usage_score = min(1.0, usage_data.get('accesses', 0) / 100.0) if usage_data else 0.0
             
             if self.use_attention:
                 # Dynamic weights based on whether hints are provided
-                if has_actor_hint:
+                if has_temporal_hint:
+                    # Boost temporal weight when hint is provided
+                    score = (base * 0.3 +
+                            importance * 0.1 +
+                            rec * 0.05 +            # Less recency weight when temporal hint active
+                            usage_score * 0.05 +
+                            actor_match * 0.05 +
+                            spatial_match * 0.05 +
+                            temporal_match * 0.40)   # Strong temporal weight
+                elif has_actor_hint:
                     # Boost actor weight when hint is provided
                     score = (base * 0.35 +          # Reduced from 0.5
                             importance * 0.15 +      # Reduced from 0.2
                             rec * 0.15 +
                             usage_score * 0.1 +
                             actor_match * 0.20 +     # Increased from 0.025
-                            spatial_match * 0.05)
+                            spatial_match * 0.05 +
+                            temporal_match * 0.0)
                 elif has_spatial_hint:
                     # Boost spatial weight when hint is provided
                     score = (base * 0.35 +
@@ -160,7 +237,8 @@ class HybridRetriever:
                             rec * 0.15 +
                             usage_score * 0.1 +
                             actor_match * 0.05 +
-                            spatial_match * 0.20)    # Increased for spatial
+                            spatial_match * 0.20 +   # Increased for spatial
+                            temporal_match * 0.0)
                 else:
                     # Default weights when no hints
                     score = (base * 0.5 + 
@@ -168,7 +246,8 @@ class HybridRetriever:
                             rec * 0.15 +
                             usage_score * 0.1 +
                             actor_match * 0.025 +
-                            spatial_match * 0.025)
+                            spatial_match * 0.025 +
+                            temporal_match * 0.0)
             else:
                 # Original static scoring - also adjust for hints
                 if has_actor_hint:
@@ -180,9 +259,16 @@ class HybridRetriever:
                     spatial_weight = 0.20  # Boost from cfg.w_spatial (0.03)
                 else:
                     spatial_weight = cfg.w_spatial
+                
+                if has_temporal_hint:
+                    temporal_weight = 0.35  # Boost for temporal hint
+                    recency_weight = 0.05   # Reduce recency when temporal hint active
+                else:
+                    temporal_weight = 0.0
+                    recency_weight = cfg.w_recency
                     
-                usage_boost = 0.2 if actor_match or spatial_match else 0.0
-                score = base + cfg.w_recency*rec + actor_weight*actor_match + spatial_weight*spatial_match + cfg.w_usage*usage_boost
+                usage_boost = 0.2 if actor_match or spatial_match or temporal_match else 0.0
+                score = base + recency_weight*rec + actor_weight*actor_match + spatial_weight*spatial_match + temporal_weight*temporal_match + cfg.w_usage*usage_boost
                 
             cands.append(Candidate(memory_id=mid, score=score, token_count=int(m['token_count'])))
             
@@ -203,8 +289,13 @@ class HybridRetriever:
         if rq.spatial_hint and rq.spatial_hint != 'flask_ui':  # Ignore default
             spatial_candidates = self._spatial_based(rq.spatial_hint, topk_sem)
         
+        # NEW: Add temporal-specific retrieval if hint provided
+        temporal_candidates = []
+        if rq.temporal_hint:
+            temporal_candidates = self._temporal_based(rq.temporal_hint, topk_sem)
+        
         # Combine all candidate sources
-        all_candidates = sem + lex + actor_candidates + spatial_candidates
+        all_candidates = sem + lex + actor_candidates + spatial_candidates + temporal_candidates
         
         # Compute attention scores if enabled
         attention_scores = None
@@ -218,16 +309,17 @@ class HybridRetriever:
                     attn_weights = self.attention_head.compute_attention_weights(qvec, embeddings)
                     attention_scores = {cid: float(attn_weights[i]) for i, cid in enumerate(candidate_ids)}
         
-        # Merge scores with optional attention (now includes actor/spatial candidates)
+        # Merge scores with optional attention (now includes actor/spatial/temporal candidates)
         merged = self.merge_scores(sem, lex, attention_scores)
         
-        # Add actor/spatial candidates to merged scores if not already present
-        for mid, score in actor_candidates + spatial_candidates:
+        # Add actor/spatial/temporal candidates to merged scores if not already present
+        for mid, score in actor_candidates + spatial_candidates + temporal_candidates:
             if mid not in merged:
                 merged[mid] = score * 0.8  # Slightly lower base score for hint-only matches
         
         # Rerank with all signals
-        ranked = self.rerank(merged, rq)
+        temporal_candidate_ids = [mid for mid, _ in temporal_candidates] if temporal_candidates else None
+        ranked = self.rerank(merged, rq, temporal_candidate_ids=temporal_candidate_ids)
         
         # Update consolidation based on retrieval
         if ranked and self.use_attention:

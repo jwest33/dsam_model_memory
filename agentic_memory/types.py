@@ -1,6 +1,6 @@
 from __future__ import annotations
 from pydantic import BaseModel, Field
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 from datetime import datetime
 import uuid
 
@@ -24,7 +24,7 @@ class Who(BaseModel):
     label: Optional[str] = None
 
 class Where(BaseModel):
-    type: Literal['physical','digital'] = 'digital'
+    type: str = 'digital'  # e.g., 'physical', 'digital', 'financial', 'academic', 'conceptual', etc.
     value: str  # e.g., 'flask_ui/session:abc'; could also be domain or file path
     lat: Optional[float] = None
     lon: Optional[float] = None
@@ -66,6 +66,7 @@ class RetrievalQuery(BaseModel):
     session_id: str
     actor_hint: Optional[str] = None
     spatial_hint: Optional[str] = None
+    temporal_hint: Optional[Union[str, Tuple[str, str], Dict]] = None  # Date, date range, or relative time
     text: str
 
 class Candidate(BaseModel):

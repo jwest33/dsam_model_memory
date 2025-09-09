@@ -12,7 +12,7 @@ from dataclasses import dataclass, asdict
 import asyncio
 import aiohttp
 from tqdm import tqdm
-
+from pathlib import Path
 from agentic_memory.router import MemoryRouter
 from agentic_memory.config import Config, cfg
 from agentic_memory.embedding import get_llama_embedder
@@ -394,7 +394,7 @@ class MemoryBenchmark:
     
     def save_results(self, result: BenchmarkResult, filename: str = None):
         """Save benchmark results to JSON file."""
-        results_dir = Path(__file__).parent / "results"
+        results_dir =  "results"
         results_dir.mkdir(exist_ok=True)
         
         if filename:

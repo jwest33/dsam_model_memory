@@ -11,7 +11,7 @@ import sqlite3
 import numpy as np
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Tuple, Optional, Set
+from typing import Dict, List, Tuple, Optional, Set, Union
 from dataclasses import dataclass
 from collections import defaultdict
 import random
@@ -47,6 +47,7 @@ class QueryTestCase:
     relevant_memory_ids: Set[str]
     session_id: Optional[str] = None
     actor_hint: Optional[str] = None
+    temporal_hint: Optional[Union[str, Tuple[str, str], Dict]] = None
     metadata: Dict = None
 
 
@@ -241,6 +242,7 @@ class RecallBenchmark:
                     query_type='temporal',
                     relevant_memory_ids=relevant_ids,
                     session_id=query_mem['session_id'],
+                    temporal_hint=date_row['date'],  # Use actual date as temporal hint
                     metadata={'date': date_row['date']}
                 ))
         
@@ -266,7 +268,8 @@ class RecallBenchmark:
         rq = RetrievalQuery(
             session_id=test_case.session_id or "test_session",
             text=test_case.query_text,
-            actor_hint=test_case.actor_hint
+            actor_hint=test_case.actor_hint,
+            temporal_hint=test_case.temporal_hint
         )
         
         # Retrieve with maximum k
@@ -451,7 +454,7 @@ def main():
     )
     
     # Always save results for analysis
-    results_dir = Path(__file__).parent / "results"
+    results_dir = "results"
     results_dir.mkdir(exist_ok=True)
     
     if args.output:

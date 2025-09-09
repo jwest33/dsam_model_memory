@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union, Tuple
 import json
 from datetime import datetime
 import numpy as np
@@ -176,10 +176,26 @@ class MemoryRouter:
         return result_ids
 
     def retrieve_block(self, session_id: str, context_messages: List[Dict[str, str]],
-                       actor_hint: Optional[str] = None, spatial_hint: Optional[str] = None) -> Dict[str, Any]:
+                       actor_hint: Optional[str] = None, spatial_hint: Optional[str] = None,
+                       temporal_hint: Optional[Union[str, Tuple[str, str], Dict]] = None) -> Dict[str, Any]:
         # Construct query text from context (last N messages)
         ctx_text = "\n".join([f"{m.get('role','')}: {m.get('content','')}" for m in context_messages[-6:]])
-        rq = RetrievalQuery(session_id=session_id, actor_hint=actor_hint, spatial_hint=spatial_hint, text=ctx_text)
+        
+        # Auto-detect temporal hint if not provided
+        if temporal_hint is None and cfg.get('auto_detect_temporal', True):
+            from .extraction.temporal_parser import TemporalParser
+            parser = TemporalParser()
+            temporal_hint, cleaned_text = parser.extract_and_clean_query(ctx_text)
+            if temporal_hint:
+                ctx_text = cleaned_text  # Use cleaned text for better semantic search
+        
+        rq = RetrievalQuery(
+            session_id=session_id, 
+            actor_hint=actor_hint, 
+            spatial_hint=spatial_hint,
+            temporal_hint=temporal_hint,
+            text=ctx_text
+        )
         qvec = self.embedder.encode([ctx_text], normalize_embeddings=True)[0]
         
         # Apply adaptive query embedding if enabled

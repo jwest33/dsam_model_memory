@@ -250,6 +250,66 @@ class MemoryStore:
         with self.connect() as con:
             count = con.execute(sql, (actor_id,)).fetchone()[0]
         return count > 0
+    
+    def get_by_date(self, date: str, limit: int = 200) -> List[sqlite3.Row]:
+        """Retrieve memories from a specific date."""
+        sql = """
+            SELECT memory_id, when_ts, raw_text, token_count, who_id, what
+            FROM memories
+            WHERE DATE(when_ts) = ?
+            ORDER BY when_ts DESC
+            LIMIT ?
+        """
+        with self.connect() as con:
+            rows = con.execute(sql, (date, limit)).fetchall()
+        return rows
+    
+    def get_by_date_range(self, start_date: str, end_date: str, limit: int = 200) -> List[sqlite3.Row]:
+        """Retrieve memories from a date range."""
+        sql = """
+            SELECT memory_id, when_ts, raw_text, token_count, who_id, what
+            FROM memories
+            WHERE DATE(when_ts) BETWEEN ? AND ?
+            ORDER BY when_ts DESC
+            LIMIT ?
+        """
+        with self.connect() as con:
+            rows = con.execute(sql, (start_date, end_date, limit)).fetchall()
+        return rows
+    
+    def get_by_relative_time(self, relative_spec: str, reference_date: Optional[datetime] = None) -> List[sqlite3.Row]:
+        """Retrieve memories from relative time period.
+        
+        Supports: 'today', 'yesterday', 'last_week', 'last_month', 'last_year'
+        """
+        from datetime import timedelta
+        
+        if reference_date is None:
+            reference_date = datetime.utcnow()
+        
+        if relative_spec == "today":
+            target_date = reference_date.date()
+            return self.get_by_date(str(target_date), limit=200)
+        elif relative_spec == "yesterday":
+            target_date = (reference_date - timedelta(days=1)).date()
+            return self.get_by_date(str(target_date), limit=200)
+        elif relative_spec == "last_week":
+            end_date = reference_date.date()
+            start_date = (reference_date - timedelta(days=7)).date()
+            return self.get_by_date_range(str(start_date), str(end_date), limit=300)
+        elif relative_spec == "last_month":
+            end_date = reference_date.date()
+            start_date = (reference_date - timedelta(days=30)).date()
+            return self.get_by_date_range(str(start_date), str(end_date), limit=500)
+        elif relative_spec == "last_year":
+            end_date = reference_date.date()
+            start_date = (reference_date - timedelta(days=365)).date()
+            return self.get_by_date_range(str(start_date), str(end_date), limit=1000)
+        else:
+            # Default to last week if unknown
+            end_date = reference_date.date()
+            start_date = (reference_date - timedelta(days=7)).date()
+            return self.get_by_date_range(str(start_date), str(end_date), limit=300)
 
     # Blocks
     def create_block(self, block: Dict[str, Any], member_ids: List[str]):
