@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import List, Dict, Tuple, Optional
 import numpy as np
 from datetime import datetime, timezone
-import torch
 from .config import cfg
 from .storage.sql_store import MemoryStore
 from .storage.faiss_index import FaissIndex
@@ -101,8 +100,13 @@ class HybridRetriever:
         
         # Parse temporal hint and retrieve memories
         if isinstance(temporal_hint, str):
-            # Single date
-            rows = self.store.get_by_date(temporal_hint, limit=topk)
+            # Single date or timestamp - extract date part if needed
+            if 'T' in temporal_hint:
+                # Full timestamp like "2025-09-07T16:08:33.917577" - extract date
+                date_part = temporal_hint.split('T')[0]
+            else:
+                date_part = temporal_hint
+            rows = self.store.get_by_date(date_part, limit=topk)
         elif isinstance(temporal_hint, tuple) and len(temporal_hint) == 2:
             # Date range
             start, end = temporal_hint

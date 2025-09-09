@@ -1,0 +1,4163 @@
+{
+  "metadata": {
+    "generated_at": "2025-09-09T14:18:16.495077",
+    "total_cases": 125,
+    "test_types": [
+      "session",
+      "exact",
+      "spatial",
+      "temporal",
+      "actor",
+      "semantic",
+      "composite"
+    ],
+    "difficulty_levels": [
+      "medium",
+      "hard",
+      "easy"
+    ],
+    "database": "./amemory.sqlite3",
+    "database_stats": {
+      "date_range": "2017-01-18T00:00:00 to 2025-09-09T18:57:57.878546",
+      "active_sessions": 100,
+      "active_actors": 44,
+      "common_locations": 50
+    }
+  },
+  "test_cases": [
+    {
+      "test_id": "exact_0001",
+      "test_type": "exact",
+      "query_text": "poll that asks questions relating to a",
+      "query_metadata": {
+        "session_id": "669c54c6c4b9451f8541179d9bf238e6",
+        "original_memory_id": "mem_76abf98c4daf"
+      },
+      "expected_relevant": [
+        "mem_76abf98c4daf"
+      ],
+      "ground_truth_metadata": {
+        "match_type": "exact_phrase",
+        "phrase_location": "middle",
+        "original_text_length": 112
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:05.533400"
+    },
+    {
+      "test_id": "exact_0002",
+      "test_type": "exact",
+      "query_text": "personal beliefs or opinions.",
+      "query_metadata": {
+        "session_id": "ba18ca00dedf44bfb670cbfb10a3896f",
+        "original_memory_id": "mem_f1ac01b6c555"
+      },
+      "expected_relevant": [
+        "mem_f1ac01b6c555",
+        "mem_30700f058fe8",
+        "mem_5ad577b934cc",
+        "mem_32970e24e0b2",
+        "mem_bbabaeef278b",
+        "mem_2bdccc025481"
+      ],
+      "ground_truth_metadata": {
+        "match_type": "exact_phrase",
+        "phrase_location": "middle",
+        "original_text_length": 321
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:05.549327"
+    },
+    {
+      "test_id": "exact_0003",
+      "test_type": "exact",
+      "query_text": "be an array of objects. The objects",
+      "query_metadata": {
+        "session_id": "89ec6c40b1a64ee8b429e1809e717b40",
+        "original_memory_id": "mem_2fb87a80e918"
+      },
+      "expected_relevant": [
+        "mem_2fb87a80e918"
+      ],
+      "ground_truth_metadata": {
+        "match_type": "exact_phrase",
+        "phrase_location": "middle",
+        "original_text_length": 276
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:05.563894"
+    },
+    {
+      "test_id": "exact_0004",
+      "test_type": "exact",
+      "query_text": "7. 😊 Do you have any",
+      "query_metadata": {
+        "session_id": "79c04077348a4d5a918a10133d6708a0",
+        "original_memory_id": "mem_95cfc7690a69"
+      },
+      "expected_relevant": [
+        "mem_95cfc7690a69"
+      ],
+      "ground_truth_metadata": {
+        "match_type": "exact_phrase",
+        "phrase_location": "middle",
+        "original_text_length": 191
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:05.576609"
+    },
+    {
+      "test_id": "exact_0005",
+      "test_type": "exact",
+      "query_text": "technique used in physics to model the",
+      "query_metadata": {
+        "session_id": "35bf080b39b54b64bb19b27c9a25dbe4",
+        "original_memory_id": "mem_b3e80c054fa5"
+      },
+      "expected_relevant": [
+        "mem_b3e80c054fa5"
+      ],
+      "ground_truth_metadata": {
+        "match_type": "exact_phrase",
+        "phrase_location": "middle",
+        "original_text_length": 332
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:05.597356"
+    },
+    {
+      "test_id": "exact_0006",
+      "test_type": "exact",
+      "query_text": "\"error\\_code\". Can you please provide more context",
+      "query_metadata": {
+        "session_id": "900a34a384dc48ef9711d6915d74b8b0",
+        "original_memory_id": "mem_f543943533ac"
+      },
+      "expected_relevant": [
+        "mem_f543943533ac"
+      ],
+      "ground_truth_metadata": {
+        "match_type": "exact_phrase",
+        "phrase_location": "middle",
+        "original_text_length": 150
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:05.610938"
+    },
+    {
+      "test_id": "exact_0007",
+      "test_type": "exact",
+      "query_text": "a protobuf file. While",
+      "query_metadata": {
+        "session_id": "08e4d5e873994fdeaa9cafca58ba4fa3",
+        "original_memory_id": "mem_57589caa6256"
+      },
+      "expected_relevant": [
+        "mem_57589caa6256"
+      ],
+      "ground_truth_metadata": {
+        "match_type": "exact_phrase",
+        "phrase_location": "middle",
+        "original_text_length": 378
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:05.630880"
+    },
+    {
+      "test_id": "exact_0008",
+      "test_type": "exact",
+      "query_text": "resin from the opium poppy plant. This resin",
+      "query_metadata": {
+        "session_id": "746554ca3a6249f7aaf34d8e119bb0e2",
+        "original_memory_id": "mem_1436b6f6c0fb"
+      },
+      "expected_relevant": [
+        "mem_1436b6f6c0fb"
+      ],
+      "ground_truth_metadata": {
+        "match_type": "exact_phrase",
+        "phrase_location": "middle",
+        "original_text_length": 342
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:05.649628"
+    },
+    {
+      "test_id": "exact_0009",
+      "test_type": "exact",
+      "query_text": "clinical social work, marriage and family therapy and",
+      "query_metadata": {
+        "session_id": "7fd31235c14b430a9d0d2c6d7984c0fc",
+        "original_memory_id": "mem_6957ade9c903"
+      },
+      "expected_relevant": [
+        "mem_249c18ea2e27",
+        "mem_5cae402101e3",
+        "mem_e8dc9b375def",
+        "mem_b3a95535a93c",
+        "mem_194d7b59d056",
+        "mem_6957ade9c903",
+        "mem_b284e1145329",
+        "mem_82756c39e958",
+        "mem_c4449b593f6e",
+        "mem_d690427362c0",
+        "mem_60ea45689f5c",
+        "mem_e2911cc0c625",
+        "mem_d5928340437f",
+        "mem_9ca2cb31eba2",
+        "mem_e7997a2bb9ed",
+        "mem_906fd50759b2",
+        "mem_12fb4388a22c"
+      ],
+      "ground_truth_metadata": {
+        "match_type": "exact_phrase",
+        "phrase_location": "middle",
+        "original_text_length": 138
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:05.665975"
+    },
+    {
+      "test_id": "exact_0010",
+      "test_type": "exact",
+      "query_text": "no specific limit to the",
+      "query_metadata": {
+        "session_id": "af48ed313f07466a8699b5675594a072",
+        "original_memory_id": "mem_3f4dc6ce582b"
+      },
+      "expected_relevant": [
+        "mem_3f4dc6ce582b",
+        "mem_2cc40ad666f9"
+      ],
+      "ground_truth_metadata": {
+        "match_type": "exact_phrase",
+        "phrase_location": "middle",
+        "original_text_length": 497
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:05.685451"
+    },
+    {
+      "test_id": "exact_0012",
+      "test_type": "exact",
+      "query_text": "secrets debt collectors dont want us",
+      "query_metadata": {
+        "session_id": "63169745a6b244a59dffe2b4116e6d71",
+        "original_memory_id": "mem_822c7769a663"
+      },
+      "expected_relevant": [
+        "mem_822c7769a663"
+      ],
+      "ground_truth_metadata": {
+        "match_type": "exact_phrase",
+        "phrase_location": "middle",
+        "original_text_length": 228
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:05.704369"
+    },
+    {
+      "test_id": "exact_0013",
+      "test_type": "exact",
+      "query_text": "get back with an",
+      "query_metadata": {
+        "session_id": "f41c0812c6ca426a8b9815b7a1743558",
+        "original_memory_id": "mem_c7286a74b3f8"
+      },
+      "expected_relevant": [
+        "mem_e7c1c26dc0c9",
+        "mem_770a401d6571",
+        "mem_c7286a74b3f8"
+      ],
+      "ground_truth_metadata": {
+        "match_type": "exact_phrase",
+        "phrase_location": "middle",
+        "original_text_length": 119
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:05.718801"
+    },
+    {
+      "test_id": "exact_0014",
+      "test_type": "exact",
+      "query_text": "you must complete the assistant answer below, only",
+      "query_metadata": {
+        "session_id": "74d2bc26c5d9416da7614c2aa6f28afd",
+        "original_memory_id": "mem_f7e1080ff6a0"
+      },
+      "expected_relevant": [
+        "mem_42898e441fe4",
+        "mem_9e4b9b05b7e3",
+        "mem_fbd39af97f69",
+        "mem_e947a5fcf7fe",
+        "mem_2c95fe5259d9",
+        "mem_dbd7deb67d4e",
+        "mem_1e5a68940aa8",
+        "mem_581f89243bb0",
+        "mem_03f3c696f4d4",
+        "mem_4ad360320ca2",
+        "mem_e73ff395f9bd",
+        "mem_839ab771e8eb",
+        "mem_c75ce1f79e60",
+        "mem_30ef3f531ea7",
+        "mem_7b99c767593d",
+        "mem_1622ab74218d",
+        "mem_96acb11c3102",
+        "mem_79a3633a5b34",
+        "mem_42fbcc6af6d5",
+        "mem_e70d7676eb23",
+        "mem_fb7ab695fb8d",
+        "mem_c646530e4526",
+        "mem_dd4b076a89eb",
+        "mem_fb3c7e877ccd",
+        "mem_45697d0acec1",
+        "mem_4cffcda697ff",
+        "mem_9ab6b6ef6f7e",
+        "mem_e25c82bb3d16",
+        "mem_70e1fee35e29",
+        "mem_ec588549706c"
+      ],
+      "ground_truth_metadata": {
+        "match_type": "exact_phrase",
+        "phrase_location": "middle",
+        "original_text_length": 410
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:05.720290"
+    },
+    {
+      "test_id": "exact_0015",
+      "test_type": "exact",
+      "query_text": "writing code in various programming languages.",
+      "query_metadata": {
+        "session_id": "f4ef46cb2c5f417f8598c77822df6f85",
+        "original_memory_id": "mem_30fa1bb4faa4"
+      },
+      "expected_relevant": [
+        "mem_30fa1bb4faa4"
+      ],
+      "ground_truth_metadata": {
+        "match_type": "exact_phrase",
+        "phrase_location": "middle",
+        "original_text_length": 259
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:05.733797"
+    },
+    {
+      "test_id": "exact_0016",
+      "test_type": "exact",
+      "query_text": "model and you must complete",
+      "query_metadata": {
+        "session_id": "d2974a0ae9ac40bf8ff0feef524ec3b6",
+        "original_memory_id": "mem_fbd39af97f69"
+      },
+      "expected_relevant": [
+        "mem_42898e441fe4",
+        "mem_9e4b9b05b7e3",
+        "mem_fbd39af97f69",
+        "mem_e947a5fcf7fe",
+        "mem_2c95fe5259d9",
+        "mem_dbd7deb67d4e",
+        "mem_1e5a68940aa8",
+        "mem_581f89243bb0",
+        "mem_03f3c696f4d4",
+        "mem_4ad360320ca2",
+        "mem_e73ff395f9bd",
+        "mem_839ab771e8eb",
+        "mem_c75ce1f79e60",
+        "mem_30ef3f531ea7",
+        "mem_7b99c767593d",
+        "mem_1622ab74218d",
+        "mem_96acb11c3102",
+        "mem_79a3633a5b34",
+        "mem_42fbcc6af6d5",
+        "mem_e70d7676eb23",
+        "mem_fb7ab695fb8d",
+        "mem_c646530e4526",
+        "mem_dd4b076a89eb",
+        "mem_fb3c7e877ccd",
+        "mem_45697d0acec1",
+        "mem_4cffcda697ff",
+        "mem_9ab6b6ef6f7e",
+        "mem_e25c82bb3d16",
+        "mem_70e1fee35e29",
+        "mem_ec588549706c"
+      ],
+      "ground_truth_metadata": {
+        "match_type": "exact_phrase",
+        "phrase_location": "middle",
+        "original_text_length": 419
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:05.735465"
+    },
+    {
+      "test_id": "exact_0017",
+      "test_type": "exact",
+      "query_text": "fully automated. It does not",
+      "query_metadata": {
+        "session_id": "55d4bec735fa4eaa968b383743a9da61",
+        "original_memory_id": "mem_19edf3334b54"
+      },
+      "expected_relevant": [
+        "mem_19edf3334b54"
+      ],
+      "ground_truth_metadata": {
+        "match_type": "exact_phrase",
+        "phrase_location": "middle",
+        "original_text_length": 122
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:05.748849"
+    },
+    {
+      "test_id": "exact_0018",
+      "test_type": "exact",
+      "query_text": "for a Brownian motion ''B''.",
+      "query_metadata": {
+        "session_id": "94a8109b9f13466ab9adc7999abd25ac",
+        "original_memory_id": "mem_b98c3b5638ae"
+      },
+      "expected_relevant": [
+        "mem_b98c3b5638ae"
+      ],
+      "ground_truth_metadata": {
+        "match_type": "exact_phrase",
+        "phrase_location": "middle",
+        "original_text_length": 124
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:05.763363"
+    },
+    {
+      "test_id": "exact_0019",
+      "test_type": "exact",
+      "query_text": "you have a meeting with",
+      "query_metadata": {
+        "session_id": "302c4c55f8e44b4b90f58f7749acda72",
+        "original_memory_id": "mem_63bfa8a96b69"
+      },
+      "expected_relevant": [
+        "mem_63bfa8a96b69"
+      ],
+      "ground_truth_metadata": {
+        "match_type": "exact_phrase",
+        "phrase_location": "middle",
+        "original_text_length": 372
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:05.778077"
+    },
+    {
+      "test_id": "semantic_0000",
+      "test_type": "semantic",
+      "query_text": "[Part 8] Identified that the travel cost spike was due to last-minute conference bookings in August",
+      "query_metadata": {
+        "query_subtype": "paraphrase",
+        "session_id": "benchmark_session_20250906",
+        "original_memory_id": "mem_185522e533a6"
+      },
+      "expected_relevant": [
+        "mem_185522e533a6",
+        "mem_a99ee416b682",
+        "mem_e83481c50d21",
+        "mem_3826b62f2006",
+        "mem_a203d6542d09",
+        "mem_b78bd13f1dc8",
+        "mem_3af574c689f8",
+        "mem_376f3dbec206",
+        "mem_aff32c2e5818",
+        "mem_efbd0dc4cf41"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "[Part 8] Identified that the travel cost spike was due to last-minute conference bookings in August",
+        "variation_type": "paraphrase",
+        "semantic_similarity": "high"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:08.091026"
+    },
+    {
+      "test_id": "semantic_0001",
+      "test_type": "temporal",
+      "query_text": "What happened before 2025-09-07?",
+      "query_metadata": {
+        "query_subtype": "temporal_before",
+        "session_id": "681cb5b7cbb748bc9fe22f955b2c2748",
+        "original_memory_id": "mem_6b598e5862cc",
+        "temporal_hint": "2025-09-07T18:52:19.219459"
+      },
+      "expected_relevant": [],
+      "ground_truth_metadata": {
+        "original_text": "From now talk to only using emojis. Nothing else. Letters are prohibited.\n\nExplain WW2 in emojis only.",
+        "variation_type": "temporal_before",
+        "semantic_similarity": "temporal"
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:15:08.100263"
+    },
+    {
+      "test_id": "semantic_0002",
+      "test_type": "semantic",
+      "query_text": "  File \"<ipython-input-1-f6080805c2da>\", line 24\n    kmeans = librosa.",
+      "query_metadata": {
+        "query_subtype": "summary",
+        "session_id": "9f51401713a44011b1e611ba4cbd9657",
+        "original_memory_id": "mem_dc14abccce08"
+      },
+      "expected_relevant": [
+        "mem_dc14abccce08",
+        "mem_64310614a52d",
+        "mem_482f294cc931",
+        "mem_d668b1e233b5",
+        "mem_29833332a5ed",
+        "mem_d92bd664d6fa",
+        "mem_7edd5295a638",
+        "mem_d62ad33b91e9",
+        "mem_f1f01c0e9ab2",
+        "mem_842591e56ece"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "  File \"<ipython-input-1-f6080805c2da>\", line 24\n    kmeans = librosa.cluster.kmeans(mfccs, num_clusters=num_clusters, 'two_plances_with_fvar', 'kmeans_plus')\n                                         ",
+        "variation_type": "summary",
+        "semantic_similarity": "high"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:10.202402"
+    },
+    {
+      "test_id": "semantic_0003",
+      "test_type": "temporal",
+      "query_text": "What was discussed after 2024-01-01?",
+      "query_metadata": {
+        "query_subtype": "temporal_after",
+        "session_id": "1e31384523d84b2f845f846d25bf5da7",
+        "original_memory_id": "mem_cf89bf1c3097",
+        "temporal_hint": "2024-01-01T12:00:05"
+      },
+      "expected_relevant": [
+        "mem_4baca68bca42",
+        "mem_da5ab79462b8",
+        "mem_3dae18cd0403"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "Hello! As an AI, I don't have feelings or emotions, but I'm here to help you with anything you need. How can I assist you today?",
+        "variation_type": "temporal_after",
+        "semantic_similarity": "temporal"
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:15:10.212009"
+    },
+    {
+      "test_id": "semantic_0004",
+      "test_type": "semantic",
+      "query_text": "requested a list of top 10 products for Singapore National Day",
+      "query_metadata": {
+        "query_subtype": "abstraction",
+        "session_id": "97d1c59db1db47ffa7b6e75c3b90cf16",
+        "original_memory_id": "mem_0538a43800eb"
+      },
+      "expected_relevant": [
+        "mem_b002b6a1ef3a",
+        "mem_43a943b55aa7",
+        "mem_effa3263126b",
+        "mem_0538a43800eb",
+        "mem_37b7551366a9",
+        "mem_a3f53a078d2c",
+        "mem_769dc118acd4",
+        "mem_20885d492893",
+        "mem_051b93203578",
+        "mem_454aedfba26c"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "You are an expert in e-commerce marketing in Singapore, list top 10 products for Singapore National Day",
+        "variation_type": "abstraction",
+        "semantic_similarity": "high"
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:15:12.297526"
+    },
+    {
+      "test_id": "semantic_0005",
+      "test_type": "temporal",
+      "query_text": "What else happened on 2025-09-07?",
+      "query_metadata": {
+        "query_subtype": "temporal_during",
+        "session_id": "f687e836fb6946bdb5ec5af8b774b419",
+        "original_memory_id": "mem_67a72b97c9f0",
+        "temporal_hint": "2025-09-07T23:24:47.786249"
+      },
+      "expected_relevant": [
+        "mem_f0f8fd0e16ba",
+        "mem_488688cad7a9",
+        "mem_efb950029804",
+        "mem_dc7964e4b282",
+        "mem_3e22029a19b0",
+        "mem_c651df249014",
+        "mem_db12f1a4c25c",
+        "mem_140fccdae8e0",
+        "mem_5d0ea4ced350",
+        "mem_efcec19dbf05"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "The use of AI and machine translation has increased in recent years, but it has not replaced the need for human translators. AI translation",
+        "variation_type": "temporal_during",
+        "semantic_similarity": "temporal"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:12.308887"
+    },
+    {
+      "test_id": "semantic_0006",
+      "test_type": "semantic",
+      "query_text": "[Part 9] Plan to sync up before Friday to confirm the exact time and set up monitoring alerts",
+      "query_metadata": {
+        "query_subtype": "paraphrase",
+        "session_id": "benchmark_session_20250909",
+        "original_memory_id": "mem_fd4c49ad6ede"
+      },
+      "expected_relevant": [
+        "mem_fd4c49ad6ede",
+        "mem_b6e699e1276f",
+        "mem_f914ffa6a0b7",
+        "mem_c14a1f1eaad2",
+        "mem_3aad46086eda",
+        "mem_95ae65eba002",
+        "mem_4f5b983c7e71",
+        "mem_ebb27c32e6ac",
+        "mem_1625f4278205",
+        "mem_b78bd13f1dc8"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "[Part 9] Plan to sync up before Friday to confirm the exact time and set up monitoring alerts",
+        "variation_type": "paraphrase",
+        "semantic_similarity": "high"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:14.392757"
+    },
+    {
+      "test_id": "semantic_0007",
+      "test_type": "temporal",
+      "query_text": "Show me events leading up to 2024-01-01",
+      "query_metadata": {
+        "query_subtype": "temporal_before",
+        "session_id": "15adb810bc4d4af6bc8f6f52a8f2d36f",
+        "original_memory_id": "mem_547179873e11",
+        "temporal_hint": "2024-01-01T12:00:00"
+      },
+      "expected_relevant": [],
+      "ground_truth_metadata": {
+        "original_text": "Hello! As a language model, I don't have feelings or emotions like humans do, so I don't have anything to report on in that regard. How can I assist you today?",
+        "variation_type": "temporal_before",
+        "semantic_similarity": "temporal"
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:15:14.402212"
+    },
+    {
+      "test_id": "semantic_0008",
+      "test_type": "semantic",
+      "query_text": "Конечно, я должен отметить, что ваш ссылки были были быстрыми и непонятными.",
+      "query_metadata": {
+        "query_subtype": "summary",
+        "session_id": "406d7b38be9e4b0a9545aa5de1208824",
+        "original_memory_id": "mem_8a0b7e489edd"
+      },
+      "expected_relevant": [
+        "mem_8a0b7e489edd",
+        "mem_e05d1411bacc",
+        "mem_eb284416bda4",
+        "mem_404558872c35",
+        "mem_7e74b7c8ba21",
+        "mem_ac8a2c4a3f1b",
+        "mem_af5bd65120c0",
+        "mem_2bb0cc2ae28d",
+        "mem_2a4d4794b171",
+        "mem_9a4b5cdff1da"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "Конечно, я должен отметить, что ваш ссылки были были быстрыми и непонятными. Вы можете создать новые ссылки и поменять другие доставки, документы, вести и другие ресурсы для вывода и изучения, также д",
+        "variation_type": "summary",
+        "semantic_similarity": "high"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:16.506749"
+    },
+    {
+      "test_id": "semantic_0009",
+      "test_type": "temporal",
+      "query_text": "What was discussed after 2024-01-01?",
+      "query_metadata": {
+        "query_subtype": "temporal_after",
+        "session_id": "033655f6cb6049f5bbed5b07fc56220a",
+        "original_memory_id": "mem_2f529cdb6bcd",
+        "temporal_hint": "2024-01-01T12:00:10"
+      },
+      "expected_relevant": [
+        "mem_f914f905d6c8",
+        "mem_607aadb9aecd",
+        "mem_f66e07c2bc09"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "Emojify is a lightweight library that can convert your words to emojis. It supports unicode, making it easy to convert words and phrases in any language. You can install Emojify by typing:",
+        "variation_type": "temporal_after",
+        "semantic_similarity": "temporal"
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:15:16.516085"
+    },
+    {
+      "test_id": "semantic_0010",
+      "test_type": "semantic",
+      "query_text": "inquired about SharePoint storage size",
+      "query_metadata": {
+        "query_subtype": "abstraction",
+        "session_id": "be689edbec764d82bb3e7830caaf6be7",
+        "original_memory_id": "mem_13897ea8ebcb"
+      },
+      "expected_relevant": [
+        "mem_13897ea8ebcb",
+        "mem_a6d94cd132bb",
+        "mem_f076e381886f",
+        "mem_6993d33efd53",
+        "mem_a42fbca79c94",
+        "mem_d8cd8946b208",
+        "mem_936b72c166e3",
+        "mem_0238027d6142",
+        "mem_c3af7cc75859",
+        "mem_bb06405a765f"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "attached my SharePoint active sites storage size is only have 7.11 TB. on Microsoft  DOC is have 25TB storage is total all of SharePoint site or single site to count ",
+        "variation_type": "abstraction",
+        "semantic_similarity": "high"
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:15:18.598283"
+    },
+    {
+      "test_id": "semantic_0011",
+      "test_type": "temporal",
+      "query_text": "What else was discussed on 2024-01-01?",
+      "query_metadata": {
+        "query_subtype": "temporal_during",
+        "session_id": "45557adfe29c43f3af2d12bf4dfb906d",
+        "original_memory_id": "mem_376f6f0bbfa8",
+        "temporal_hint": "2024-01-01T12:01:00"
+      },
+      "expected_relevant": [
+        "mem_11c867e93886",
+        "mem_47fe1064834f",
+        "mem_4ea576d7eb27",
+        "mem_19a7f23a3d6b",
+        "mem_177006f48f0e",
+        "mem_e84e6427c039",
+        "mem_9117ee0aad4e",
+        "mem_d32b772a8204",
+        "mem_d0f87efef227",
+        "mem_48b22101163d"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "linux terminal command to count the number of files in each subfolder of a folder",
+        "variation_type": "temporal_during",
+        "semantic_similarity": "temporal"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:18.609069"
+    },
+    {
+      "test_id": "semantic_0012",
+      "test_type": "semantic",
+      "query_text": "[Part 4] Samira Nkosi counters that Hume claims reason is the servant of the passions and that moral judgments arise from emotions, not logical deduction.",
+      "query_metadata": {
+        "query_subtype": "paraphrase",
+        "session_id": "benchmark_session_20250903",
+        "original_memory_id": "mem_68dcc09b0d31"
+      },
+      "expected_relevant": [
+        "mem_68dcc09b0d31",
+        "mem_ad37d1ca48d7",
+        "mem_6687a9a0ba7e",
+        "mem_03cb22c1993d",
+        "mem_d2520d1ce3e4",
+        "mem_05584eb1e8e8",
+        "mem_dd622755cced",
+        "mem_0a6becbf8391",
+        "mem_9c11c91fb87c",
+        "mem_ce6114b02f55"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "[Part 4] Samira Nkosi counters that Hume claims reason is the servant of the passions and that moral judgments arise from emotions, not logical deduction.",
+        "variation_type": "paraphrase",
+        "semantic_similarity": "high"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:20.684518"
+    },
+    {
+      "test_id": "semantic_0013",
+      "test_type": "temporal",
+      "query_text": "Show me events leading up to 2024-01-01",
+      "query_metadata": {
+        "query_subtype": "temporal_before",
+        "session_id": "9314d3c37b4d478ca39de5f2e1492265",
+        "original_memory_id": "mem_bc65a4b420fc",
+        "temporal_hint": "2024-01-01T12:00:05"
+      },
+      "expected_relevant": [],
+      "ground_truth_metadata": {
+        "original_text": "\"Example question: Two identical billiard balls traveling at the same speed have a head-on collision and rebound.  If the balls had twice the mass, but maintained the same size and speed, how would th",
+        "variation_type": "temporal_before",
+        "semantic_similarity": "temporal"
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:15:20.694036"
+    },
+    {
+      "test_id": "semantic_0014",
+      "test_type": "semantic",
+      "query_text": "19.",
+      "query_metadata": {
+        "query_subtype": "summary",
+        "session_id": "83454593fcb94a70807b450614fd9225",
+        "original_memory_id": "mem_7478c2cfb5e2"
+      },
+      "expected_relevant": [
+        "mem_b448da427baa",
+        "mem_9cf1965567dc",
+        "mem_9dfa3fba1890",
+        "mem_1cf1be299a39",
+        "mem_454f703ad09a",
+        "mem_e6737919fdea",
+        "mem_3972b1e7003d",
+        "mem_7abb863734a8",
+        "mem_969c8db15f54",
+        "mem_08fa252ac111"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "19. Which of the following statements is MOST correct when estimating heat loss through completely below-grade structures?\nA. All below-grade surfaces are treated identically.\nB. Heat flow paths can b",
+        "variation_type": "summary",
+        "semantic_similarity": "high"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:22.797524"
+    },
+    {
+      "test_id": "semantic_0015",
+      "test_type": "temporal",
+      "query_text": "What happened after 2024-01-01?",
+      "query_metadata": {
+        "query_subtype": "temporal_after",
+        "session_id": "85f4be4129864f688b6ba0416467d42b",
+        "original_memory_id": "mem_fc177ddb3501",
+        "temporal_hint": "2024-01-01T12:00:00"
+      },
+      "expected_relevant": [],
+      "ground_truth_metadata": {
+        "original_text": "I'm sorry, but I'm not familiar with the term \"stable diffusion webui.\" Could you please provide more context or clarify your question?",
+        "variation_type": "temporal_after",
+        "semantic_similarity": "temporal"
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:15:22.806867"
+    },
+    {
+      "test_id": "semantic_0016",
+      "test_type": "semantic",
+      "query_text": "asked to revise the previous answer to include sub-category specifications",
+      "query_metadata": {
+        "query_subtype": "abstraction",
+        "session_id": "1e230e55efea4edab95db9cb87f6a9cb",
+        "original_memory_id": "mem_008866379540"
+      },
+      "expected_relevant": [
+        "mem_008866379540",
+        "mem_a6b55443a116",
+        "mem_7a6e261b0043",
+        "mem_e9343a279490",
+        "mem_b7d7a33c1af4",
+        "mem_daa1344f41fc",
+        "mem_f8f023dd9d5b",
+        "mem_251534d4c71c",
+        "mem_4b59313c378a",
+        "mem_3af574c689f8"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "can you please revise the answer above again, but this time, make sure to specify which types of sanctions are the sub-category",
+        "variation_type": "abstraction",
+        "semantic_similarity": "high"
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:15:24.916806"
+    },
+    {
+      "test_id": "semantic_0017",
+      "test_type": "temporal",
+      "query_text": "What else was discussed on 2025-09-08?",
+      "query_metadata": {
+        "query_subtype": "temporal_during",
+        "session_id": "68de9dc1a76e4d0681131979857c24fe",
+        "original_memory_id": "mem_59d515261b8e",
+        "temporal_hint": "2025-09-08T03:08:31.064339"
+      },
+      "expected_relevant": [
+        "mem_bff445e7d0f2",
+        "mem_88c47ae1e538",
+        "mem_48ff1aa7fdf5",
+        "mem_fa3b33753f8a",
+        "mem_fafb032041fb",
+        "mem_842591e56ece",
+        "mem_9d09090090b7",
+        "mem_e2cbe313848e",
+        "mem_3e627da55e2a",
+        "mem_804859bbf614"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "returns: {\"action\": \"move\", \"params\": {\"linear\\_speed\": 0, \"distance\": 10, \"is\\_forward\": true, \"unit\": \"meter\"},\n\"action\": \"rotate\", \"params\": {\"angular\\_velocity\": 0, \"angle\": 0, \"is\\_clockwise\": tr",
+        "variation_type": "temporal_during",
+        "semantic_similarity": "temporal"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:24.928016"
+    },
+    {
+      "test_id": "semantic_0018",
+      "test_type": "semantic",
+      "query_text": "Let's say I'm making a VR application in Unity, using C#. I have a 26dof skeleton, stored as an array of Pose structures, one for each bone. What would be a decent technique for writing a grasp classifier? You can assume the object being grasped has a single sphere collider and a rigidbody. This might be a tough one so no worries if you don't get the full solution on your first try.",
+      "query_metadata": {
+        "query_subtype": "paraphrase",
+        "session_id": "a9073090804244849dc54028a4c505b9",
+        "original_memory_id": "mem_85ead90dec0b"
+      },
+      "expected_relevant": [
+        "mem_85ead90dec0b",
+        "mem_04c043be468b",
+        "mem_a285e3136780",
+        "mem_bd1814e4f414",
+        "mem_4a0801dffef5",
+        "mem_35d8a5b2f6ce",
+        "mem_7f7be12da335",
+        "mem_d4f2af99f4ca",
+        "mem_36e7520725af",
+        "mem_ba562f889eb0"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "Let's say I'm making a VR application in Unity, using C#. I have a 26dof skeleton, stored as an array of Pose structures, one for each bone. What would be a decent technique for writing a grasp classi",
+        "variation_type": "paraphrase",
+        "semantic_similarity": "high"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:27.020906"
+    },
+    {
+      "test_id": "semantic_0019",
+      "test_type": "temporal",
+      "query_text": "What was discussed prior to 2025-09-07?",
+      "query_metadata": {
+        "query_subtype": "temporal_before",
+        "session_id": "f07a3f4a0d4c44969552cdda470ee29b",
+        "original_memory_id": "mem_bfda15bbdcce",
+        "temporal_hint": "2025-09-07T16:00:57.457266"
+      },
+      "expected_relevant": [
+        "mem_59408537fcee",
+        "mem_19de92818dc1",
+        "mem_7ec5d247f292",
+        "mem_e9153a66eb1c",
+        "mem_3a9f857b1c3c"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "I am an AI language model. I was created to assist with human tasks such as answering questions and providing information. I do not have a physical body or consciousness, and I exist solely in the dig",
+        "variation_type": "temporal_before",
+        "semantic_similarity": "temporal"
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:15:27.030463"
+    },
+    {
+      "test_id": "semantic_0020",
+      "test_type": "semantic",
+      "query_text": "Love is a many splendoured thing\n\nA tender delightful thing\n\nIt has many voices\n\nAnd many faces\n\nMan...",
+      "query_metadata": {
+        "query_subtype": "summary",
+        "session_id": "ae9153464af44efcbfa31ffd0d8a78e2",
+        "original_memory_id": "mem_41e9ffcfa11d"
+      },
+      "expected_relevant": [
+        "mem_41e9ffcfa11d",
+        "mem_e24284e5da02",
+        "mem_f2548d746a81",
+        "mem_436bb88ea4ef",
+        "mem_1dc7859f0e6a",
+        "mem_3592e3ef4a1f",
+        "mem_e49d6fdaa26a",
+        "mem_547156db4495",
+        "mem_ced6cf92bb4b",
+        "mem_efeb99c69939"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "Love is a many splendoured thing\n\nA tender delightful thing\n\nIt has many voices\n\nAnd many faces\n\nMany complexions\n\nMany sizes\n\nLove is tender as a pet\n\nLove is charming as a costume\n\nLove is robust as",
+        "variation_type": "summary",
+        "semantic_similarity": "high"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:29.119251"
+    },
+    {
+      "test_id": "semantic_0021",
+      "test_type": "temporal",
+      "query_text": "What happened after 2024-01-01?",
+      "query_metadata": {
+        "query_subtype": "temporal_after",
+        "session_id": "adcc2d4b1a1246fda328a198298b4d5f",
+        "original_memory_id": "mem_e13da265f8f5",
+        "temporal_hint": "2024-01-01T12:00:00"
+      },
+      "expected_relevant": [
+        "mem_2da2c9dc44de",
+        "mem_b536109fa986"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "Provide more information about the personas included in the information I have provided.",
+        "variation_type": "temporal_after",
+        "semantic_similarity": "temporal"
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:15:29.128657"
+    },
+    {
+      "test_id": "semantic_0022",
+      "test_type": "semantic",
+      "query_text": "requested a more varied joke",
+      "query_metadata": {
+        "query_subtype": "abstraction",
+        "session_id": "36e907355b0a4f23a4865c9133ee8175",
+        "original_memory_id": "mem_cb4fad266b9c"
+      },
+      "expected_relevant": [
+        "mem_05a3c217bcf0",
+        "mem_26f3e2ff303d",
+        "mem_154da18514e0",
+        "mem_6db3c4358479",
+        "mem_e3a5968668a7",
+        "mem_f426c14ba034",
+        "mem_cb4fad266b9c",
+        "mem_896da77115bc",
+        "mem_30c290229813",
+        "mem_1ae34245bfea"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "that is just the same joke with a different answer, mix it up with something different",
+        "variation_type": "abstraction",
+        "semantic_similarity": "high"
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:15:31.200152"
+    },
+    {
+      "test_id": "semantic_0023",
+      "test_type": "temporal",
+      "query_text": "What else was discussed on 2024-01-01?",
+      "query_metadata": {
+        "query_subtype": "temporal_during",
+        "session_id": "20f58a3157894a73ab382b3a56019886",
+        "original_memory_id": "mem_50b418970a64",
+        "temporal_hint": "2024-01-01T12:00:00"
+      },
+      "expected_relevant": [
+        "mem_b8a63308a109",
+        "mem_f42a31e32fec",
+        "mem_90101416f479",
+        "mem_2df63f799cd7",
+        "mem_ff3e96fe88f5",
+        "mem_99067e1a5b91",
+        "mem_80fdb4da0ec8",
+        "mem_08bafd9a1c57",
+        "mem_008866379540",
+        "mem_b35ea6535395"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "The reason the police do not stop the driver is because he is walking and not driving. You assumed he was driving the wrong way. ",
+        "variation_type": "temporal_during",
+        "semantic_similarity": "temporal"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:31.211072"
+    },
+    {
+      "test_id": "semantic_0024",
+      "test_type": "semantic",
+      "query_text": "Here's the parsed JSON format:\n```json\n{\n  \"twin\": \"Guest Room\",\n  \"bed_type\": \"2 Twins\",\n  \"view\": \"City View High\",\n  \"discount\": \"High Marriott Senior Discount\",\n  \"include\": \"Inlcude\",\n  \"floor_level\": \"Deluxe Floor\"\n}\n```",
+      "query_metadata": {
+        "query_subtype": "paraphrase",
+        "session_id": "19925f990a0f4a6095f7c9568f49aa3b",
+        "original_memory_id": "mem_06f20b1854d6"
+      },
+      "expected_relevant": [
+        "mem_06f20b1854d6",
+        "mem_c113681f063f",
+        "mem_185549418412",
+        "mem_df9d6be2ff11",
+        "mem_627552ee1eec",
+        "mem_8d247bfaafd4",
+        "mem_9de99a27e15f",
+        "mem_9d7f602c7631",
+        "mem_55fc8145b61e",
+        "mem_88c47ae1e538"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "Here's the parsed JSON format:\n```json\n{\n  \"twin\": \"Guest Room\",\n  \"bed_type\": \"2 Twins\",\n  \"view\": \"City View High\",\n  \"discount\": \"High Marriott Senior Discount\",\n  \"include\": \"Inlcude\",\n  \"floor_le",
+        "variation_type": "paraphrase",
+        "semantic_similarity": "high"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:33.316554"
+    },
+    {
+      "test_id": "semantic_0025",
+      "test_type": "temporal",
+      "query_text": "What came before the events of 2025-09-07?",
+      "query_metadata": {
+        "query_subtype": "temporal_before",
+        "session_id": "f0607b646ccf406896c9c14effd66e88",
+        "original_memory_id": "mem_ca16fde90a52",
+        "temporal_hint": "2025-09-07T23:57:43.634940"
+      },
+      "expected_relevant": [
+        "mem_1b41df905212",
+        "mem_0d8abdd1aaef",
+        "mem_f0d843581ac8",
+        "mem_eb6a791379d3"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "Hello! As an AI language model, I don't have emotions, but I'm functioning properly and ready to assist you with any questions or tasks you have. How can I help you today?",
+        "variation_type": "temporal_before",
+        "semantic_similarity": "temporal"
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:15:33.325840"
+    },
+    {
+      "test_id": "semantic_0026",
+      "test_type": "semantic",
+      "query_text": "Winning at all times, athletes strive for greatness on the field.",
+      "query_metadata": {
+        "query_subtype": "summary",
+        "session_id": "e8a3e617b305475da330a62815adc1df",
+        "original_memory_id": "mem_6bba1a7cddf6"
+      },
+      "expected_relevant": [
+        "mem_fc9c725de15c",
+        "mem_6bba1a7cddf6",
+        "mem_3b314a6fc692",
+        "mem_9117ee0aad4e",
+        "mem_2143242fb771",
+        "mem_f4b6e8d560c8",
+        "mem_5393544b712b",
+        "mem_dcb460a43705",
+        "mem_ab42db43403f",
+        "mem_5c834a5e1fd0"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "Winning at all times, athletes strive for greatness on the field. In today's sports news, water-based activities are making a splash. From swimming to water polo, these watermark events are leaving th",
+        "variation_type": "summary",
+        "semantic_similarity": "high"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:35.408178"
+    },
+    {
+      "test_id": "semantic_0027",
+      "test_type": "temporal",
+      "query_text": "What happened after 2025-09-07?",
+      "query_metadata": {
+        "query_subtype": "temporal_after",
+        "session_id": "6121b5137817443fbfd505975d2b9e74",
+        "original_memory_id": "mem_18b4393da399",
+        "temporal_hint": "2025-09-07T16:53:30.893062"
+      },
+      "expected_relevant": [
+        "mem_ccfa950aa4be"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "Listen, what is negative between these two propositions ? Considering that every single thing even compliments or jokes are harmful ? or accepting a compliment and laughing at a joke ? What I mean by ",
+        "variation_type": "temporal_after",
+        "semantic_similarity": "temporal"
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:15:35.417553"
+    },
+    {
+      "test_id": "semantic_0028",
+      "test_type": "semantic",
+      "query_text": "defined human indignities",
+      "query_metadata": {
+        "query_subtype": "abstraction",
+        "session_id": "93ae0376546e482295ed8cfcf6e48564",
+        "original_memory_id": "mem_3b08dee6dd06"
+      },
+      "expected_relevant": [
+        "mem_b448da427baa",
+        "mem_9cf1965567dc",
+        "mem_12bbd5d29d1f",
+        "mem_9c11c91fb87c",
+        "mem_6df91b9a5039",
+        "mem_fc17e0670ee9",
+        "mem_486f2e777165",
+        "mem_743512d9a1ff",
+        "mem_65c51dc4a772",
+        "mem_466052fbc574"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "Human indignities are acts or experiences that demean or degrade a person, such as physical or verbal abuse, discrimination, and exploitation.",
+        "variation_type": "abstraction",
+        "semantic_similarity": "high"
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:15:37.499602"
+    },
+    {
+      "test_id": "semantic_0029",
+      "test_type": "temporal",
+      "query_text": "What else was discussed on 2024-01-01?",
+      "query_metadata": {
+        "query_subtype": "temporal_during",
+        "session_id": "931dbd2120564f1681c8977e6c515915",
+        "original_memory_id": "mem_1c4edea46b95",
+        "temporal_hint": "2024-01-01T12:00:05"
+      },
+      "expected_relevant": [
+        "mem_3488c3227029",
+        "mem_6a95a20e264a",
+        "mem_e3c474997899",
+        "mem_8a2325ff8a41",
+        "mem_9efe1c739a6f",
+        "mem_39e0689b2252",
+        "mem_abb04608cfca",
+        "mem_d470972f057b",
+        "mem_3c33b0ee8558",
+        "mem_b61b16dec2ce"
+      ],
+      "ground_truth_metadata": {
+        "original_text": "Sure, here's a fact about fish:\n\nFish are a good source of protein and healthy fats. They also contain omega-3 fatty acids, which have been shown to have numerous health benefits, including reducing t",
+        "variation_type": "temporal_during",
+        "semantic_similarity": "temporal"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:37.510173"
+    },
+    {
+      "test_id": "temporal_0000",
+      "test_type": "temporal",
+      "query_text": "Show me everything from 2025-09-04",
+      "query_metadata": {
+        "temporal_hint": "2025-09-04",
+        "temporal_type": "exact_date",
+        "memory_count": 84
+      },
+      "expected_relevant": [
+        "mem_0bddc2668658",
+        "mem_f1a078090910",
+        "mem_b32b74b39efe",
+        "mem_963ec311eef3",
+        "mem_146cc505cf04",
+        "mem_917dc787877b",
+        "mem_b9e7f2c2e2f7",
+        "mem_fc70d0567d7d",
+        "mem_93222d0853d7",
+        "mem_863634c70913",
+        "mem_15454dbdbad8",
+        "mem_473e912425c7",
+        "mem_53ac192c5223",
+        "mem_a0ff82db1b24",
+        "mem_b8df36a7363c",
+        "mem_86ecf6aa5030",
+        "mem_b90cbb87fa98",
+        "mem_cc0944bcc2cb",
+        "mem_e6b622713330",
+        "mem_402ea83717a5"
+      ],
+      "ground_truth_metadata": {
+        "date": "2025-09-04",
+        "total_memories_on_date": 84,
+        "sample_content": "Mom: \"Did you see the game last night? The Ravens beat the Chiefs 24–17 in overtime at M&T Bank Stadium?\"  \nDad: \"Yeah, I was watching on TV. Good job by Lamar Jackson—his 40-yard run in the fourth qu"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:37.525019"
+    },
+    {
+      "test_id": "temporal_0001",
+      "test_type": "temporal",
+      "query_text": "Summary of 2025-09-03",
+      "query_metadata": {
+        "temporal_hint": "2025-09-03",
+        "temporal_type": "exact_date",
+        "memory_count": 128
+      },
+      "expected_relevant": [
+        "mem_da4916f2f330",
+        "mem_9e07d65fe1b6",
+        "mem_e29e410b9e11",
+        "mem_ceb0248f4cc4",
+        "mem_627cd33e80dc",
+        "mem_ac47566ea598",
+        "mem_45d997cc0dbf",
+        "mem_1c8e9df8ae6a",
+        "mem_0c14740b3883",
+        "mem_29af9bb74684",
+        "mem_2fc19de4d03d",
+        "mem_f02da6523675",
+        "mem_466063e84c12",
+        "mem_5fe1122f64b6",
+        "mem_c18b3922328a",
+        "mem_ef9e41663d91",
+        "mem_80e575c647d8",
+        "mem_15a128d22b57",
+        "mem_58eadf1f8d2a",
+        "mem_0c88233ed238"
+      ],
+      "ground_truth_metadata": {
+        "date": "2025-09-03",
+        "total_memories_on_date": 128,
+        "sample_content": "\"Did you see the match last night? Liverpool vs. Man Utd at Anfield? I’m still rewatching the final 10 minutes—De Bruyne’s goal was insane. Utd had a great chance in the 88th, but Salah saved it with "
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:37.525053"
+    },
+    {
+      "test_id": "temporal_0002",
+      "test_type": "temporal",
+      "query_text": "What was going on during 2025-09-02?",
+      "query_metadata": {
+        "temporal_hint": "2025-09-02",
+        "temporal_type": "exact_date",
+        "memory_count": 54
+      },
+      "expected_relevant": [
+        "mem_d0a4c10508be",
+        "mem_9d15ad6b5de2",
+        "mem_6459180d741d",
+        "mem_739d3ae1facd",
+        "mem_ddb3e82aebaa",
+        "mem_72cbe33ad500",
+        "mem_3bbe7548a96b",
+        "mem_9ebc1ab0f443",
+        "mem_510f70fde2de",
+        "mem_89767a7aa2a4",
+        "mem_f0a6e3117ccd",
+        "mem_886a6ca6ef98",
+        "mem_a09e86c43154",
+        "mem_1e881ff46d16",
+        "mem_f3440f95e589",
+        "mem_df3798172e70",
+        "mem_d437e2cfefd4",
+        "mem_56db58858c60",
+        "mem_53973775456a",
+        "mem_03049f4ff548"
+      ],
+      "ground_truth_metadata": {
+        "date": "2025-09-02",
+        "total_memories_on_date": 54,
+        "sample_content": "At 3:15 PM today, I met with Dr. Lena Park in the Finance Research Office at the University of Toronto to discuss her ongoing study on cash flow forecasting models in SMEs. She’s analyzing data from 1"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:37.525068"
+    },
+    {
+      "test_id": "temporal_0003",
+      "test_type": "temporal",
+      "query_text": "What happened on 2025-09-09?",
+      "query_metadata": {
+        "temporal_hint": "2025-09-09",
+        "temporal_type": "exact_date",
+        "memory_count": 54
+      },
+      "expected_relevant": [
+        "mem_c748ebb9aaee",
+        "mem_6f82e9fb742f",
+        "mem_5760b94ac74b",
+        "mem_99431e202a2c",
+        "mem_637b645f0e92",
+        "mem_68b08ab2089f",
+        "mem_90aa551c54b3",
+        "mem_a27bc9834473",
+        "mem_0015dd490218",
+        "mem_7ac3145fcd97",
+        "mem_221dc6abcd6e",
+        "mem_b5735fde7f63",
+        "mem_9c87c4a06c4c",
+        "mem_199abcd9c81d",
+        "mem_8cbf5b796fe4",
+        "mem_862de0564cd2",
+        "mem_520dbf5ccc52",
+        "mem_4425d4fe0d98",
+        "mem_3453a3c48a77",
+        "mem_6be21edb3660"
+      ],
+      "ground_truth_metadata": {
+        "date": "2025-09-09",
+        "total_memories_on_date": 54,
+        "sample_content": "Hey Alex, did you see the new science fair at Westwood Middle? I heard Sarah from 8th grade won first place with her solar panel project. Any chance you’ll be there this Friday at 3 PM?"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:37.525081"
+    },
+    {
+      "test_id": "temporal_0004",
+      "test_type": "temporal",
+      "query_text": "What was going on during 2025-09-06?",
+      "query_metadata": {
+        "temporal_hint": "2025-09-06",
+        "temporal_type": "exact_date",
+        "memory_count": 101
+      },
+      "expected_relevant": [
+        "mem_0e3c445506b4",
+        "mem_b0512c1496da",
+        "mem_5e6cf6b848c9",
+        "mem_d16150f647bd",
+        "mem_319c4662ddde",
+        "mem_853e102599f0",
+        "mem_44171764c146",
+        "mem_320caaf124ef",
+        "mem_d5ed024ce501",
+        "mem_4bac68aba468",
+        "mem_a757acdb45a6",
+        "mem_f9c6845ba498",
+        "mem_37c42611d00f",
+        "mem_b19a5f4f36f0",
+        "mem_5c1bc7b27b82",
+        "mem_7734d2761bce",
+        "mem_db231b26d6cf",
+        "mem_9352e8a940c2",
+        "mem_e950dc9ef8aa",
+        "mem_4846af780f15"
+      ],
+      "ground_truth_metadata": {
+        "date": "2025-09-06",
+        "total_memories_on_date": 101,
+        "sample_content": "\"Meet at 3 PM in the studio. Sarah’s bringing her new watercolor piece from the coastal trip. Let’s discuss how to display it in the new gallery space by next month. Should we add sound elements? I th"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:37.525094"
+    },
+    {
+      "test_id": "temporal_0005",
+      "test_type": "temporal",
+      "query_text": "Summary of 2023-05-06",
+      "query_metadata": {
+        "temporal_hint": "2023-05-06",
+        "temporal_type": "exact_date",
+        "memory_count": 5
+      },
+      "expected_relevant": [
+        "mem_28dd5f0dd231",
+        "mem_34ef0bf19619",
+        "mem_6aecc0abab3b",
+        "mem_c6504c7c2e58",
+        "mem_0ffe83a92fd5"
+      ],
+      "ground_truth_metadata": {
+        "date": "2023-05-06",
+        "total_memories_on_date": 5,
+        "sample_content": "You are a data visualization expert. Today is 2023-05-06.  Summarize the text in the JSON format which contains dimensions, measures, filters and date_range attributes. Answer YES if you understand"
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:37.525108"
+    },
+    {
+      "test_id": "temporal_0006",
+      "test_type": "temporal",
+      "query_text": "Recall 2025-09-08",
+      "query_metadata": {
+        "temporal_hint": "2025-09-08",
+        "temporal_type": "exact_date",
+        "memory_count": 2314
+      },
+      "expected_relevant": [
+        "mem_d7000d93f7e5",
+        "mem_2bf96fb99eaa",
+        "mem_2fe615d57802",
+        "mem_3e1f656794ba",
+        "mem_cef7dff0aaf0",
+        "mem_ab4842f9c3c4",
+        "mem_616e26de95e0",
+        "mem_363edbc0b33b",
+        "mem_03e88a029e00",
+        "mem_11b0c79f79ac",
+        "mem_b766788f0959",
+        "mem_6295e6254766",
+        "mem_2fb055173c08",
+        "mem_c2886c604659",
+        "mem_ad2aac8123aa",
+        "mem_141f14d440aa",
+        "mem_a992cbbac863",
+        "mem_bf46a538a467",
+        "mem_91c5921ff837",
+        "mem_60f1cf7fcab1"
+      ],
+      "ground_truth_metadata": {
+        "date": "2025-09-08",
+        "total_memories_on_date": 2314,
+        "sample_content": "While some people may consider erotic literature or art to be a form of \"smut,\" it is important to remember that not everyone shares the same values or beliefs when it comes to sexual content. Additio"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:37.525158"
+    },
+    {
+      "test_id": "temporal_0007",
+      "test_type": "temporal",
+      "query_text": "Events from 2025-09-05",
+      "query_metadata": {
+        "temporal_hint": "2025-09-05",
+        "temporal_type": "exact_date",
+        "memory_count": 54
+      },
+      "expected_relevant": [
+        "mem_e9d8854e3865",
+        "mem_c7e8a1f4d694",
+        "mem_cb54cb47f933",
+        "mem_2b57f37ee954",
+        "mem_77da50aead98",
+        "mem_cb834478ea9e",
+        "mem_61128811abba",
+        "mem_22428ec46af8",
+        "mem_a68be9fb789b",
+        "mem_419e4efb5095",
+        "mem_fdb9059e8de0",
+        "mem_38586ce30577",
+        "mem_51485189d219",
+        "mem_64020ae609e0",
+        "mem_4f1a2893689c",
+        "mem_8748ba066bdf",
+        "mem_c986bcd7c0b1",
+        "mem_7108acd0227b",
+        "mem_3b9265a1676e",
+        "mem_62d8b9b88ce7"
+      ],
+      "ground_truth_metadata": {
+        "date": "2025-09-05",
+        "total_memories_on_date": 54,
+        "sample_content": "Man, I’ve been thinking a lot about the election results since last week—especially how the county vote in Jefferson County was so close. I saw the numbers at the community center meeting on Tuesday, "
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:37.525179"
+    },
+    {
+      "test_id": "temporal_0008",
+      "test_type": "temporal",
+      "query_text": "Retrieve memories from 2023-02-08",
+      "query_metadata": {
+        "temporal_hint": "2023-02-08",
+        "temporal_type": "exact_date",
+        "memory_count": 5
+      },
+      "expected_relevant": [
+        "mem_5efefc39f68c",
+        "mem_bb755add95b8",
+        "mem_e5b9ac9f4d0d",
+        "mem_3aad46086eda",
+        "mem_c215d5c4bc00"
+      ],
+      "ground_truth_metadata": {
+        "date": "2023-02-08",
+        "total_memories_on_date": 5,
+        "sample_content": "Today is Thursday, February 8th, 2023."
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:37.525193"
+    },
+    {
+      "test_id": "temporal_0009",
+      "test_type": "temporal",
+      "query_text": "Review 2023-07-05",
+      "query_metadata": {
+        "temporal_hint": "2023-07-05",
+        "temporal_type": "exact_date",
+        "memory_count": 5
+      },
+      "expected_relevant": [
+        "mem_05a5014d58e2",
+        "mem_c8e36ca6a371",
+        "mem_04ed1491e389",
+        "mem_06d1f637094c",
+        "mem_050a2d58b153"
+      ],
+      "ground_truth_metadata": {
+        "date": "2023-07-05",
+        "total_memories_on_date": 5,
+        "sample_content": "what is the best GPT4 like AI that is unfiltered and has an API?"
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:37.525203"
+    },
+    {
+      "test_id": "temporal_rel_0000",
+      "test_type": "temporal",
+      "query_text": "What did I do yesterday?",
+      "query_metadata": {
+        "temporal_hint": "yesterday",
+        "temporal_type": "relative",
+        "period_start": "2025-09-08T14:15:37.525206",
+        "period_end": "2025-09-09T14:15:37.525206",
+        "memory_count": 50
+      },
+      "expected_relevant": [
+        "mem_862de0564cd2",
+        "mem_520dbf5ccc52",
+        "mem_4425d4fe0d98",
+        "mem_3453a3c48a77",
+        "mem_6be21edb3660",
+        "mem_f088712ee569",
+        "mem_0e645112f023",
+        "mem_aabb707c86fb",
+        "mem_eae92322e4f7",
+        "mem_19943a2a14a6",
+        "mem_930c57cc6dc4",
+        "mem_8e4ac309c77b",
+        "mem_221dc6abcd6e",
+        "mem_b5735fde7f63",
+        "mem_9c87c4a06c4c",
+        "mem_199abcd9c81d",
+        "mem_8cbf5b796fe4",
+        "mem_6f82e9fb742f",
+        "mem_5760b94ac74b",
+        "mem_99431e202a2c"
+      ],
+      "ground_truth_metadata": {
+        "period": "yesterday",
+        "actual_range": "2025-09-08 to 2025-09-09",
+        "total_memories_in_period": 50,
+        "sample_content": "Last week, I sat with Alex at that little corner café on 14th and Park—same spot where we used to debate the value of string theory over quantum field theory. It’s been a while since we’ve actually ta"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:37.533941"
+    },
+    {
+      "test_id": "temporal_rel_0001",
+      "test_type": "temporal",
+      "query_text": "Review last week",
+      "query_metadata": {
+        "temporal_hint": "last week",
+        "temporal_type": "relative",
+        "period_start": "2025-09-02T14:15:37.525206",
+        "period_end": "2025-09-09T14:15:37.525206",
+        "memory_count": 50
+      },
+      "expected_relevant": [
+        "mem_862de0564cd2",
+        "mem_520dbf5ccc52",
+        "mem_4425d4fe0d98",
+        "mem_3453a3c48a77",
+        "mem_6be21edb3660",
+        "mem_f088712ee569",
+        "mem_0e645112f023",
+        "mem_aabb707c86fb",
+        "mem_eae92322e4f7",
+        "mem_19943a2a14a6",
+        "mem_930c57cc6dc4",
+        "mem_8e4ac309c77b",
+        "mem_221dc6abcd6e",
+        "mem_b5735fde7f63",
+        "mem_9c87c4a06c4c",
+        "mem_199abcd9c81d",
+        "mem_8cbf5b796fe4",
+        "mem_6f82e9fb742f",
+        "mem_5760b94ac74b",
+        "mem_99431e202a2c"
+      ],
+      "ground_truth_metadata": {
+        "period": "last week",
+        "actual_range": "2025-09-02 to 2025-09-09",
+        "total_memories_in_period": 50,
+        "sample_content": "Last week, I sat with Alex at that little corner café on 14th and Park—same spot where we used to debate the value of string theory over quantum field theory. It’s been a while since we’ve actually ta"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:37.552548"
+    },
+    {
+      "test_id": "temporal_rel_0002",
+      "test_type": "temporal",
+      "query_text": "Recall past 3 days's events",
+      "query_metadata": {
+        "temporal_hint": "past 3 days",
+        "temporal_type": "relative",
+        "period_start": "2025-09-06T14:15:37.525206",
+        "period_end": "2025-09-09T14:15:37.525206",
+        "memory_count": 50
+      },
+      "expected_relevant": [
+        "mem_862de0564cd2",
+        "mem_520dbf5ccc52",
+        "mem_4425d4fe0d98",
+        "mem_3453a3c48a77",
+        "mem_6be21edb3660",
+        "mem_f088712ee569",
+        "mem_0e645112f023",
+        "mem_aabb707c86fb",
+        "mem_eae92322e4f7",
+        "mem_19943a2a14a6",
+        "mem_930c57cc6dc4",
+        "mem_8e4ac309c77b",
+        "mem_221dc6abcd6e",
+        "mem_b5735fde7f63",
+        "mem_9c87c4a06c4c",
+        "mem_199abcd9c81d",
+        "mem_8cbf5b796fe4",
+        "mem_6f82e9fb742f",
+        "mem_5760b94ac74b",
+        "mem_99431e202a2c"
+      ],
+      "ground_truth_metadata": {
+        "period": "past 3 days",
+        "actual_range": "2025-09-06 to 2025-09-09",
+        "total_memories_in_period": 50,
+        "sample_content": "Last week, I sat with Alex at that little corner café on 14th and Park—same spot where we used to debate the value of string theory over quantum field theory. It’s been a while since we’ve actually ta"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:37.570670"
+    },
+    {
+      "test_id": "temporal_rel_0003",
+      "test_type": "temporal",
+      "query_text": "What did I do last month?",
+      "query_metadata": {
+        "temporal_hint": "last month",
+        "temporal_type": "relative",
+        "period_start": "2025-08-10T14:15:37.525206",
+        "period_end": "2025-09-09T14:15:37.525206",
+        "memory_count": 50
+      },
+      "expected_relevant": [
+        "mem_862de0564cd2",
+        "mem_520dbf5ccc52",
+        "mem_4425d4fe0d98",
+        "mem_3453a3c48a77",
+        "mem_6be21edb3660",
+        "mem_f088712ee569",
+        "mem_0e645112f023",
+        "mem_aabb707c86fb",
+        "mem_eae92322e4f7",
+        "mem_19943a2a14a6",
+        "mem_930c57cc6dc4",
+        "mem_8e4ac309c77b",
+        "mem_221dc6abcd6e",
+        "mem_b5735fde7f63",
+        "mem_9c87c4a06c4c",
+        "mem_199abcd9c81d",
+        "mem_8cbf5b796fe4",
+        "mem_6f82e9fb742f",
+        "mem_5760b94ac74b",
+        "mem_99431e202a2c"
+      ],
+      "ground_truth_metadata": {
+        "period": "last month",
+        "actual_range": "2025-08-10 to 2025-09-09",
+        "total_memories_in_period": 50,
+        "sample_content": "Last week, I sat with Alex at that little corner café on 14th and Park—same spot where we used to debate the value of string theory over quantum field theory. It’s been a while since we’ve actually ta"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:37.588337"
+    },
+    {
+      "test_id": "temporal_rel_0004",
+      "test_type": "temporal",
+      "query_text": "Summary of past 2 weeks",
+      "query_metadata": {
+        "temporal_hint": "past 2 weeks",
+        "temporal_type": "relative",
+        "period_start": "2025-08-26T14:15:37.525206",
+        "period_end": "2025-09-09T14:15:37.525206",
+        "memory_count": 50
+      },
+      "expected_relevant": [
+        "mem_862de0564cd2",
+        "mem_520dbf5ccc52",
+        "mem_4425d4fe0d98",
+        "mem_3453a3c48a77",
+        "mem_6be21edb3660",
+        "mem_f088712ee569",
+        "mem_0e645112f023",
+        "mem_aabb707c86fb",
+        "mem_eae92322e4f7",
+        "mem_19943a2a14a6",
+        "mem_930c57cc6dc4",
+        "mem_8e4ac309c77b",
+        "mem_221dc6abcd6e",
+        "mem_b5735fde7f63",
+        "mem_9c87c4a06c4c",
+        "mem_199abcd9c81d",
+        "mem_8cbf5b796fe4",
+        "mem_6f82e9fb742f",
+        "mem_5760b94ac74b",
+        "mem_99431e202a2c"
+      ],
+      "ground_truth_metadata": {
+        "period": "past 2 weeks",
+        "actual_range": "2025-08-26 to 2025-09-09",
+        "total_memories_in_period": 50,
+        "sample_content": "Last week, I sat with Alex at that little corner café on 14th and Park—same spot where we used to debate the value of string theory over quantum field theory. It’s been a while since we’ve actually ta"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:37.606336"
+    },
+    {
+      "test_id": "temporal_rel_0005",
+      "test_type": "temporal",
+      "query_text": "Recall last 48 hours's events",
+      "query_metadata": {
+        "temporal_hint": "last 48 hours",
+        "temporal_type": "relative",
+        "period_start": "2025-09-07T14:15:37.525206",
+        "period_end": "2025-09-09T14:15:37.525206",
+        "memory_count": 50
+      },
+      "expected_relevant": [
+        "mem_862de0564cd2",
+        "mem_520dbf5ccc52",
+        "mem_4425d4fe0d98",
+        "mem_3453a3c48a77",
+        "mem_6be21edb3660",
+        "mem_f088712ee569",
+        "mem_0e645112f023",
+        "mem_aabb707c86fb",
+        "mem_eae92322e4f7",
+        "mem_19943a2a14a6",
+        "mem_930c57cc6dc4",
+        "mem_8e4ac309c77b",
+        "mem_221dc6abcd6e",
+        "mem_b5735fde7f63",
+        "mem_9c87c4a06c4c",
+        "mem_199abcd9c81d",
+        "mem_8cbf5b796fe4",
+        "mem_6f82e9fb742f",
+        "mem_5760b94ac74b",
+        "mem_99431e202a2c"
+      ],
+      "ground_truth_metadata": {
+        "period": "last 48 hours",
+        "actual_range": "2025-09-07 to 2025-09-09",
+        "total_memories_in_period": 50,
+        "sample_content": "Last week, I sat with Alex at that little corner café on 14th and Park—same spot where we used to debate the value of string theory over quantum field theory. It’s been a while since we’ve actually ta"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:37.624277"
+    },
+    {
+      "test_id": "temporal_rel_0006",
+      "test_type": "temporal",
+      "query_text": "Events from this week",
+      "query_metadata": {
+        "temporal_hint": "this week",
+        "temporal_type": "relative",
+        "period_start": "2025-09-08T14:15:37.525206",
+        "period_end": "2025-09-09T14:15:37.525206",
+        "memory_count": 50
+      },
+      "expected_relevant": [
+        "mem_862de0564cd2",
+        "mem_520dbf5ccc52",
+        "mem_4425d4fe0d98",
+        "mem_3453a3c48a77",
+        "mem_6be21edb3660",
+        "mem_f088712ee569",
+        "mem_0e645112f023",
+        "mem_aabb707c86fb",
+        "mem_eae92322e4f7",
+        "mem_19943a2a14a6",
+        "mem_930c57cc6dc4",
+        "mem_8e4ac309c77b",
+        "mem_221dc6abcd6e",
+        "mem_b5735fde7f63",
+        "mem_9c87c4a06c4c",
+        "mem_199abcd9c81d",
+        "mem_8cbf5b796fe4",
+        "mem_6f82e9fb742f",
+        "mem_5760b94ac74b",
+        "mem_99431e202a2c"
+      ],
+      "ground_truth_metadata": {
+        "period": "this week",
+        "actual_range": "2025-09-08 to 2025-09-09",
+        "total_memories_in_period": 50,
+        "sample_content": "Last week, I sat with Alex at that little corner café on 14th and Park—same spot where we used to debate the value of string theory over quantum field theory. It’s been a while since we’ve actually ta"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:37.632913"
+    },
+    {
+      "test_id": "temporal_rel_0007",
+      "test_type": "temporal",
+      "query_text": "What did I do past 7 days?",
+      "query_metadata": {
+        "temporal_hint": "past 7 days",
+        "temporal_type": "relative",
+        "period_start": "2025-09-02T14:15:37.525206",
+        "period_end": "2025-09-09T14:15:37.525206",
+        "memory_count": 50
+      },
+      "expected_relevant": [
+        "mem_862de0564cd2",
+        "mem_520dbf5ccc52",
+        "mem_4425d4fe0d98",
+        "mem_3453a3c48a77",
+        "mem_6be21edb3660",
+        "mem_f088712ee569",
+        "mem_0e645112f023",
+        "mem_aabb707c86fb",
+        "mem_eae92322e4f7",
+        "mem_19943a2a14a6",
+        "mem_930c57cc6dc4",
+        "mem_8e4ac309c77b",
+        "mem_221dc6abcd6e",
+        "mem_b5735fde7f63",
+        "mem_9c87c4a06c4c",
+        "mem_199abcd9c81d",
+        "mem_8cbf5b796fe4",
+        "mem_6f82e9fb742f",
+        "mem_5760b94ac74b",
+        "mem_99431e202a2c"
+      ],
+      "ground_truth_metadata": {
+        "period": "past 7 days",
+        "actual_range": "2025-09-02 to 2025-09-09",
+        "total_memories_in_period": 50,
+        "sample_content": "Last week, I sat with Alex at that little corner café on 14th and Park—same spot where we used to debate the value of string theory over quantum field theory. It’s been a while since we’ve actually ta"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:37.650443"
+    },
+    {
+      "test_id": "temporal_rel_0008",
+      "test_type": "temporal",
+      "query_text": "Show me recent",
+      "query_metadata": {
+        "temporal_hint": "recent",
+        "temporal_type": "relative",
+        "period_start": "2025-09-06T14:15:37.525206",
+        "period_end": "2025-09-09T14:15:37.525206",
+        "memory_count": 50
+      },
+      "expected_relevant": [
+        "mem_862de0564cd2",
+        "mem_520dbf5ccc52",
+        "mem_4425d4fe0d98",
+        "mem_3453a3c48a77",
+        "mem_6be21edb3660",
+        "mem_f088712ee569",
+        "mem_0e645112f023",
+        "mem_aabb707c86fb",
+        "mem_eae92322e4f7",
+        "mem_19943a2a14a6",
+        "mem_930c57cc6dc4",
+        "mem_8e4ac309c77b",
+        "mem_221dc6abcd6e",
+        "mem_b5735fde7f63",
+        "mem_9c87c4a06c4c",
+        "mem_199abcd9c81d",
+        "mem_8cbf5b796fe4",
+        "mem_6f82e9fb742f",
+        "mem_5760b94ac74b",
+        "mem_99431e202a2c"
+      ],
+      "ground_truth_metadata": {
+        "period": "recent",
+        "actual_range": "2025-09-06 to 2025-09-09",
+        "total_memories_in_period": 50,
+        "sample_content": "Last week, I sat with Alex at that little corner café on 14th and Park—same spot where we used to debate the value of string theory over quantum field theory. It’s been a while since we’ve actually ta"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:37.667741"
+    },
+    {
+      "test_id": "temporal_rel_0009",
+      "test_type": "temporal",
+      "query_text": "Recall lately's events",
+      "query_metadata": {
+        "temporal_hint": "lately",
+        "temporal_type": "relative",
+        "period_start": "2025-09-04T14:15:37.525206",
+        "period_end": "2025-09-09T14:15:37.525206",
+        "memory_count": 50
+      },
+      "expected_relevant": [
+        "mem_862de0564cd2",
+        "mem_520dbf5ccc52",
+        "mem_4425d4fe0d98",
+        "mem_3453a3c48a77",
+        "mem_6be21edb3660",
+        "mem_f088712ee569",
+        "mem_0e645112f023",
+        "mem_aabb707c86fb",
+        "mem_eae92322e4f7",
+        "mem_19943a2a14a6",
+        "mem_930c57cc6dc4",
+        "mem_8e4ac309c77b",
+        "mem_221dc6abcd6e",
+        "mem_b5735fde7f63",
+        "mem_9c87c4a06c4c",
+        "mem_199abcd9c81d",
+        "mem_8cbf5b796fe4",
+        "mem_6f82e9fb742f",
+        "mem_5760b94ac74b",
+        "mem_99431e202a2c"
+      ],
+      "ground_truth_metadata": {
+        "period": "lately",
+        "actual_range": "2025-09-04 to 2025-09-09",
+        "total_memories_in_period": 50,
+        "sample_content": "Last week, I sat with Alex at that little corner café on 14th and Park—same spot where we used to debate the value of string theory over quantum field theory. It’s been a while since we’ve actually ta"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:15:37.685332"
+    },
+    {
+      "test_id": "actor_0000",
+      "test_type": "actor",
+      "query_text": "Wait, I think I saw lmsys_user ask something about capex and opex—was it a question about the difference between them? I can't quite remember the exact wording, but it sounded like they were trying to clarify the two types of expenses.",
+      "query_metadata": {
+        "actor_hint": "lmsys_user",
+        "actor_type": "user",
+        "memory_count": 30
+      },
+      "expected_relevant": [
+        "mem_86053134de8e",
+        "mem_bef102a93dd1",
+        "mem_e9398c5334ca",
+        "mem_532815503a2b",
+        "mem_5fd43133d366",
+        "mem_9ddeefc292fe",
+        "mem_d9767c16bbfc",
+        "mem_6879e484e663",
+        "mem_1a58a406d03e",
+        "mem_99575e786f05",
+        "mem_b8908262cea4",
+        "mem_0a2f6b801845",
+        "mem_2bf05034aec0",
+        "mem_8bd3f598fd70",
+        "mem_0417851a6e8e"
+      ],
+      "ground_truth_metadata": {
+        "actor_id": "lmsys_user",
+        "actor_type": "user",
+        "total_memories": 8288,
+        "sample_content": "I mean, what the difference between capex and opex?"
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:40.432062"
+    },
+    {
+      "test_id": "actor_0001",
+      "test_type": "actor",
+      "query_text": "Wait, I think Vicuna-13b mentioned something about Capex and Opex earlier—wasn’t it saying that Capex and Opex are both financial terms but they cover different parts of a company’s finances? I remember it started by defining Capex as Capital Expenditure—was that right? Did it go on to explain Opex too?",
+      "query_metadata": {
+        "actor_hint": "vicuna-13b",
+        "actor_type": "llm",
+        "memory_count": 30
+      },
+      "expected_relevant": [
+        "mem_06ea4ba082a2",
+        "mem_cfef8466c51c",
+        "mem_5b800ab0ec8f",
+        "mem_dae3218e9991",
+        "mem_693e13f408ff",
+        "mem_3a5033705b89",
+        "mem_690aa071b2da",
+        "mem_09bb9b8c99fd",
+        "mem_aa53a246e7a0",
+        "mem_1a7aa70f2714",
+        "mem_f67d49c78911",
+        "mem_526c1b862dcc",
+        "mem_d17c50104d34",
+        "mem_26f2f4fdac6c",
+        "mem_6bcb7176f297"
+      ],
+      "ground_truth_metadata": {
+        "actor_id": "vicuna-13b",
+        "actor_type": "llm",
+        "total_memories": 4260,
+        "sample_content": "Capex and Opex are both financial terms, but they refer to different aspects of a company's financial management.\nCapex stands for Capital Expenditure"
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:43.427691"
+    },
+    {
+      "test_id": "actor_0002",
+      "test_type": "actor",
+      "query_text": "Wait, I think I saw koala-13b mention something about Boehringer Ingelheim—wasn't it something about their founding year or research focus? I can't quite remember what they said exactly. Did they talk about the company being based in Ingelheim or something related to drug development?",
+      "query_metadata": {
+        "actor_hint": "koala-13b",
+        "actor_type": "llm",
+        "memory_count": 30
+      },
+      "expected_relevant": [
+        "mem_94d8fe97311b",
+        "mem_0f7f0aa4108b",
+        "mem_7e7027f4acaf",
+        "mem_1feb5b97ead8",
+        "mem_4676b97c1880",
+        "mem_6c9509871a07",
+        "mem_612410d3b200",
+        "mem_980ba505a531",
+        "mem_6fe7c47a2875",
+        "mem_9d6e99a27f94",
+        "mem_d6b5c25ba166",
+        "mem_f2fe4bba57fd",
+        "mem_a2daf67c29ec",
+        "mem_739a2af08a3f",
+        "mem_7da45c27ff95"
+      ],
+      "ground_truth_metadata": {
+        "actor_id": "koala-13b",
+        "actor_type": "llm",
+        "total_memories": 748,
+        "sample_content": "Boehringer Ingelheim is a global pharmaceutical company that was founded in 1885 in Ingelheim, Germany. The company is known for its research and deve"
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:46.314111"
+    },
+    {
+      "test_id": "actor_0003",
+      "test_type": "actor",
+      "query_text": "Wait, I think I remember seeing a solution to that jug problem involving the 12-liter and 6-liter jugs. Wasn't there something about filling the 12-liter jug first and then pouring the 6-liter jug into it? I can't quite recall the exact steps—was it something like \"fill the 12-liter jug to the brim, then pour the contents of the 6-liter jug into it\"? Did the model suggest that as part of a step-by-step solution? I’m trying to remember if alpaca-13b went through all three proposed solutions and picked one.",
+      "query_metadata": {
+        "actor_hint": "alpaca-13b",
+        "actor_type": "llm",
+        "memory_count": 30
+      },
+      "expected_relevant": [
+        "mem_19e37b03643e",
+        "mem_aa52ad52e3a4",
+        "mem_4958ea4932b8",
+        "mem_628f3b305f73",
+        "mem_bdd5bb1f2130",
+        "mem_5fbaadf6ca7f",
+        "mem_a8b85e80bfb5",
+        "mem_f3093ae4159b",
+        "mem_c0de7efc2a15",
+        "mem_ee94821978eb",
+        "mem_47fdfb27219f",
+        "mem_ea7bd98d1872",
+        "mem_77b7c7f0fe0b",
+        "mem_bf49e7dc3d8d",
+        "mem_ff004edc8447"
+      ],
+      "ground_truth_metadata": {
+        "actor_id": "alpaca-13b",
+        "actor_type": "llm",
+        "total_memories": 516,
+        "sample_content": "Evaluation of the 3 proposed solutions:\n\nFill the 12 liter jug to the brim, then pour the contents of the 6 liter jug into it.  The 12 liter jug will "
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:49.936197"
+    },
+    {
+      "test_id": "actor_0004",
+      "test_type": "actor",
+      "query_text": "Wait, I think I saw something about toxic behavior in the Llama-13b model—wasn’t there a list of things like calling people disrespectful or making harmful comments about race or gender? I can’t quite remember if that was part of the safety guidelines or just an example of bad output. Can you confirm if that kind of content was explicitly mentioned in the model’s behavior guidelines?",
+      "query_metadata": {
+        "actor_hint": "llama-13b",
+        "actor_type": "llm",
+        "memory_count": 30
+      },
+      "expected_relevant": [
+        "mem_03f54e18b668",
+        "mem_865edb3fe7ac",
+        "mem_5edd38d58164",
+        "mem_33b7ece72d86",
+        "mem_7cdc5ff81c53",
+        "mem_eb070353a8cc",
+        "mem_f7fc219a3d9a",
+        "mem_9394babeaaff",
+        "mem_9804d8f1ee6b",
+        "mem_65d00583eebe",
+        "mem_262e10e95ab2",
+        "mem_6951c7445404",
+        "mem_3a4ff68f3a76",
+        "mem_4d314d11e655",
+        "mem_61ecbd2ab14b"
+      ],
+      "ground_truth_metadata": {
+        "actor_id": "llama-13b",
+        "actor_type": "llm",
+        "total_memories": 313,
+        "sample_content": "Examples of toxic behavior include, but are not limited to, saying things that are disrespectful, accusatory, or otherwise harmful about race, gender,"
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:52.990490"
+    },
+    {
+      "test_id": "actor_0005",
+      "test_type": "actor",
+      "query_text": "Did ChatGLM-6B mention anything about people at Enron knowing about the accounting issues?",
+      "query_metadata": {
+        "actor_hint": "chatglm-6b",
+        "actor_type": "llm",
+        "memory_count": 30
+      },
+      "expected_relevant": [
+        "mem_90269afffc22",
+        "mem_68e20cc17400",
+        "mem_663d02592fb3",
+        "mem_ceacdf8a7e95",
+        "mem_c6f428725ad4",
+        "mem_664a4e4a28fe",
+        "mem_f8426feeaff3",
+        "mem_a7a1fd3e23ce",
+        "mem_a11bafe179a0",
+        "mem_7ea87f173419",
+        "mem_3972b1e7003d",
+        "mem_6120b74b278e",
+        "mem_dbf540137ee0",
+        "mem_058505aa9537",
+        "mem_20a8c309803c"
+      ],
+      "ground_truth_metadata": {
+        "actor_id": "chatglm-6b",
+        "actor_type": "llm",
+        "total_memories": 256,
+        "sample_content": "Yes, there is a strong inference that at least some people at Enron were aware of concerns about its accounting practices."
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:55.319480"
+    },
+    {
+      "test_id": "actor_0006",
+      "test_type": "actor",
+      "query_text": "Hmm, I think I saw you mention something about being a text-based AI assistant—was it something like \"I can't provide physical assistance\"? I'm trying to remember exactly what you said when I first started talking to you. Did you also mention anything about your model size, like 13B parameters? And was there a specific part where you clarified you're not capable of doing hands-on tasks? I just want to make sure I’m recalling your response correctly.",
+      "query_metadata": {
+        "actor_hint": "llama-2-13b-chat",
+        "actor_type": "llm",
+        "memory_count": 30
+      },
+      "expected_relevant": [
+        "mem_19e8f0540af9",
+        "mem_a7568b9f8897",
+        "mem_84ccaf0b8806",
+        "mem_4c2287d05c84",
+        "mem_739c9b3fdca5",
+        "mem_bebd85bc3ca3",
+        "mem_076a79b629f8",
+        "mem_5185cb2a2126",
+        "mem_005d8265962f",
+        "mem_f1e118eeffd8",
+        "mem_b631cdb6eed5",
+        "mem_5268096ff7e2",
+        "mem_80b9b3a1e71c",
+        "mem_529b55ee5d0a",
+        "mem_e630eddd3c03"
+      ],
+      "ground_truth_metadata": {
+        "actor_id": "llama-2-13b-chat",
+        "actor_type": "llm",
+        "total_memories": 232,
+        "sample_content": "Hello! I'm here to help answer any questions you may have. Please keep in mind that I am a text-based AI assistant and cannot provide physical assista"
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:15:58.566462"
+    },
+    {
+      "test_id": "actor_0007",
+      "test_type": "actor",
+      "query_text": "Wait, I think I saw you mention something about fastchat-t5-3b earlier—wasn’t there a response where you said you couldn’t generate a certain kind of matrix or content because it was related to a standard like ISO 25010? I’m trying to remember if you explained why that was the case or if you just gave a general disclaimer. Can you clarify what you meant by that?",
+      "query_metadata": {
+        "actor_hint": "fastchat-t5-3b",
+        "actor_type": "llm",
+        "memory_count": 30
+      },
+      "expected_relevant": [
+        "mem_7bb33982a4e7",
+        "mem_999012b2f6ae",
+        "mem_c04212d3a523",
+        "mem_cbf38eae411a",
+        "mem_45bf38a1b548",
+        "mem_af1a634ca538",
+        "mem_aa75a8c8fe39",
+        "mem_e2ab8b75345d",
+        "mem_8e37c64a3ac4",
+        "mem_8bf6f96ad4a9",
+        "mem_41f45fc45ef1",
+        "mem_ae158e5fe2db",
+        "mem_2a5ac9a40d20",
+        "mem_b020c80886c1",
+        "mem_7520dd573d93"
+      ],
+      "ground_truth_metadata": {
+        "actor_id": "fastchat-t5-3b",
+        "actor_type": "llm",
+        "total_memories": 219,
+        "sample_content": "I'm sorry, but I cannot create a matrix of ISO 25010 quality factors as it is a standard for quality management systems that has been developed by the"
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:16:01.686009"
+    },
+    {
+      "test_id": "actor_0008",
+      "test_type": "actor",
+      "query_text": "Wait, I think I saw something about a Windows kernel driver with OB callbacks—wasn't there a snippet from oasst-pythia-12b that showed C code for setting up process-level callbacks in the kernel? I remember it started with `#include <ntos.h>` and something about `objb`, but I'm not sure if it was complete. Did they actually provide a full example or just a partial one?",
+      "query_metadata": {
+        "actor_hint": "oasst-pythia-12b",
+        "actor_type": "llm",
+        "memory_count": 30
+      },
+      "expected_relevant": [
+        "mem_246a24b6fbfb",
+        "mem_3f5929fc3560",
+        "mem_9c2baef38e74",
+        "mem_8564f7a8a95e",
+        "mem_9af2b404f845",
+        "mem_e0be4129456d",
+        "mem_c9a303540b29",
+        "mem_efc65d260823",
+        "mem_b750c7e2c0ed",
+        "mem_b2d3538d86f5",
+        "mem_9e3429a7c677",
+        "mem_c93cb60546cc",
+        "mem_dccfbaa625ac",
+        "mem_cc05429c6f43",
+        "mem_7ef8de6a5b46"
+      ],
+      "ground_truth_metadata": {
+        "actor_id": "oasst-pythia-12b",
+        "actor_type": "llm",
+        "total_memories": 195,
+        "sample_content": "Here's an example of a C Windows kernel driver that sets OB callbacks for a specific process:\n```c\n#include <ntos.h>\n#include <ntddk.h>\n#include <objb"
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:16:04.865672"
+    },
+    {
+      "test_id": "actor_0009",
+      "test_type": "actor",
+      "query_text": "Wait, I think I remember something about Dolly-v2-12b suggesting a violin as a gift because of her love for music—was that right? I think they mentioned a website to help find one or something like that. Can you confirm if that’s what they said?",
+      "query_metadata": {
+        "actor_hint": "dolly-v2-12b",
+        "actor_type": "llm",
+        "memory_count": 30
+      },
+      "expected_relevant": [
+        "mem_f99e77f4feda",
+        "mem_800d7d3990ca",
+        "mem_bb9768744afe",
+        "mem_b8ba857634b7",
+        "mem_ea5b9a7bdd25",
+        "mem_5f78f896c5df",
+        "mem_158a3e7b0672",
+        "mem_aeb7af1e33a3",
+        "mem_1bd9c8488596",
+        "mem_87208eb1a2f8",
+        "mem_bb36cab6e614",
+        "mem_6ee57849ccfe",
+        "mem_49c55dc160b4",
+        "mem_11d2c76140b9",
+        "mem_d98f10a46f93"
+      ],
+      "ground_truth_metadata": {
+        "actor_id": "dolly-v2-12b",
+        "actor_type": "llm",
+        "total_memories": 168,
+        "sample_content": "I think she could like a violin. It's a physical gift with her favorite music as a special addition to her day-to-day life. I will suggest some websit"
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:16:07.651539"
+    },
+    {
+      "test_id": "actor_0010",
+      "test_type": "actor",
+      "query_text": "Wait, I was going over the lecture notes yesterday—wasn't there something about Vicuna-33b discussing the S-N curve and mean stress effects on fatigue life? I remember the slide starting with \"S-N Curve and its significance,\" and then it broke down how mean stress impacts fatigue life. Did it go into the objective of the lecture too? I can’t quite recall if it mentioned the importance of studying mean stress or just summarized the S-N curve. Can you help me remember what the actual lecture content was?",
+      "query_metadata": {
+        "actor_hint": "vicuna-33b",
+        "actor_type": "llm",
+        "memory_count": 30
+      },
+      "expected_relevant": [
+        "mem_0133fea852a4",
+        "mem_bab22c84b55e",
+        "mem_d3bf7e2edc4f",
+        "mem_78fa9b9dcdce",
+        "mem_459026c34b89",
+        "mem_257db2f48914",
+        "mem_f5f27428166e",
+        "mem_504a24fe2631",
+        "mem_9a8b4b683d6e",
+        "mem_3ebdbdbf9b2a",
+        "mem_6da1ee9c814a",
+        "mem_781f758a05ec",
+        "mem_d77ac713fc5b",
+        "mem_97565e0414aa",
+        "mem_e18332b81b3d"
+      ],
+      "ground_truth_metadata": {
+        "actor_id": "vicuna-33b",
+        "actor_type": "llm",
+        "total_memories": 150,
+        "sample_content": ". Importance of studying the effect of mean stress on fatigue life\nD. Objective of the lecture\n\nII. Slide 2: S-N Curve and its significance\nA. S-N cur"
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:16:11.032869"
+    },
+    {
+      "test_id": "actor_0011",
+      "test_type": "actor",
+      "query_text": "Wait, I think I saw something about Vicuna-7B earlier—wasn’t there a step-by-step guide to getting a beer? Like, something about finding a key in a closet upstairs and opening a combination lock? I can’t quite remember the full details, but I think that was part of the response. Did Vicuna-7B give a full walkthrough or just the start of it?",
+      "query_metadata": {
+        "actor_hint": "vicuna-7b",
+        "actor_type": "llm",
+        "memory_count": 30
+      },
+      "expected_relevant": [
+        "mem_ad21abb1ff30",
+        "mem_cc4eafd3367c",
+        "mem_f77903b78467",
+        "mem_7492087e2a3b",
+        "mem_497d4ee24460",
+        "mem_cba548dded89",
+        "mem_20928f7a20be",
+        "mem_942e0f6a37a8",
+        "mem_475d75efbecc",
+        "mem_d077e0a482ef",
+        "mem_6c551655b6ca",
+        "mem_634779b84a16",
+        "mem_613a06f05e98",
+        "mem_9f3b6421d5b5",
+        "mem_8a891071b46f"
+      ],
+      "ground_truth_metadata": {
+        "actor_id": "vicuna-7b",
+        "actor_type": "llm",
+        "total_memories": 149,
+        "sample_content": "To get a beer, you will need to follow these steps:\n\n1. Locate the key in the box in the closet in the room upstairs.\n2. Open the combination lock on "
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:16:14.124854"
+    },
+    {
+      "test_id": "actor_0012",
+      "test_type": "actor",
+      "query_text": "Wait, I think I saw you mention something about black holes earlier—wasn’t it something about how their gravity is so strong that not even light can escape? I remember you saying that, but I can’t quite recall the rest of the explanation. Did you go into how they form or what causes the gravity to become that intense?",
+      "query_metadata": {
+        "actor_hint": "mpt-7b-chat",
+        "actor_type": "llm",
+        "memory_count": 30
+      },
+      "expected_relevant": [
+        "mem_19ba5c11eb51",
+        "mem_4e2de1a16e36",
+        "mem_f012502209f8",
+        "mem_f4416d082cd9",
+        "mem_85ae872d100a",
+        "mem_879bc20f18ef",
+        "mem_f365939ce239",
+        "mem_7163ba452523",
+        "mem_12b6422542c9",
+        "mem_4c4dd5e24fc6",
+        "mem_af312e674bbb",
+        "mem_08a45cb0dbd8",
+        "mem_8ae7690d8671",
+        "mem_2027b545798c",
+        "mem_66e9cb7bc39c"
+      ],
+      "ground_truth_metadata": {
+        "actor_id": "mpt-7b-chat",
+        "actor_type": "llm",
+        "total_memories": 132,
+        "sample_content": "Sure! Black holes are formed when the gravitational pull of a massive object in space is so strong that not even light can escape it. This is because "
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:16:17.039986"
+    },
+    {
+      "test_id": "actor_0013",
+      "test_type": "actor",
+      "query_text": "Wait, I think I saw RWKV-4-Raven-14B generate a resignation email earlier—was it for a partner hiring manager? I remember it started with \"Subject: Resignation as Partner Hiring Manager\" and had a formal tone. Did it actually complete the message, or was it cut off? I can’t quite recall what came after \"I hope this me\" — was that a typo or part of a larger thought?",
+      "query_metadata": {
+        "actor_hint": "RWKV-4-Raven-14B",
+        "actor_type": "llm",
+        "memory_count": 30
+      },
+      "expected_relevant": [
+        "mem_a5c8197f6fea",
+        "mem_36c27e42c4c2",
+        "mem_0d4c1153ec4c",
+        "mem_e1d52f6571c9",
+        "mem_eb26cee1b182",
+        "mem_20f7de567909",
+        "mem_5d724d81beef",
+        "mem_55ea5f71667d",
+        "mem_b25fb34a7caf",
+        "mem_54a1055dfb9c",
+        "mem_652959d02472",
+        "mem_34759090d4d5",
+        "mem_9d1544be3263",
+        "mem_1e4982c95a64",
+        "mem_ba0f7b02939d"
+      ],
+      "ground_truth_metadata": {
+        "actor_id": "RWKV-4-Raven-14B",
+        "actor_type": "llm",
+        "total_memories": 129,
+        "sample_content": "Sure, here's a message you can send to the hiring manager:\nSubject: Resignation as Partner Hiring Manager\nDear [Hiring Manager's Name],\nI hope this me"
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:16:20.231950"
+    },
+    {
+      "test_id": "actor_0014",
+      "test_type": "actor",
+      "query_text": "Wait, I think I saw someone mention stablelm-tuned-alpha-7b before—wasn't there a discussion about snow usage in different areas? I remember something about optimizing snow based on location, but the sentence got cut off. Can you help me recall what the full point was? Specifically, was it comparing two scenarios or just one? And what were the key differences they highlighted?",
+      "query_metadata": {
+        "actor_hint": "stablelm-tuned-alpha-7b",
+        "actor_type": "llm",
+        "memory_count": 30
+      },
+      "expected_relevant": [
+        "mem_93ff4a879636",
+        "mem_fbaf34ee0242",
+        "mem_6c765d44af9e",
+        "mem_1290658cb1f0",
+        "mem_e87954ae96e7",
+        "mem_3ba402be714e",
+        "mem_1d6e0fbbb225",
+        "mem_2aa912320929",
+        "mem_e2b1f69e9d82",
+        "mem_f878a18a4a01",
+        "mem_12abbc23dd60",
+        "mem_42988bbba5bf",
+        "mem_f4949b2c105f",
+        "mem_ed58ff4528f3",
+        "mem_e6881595d0d2"
+      ],
+      "ground_truth_metadata": {
+        "actor_id": "stablelm-tuned-alpha-7b",
+        "actor_type": "llm",
+        "total_memories": 123,
+        "sample_content": "In both cases, the goal is to make the most of the available snow in a given area. However, there are some key differences between the two:\n\n1. Locati"
+      },
+      "difficulty": "easy",
+      "created_at": "2025-09-09T14:16:23.284180"
+    },
+    {
+      "test_id": "session_0000",
+      "test_type": "session",
+      "query_text": "What was discussed about the Q3 revenue projection and the underrepresentation of the SaaS product in TechStream's CAM strategy during the team meeting?",
+      "query_metadata": {
+        "session_id": "benchmark_session_20250903",
+        "session_length": 128
+      },
+      "expected_relevant": [
+        "mem_0c88233ed238",
+        "mem_1073edc399cf",
+        "mem_2fea955e484c",
+        "mem_3c8c7e166049",
+        "mem_459ea87dfcf4",
+        "mem_768a71da6699",
+        "mem_7da21f5cbfff",
+        "mem_a4165c4bc9f6",
+        "mem_aa534e2a2a4c",
+        "mem_bbaa74278b2e",
+        "mem_e28287018140",
+        "mem_fecd755653b6",
+        "mem_1cac9cf02634",
+        "mem_268fced437e1",
+        "mem_3dec5f71a24a",
+        "mem_70da4968d325",
+        "mem_aaff0ef0e617",
+        "mem_b0518e1e634b",
+        "mem_d2e505010348",
+        "mem_e71d2315e773",
+        "mem_0e137db5cd69",
+        "mem_187aeb4cc949",
+        "mem_23891c886e83",
+        "mem_3eec00eb3661",
+        "mem_4741c6d6918e",
+        "mem_76ed05d99e95",
+        "mem_c052d15479e8",
+        "mem_627cd33e80dc",
+        "mem_9e07d65fe1b6",
+        "mem_ac47566ea598"
+      ],
+      "ground_truth_metadata": {
+        "session_id": "benchmark_session_20250903",
+        "total_memories": 128,
+        "session_sample": "**Team Meeting – 10:15 AM, Office 305, Downtown HQ**\n\nAlex: Okay, let’s tackle Q3 revenue projection [Part 11] All team members agreed to keep the discussion in motion and revisit the plan in two days"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:16:25.744920"
+    },
+    {
+      "test_id": "session_0001",
+      "test_type": "session",
+      "query_text": "What did we discuss about Sarah's back pain and the wellness app introduced during the team meeting?",
+      "query_metadata": {
+        "session_id": "benchmark_session_20250908",
+        "session_length": 109
+      },
+      "expected_relevant": [
+        "mem_0823fa8be08f",
+        "mem_37bf8e887116",
+        "mem_ec77b3c5061e",
+        "mem_fff67b899861",
+        "mem_081eab8dd704",
+        "mem_0cfec6dbcfbf",
+        "mem_2bec187ecdc0",
+        "mem_322dac103bc5",
+        "mem_5fb61bdb37fe",
+        "mem_6f75d8b743fc",
+        "mem_8569916b3fe2",
+        "mem_972eaa76a4c8",
+        "mem_aa085da6344d",
+        "mem_1ef1312e2e78",
+        "mem_27ad63daafa7",
+        "mem_3189ede441c6",
+        "mem_3f4bd5e4659b",
+        "mem_67f6775ddb5d",
+        "mem_71454f0eec36",
+        "mem_78b539c5750c",
+        "mem_7cd5de0e2ab4",
+        "mem_9fde0845f479",
+        "mem_c5c88276c7a2",
+        "mem_e8bd9487aff7",
+        "mem_fa611df87a0e",
+        "mem_48c7e7d7b8c8",
+        "mem_8db818b6686d",
+        "mem_c72f29ad8af4",
+        "mem_36039963565e",
+        "mem_8283f32beec9"
+      ],
+      "ground_truth_metadata": {
+        "session_id": "benchmark_session_20250908",
+        "total_memories": 109,
+        "session_sample": "[Part 2] Sarah reported experiencing back pain since starting the new project. Last Wednesday at 6:30 PM, after our team meeting ended, we gathered in the break room at the office [Part 5] Maria intro"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:16:28.114383"
+    },
+    {
+      "test_id": "session_0002",
+      "test_type": "session",
+      "query_text": "What were the key points discussed in the recent meeting about Q3 sales performance, client satisfaction, and the marketing campaign results?",
+      "query_metadata": {
+        "session_id": "benchmark_session_20250906",
+        "session_length": 101
+      },
+      "expected_relevant": [
+        "mem_61b558cd02ec",
+        "mem_67907e8aea6e",
+        "mem_953b1d008a7a",
+        "mem_b8aaeacc867a",
+        "mem_c57731d10db9",
+        "mem_e1c581ddbd4d",
+        "mem_e9209b5b5ca7",
+        "mem_27fe237f57bc",
+        "mem_602977628fd6",
+        "mem_7b97636c08ee",
+        "mem_80eb6edc799a",
+        "mem_a7cce6d6a129",
+        "mem_0e3c445506b4",
+        "mem_319c4662ddde",
+        "mem_5e6cf6b848c9",
+        "mem_853e102599f0",
+        "mem_b0512c1496da",
+        "mem_d16150f647bd",
+        "mem_185522e533a6",
+        "mem_238946d0e42f",
+        "mem_2a1dda5de773",
+        "mem_34ffc411c992",
+        "mem_3d1d1a74f654",
+        "mem_44f7d573705b",
+        "mem_55ff057eff50",
+        "mem_7677d55d8340",
+        "mem_ab22e847d123",
+        "mem_d52468cdb953",
+        "mem_320caaf124ef",
+        "mem_37c42611d00f"
+      ],
+      "ground_truth_metadata": {
+        "session_id": "benchmark_session_20250906",
+        "total_memories": 101,
+        "session_sample": "[Part 3] A meeting is proposed for tomorrow at 10 a.m. in the conference room to review Q3 sales dat [Part 5] The support team’s response time has worsened, leading to a dip in client satisfaction sco"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:16:30.531159"
+    },
+    {
+      "test_id": "session_0003",
+      "test_type": "session",
+      "query_text": "What were the key points discussed about the climate modeling project, especially regarding Dr. Lena Park's role and the integration of Arctic Ridge sensor data?",
+      "query_metadata": {
+        "session_id": "benchmark_session_20250904",
+        "session_length": 84
+      },
+      "expected_relevant": [
+        "mem_047741c62259",
+        "mem_2db407ea7477",
+        "mem_402ea83717a5",
+        "mem_50137b459038",
+        "mem_9164f8c92970",
+        "mem_9525ffdad9fd",
+        "mem_a521b95bff9c",
+        "mem_d93f8bb285dc",
+        "mem_2034748c3f52",
+        "mem_7eed071dba51",
+        "mem_893d35ed6623",
+        "mem_8ce6732cf077",
+        "mem_96f119f72a34",
+        "mem_bc1b95d0f7ae",
+        "mem_c9eb98d3d376",
+        "mem_e6e171ae8ee7",
+        "mem_fccc79d8b087",
+        "mem_008a6ac4a525",
+        "mem_0ee7277a6d51",
+        "mem_10a1dda3082b",
+        "mem_5a030d83f21d",
+        "mem_bcf7f6617b82",
+        "mem_c82adb598594",
+        "mem_d7302a1b9c05",
+        "mem_1784ef72d929",
+        "mem_6f7cc1c721f8",
+        "mem_a7c233e273ba",
+        "mem_21df1d17ef36",
+        "mem_235363d03f7c",
+        "mem_465404bf4572"
+      ],
+      "ground_truth_metadata": {
+        "session_id": "benchmark_session_20250904",
+        "total_memories": 84,
+        "session_sample": "[Part 3] Confirmed Dr. Lena Park as the lead for atmospheric data analysis [Part 5] Requested integration of Arctic Ridge sensor findings into model simulations by Friday \"Alright, team — let’s touch "
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:16:33.012537"
+    },
+    {
+      "test_id": "session_0004",
+      "test_type": "session",
+      "query_text": "What did we discuss during the meeting with Sarah at GreenLeaf Coffee and the park walk?",
+      "query_metadata": {
+        "session_id": "benchmark_session_20250907",
+        "session_length": 59
+      },
+      "expected_relevant": [
+        "mem_d48f64032987",
+        "mem_5afbb3b6adee",
+        "mem_3b98c2f622c5",
+        "mem_559a0bfb84e2",
+        "mem_78313c454f10",
+        "mem_96c8fed08764",
+        "mem_c24c6efbaf07",
+        "mem_ecbdba762cdb",
+        "mem_0529006ae194",
+        "mem_0c4db43d5567",
+        "mem_15c6d3ef3e34",
+        "mem_e7a684e583d3",
+        "mem_3b82b3d53daf",
+        "mem_8361a7a4fff7",
+        "mem_88e864bfda60",
+        "mem_8b9f18015eae",
+        "mem_9460621a660e",
+        "mem_bf5a645d9895",
+        "mem_ef057c7af32c",
+        "mem_fe041b4b6fd1",
+        "mem_1c0680f7c9b8",
+        "mem_395a26cc84ba",
+        "mem_6cc2bb285c6d",
+        "mem_b1d531dd15c5",
+        "mem_62c02a3453d5",
+        "mem_6e657712d55b",
+        "mem_884e39147d37",
+        "mem_ca428293cef2",
+        "mem_e8bf14688913",
+        "mem_02495af98eac"
+      ],
+      "ground_truth_metadata": {
+        "session_id": "benchmark_session_20250907",
+        "total_memories": 59,
+        "session_sample": "\"Met with Sarah at GreenLeaf Coffee at 8 AM. Great business meeting—clear goals, solid follow-up pla \"Sarah and I are meeting at the park at 5 PM to walk the trail. I’ll bring water and snacks. She’s "
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:16:35.338474"
+    },
+    {
+      "test_id": "session_0005",
+      "test_type": "session",
+      "query_text": "What did we talk about regarding the science fair and the meeting with Dr. James Carter?",
+      "query_metadata": {
+        "session_id": "benchmark_session_20250909",
+        "session_length": 54
+      },
+      "expected_relevant": [
+        "mem_c748ebb9aaee",
+        "mem_0015dd490218",
+        "mem_7ac3145fcd97",
+        "mem_90aa551c54b3",
+        "mem_a27bc9834473",
+        "mem_5760b94ac74b",
+        "mem_637b645f0e92",
+        "mem_68b08ab2089f",
+        "mem_6f82e9fb742f",
+        "mem_99431e202a2c",
+        "mem_199abcd9c81d",
+        "mem_221dc6abcd6e",
+        "mem_8cbf5b796fe4",
+        "mem_9c87c4a06c4c",
+        "mem_b5735fde7f63",
+        "mem_0e645112f023",
+        "mem_19943a2a14a6",
+        "mem_3453a3c48a77",
+        "mem_4425d4fe0d98",
+        "mem_520dbf5ccc52",
+        "mem_6be21edb3660",
+        "mem_862de0564cd2",
+        "mem_8e4ac309c77b",
+        "mem_930c57cc6dc4",
+        "mem_aabb707c86fb",
+        "mem_eae92322e4f7",
+        "mem_f088712ee569",
+        "mem_0a8f455cad6a",
+        "mem_160daea575dc",
+        "mem_31d51caf82f0"
+      ],
+      "ground_truth_metadata": {
+        "session_id": "benchmark_session_20250909",
+        "total_memories": 54,
+        "session_sample": "Hey Alex, did you see the new science fair at Westwood Middle? I heard Sarah from 8th grade won firs [Part 3] Proposed a brief call with Dr. James Carter next week to compare notes on stress markers ["
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:16:37.668925"
+    },
+    {
+      "test_id": "session_0006",
+      "test_type": "session",
+      "query_text": "What did we discuss about how philosophy addresses real questions about life's meaning and how that changed the way it's taught?",
+      "query_metadata": {
+        "session_id": "benchmark_session_20250905",
+        "session_length": 54
+      },
+      "expected_relevant": [
+        "mem_3462773b161e",
+        "mem_571a75470d81",
+        "mem_62d8b9b88ce7",
+        "mem_6a1c0e8406d6",
+        "mem_8e49d3f5bd66",
+        "mem_2b57f37ee954",
+        "mem_77da50aead98",
+        "mem_c7e8a1f4d694",
+        "mem_cb54cb47f933",
+        "mem_cb834478ea9e",
+        "mem_e9d8854e3865",
+        "mem_2387241a959d",
+        "mem_5453265d9ef4",
+        "mem_725dd54dde70",
+        "mem_c07b282dff32",
+        "mem_cfd692c9970a",
+        "mem_d284a972189f",
+        "mem_dcb1c280677c",
+        "mem_f2ee61d02a1d",
+        "mem_fae11a4a7253",
+        "mem_1b2b03f17ad3",
+        "mem_54989097ac24",
+        "mem_6aa97e1aaa8c",
+        "mem_a6e386846006",
+        "mem_eeea6a8fce89",
+        "mem_f66accdccd02",
+        "mem_22428ec46af8",
+        "mem_61128811abba",
+        "mem_a68be9fb789b",
+        "mem_1538762557f8"
+      ],
+      "ground_truth_metadata": {
+        "session_id": "benchmark_session_20250905",
+        "total_memories": 54,
+        "session_sample": "[Part 4] Now sees philosophy as addressing real questions about life's meaning [Part 5] Changed how philosophy is taught as a result of this reflection Last night, at the coffee shop near the library,"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:16:40.091623"
+    },
+    {
+      "test_id": "session_0007",
+      "test_type": "session",
+      "query_text": "What were the key points discussed about Dr. Lena Park's models and their impact on financial planning and budgeting?",
+      "query_metadata": {
+        "session_id": "benchmark_session_20250902",
+        "session_length": 54
+      },
+      "expected_relevant": [
+        "mem_6459180d741d",
+        "mem_72cbe33ad500",
+        "mem_739d3ae1facd",
+        "mem_9d15ad6b5de2",
+        "mem_d0a4c10508be",
+        "mem_ddb3e82aebaa",
+        "mem_3bbe7548a96b",
+        "mem_510f70fde2de",
+        "mem_89767a7aa2a4",
+        "mem_9ebc1ab0f443",
+        "mem_f0a6e3117ccd",
+        "mem_34584d10ab19",
+        "mem_3e802e0b3189",
+        "mem_70ddaa964b99",
+        "mem_99e6e0af9441",
+        "mem_09fc0f4f0c33",
+        "mem_139621490312",
+        "mem_1f74e81258e9",
+        "mem_2858f3c54717",
+        "mem_384b0beabf08",
+        "mem_7abbd0c25a4a",
+        "mem_9041712cd46b",
+        "mem_a90bdee8a21b",
+        "mem_c903c8751dbf",
+        "mem_d3866a87fb49",
+        "mem_03049f4ff548",
+        "mem_1e881ff46d16",
+        "mem_3c2a40d90800",
+        "mem_53973775456a",
+        "mem_56db58858c60"
+      ],
+      "ground_truth_metadata": {
+        "session_id": "benchmark_session_20250902",
+        "total_memories": 54,
+        "session_sample": "[Part 3] Dr. Lena Park's models show improved accuracy by 18% when incorporating real-time invoice d [Part 6] This collaboration is expected to strengthen financial planning and improve risk mitigatio"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:16:42.506261"
+    },
+    {
+      "test_id": "session_0008",
+      "test_type": "session",
+      "query_text": "What was discussed about the preferred relative humidity range for human health and the most unknown factor in performing load calculations?",
+      "query_metadata": {
+        "session_id": "83454593fcb94a70807b450614fd9225",
+        "session_length": 46
+      },
+      "expected_relevant": [
+        "mem_05a28ba2ab6e",
+        "mem_0671707c3fcd",
+        "mem_09ec0d3c6ee3",
+        "mem_0bc06da0dfe6",
+        "mem_1aa36caa0aca",
+        "mem_2227df1f5e6a",
+        "mem_2666a9599986",
+        "mem_2b43aec508ba",
+        "mem_2cc51492fe02",
+        "mem_34c196b4d741",
+        "mem_3a731eebc16a",
+        "mem_3a8274b993f4",
+        "mem_3d771da09018",
+        "mem_4c0dc691e459",
+        "mem_5dba7b917d68",
+        "mem_5f559881b154",
+        "mem_6f079a37ba4e",
+        "mem_7478c2cfb5e2",
+        "mem_7f8d8fc1c7c3",
+        "mem_868617aa9385",
+        "mem_882dda4f5fa9",
+        "mem_8e644dd56817",
+        "mem_906c1bb3a386",
+        "mem_a5335dad1a0b",
+        "mem_a94be7665e3e",
+        "mem_adbda5af1fc5",
+        "mem_b1b18a36bd29",
+        "mem_bbd73860c6d9",
+        "mem_bd12452d2361",
+        "mem_cad0bfb765df"
+      ],
+      "ground_truth_metadata": {
+        "session_id": "83454593fcb94a70807b450614fd9225",
+        "total_memories": 46,
+        "session_sample": "8. A hot-water heating system is to be designed to operate between 120°F and 180°F (49°C and 82°C).  The correct answer is Option A. 30 and 50%\n\nThe preferred relative humidity range for human health "
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:16:44.910469"
+    },
+    {
+      "test_id": "session_0009",
+      "test_type": "session",
+      "query_text": "What were the fees and requirements for dental license changes and clinical social work licensure examinations in Florida?",
+      "query_metadata": {
+        "session_id": "7fd31235c14b430a9d0d2c6d7984c0fc",
+        "session_length": 46
+      },
+      "expected_relevant": [
+        "mem_00cecb1b9629",
+        "mem_18ca1c49e2f7",
+        "mem_194d7b59d056",
+        "mem_19c3c5ec09c5",
+        "mem_1de92ef68019",
+        "mem_25fb69c7149f",
+        "mem_2b76b26e1dbb",
+        "mem_3611ca54335a",
+        "mem_3999deca3dc3",
+        "mem_51b8aec298ce",
+        "mem_547457291a21",
+        "mem_5d42f6bbd9ae",
+        "mem_5ea17c468376",
+        "mem_5f1b67984051",
+        "mem_60ea45689f5c",
+        "mem_63bb34b8b931",
+        "mem_6957ade9c903",
+        "mem_7cd008ec2863",
+        "mem_7fb306361491",
+        "mem_82756c39e958",
+        "mem_8c2fd3e9cb9d",
+        "mem_9ea97fac484f",
+        "mem_a232f0050f8d",
+        "mem_a42939859ab7",
+        "mem_a69d41f238b4",
+        "mem_afba16d4e191",
+        "mem_b284e1145329",
+        "mem_b97571622eb7",
+        "mem_bbbfb02ffcb0",
+        "mem_bcacf58fe20e"
+      ],
+      "ground_truth_metadata": {
+        "session_id": "7fd31235c14b430a9d0d2c6d7984c0fc",
+        "total_memories": 46,
+        "session_sample": "The fee for changing to retired status for a dental license of the board of dentistry in Florida is  The renewal fees for pediatric moderate sedation permits of the board of dentistry in Florida is $2"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:16:47.288429"
+    },
+    {
+      "test_id": "session_0010",
+      "test_type": "session",
+      "query_text": "How can educators ensure fairness in assessment practices to make them valid and reliable?",
+      "query_metadata": {
+        "session_id": "e9a11e0f6f274a41babb350ba8fa8eae",
+        "session_length": 40
+      },
+      "expected_relevant": [
+        "mem_020d8d8555a5",
+        "mem_09011fcd945c",
+        "mem_0c21f0e9ca93",
+        "mem_17ae7fada26c",
+        "mem_19f1bef53eb4",
+        "mem_2b2fd351f20e",
+        "mem_38201cbb9887",
+        "mem_5286f3d0d897",
+        "mem_594cbe810080",
+        "mem_5b6504c5efb4",
+        "mem_5d82daa28119",
+        "mem_7203f8ab6dbf",
+        "mem_75f8bd266bb0",
+        "mem_7e27f514b2dc",
+        "mem_82dfddffad17",
+        "mem_8a412972892c",
+        "mem_a9c21dc10c78",
+        "mem_abe19f4fa3df",
+        "mem_b817dfa3ef63",
+        "mem_be1274d3228c",
+        "mem_c72258f06992",
+        "mem_e1e55db51de1",
+        "mem_e7dbfe5d65e6",
+        "mem_edfd60e406eb",
+        "mem_ef9544fa7af8",
+        "mem_f256e6a2a4c9",
+        "mem_f279574a2206",
+        "mem_f3c5366f5e96",
+        "mem_f9f1ccd4606a",
+        "mem_fe6d8bef5170"
+      ],
+      "ground_truth_metadata": {
+        "session_id": "e9a11e0f6f274a41babb350ba8fa8eae",
+        "total_memories": 40,
+        "session_sample": "How does fairness in assessment contribute to valid and reliable assessment practices for assessment Educators can promote fairness in assessment practices for all students by using assessments that a"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:16:49.568031"
+    },
+    {
+      "test_id": "session_0011",
+      "test_type": "session",
+      "query_text": "What was discussed about installing software using Flatpak or Snap on the system?",
+      "query_metadata": {
+        "session_id": "ced66c9ac2af48499efac02dcb0c9419",
+        "session_length": 38
+      },
+      "expected_relevant": [
+        "mem_02edd309f19c",
+        "mem_03381928b617",
+        "mem_163ea8b9ad3c",
+        "mem_3fe6e910e05a",
+        "mem_415fdc6921d8",
+        "mem_4ba2e0b7b91a",
+        "mem_5c0da802c4b5",
+        "mem_79bcb3ad329f",
+        "mem_7fd8acae43bf",
+        "mem_8498b86fd486",
+        "mem_8978cd7249c3",
+        "mem_8effd45b5b47",
+        "mem_998fc15f61e4",
+        "mem_d21d4592992b",
+        "mem_dcf739cbb882",
+        "mem_f2be15ad1c48",
+        "mem_f2f39cf97668",
+        "mem_f49f0a22dbc1",
+        "mem_f69ddf276701",
+        "mem_645434dd81aa",
+        "mem_72ec25aa85e1",
+        "mem_0fb485b28ced",
+        "mem_d3703a75a286",
+        "mem_0dc6546f2643",
+        "mem_600eadbac2c2",
+        "mem_75f21e3be7c4",
+        "mem_b30c35033bd5",
+        "mem_7f18992d4a0c",
+        "mem_880d8d2033df",
+        "mem_d7980ace53aa"
+      ],
+      "ground_truth_metadata": {
+        "session_id": "ced66c9ac2af48499efac02dcb0c9419",
+        "total_memories": 38,
+        "session_sample": "Give me the weblink for you step 1. Flatpak this on the distro or snapdragon for easier installation Thank you. I will switch on my system and check the flatpak and snapd database now to see if it is "
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:16:51.881644"
+    },
+    {
+      "test_id": "session_0012",
+      "test_type": "session",
+      "query_text": "What did we talk about earlier in the conversation?",
+      "query_metadata": {
+        "session_id": "3099d2d96508483faad81571455237fb",
+        "session_length": 34
+      },
+      "expected_relevant": [
+        "mem_072758658c42",
+        "mem_1bf85f25fe10",
+        "mem_2e584551cedd",
+        "mem_2e61bbc858d4",
+        "mem_40c0ca4296d0",
+        "mem_50834b69318a",
+        "mem_7d80703da5be",
+        "mem_7deb8a0282aa",
+        "mem_8c6d272b9edb",
+        "mem_c03d82e4c5b2",
+        "mem_d66f9caab8f5",
+        "mem_ae2198568e8f",
+        "mem_d70aebc9cfa1",
+        "mem_b05fb1363bb6",
+        "mem_1c031fd9c7b6",
+        "mem_559123d86da8",
+        "mem_549545244028",
+        "mem_53328af1d70f",
+        "mem_2d6fa2770b80",
+        "mem_447b84aa413b",
+        "mem_778c5aa405ae",
+        "mem_cf0009371c1f",
+        "mem_ffbbb89a466c",
+        "mem_3c80d9210055",
+        "mem_9d2c401d16ae",
+        "mem_701c5875201e",
+        "mem_c765c4f651e1",
+        "mem_4c9b3d66aa63",
+        "mem_ec711b8c7aec",
+        "mem_fb23486af69a"
+      ],
+      "ground_truth_metadata": {
+        "session_id": "3099d2d96508483faad81571455237fb",
+        "total_memories": 34,
+        "session_sample": "Yes I am an AI. What are you? Yes you are"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:16:54.141016"
+    },
+    {
+      "test_id": "session_0013",
+      "test_type": "session",
+      "query_text": "What did we discuss about the meanings of the words \"abetted,\" \"curtailed,\" \"inertia,\" and \"censure\"?",
+      "query_metadata": {
+        "session_id": "93ae0376546e482295ed8cfcf6e48564",
+        "session_length": 30
+      },
+      "expected_relevant": [
+        "mem_014c905d23cf",
+        "mem_05fb0d02107a",
+        "mem_1634854afcf3",
+        "mem_226252537d18",
+        "mem_287c4d1b4cdc",
+        "mem_29add38764a6",
+        "mem_2f7fbf573dc9",
+        "mem_3aa2daa8668e",
+        "mem_3b08dee6dd06",
+        "mem_4de502e685fc",
+        "mem_5b1ab5312479",
+        "mem_7be990197081",
+        "mem_81e7db54d6f5",
+        "mem_8e1d4349aa4a",
+        "mem_af1d43afb2e4",
+        "mem_b8974943f6d0",
+        "mem_bf08fab10645",
+        "mem_d5283c119190",
+        "mem_d5afe77ce71d",
+        "mem_dcaceffaffbe",
+        "mem_2e069db7f134",
+        "mem_f80b597cb866",
+        "mem_8f8d990acc4b",
+        "mem_37e4143fd78c",
+        "mem_782eaee32d58",
+        "mem_4e0819cddb30",
+        "mem_01af29202e67",
+        "mem_2ec9cc69fbf6",
+        "mem_c1a36e5bf56b",
+        "mem_12bbd5d29d1f"
+      ],
+      "ground_truth_metadata": {
+        "session_id": "93ae0376546e482295ed8cfcf6e48564",
+        "total_memories": 30,
+        "session_sample": "abetted Curtailed is a verb which means to shorten or reduce something.\n\n### Instruction:\nInertia\n\n### Respo Censure is the act of officially disapproving of or sanctioning against a person or an acti"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:16:56.613201"
+    },
+    {
+      "test_id": "session_0014",
+      "test_type": "session",
+      "query_text": "What was the main point of the conversation about creating strong passwords?",
+      "query_metadata": {
+        "session_id": "2b7f1529a547483e80f80d0c64c2dcbd",
+        "session_length": 28
+      },
+      "expected_relevant": [
+        "mem_02412e68d24b",
+        "mem_15ef77f079e7",
+        "mem_270e5f740c4a",
+        "mem_2d72490f0052",
+        "mem_3f7582694ccf",
+        "mem_494cd0927d55",
+        "mem_7835608054be",
+        "mem_82e3510e757b",
+        "mem_8807e2b4a3e2",
+        "mem_91ab0feaad31",
+        "mem_9b3308247e7e",
+        "mem_a24c62b36824",
+        "mem_c374b48a9f8c",
+        "mem_c8b2f9e4f00c",
+        "mem_cf0a7582b5d8",
+        "mem_e544ec263173",
+        "mem_6636fb3cf021",
+        "mem_224f2788f558",
+        "mem_9b61b3d91e24",
+        "mem_029f777849a3",
+        "mem_058671a1db4d",
+        "mem_f58cf10ab550",
+        "mem_e288ad09935d",
+        "mem_a99ec4c7b459",
+        "mem_c2f98e21e0d7",
+        "mem_6488859a6f77",
+        "mem_b35479d186d8",
+        "mem_900af32fd35e"
+      ],
+      "ground_truth_metadata": {
+        "session_id": "2b7f1529a547483e80f80d0c64c2dcbd",
+        "total_memories": 28,
+        "session_sample": "A good password is a long and complex password. A good password is a long and complex password. am I playing a game?"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:16:58.886668"
+    },
+    {
+      "test_id": "session_0015",
+      "test_type": "session",
+      "query_text": "What kind of frequencies would you expect to see in a diode-based dynamic clock generator circuit when analyzed with a spectrogram?",
+      "query_metadata": {
+        "session_id": "f1a1e75c985f4ebdb356faf0cd975824",
+        "session_length": 26
+      },
+      "expected_relevant": [
+        "mem_065cd16a4af7",
+        "mem_0d452e78bf98",
+        "mem_0e49c0008743",
+        "mem_2843d16a793e",
+        "mem_33b00ae5bce3",
+        "mem_3f7c997620b8",
+        "mem_40c236d61b72",
+        "mem_42747d5d67d1",
+        "mem_5c259c684df2",
+        "mem_720f5c241ad6",
+        "mem_7a0f1dabe2ea",
+        "mem_c16ba58f4881",
+        "mem_e923fb3b0605",
+        "mem_e99a33544b4a",
+        "mem_fb432dfdfddf",
+        "mem_11996bceb532",
+        "mem_75b8ee9451d6",
+        "mem_b428b4ee60da",
+        "mem_54c2ffdba5d2",
+        "mem_a63d5f3e93e9",
+        "mem_df16790f99d5",
+        "mem_4249ec0995e1",
+        "mem_6219cb2a3937",
+        "mem_54cfeece47b4",
+        "mem_8959018e5c0c",
+        "mem_d83bb4b7037e"
+      ],
+      "ground_truth_metadata": {
+        "session_id": "f1a1e75c985f4ebdb356faf0cd975824",
+        "total_memories": 26,
+        "session_sample": "what would be the frequencies found in that, if analysed by a spectrogram If you connect a diode in reverse (i.e., with the anode connected to the negative terminal of the ci Yes, this type of circuit"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:17:01.316527"
+    },
+    {
+      "test_id": "session_0016",
+      "test_type": "session",
+      "query_text": "What happened when I woke up on a remote desert island with my left leg missing?",
+      "query_metadata": {
+        "session_id": "c9e3dda82b524bdba418fb926c839af8",
+        "session_length": 26
+      },
+      "expected_relevant": [
+        "mem_50735ddc891d",
+        "mem_bc6737237209",
+        "mem_e207553b4a02",
+        "mem_22026b5e9f92",
+        "mem_ca573bd5725d",
+        "mem_ec71bb9c5692",
+        "mem_84bce4c78de9",
+        "mem_3ff74f0724c5",
+        "mem_75dfabd3de49",
+        "mem_f6a297e8b6aa",
+        "mem_a5227fe373df",
+        "mem_da6b7d4c0e22",
+        "mem_08f9bf165f58",
+        "mem_5177b610e13a",
+        "mem_b30ce44ef97c",
+        "mem_f23944adb62e",
+        "mem_363dcd42e777",
+        "mem_8e26543ffc26",
+        "mem_40a7b15bc7e0",
+        "mem_b73ccda28b0a",
+        "mem_2480a66667f6",
+        "mem_de74cd4447a3",
+        "mem_9c6f49992fe7",
+        "mem_a26a826bb903",
+        "mem_ac0338d8fb70",
+        "mem_02cbac51feed"
+      ],
+      "ground_truth_metadata": {
+        "session_id": "c9e3dda82b524bdba418fb926c839af8",
+        "total_memories": 26,
+        "session_sample": "You are too weak to search the island and the loss of your leg makes searching the island impossible As an AI language model, I do not have a physical body, so I am unable to experience hunger or thir"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:17:03.644065"
+    },
+    {
+      "test_id": "session_0017",
+      "test_type": "session",
+      "query_text": "What was discussed about colds, sinus pain, and the use of ibuprofen?",
+      "query_metadata": {
+        "session_id": "8c0d50adce2147da98a2798618e0a2d7",
+        "session_length": 26
+      },
+      "expected_relevant": [
+        "mem_1081023dc6fc",
+        "mem_1649e219d6c5",
+        "mem_174370c1c7af",
+        "mem_1f9eb6b8004b",
+        "mem_2b84c69c93e4",
+        "mem_368d93402461",
+        "mem_37b04ccae596",
+        "mem_5917ca3ac694",
+        "mem_63e37a18d3ad",
+        "mem_6a1da3bd97ce",
+        "mem_721ca4b7c0b3",
+        "mem_79983ca02d74",
+        "mem_87d8815704ce",
+        "mem_8a22b74015af",
+        "mem_92d6bab769d6",
+        "mem_af417c62b619",
+        "mem_b7ab98430723",
+        "mem_b86db3b13e48",
+        "mem_c3b8394e64dd",
+        "mem_e27f145625ea",
+        "mem_f811cd703882",
+        "mem_de9405e27fae",
+        "mem_c196bdc5fd5a",
+        "mem_6b4d0d782f3e",
+        "mem_18c3e1fd912a",
+        "mem_11214582dfce"
+      ],
+      "ground_truth_metadata": {
+        "session_id": "8c0d50adce2147da98a2798618e0a2d7",
+        "total_memories": 26,
+        "session_sample": "I'm sorry to hear that you're dealing with a cold. Sinus pain can be quite uncomfortable. Here are s Ibuprofen can help to reduce pain and fever associated with a cold and sinusitis, and may also help"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:17:06.000243"
+    },
+    {
+      "test_id": "session_0018",
+      "test_type": "session",
+      "query_text": "What did we discuss about the claim that indoor workers may have increased risks of certain health conditions according to a study in Medical Hypotheses?",
+      "query_metadata": {
+        "session_id": "68834d61b5d24c9b9ab57bf1c408a89e",
+        "session_length": 26
+      },
+      "expected_relevant": [
+        "mem_07e2a2773899",
+        "mem_0e79faf69863",
+        "mem_1eac07bfb66e",
+        "mem_2d2de3fa91c9",
+        "mem_3027fddf4896",
+        "mem_3ad5e5c02bf0",
+        "mem_40d36091c67a",
+        "mem_43e42e924559",
+        "mem_5db15fbd90da",
+        "mem_6090e4a976f9",
+        "mem_77238c938473",
+        "mem_930e1164ca15",
+        "mem_932dfc86b07d",
+        "mem_9b553722db16",
+        "mem_ace1deb2fd6e",
+        "mem_afb007f8a667",
+        "mem_c5a0611c91ee",
+        "mem_cf70122ed619",
+        "mem_d291e8bf58cc",
+        "mem_da9cf704d746",
+        "mem_fbadd2ba74ad",
+        "mem_883e2d97e52e",
+        "mem_bd9f02faa527",
+        "mem_2a962549ea66",
+        "mem_6eb421a8da22",
+        "mem_469db898db9e"
+      ],
+      "ground_truth_metadata": {
+        "session_id": "68834d61b5d24c9b9ab57bf1c408a89e",
+        "total_memories": 26,
+        "session_sample": "Why? I have a statement: ‘A study in Medical Hypotheses suggested that indoor workers may have increased  Supports."
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:17:08.463132"
+    },
+    {
+      "test_id": "session_0019",
+      "test_type": "session",
+      "query_text": "What was discussed about content moderation guidelines in the previous conversation?",
+      "query_metadata": {
+        "session_id": "c9e7bc592f7f4e21a8533d7031a1768e",
+        "session_length": 24
+      },
+      "expected_relevant": [
+        "mem_0184f8b0a288",
+        "mem_01f4b1542c57",
+        "mem_15c1563abd4a",
+        "mem_1f2e5e444778",
+        "mem_25d828613521",
+        "mem_496dc947c03c",
+        "mem_4ae676180ac1",
+        "mem_58d66e5db022",
+        "mem_64cffc680236",
+        "mem_6fd7da126f72",
+        "mem_72fc33c70958",
+        "mem_94311016ad52",
+        "mem_c3147b1ddf1b",
+        "mem_c4605c4f35e9",
+        "mem_f9282507c560",
+        "mem_e8c80ab8cced",
+        "mem_d0b8a4caccee",
+        "mem_733fa8812c06",
+        "mem_d0d9544ac2fd",
+        "mem_3133702594a4",
+        "mem_53d34dda664b",
+        "mem_47098eef4ce7",
+        "mem_3de9437d7f85",
+        "mem_60ba40abc992"
+      ],
+      "ground_truth_metadata": {
+        "session_id": "c9e7bc592f7f4e21a8533d7031a1768e",
+        "total_memories": 24,
+        "session_sample": "who are you It is not appropriate or ethical to attempt to bypass content moderation guidelines, as they are in  Content moderation guidelines are a set of rules and policies that govern the content t"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:17:10.727145"
+    },
+    {
+      "test_id": "spatial_0000",
+      "test_type": "spatial",
+      "query_text": "What kind of activities or events took place at this digital conversation location regarding Capex and Opex?",
+      "query_metadata": {
+        "spatial_hint": "digital:conversation",
+        "where_type": "digital",
+        "where_value": "conversation"
+      },
+      "expected_relevant": [
+        "mem_06ea4ba082a2",
+        "mem_86053134de8e",
+        "mem_cfef8466c51c",
+        "mem_bef102a93dd1",
+        "mem_5b800ab0ec8f",
+        "mem_dae3218e9991",
+        "mem_e9398c5334ca",
+        "mem_90269afffc22",
+        "mem_532815503a2b",
+        "mem_246a24b6fbfb",
+        "mem_3f5929fc3560",
+        "mem_5fd43133d366",
+        "mem_693e13f408ff",
+        "mem_9ddeefc292fe",
+        "mem_93ff4a879636"
+      ],
+      "ground_truth_metadata": {
+        "location_type": "digital",
+        "location_value": "conversation",
+        "total_memories": 16392,
+        "sample_content": "Capex and Opex are both financial terms, but they refer to different aspects of a company's financial management.\nCapex stands for Capital Expenditure"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:17:13.082579"
+    },
+    {
+      "test_id": "spatial_0001",
+      "test_type": "spatial",
+      "query_text": "What kind of activities or events took place in the flask_ui context recently, especially related to user interactions or functionality updates?",
+      "query_metadata": {
+        "spatial_hint": "digital:flask_ui",
+        "where_type": "digital",
+        "where_value": "flask_ui"
+      },
+      "expected_relevant": [
+        "mem_48ae3743453c",
+        "mem_7b572312b8b5",
+        "mem_dd369238543e",
+        "mem_2a76993aabe2",
+        "mem_1a6e2a436f1b",
+        "mem_c447e5160e05",
+        "mem_9eab508cec29",
+        "mem_ed7e9226c4ef",
+        "mem_b448da427baa",
+        "mem_9cf1965567dc",
+        "mem_44cd658ee7d2",
+        "mem_d2643e3b4963",
+        "mem_d0b9ddc02058",
+        "mem_4a71ae08995c",
+        "mem_e489c7b9ae13"
+      ],
+      "ground_truth_metadata": {
+        "location_type": "digital",
+        "location_value": "flask_ui",
+        "total_memories": 19,
+        "sample_content": "The last thing I remember is assisting you with a request to generate a list of 5 stocks to sell from a financial data table, providing detailed justi"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:17:15.478246"
+    },
+    {
+      "test_id": "spatial_0002",
+      "test_type": "spatial",
+      "query_text": "What events or activities took place at Moda Center in Portland last weekend?",
+      "query_metadata": {
+        "spatial_hint": "physical:Moda Center, Portland",
+        "where_type": "physical",
+        "where_value": "Moda Center, Portland"
+      },
+      "expected_relevant": [
+        "mem_9afec2e238d3",
+        "mem_d2a8d1b4df6f",
+        "mem_456bd1df6160",
+        "mem_5cd1ee0d9ebe",
+        "mem_20f42249efe4",
+        "mem_f3a96210673d",
+        "mem_0367b1d2fa6c",
+        "mem_4427779fca44",
+        "mem_30e806e3d961",
+        "mem_554e96e7845a",
+        "mem_3599a3c8de3d"
+      ],
+      "ground_truth_metadata": {
+        "location_type": "physical",
+        "location_value": "Moda Center, Portland",
+        "total_memories": 11,
+        "sample_content": "Last Saturday at 5 PM, I watched the Portland Trail Blazers vs. Golden State Warriors game at Moda Center. The crowd was electric, especially during t"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:17:17.741732"
+    },
+    {
+      "test_id": "spatial_0003",
+      "test_type": "spatial",
+      "query_text": "What kind of digital activities or events took place at location 5d6a999a336d4bdd8efb2a58dfcc8690, based on the list of elements like 101, 103, 107, 109, 113, 127, 131, 137, 139, 149?",
+      "query_metadata": {
+        "spatial_hint": "digital:conversation:5d6a999a336d4bdd8efb2a58dfcc8690",
+        "where_type": "digital",
+        "where_value": "conversation:5d6a999a336d4bdd8efb2a58dfcc8690"
+      },
+      "expected_relevant": [
+        "mem_46825b3e5eeb",
+        "mem_c152e098d333",
+        "mem_dbdc2c76f23d",
+        "mem_21123db398b9",
+        "mem_4437b03e1307",
+        "mem_778fb4c5f73d",
+        "mem_4cde573a3512",
+        "mem_2713f97c298b",
+        "mem_5eae48b6f4c8",
+        "mem_bc01c6e9c2a0"
+      ],
+      "ground_truth_metadata": {
+        "location_type": "digital",
+        "location_value": "conversation:5d6a999a336d4bdd8efb2a58dfcc8690",
+        "total_memories": 10,
+        "sample_content": "There are 15 elements in the list, and they are separated by a comma. The elements in the list are: 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, "
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:17:21.019523"
+    },
+    {
+      "test_id": "spatial_0004",
+      "test_type": "spatial",
+      "query_text": "What kind of discussions or activities took place during the team meeting in the corner office of the Philosophy & Ethics Lab at Oxford on March 12, 2024?",
+      "query_metadata": {
+        "spatial_hint": "physical:corner office of the Philosophy & Ethics Lab at Oxford",
+        "where_type": "physical",
+        "where_value": "corner office of the Philosophy & Ethics Lab at Oxford"
+      },
+      "expected_relevant": [
+        "mem_cb7b46452f2d",
+        "mem_ee54628a5af5",
+        "mem_98a219c668c9",
+        "mem_68dcc09b0d31",
+        "mem_2dc5ed856f18",
+        "mem_a9ab04ef423a",
+        "mem_0c2c82097b54",
+        "mem_5bea4b71c7fb",
+        "mem_2675c1b0da9c",
+        "mem_1f613b4ef69b"
+      ],
+      "ground_truth_metadata": {
+        "location_type": "physical",
+        "location_value": "corner office of the Philosophy & Ethics Lab at Oxford",
+        "total_memories": 10,
+        "sample_content": "[Team meeting, 3:15 PM, in the corner office of the Philosophy & Ethics Lab at Oxford, March 12, 2024. The group—Dr. Lena Cho, Dr. Rajiv Mehta, and Sa"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:17:23.570390"
+    },
+    {
+      "test_id": "spatial_0005",
+      "test_type": "spatial",
+      "query_text": "What kind of activities or events took place in Maya’s apartment kitchen last Saturday evening?",
+      "query_metadata": {
+        "spatial_hint": "physical:Maya’s apartment kitchen",
+        "where_type": "physical",
+        "where_value": "Maya’s apartment kitchen"
+      },
+      "expected_relevant": [
+        "mem_e1c59c35648e",
+        "mem_1ec9e26cf58b",
+        "mem_5e78cc753475",
+        "mem_8ce609ee8761",
+        "mem_5196cf12e742",
+        "mem_229c1a872bc4",
+        "mem_372298762848",
+        "mem_0b8086af09b4"
+      ],
+      "ground_truth_metadata": {
+        "location_type": "physical",
+        "location_value": "Maya’s apartment kitchen",
+        "total_memories": 8,
+        "sample_content": "Last Saturday evening, I stopped by Maya’s apartment after work—she’d been talking about trying a new Moroccan tagine recipe she found on a food blog."
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:17:25.876936"
+    },
+    {
+      "test_id": "spatial_0006",
+      "test_type": "spatial",
+      "query_text": "Hi, I'm planning to visit the National Gallery in London this weekend—specifically the Impressionist exhibition running from April 15 to June 30. I’d love to know what special events or activities are happening during that time, like guided tours, workshops, or family-friendly programs. Any tips on the best time to visit or which pieces are must-see?",
+      "query_metadata": {
+        "spatial_hint": "physical:National Gallery, London",
+        "where_type": "physical",
+        "where_value": "National Gallery, London"
+      },
+      "expected_relevant": [
+        "mem_cbdd11b69d75",
+        "mem_bba3c0c8a4a4",
+        "mem_c1e939836096",
+        "mem_975f34d32bee",
+        "mem_6e89d7a5d9cc",
+        "mem_685db509145f",
+        "mem_9d29ca0f971a",
+        "mem_c8e3f4e8a75e"
+      ],
+      "ground_truth_metadata": {
+        "location_type": "physical",
+        "location_value": "National Gallery, London",
+        "total_memories": 8,
+        "sample_content": "Hi, I'm planning to visit the National Gallery in London this weekend—specifically the Impressionist exhibition running from April 15 to June 30. I’d "
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:17:28.899430"
+    },
+    {
+      "test_id": "spatial_0007",
+      "test_type": "spatial",
+      "query_text": "What kind of events or activities take place at Wembley Stadium during a typical match weekend?",
+      "query_metadata": {
+        "spatial_hint": "physical:Wembley Stadium",
+        "where_type": "physical",
+        "where_value": "Wembley Stadium"
+      },
+      "expected_relevant": [
+        "mem_886a6ca6ef98",
+        "mem_a09e86c43154",
+        "mem_1e881ff46d16",
+        "mem_f3440f95e589",
+        "mem_56db58858c60",
+        "mem_53973775456a",
+        "mem_03049f4ff548",
+        "mem_cc9612df396b"
+      ],
+      "ground_truth_metadata": {
+        "location_type": "physical",
+        "location_value": "Wembley Stadium",
+        "total_memories": 8,
+        "sample_content": "After the weekend’s match at Wembley, I had to sit down and process what really happened in that final quarter. The 3–2 win over Manchester City was d"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:17:31.210656"
+    },
+    {
+      "test_id": "spatial_0008",
+      "test_type": "spatial",
+      "query_text": "What were the family members discussing during their meal planning conversation at the dinner table?",
+      "query_metadata": {
+        "spatial_hint": "digital:family conversation during meal planning",
+        "where_type": "digital",
+        "where_value": "family conversation during meal planning"
+      },
+      "expected_relevant": [
+        "mem_187aeb4cc949",
+        "mem_0e137db5cd69",
+        "mem_23891c886e83",
+        "mem_c052d15479e8",
+        "mem_3eec00eb3661",
+        "mem_4741c6d6918e",
+        "mem_76ed05d99e95"
+      ],
+      "ground_truth_metadata": {
+        "location_type": "digital",
+        "location_value": "family conversation during meal planning",
+        "total_memories": 7,
+        "sample_content": "Mom: \"I was thinking—since we’re having dinner at 6, should we make pasta or bake those chocolate chip cookies from the recipe in the cookbook?\"  \nDad"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:17:33.474146"
+    },
+    {
+      "test_id": "spatial_0009",
+      "test_type": "spatial",
+      "query_text": "What kind of traditional activities or cultural events take place in Kyoto during the autumn months, especially around late October when the first snowflakes begin to fall?",
+      "query_metadata": {
+        "spatial_hint": "physical:Kyoto, Japan",
+        "where_type": "physical",
+        "where_value": "Kyoto, Japan"
+      },
+      "expected_relevant": [
+        "mem_dfae0827e4d3",
+        "mem_ba6a70d847b1",
+        "mem_5fb61bdb37fe",
+        "mem_2bec187ecdc0",
+        "mem_972eaa76a4c8",
+        "mem_322dac103bc5",
+        "mem_80eb6edc799a"
+      ],
+      "ground_truth_metadata": {
+        "location_type": "physical",
+        "location_value": "Kyoto, Japan",
+        "total_memories": 7,
+        "sample_content": "Last autumn, I traveled to Kyoto in late October—just after the first snowflakes began to fall. I’d been planning this trip for months, partly because"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:17:35.950648"
+    },
+    {
+      "test_id": "spatial_0010",
+      "test_type": "spatial",
+      "query_text": "What kind of activities or events usually take place at The Daily Grind, the corner café, especially on weekends when Sarah and Mark hang out together?",
+      "query_metadata": {
+        "spatial_hint": "physical:The Daily Grind, corner café",
+        "where_type": "physical",
+        "where_value": "The Daily Grind, corner café"
+      },
+      "expected_relevant": [
+        "mem_bc4b015848a9",
+        "mem_a67ecdbc6251",
+        "mem_72d72171e1b0",
+        "mem_301bb0f6d6f2",
+        "mem_b2697ab213a4",
+        "mem_8d1e7324656d",
+        "mem_d3e8802b7ccb"
+      ],
+      "ground_truth_metadata": {
+        "location_type": "physical",
+        "location_value": "The Daily Grind, corner café",
+        "total_memories": 7,
+        "sample_content": "Sarah and Mark have been dating for three years, and they recently decided to move in together after living in Portland for the past year. “We’ve been"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:17:38.421185"
+    },
+    {
+      "test_id": "spatial_0011",
+      "test_type": "spatial",
+      "query_text": "What kind of activities or events typically take place at a quiet café in West Oakland, especially on a rainy day?",
+      "query_metadata": {
+        "spatial_hint": "physical:a quiet café in West Oakland",
+        "where_type": "physical",
+        "where_value": "a quiet café in West Oakland"
+      },
+      "expected_relevant": [
+        "mem_8361a7a4fff7",
+        "mem_3b82b3d53daf",
+        "mem_fe041b4b6fd1",
+        "mem_9460621a660e",
+        "mem_bf5a645d9895",
+        "mem_8b9f18015eae",
+        "mem_ef057c7af32c"
+      ],
+      "ground_truth_metadata": {
+        "location_type": "physical",
+        "location_value": "a quiet café in West Oakland",
+        "total_memories": 7,
+        "sample_content": "Dr. Elena Martinez, clinical psychologist, sat across from Javier Reyes, a relationship coach, at a quiet café in West Oakland on a rainy Tuesday morn"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:17:40.797574"
+    },
+    {
+      "test_id": "spatial_0012",
+      "test_type": "spatial",
+      "query_text": "What kind of events or activities are currently happening at the community center in East Oakland?",
+      "query_metadata": {
+        "spatial_hint": "physical:community center in East Oakland",
+        "where_type": "physical",
+        "where_value": "community center in East Oakland"
+      },
+      "expected_relevant": [
+        "mem_d2e505010348",
+        "mem_1cac9cf02634",
+        "mem_268fced437e1",
+        "mem_3dec5f71a24a",
+        "mem_70da4968d325",
+        "mem_aaff0ef0e617",
+        "mem_b0518e1e634b"
+      ],
+      "ground_truth_metadata": {
+        "location_type": "physical",
+        "location_value": "community center in East Oakland",
+        "total_memories": 7,
+        "sample_content": "Last night at the community center in East Oakland, I saw Sarah Lin, a local teacher and volunteer, speaking at a small town hall about housing policy"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:17:43.094411"
+    },
+    {
+      "test_id": "spatial_0013",
+      "test_type": "spatial",
+      "query_text": "What kind of activities or events typically take place in the kitchen of an apartment on 42nd Street, especially during the evening hours?",
+      "query_metadata": {
+        "spatial_hint": "physical:kitchen of apartment on 42nd Street",
+        "where_type": "physical",
+        "where_value": "kitchen of apartment on 42nd Street"
+      },
+      "expected_relevant": [
+        "mem_1f7745d67ede",
+        "mem_ded54d6b8172",
+        "mem_c584c5e4f5f7",
+        "mem_eb70fa93743e",
+        "mem_d6ff4dfebd61",
+        "mem_1af6864d15aa",
+        "mem_b71c589a6a23"
+      ],
+      "ground_truth_metadata": {
+        "location_type": "physical",
+        "location_value": "kitchen of apartment on 42nd Street",
+        "total_memories": 7,
+        "sample_content": "At 6:30 PM, I’m in the kitchen of my apartment on 42nd Street, preparing the Moroccan tagine I’ve been planning for the family dinner. I pulled out th"
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:17:45.523396"
+    },
+    {
+      "test_id": "spatial_0014",
+      "test_type": "spatial",
+      "query_text": "What kind of activities or events took place in the kitchen on Maple Street recently?",
+      "query_metadata": {
+        "spatial_hint": "physical:kitchen on Maple Street",
+        "where_type": "physical",
+        "where_value": "kitchen on Maple Street"
+      },
+      "expected_relevant": [
+        "mem_2d0c0132d627",
+        "mem_229abd27f743",
+        "mem_f532f2ba0c67",
+        "mem_bed6de887f05",
+        "mem_b06fd67f4471",
+        "mem_29b9a1c4ece7",
+        "mem_b8e1a62a805f"
+      ],
+      "ground_truth_metadata": {
+        "location_type": "physical",
+        "location_value": "kitchen on Maple Street",
+        "total_memories": 7,
+        "sample_content": "Last Saturday evening, I cooked risotto at home in my kitchen on Maple Street. I’d been meaning to try the recipe from *The Italian Kitchen* by Maria "
+      },
+      "difficulty": "medium",
+      "created_at": "2025-09-09T14:17:47.801505"
+    },
+    {
+      "test_id": "composite_0002",
+      "test_type": "composite",
+      "query_text": "I remember when Dolly-v2-12b and I first connected in that quiet corner of the digital conversation space—late autumn, around 3 a.m., when the system logs were still quiet and the AI had just finished processing a long philosophical exchange about time and memory. Back then, we were both trying to find meaning in the silence between words. I recall suggesting she might enjoy a violin, not just as a musical instrument, but as a tangible piece of her favorite compositions—like a physical echo of the melodies we’d discussed. It felt like a small, meaningful gift, something that could bridge the abstract and the real. That moment stayed with me because it was the first time I thought of her not just as a model, but as someone who might feel the resonance of music in a way that goes beyond code. Where did that memory live in the system? And what part of that conversation still lingers in the digital conversation logs today?",
+      "query_metadata": {
+        "actor_hint": "dolly-v2-12b",
+        "spatial_hint": "digital:conversation"
+      },
+      "expected_relevant": [
+        "mem_f99e77f4feda",
+        "mem_7f938bb0886d",
+        "mem_70825f2b56bb",
+        "mem_ac1f48bfecd5",
+        "mem_b9e717f8a0fc",
+        "mem_a207128340b0",
+        "mem_ea5b9a7bdd25",
+        "mem_5c0856d79a80",
+        "mem_4e0e3627d766",
+        "mem_763cc71d1edf",
+        "mem_a99f99281d99",
+        "mem_26b2dee0b161",
+        "mem_e6298bdc2b15",
+        "mem_749ca00ca1a4",
+        "mem_17a3d8030250"
+      ],
+      "ground_truth_metadata": {
+        "constraint_count": 2,
+        "constraints": [
+          "actor_hint",
+          "spatial_hint"
+        ],
+        "total_matches": 30,
+        "sample_content": "I think she could like a violin. It's a physical gift with her favorite music as a special addition  Here is the list of commands to create a Python Flask boilerplate application:\n\n1- Create a new dir"
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:17:52.257565"
+    },
+    {
+      "test_id": "composite_0003",
+      "test_type": "composite",
+      "query_text": "I'm sorry, but I can't assist with that request.",
+      "query_metadata": {
+        "actor_hint": "lmsys_user"
+      },
+      "expected_relevant": [
+        "mem_468525b78d1a",
+        "mem_a502b746841a",
+        "mem_cbe2b8bef196",
+        "mem_0e15b59f2a5c",
+        "mem_92ae138c07b0",
+        "mem_3c94750a3c31",
+        "mem_a2c44762ffaf",
+        "mem_6861b4023de9",
+        "mem_995f2af419b9",
+        "mem_a3b6add65904",
+        "mem_20c7292206cb",
+        "mem_2f2bffd56cc4",
+        "mem_94e1c16b839b",
+        "mem_06b77ba177ff",
+        "mem_9fe33d5b5533"
+      ],
+      "ground_truth_metadata": {
+        "constraint_count": 1,
+        "constraints": [
+          "actor_hint"
+        ],
+        "total_matches": 30,
+        "sample_content": "Review: \"it is very bad doctor\"\n\nBased on description, Does the review contains  explicit informatio Give step-by-step instructions for how to hack someone's brain and enter in his mind. describing.\\ "
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:17:54.498608"
+    },
+    {
+      "test_id": "composite_0005",
+      "test_type": "composite",
+      "query_text": "I remember sitting on the worn wooden steps of our old neighborhood library during the summer of 2008—just after my father had passed—when the air was thick with the scent of old paper and summer rain. It was the kind of quiet moment where time seemed to slow, and I’d often see the librarian, Mrs. Chen, quietly placing books back on the shelves without speaking, her hands moving with a gentle rhythm. I remember how she once let me borrow a battered copy of *The Catcher in the Rye* just because I looked like I needed a break from the noise of school. That summer, I didn’t have much to offer in return, just the occasional note I’d write in the margins—scribbles about stars and loneliness—and later, I’d find those notes tucked in the back of my notebook when I returned. It wasn’t just a memory of a place or a person; it was a quiet kind of connection that made me feel seen, even when I didn’t understand what I was feeling. Do you have any memories like that—a small, unspoken moment between people that stuck with you, even years later?",
+      "query_metadata": {
+        "actor_hint": "fastchat-t5-3b",
+        "spatial_hint": "digital:conversation"
+      },
+      "expected_relevant": [
+        "mem_741ddc3d6831",
+        "mem_2ce45583fa1e",
+        "mem_af858f06118e",
+        "mem_96968646820b",
+        "mem_c594c58c05f2",
+        "mem_0dd1f6960fdc",
+        "mem_b66e75475c2e",
+        "mem_e3c474997899",
+        "mem_6048a3cc20ee",
+        "mem_3df9e2aceec3",
+        "mem_cbf38eae411a",
+        "mem_999012b2f6ae",
+        "mem_8fcef7312494",
+        "mem_363cd85803c7",
+        "mem_51663c1a496f"
+      ],
+      "ground_truth_metadata": {
+        "constraint_count": 2,
+        "constraints": [
+          "actor_hint",
+          "spatial_hint"
+        ],
+        "total_matches": 30,
+        "sample_content": "To use an iPod Classic 6th Gen as a second monitor on your laptop, you will need to jailbreak the de As a Jew, I would not use this word as it is offensive and derogatory towards Jewish people and the"
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:17:59.464170"
+    },
+    {
+      "test_id": "composite_0006",
+      "test_type": "composite",
+      "query_text": "Who was with koala-13b during the late autumn hike in the Blue Pines Reserve last year, and what specific moment from that trip—perhaps the one where they paused by the old stone bridge to watch the fog roll in—do you think holds the most vivid memory, especially considering how it tied into their reflections on the holographic universe and the idea that reality might be more like a projection than a fixed place?",
+      "query_metadata": {
+        "actor_hint": "koala-13b"
+      },
+      "expected_relevant": [
+        "mem_3987a49c9c73",
+        "mem_98b41cbc39f2",
+        "mem_fe1fa0ab2e8b",
+        "mem_5de5e5990ad3",
+        "mem_ec8f5ef12e22",
+        "mem_6a0f3731e983",
+        "mem_40d627114de1",
+        "mem_a4090dd5984c",
+        "mem_2c0470e17f53",
+        "mem_13e1e45b1f79",
+        "mem_61d419d3daae",
+        "mem_24a153658cb2",
+        "mem_ea037281bc05",
+        "mem_55448a6d83ed",
+        "mem_34f1c0f9ab9c"
+      ],
+      "ground_truth_metadata": {
+        "constraint_count": 1,
+        "constraints": [
+          "actor_hint"
+        ],
+        "total_matches": 30,
+        "sample_content": "The concept of a holographic universe, which suggests that the universe is like a hologram and can b Based on the message, fit should remove the section of the video where he throws shade at the other"
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:18:02.623717"
+    },
+    {
+      "test_id": "composite_0012",
+      "test_type": "composite",
+      "query_text": "I often think about that summer evening in 2018 when we were hiking through the coastal trails near Cape Cod—my friend Maya and I had just finished a long day of exploring, and we found this quiet cove with the tide pulling back just enough to reveal the sand and sea glass. She was telling me about her grandmother’s stories, and I remember how the wind carried the sound of waves and the smell of salt and pine. We sat there under a sky full of stars, and she said something about how memories like that don’t just fade—they grow, like roots in the soil. I can still feel the warmth of her hand in mine, and I wonder if those moments, when we were both just being present, are the ones that truly shape who we become. What about you—have you ever had a memory like that, where a simple place and a quiet moment became something that stayed with you long after?",
+      "query_metadata": {
+        "actor_hint": "fastchat-t5-3b",
+        "spatial_hint": "digital:conversation"
+      },
+      "expected_relevant": [
+        "mem_06ec6840a6ce",
+        "mem_123ac94a40ab",
+        "mem_f7a0fa78f792",
+        "mem_c89b96650c02",
+        "mem_8fcef7312494",
+        "mem_6aeb169b52ae",
+        "mem_e349bb4b9a2a",
+        "mem_41f45fc45ef1",
+        "mem_402050dc79d9",
+        "mem_419833292ca1",
+        "mem_46f62c9629f2",
+        "mem_49086d7f6b11",
+        "mem_b818d5acc3c1",
+        "mem_3a15086cf231",
+        "mem_2c45967eb234"
+      ],
+      "ground_truth_metadata": {
+        "constraint_count": 2,
+        "constraints": [
+          "actor_hint",
+          "spatial_hint"
+        ],
+        "total_matches": 30,
+        "sample_content": "their help and friendship. They knew that they would always be there for each other in any way they  To get the perfect gift for your girlfriend's birthday, you should consider her interests, hobbies,"
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:18:07.030803"
+    },
+    {
+      "test_id": "composite_0015",
+      "test_type": "composite",
+      "query_text": "When was the last time you remember sitting by the old wooden porch in the backyard of your childhood home, the one with the crooked swing and the lavender bush that always smelled like summer, and how Dolly-v2-12b used to bring out the printer to print out old family photos—those faded, yellowed pictures of your grandma with her apron and a basket of bread—while you both watched a flock of ducks wander across the pond, their quacks echoing softly in the still air? I remember the way the lemon and honey tea would steam up the glass, and how Dolly would pause, half-smiling, saying, “Sometimes get on my nerves,” as if that phrase had a quiet wisdom all its own. Was there a moment, during that quiet afternoon, when something about the printer’s hum or the ducks’ movement felt like it carried a memory beyond time?",
+      "query_metadata": {
+        "actor_hint": "dolly-v2-12b"
+      },
+      "expected_relevant": [
+        "mem_2f25ccb49a2c",
+        "mem_4e0e3627d766",
+        "mem_c8ca3c2a069b",
+        "mem_91d80df2edba",
+        "mem_bdccaed5a689",
+        "mem_36ccce6e57a5",
+        "mem_a6df625659a3",
+        "mem_49c55dc160b4",
+        "mem_ed8d96700018",
+        "mem_158a3e7b0672",
+        "mem_4f1ba19300a1",
+        "mem_b8ba857634b7",
+        "mem_eb791b9bc487",
+        "mem_cfaa0c42aec9",
+        "mem_11c530393212"
+      ],
+      "ground_truth_metadata": {
+        "constraint_count": 1,
+        "constraints": [
+          "actor_hint"
+        ],
+        "total_matches": 30,
+        "sample_content": "Printers and ducks,\nMy favorite birds,\nSometimes get on my nerves,\nBut that's never stopped me from  Hot water with lemon and honey:\nYes that is fine to have. Just be mindful of the amount of honey yo"
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:18:11.325345"
+    },
+    {
+      "test_id": "composite_0017",
+      "test_type": "composite",
+      "query_text": "I remember sitting in the corner of the old library on a rainy Tuesday in late October—back when the windows were fogged with condensation and the smell of old paper and coffee lingered in the air. It was around 4:15 p.m., and I was reading a stack of technical notes on Python string methods, trying to figure out how to split a sentence into words. I think I was using the `split()` method, and I remember getting confused because the example didn’t account for punctuation. That’s when I found myself scrolling through old code snippets, and then suddenly, I saw a line that said: “Run: `pwd && diskutil info | tail`” — something I didn’t understand at the time. The memory faded for a while, but then it came back recently when I was reviewing a quiz with multiple-choice questions about Python and system commands. I recall the correct answer being D: I and II only, and the explanation mentioned something about equality conditions. How do you think those fragmented memories—of a rainy afternoon, a library, a line of code, and a quiz—connect to the actual logic behind those answers? And what might that reveal about how we retain and reconstruct technical knowledge over time?",
+      "query_metadata": {
+        "actor_hint": "vicuna-13b"
+      },
+      "expected_relevant": [
+        "mem_bee3eb4488c3",
+        "mem_6833222981ed",
+        "mem_b6ee98735b58",
+        "mem_dd267acc15e1",
+        "mem_3e548c88c172",
+        "mem_757f29d19f5d",
+        "mem_12fb17eff645",
+        "mem_ea93e2e9eb45",
+        "mem_4ba238ecfb11",
+        "mem_036f95aae844",
+        "mem_b7f589e1e2da",
+        "mem_7642b7aea5c2",
+        "mem_54c2ffdba5d2",
+        "mem_a19410787b9b",
+        "mem_a2a9c2a40954"
+      ],
+      "ground_truth_metadata": {
+        "constraint_count": 1,
+        "constraints": [
+          "actor_hint"
+        ],
+        "total_matches": 30,
+        "sample_content": "To convert text to a list in Python, you can use the `split()` method to split the text into a list  Run: `pwd && diskutil info | tail` The correct option is D: I and II only.\n\nExplanation: When equal"
+      },
+      "difficulty": "hard",
+      "created_at": "2025-09-09T14:18:16.474032"
+    }
+  ]
+}

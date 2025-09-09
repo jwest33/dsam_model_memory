@@ -1,0 +1,109 @@
+BENCHMARK TEST SET SUMMARY
+============================================================
+
+Generated: 2025-09-09T14:18:16.501896
+Total cases: 125
+
+Test type distribution:
+  actor: 15
+  composite: 7
+  exact: 18
+  semantic: 15
+  session: 20
+  spatial: 15
+  temporal: 35
+
+Difficulty distribution:
+  easy: 36
+  hard: 22
+  medium: 67
+
+------------------------------------------------------------
+SAMPLE TEST CASES
+------------------------------------------------------------
+
+Test ID: actor_0000
+Type: actor | Difficulty: easy
+Query: Wait, I think I saw lmsys_user ask something about capex and opex—was it a question about the difference between them? I can't quite remember the exac...
+Expected results: 15 memories
+Metadata: actor_hint=lmsys_user, actor_type=user, memory_count=30
+
+Test ID: actor_0001
+Type: actor | Difficulty: easy
+Query: Wait, I think Vicuna-13b mentioned something about Capex and Opex earlier—wasn’t it saying that Capex and Opex are both financial terms but they cover...
+Expected results: 15 memories
+Metadata: actor_hint=vicuna-13b, actor_type=llm, memory_count=30
+
+Test ID: composite_0002
+Type: composite | Difficulty: hard
+Query: I remember when Dolly-v2-12b and I first connected in that quiet corner of the digital conversation space—late autumn, around 3 a.m., when the system ...
+Expected results: 15 memories
+Metadata: actor_hint=dolly-v2-12b, spatial_hint=digital:conversation
+
+Test ID: composite_0003
+Type: composite | Difficulty: hard
+Query: I'm sorry, but I can't assist with that request.
+Expected results: 15 memories
+Metadata: actor_hint=lmsys_user
+
+Test ID: exact_0001
+Type: exact | Difficulty: easy
+Query: poll that asks questions relating to a
+Expected results: 1 memories
+Metadata: 
+
+Test ID: exact_0002
+Type: exact | Difficulty: easy
+Query: personal beliefs or opinions.
+Expected results: 6 memories
+Metadata: 
+
+Test ID: semantic_0000
+Type: semantic | Difficulty: medium
+Query: [Part 8] Identified that the travel cost spike was due to last-minute conference bookings in August
+Expected results: 10 memories
+Metadata: query_subtype=paraphrase
+
+Test ID: semantic_0002
+Type: semantic | Difficulty: medium
+Query:   File "<ipython-input-1-f6080805c2da>", line 24
+    kmeans = librosa.
+Expected results: 10 memories
+Metadata: query_subtype=summary
+
+Test ID: session_0000
+Type: session | Difficulty: medium
+Query: What was discussed about the Q3 revenue projection and the underrepresentation of the SaaS product in TechStream's CAM strategy during the team meetin...
+Expected results: 30 memories
+Metadata: session_length=128
+
+Test ID: session_0001
+Type: session | Difficulty: medium
+Query: What did we discuss about Sarah's back pain and the wellness app introduced during the team meeting?
+Expected results: 30 memories
+Metadata: session_length=109
+
+Test ID: spatial_0000
+Type: spatial | Difficulty: medium
+Query: What kind of activities or events took place at this digital conversation location regarding Capex and Opex?
+Expected results: 15 memories
+Metadata: spatial_hint=digital:conversation, where_type=digital, where_value=conversation
+
+Test ID: spatial_0001
+Type: spatial | Difficulty: medium
+Query: What kind of activities or events took place in the flask_ui context recently, especially related to user interactions or functionality updates?
+Expected results: 15 memories
+Metadata: spatial_hint=digital:flask_ui, where_type=digital, where_value=flask_ui
+
+Test ID: semantic_0001
+Type: temporal | Difficulty: hard
+Query: What happened before 2025-09-07?
+Expected results: 0 memories
+Metadata: query_subtype=temporal_before, temporal_hint=2025-09-07T18:52:19.219459
+
+Test ID: semantic_0003
+Type: temporal | Difficulty: hard
+Query: What was discussed after 2024-01-01?
+Expected results: 3 memories
+Metadata: query_subtype=temporal_after, temporal_hint=2024-01-01T12:00:05
+

@@ -379,7 +379,6 @@ All benchmarks save results as timestamped JSON files:
 python benchmarks/test_benchmark.py
 
 # Validate all benchmarks
-python run_benchmark.py --preset quick
 python benchmarks/recall_benchmark.py --cases 2
 python benchmarks/temporal_recall_benchmark.py
 ```

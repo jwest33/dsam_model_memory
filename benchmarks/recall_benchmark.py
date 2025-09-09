@@ -8,6 +8,7 @@ import sys
 import json
 import time
 import sqlite3
+import numpy as np
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Set, Tuple, Optional
@@ -20,6 +21,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from agentic_memory.router import MemoryRouter
 from agentic_memory.storage.sql_store import MemoryStore
 from agentic_memory.storage.faiss_index import FaissIndex
+from agentic_memory.retrieval import HybridRetriever
+from agentic_memory.embedding import get_llama_embedder
 from agentic_memory.config import cfg
 from agentic_memory.types import RetrievalQuery
 
@@ -53,16 +56,33 @@ class RecallMetrics:
 class RecallBenchmark:
     """Benchmark for evaluating memory recall performance."""
     
-    def __init__(self, testset_path: Optional[str] = None):
-        """Initialize benchmark with optional test set."""
-        # Initialize memory system
-        store = MemoryStore(cfg.db_path)
-        index = FaissIndex(dim=int(cfg.get('embedding_dim', 1024)), index_path=cfg.index_path)
-        self.router = MemoryRouter(store, index)
+    def __init__(self, testset_path: Optional[str] = None, collect_timing: bool = False):
+        """Initialize benchmark with optional test set.
+        
+        Args:
+            testset_path: Path to test set JSON file
+            collect_timing: Whether to collect detailed timing metrics
+        """
+        # Initialize memory system components
+        self.store = MemoryStore(cfg.db_path)
+        self.index = FaissIndex(dim=int(cfg.get('embedding_dim', 1024)), index_path=cfg.index_path)
+        self.router = MemoryRouter(self.store, self.index)
+        self.retriever = HybridRetriever(self.store, self.index)
+        self.embedder = get_llama_embedder()
         
         # Database connection for analysis
         self.db_conn = sqlite3.connect(cfg.db_path)
         self.db_conn.row_factory = sqlite3.Row
+        
+        # Timing metrics collection
+        self.collect_timing = collect_timing
+        self.timing_metrics = {
+            'retrieval_times': [],
+            'embedding_times': [],
+            'search_times': [],
+            'ranking_times': [],
+            'total_times': []
+        }
         
         # Load test set if provided
         self.test_cases = []
@@ -156,17 +176,56 @@ class RecallBenchmark:
             temporal_hint=test_case.query_metadata.get('temporal_hint')
         )
         
-        # Retrieve memories
-        start_time = time.time()
-        candidates = self.router.retrieve(
-            query=retrieval_query,
-            budget_tokens=8000,  # Large budget to get many candidates
-            diversity_weight=0.0  # No diversity for benchmark
-        )
-        retrieval_time = time.time() - start_time
+        # Retrieve memories with optional detailed timing
+        if self.collect_timing:
+            # Measure individual components
+            total_start = time.time()
+            
+            # Get embedding time
+            embed_start = time.time()
+            query_embedding = self.embedder.encode([retrieval_query.text], normalize_embeddings=True)[0]
+            embed_time = time.time() - embed_start
+            
+            # Search time (FAISS)
+            search_start = time.time()
+            # Perform FAISS search directly
+            faiss_results = self.index.search(query_embedding, k=50)
+            search_time = time.time() - search_start
+            
+            # Full retrieval with ranking using HybridRetriever
+            rank_start = time.time()
+            candidates = self.retriever.search(
+                rq=retrieval_query,
+                qvec=query_embedding,
+                topk_sem=50,  # Get more candidates for evaluation
+                topk_lex=50
+            )
+            rank_time = time.time() - rank_start - search_time
+            
+            total_time = time.time() - total_start
+            
+            # Store timing metrics
+            self.timing_metrics['embedding_times'].append(embed_time)
+            self.timing_metrics['search_times'].append(search_time)
+            self.timing_metrics['ranking_times'].append(rank_time)
+            self.timing_metrics['total_times'].append(total_time)
+            self.timing_metrics['retrieval_times'].append(total_time)
+            
+            retrieval_time = total_time
+        else:
+            # Standard retrieval
+            start_time = time.time()
+            query_embedding = self.embedder.encode([retrieval_query.text], normalize_embeddings=True)[0]
+            candidates = self.retriever.search(
+                rq=retrieval_query,
+                qvec=query_embedding,
+                topk_sem=50,  # Get more candidates for evaluation
+                topk_lex=50
+            )
+            retrieval_time = time.time() - start_time
         
-        # Extract retrieved memory IDs
-        retrieved_ids = [c.memory_id for c in candidates]
+        # Extract retrieved memory IDs from MemorySummary objects
+        retrieved_ids = [c.memory_id for c in candidates] if candidates else []
         
         # Convert expected to set for faster lookup
         expected_set = set(test_case.expected_relevant)
@@ -246,6 +305,8 @@ class RecallBenchmark:
             test_cases = self.test_cases
         
         print(f"\nEvaluating {len(test_cases)} test cases...")
+        if self.collect_timing:
+            print("Collecting detailed timing metrics...")
         
         all_results = []
         
@@ -260,6 +321,10 @@ class RecallBenchmark:
         # Aggregate metrics
         aggregated = self._aggregate_metrics(all_results, k_values)
         
+        # Add timing metrics if collected
+        if self.collect_timing:
+            aggregated['timing_metrics'] = self._calculate_timing_stats()
+        
         # Print results
         self._print_results(aggregated)
         
@@ -269,7 +334,8 @@ class RecallBenchmark:
             'metadata': {
                 'timestamp': datetime.now().isoformat(),
                 'num_test_cases': len(test_cases),
-                'k_values': k_values
+                'k_values': k_values,
+                'timing_collected': self.collect_timing
             }
         }
     
@@ -364,6 +430,28 @@ class RecallBenchmark:
             'by_difficulty': dict(by_difficulty)
         }
     
+    def _calculate_timing_stats(self) -> Dict:
+        """Calculate timing statistics from collected metrics."""
+        import numpy as np
+        
+        stats = {}
+        for metric_name, times in self.timing_metrics.items():
+            if times:
+                times_ms = [t * 1000 for t in times]  # Convert to milliseconds
+                stats[metric_name] = {
+                    'mean': np.mean(times_ms),
+                    'median': np.median(times_ms),
+                    'std': np.std(times_ms),
+                    'min': np.min(times_ms),
+                    'max': np.max(times_ms),
+                    'p50': np.percentile(times_ms, 50),
+                    'p90': np.percentile(times_ms, 90),
+                    'p95': np.percentile(times_ms, 95),
+                    'p99': np.percentile(times_ms, 99),
+                    'count': len(times)
+                }
+        return stats
+    
     def _print_results(self, aggregated: Dict):
         """Print formatted benchmark results."""
         
@@ -389,6 +477,25 @@ class RecallBenchmark:
         
         print(f"\nPerformance:")
         print(f"  Avg retrieval time: {overall['avg_retrieval_time']*1000:.2f} ms")
+        
+        # Print timing metrics if available
+        if 'timing_metrics' in aggregated:
+            print("\n" + "-"*60)
+            print("DETAILED TIMING METRICS (ms)")
+            print("-"*60)
+            
+            timing = aggregated['timing_metrics']
+            for metric_name in ['embedding_times', 'search_times', 'ranking_times', 'total_times']:
+                if metric_name in timing:
+                    stats = timing[metric_name]
+                    name = metric_name.replace('_times', '').replace('_', ' ').title()
+                    print(f"\n{name}:")
+                    print(f"  Mean:   {stats['mean']:.2f} ms")
+                    print(f"  Median: {stats['median']:.2f} ms")
+                    print(f"  Std:    {stats['std']:.2f} ms")
+                    print(f"  P90:    {stats['p90']:.2f} ms")
+                    print(f"  P95:    {stats['p95']:.2f} ms")
+                    print(f"  P99:    {stats['p99']:.2f} ms")
         
         # Metrics by type
         if aggregated['by_type']:
@@ -436,11 +543,13 @@ def main():
                        help='Output file for results')
     parser.add_argument('--latest', action='store_true',
                        help='Use the latest test set file')
+    parser.add_argument('--timing', action='store_true',
+                       help='Collect detailed timing metrics for performance analysis')
     
     args = parser.parse_args()
     
-    # Initialize benchmark
-    benchmark = RecallBenchmark()
+    # Initialize benchmark with timing option
+    benchmark = RecallBenchmark(collect_timing=args.timing)
     
     # Load test set
     if args.testset:
@@ -465,12 +574,21 @@ def main():
     # Save results if requested
     if args.output:
         output_path = Path(args.output)
+        # If output is a directory, create a file inside it
+        if output_path.is_dir() or not output_path.suffix:
+            output_path.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_path = output_path / f"recall_benchmark_{timestamp}.json"
+        else:
+            # Ensure parent directory exists
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+        
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(results, f, indent=2)
         print(f"\nResults saved to: {output_path}")
     else:
         # Save to default location
-        results_dir = Path("results")
+        results_dir = Path("benchmarks/results")
         results_dir.mkdir(exist_ok=True)
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
