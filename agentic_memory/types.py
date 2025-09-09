@@ -19,7 +19,7 @@ class RawEvent(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 class Who(BaseModel):
-    type: Literal['user','llm','tool','system']
+    type: str  # e.g., 'user', 'llm', 'tool', 'system', 'team', 'user:family', etc.
     id: str
     label: Optional[str] = None
 

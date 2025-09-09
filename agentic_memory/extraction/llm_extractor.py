@@ -23,7 +23,7 @@ PROMPT = """You are a structured-information extractor that converts an interact
 Return ONLY valid JSON in the following schema:
 
 {{
-  "who": {{ "type": "user|llm|tool|system", "id": "<string>", "label": "<optional string>" }},
+  "who": {{ "type": "<actor type e.g. user, llm, tool, system, team, group, organization>", "id": "<string identifier>", "label": "<optional descriptive label>" }},
   "what": "<concise description of the key action or content>",
   "when": "<ISO 8601 timestamp>",
   "where": {{ "type": "<context type e.g. physical, digital, financial, academic, conceptual, social>", "value": "<specific context like UI path, URL, file, location, or domain>" }},
