@@ -12,6 +12,11 @@ from .attention import MemoryAttentionHead, AdaptiveEmbeddingSpace, MemoryConsol
 def exp_recency(ts_iso: str, now: datetime, half_life_hours: float = 72.0) -> float:
     try:
         ts = datetime.fromisoformat(ts_iso.replace('Z','+00:00'))
+        # Ensure both datetimes are timezone-aware or both are naive
+        if ts.tzinfo is not None and now.tzinfo is None:
+            ts = ts.replace(tzinfo=None)
+        elif ts.tzinfo is None and now.tzinfo is not None:
+            now = now.replace(tzinfo=None)
     except Exception:
         return 0.5
     dt = (now - ts).total_seconds() / 3600.0
@@ -56,6 +61,33 @@ class HybridRetriever:
                 norm = 1.0 - (s - min_s) / (max_s - min_s)
             out.append((r['memory_id'], float(norm)))
         return out
+    
+    def _actor_based(self, actor_id: str, topk: int) -> List[Tuple[str, float]]:
+        """Retrieve memories from specific actor with recency-based scoring."""
+        rows = self.store.get_by_actor(actor_id, limit=topk)
+        if not rows:
+            return []
+        
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        results = []
+        for row in rows:
+            # Score based on recency - more recent memories get higher scores
+            recency_score = exp_recency(row['when_ts'], now, half_life_hours=168.0)  # 1 week half-life
+            results.append((row['memory_id'], recency_score))
+        return results
+    
+    def _spatial_based(self, location: str, topk: int) -> List[Tuple[str, float]]:
+        """Retrieve memories from specific location with recency-based scoring."""
+        rows = self.store.get_by_location(location, limit=topk)
+        if not rows:
+            return []
+        
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        results = []
+        for row in rows:
+            recency_score = exp_recency(row['when_ts'], now, half_life_hours=168.0)
+            results.append((row['memory_id'], recency_score))
+        return results
 
     def merge_scores(self, sem: List[Tuple[str, float]], lex: List[Tuple[str, float]], 
                      attention_scores: Optional[Dict[str, float]] = None) -> Dict[str, float]:
@@ -90,6 +122,10 @@ class HybridRetriever:
         # Get usage stats for adaptive scoring
         usage_stats = self.store.get_usage_stats(list(merged.keys())) if hasattr(self.store, 'get_usage_stats') else {}
         
+        # Determine if we have hints to adjust weights
+        has_actor_hint = bool(rq.actor_hint)
+        has_spatial_hint = bool(rq.spatial_hint and rq.spatial_hint != 'flask_ui')
+        
         for mid, base in merged.items():
             m = metas.get(mid)
             if not m:
@@ -108,17 +144,45 @@ class HybridRetriever:
             usage_score = min(1.0, usage_data.get('accesses', 0) / 100.0) if usage_data else 0.0
             
             if self.use_attention:
-                # Dynamic scoring with learned importance
-                score = (base * 0.5 + 
-                        importance * 0.2 +
-                        rec * 0.15 +
-                        usage_score * 0.1 +
-                        actor_match * 0.025 +
-                        spatial_match * 0.025)
+                # Dynamic weights based on whether hints are provided
+                if has_actor_hint:
+                    # Boost actor weight when hint is provided
+                    score = (base * 0.35 +          # Reduced from 0.5
+                            importance * 0.15 +      # Reduced from 0.2
+                            rec * 0.15 +
+                            usage_score * 0.1 +
+                            actor_match * 0.20 +     # Increased from 0.025
+                            spatial_match * 0.05)
+                elif has_spatial_hint:
+                    # Boost spatial weight when hint is provided
+                    score = (base * 0.35 +
+                            importance * 0.15 +
+                            rec * 0.15 +
+                            usage_score * 0.1 +
+                            actor_match * 0.05 +
+                            spatial_match * 0.20)    # Increased for spatial
+                else:
+                    # Default weights when no hints
+                    score = (base * 0.5 + 
+                            importance * 0.2 +
+                            rec * 0.15 +
+                            usage_score * 0.1 +
+                            actor_match * 0.025 +
+                            spatial_match * 0.025)
             else:
-                # Original static scoring
+                # Original static scoring - also adjust for hints
+                if has_actor_hint:
+                    actor_weight = 0.25  # Boost from cfg.w_actor (0.07)
+                else:
+                    actor_weight = cfg.w_actor
+                    
+                if has_spatial_hint:
+                    spatial_weight = 0.20  # Boost from cfg.w_spatial (0.03)
+                else:
+                    spatial_weight = cfg.w_spatial
+                    
                 usage_boost = 0.2 if actor_match or spatial_match else 0.0
-                score = base + cfg.w_recency*rec + cfg.w_actor*actor_match + cfg.w_spatial*spatial_match + cfg.w_usage*usage_boost
+                score = base + cfg.w_recency*rec + actor_weight*actor_match + spatial_weight*spatial_match + cfg.w_usage*usage_boost
                 
             cands.append(Candidate(memory_id=mid, score=score, token_count=int(m['token_count'])))
             
@@ -129,11 +193,24 @@ class HybridRetriever:
         sem = self._semantic(qvec, topk_sem)
         lex = self._lexical(rq.text, topk_lex)
         
+        # NEW: Add actor-specific retrieval if hint provided
+        actor_candidates = []
+        if rq.actor_hint:
+            actor_candidates = self._actor_based(rq.actor_hint, topk_sem)
+        
+        # NEW: Add spatial-specific retrieval if hint provided  
+        spatial_candidates = []
+        if rq.spatial_hint and rq.spatial_hint != 'flask_ui':  # Ignore default
+            spatial_candidates = self._spatial_based(rq.spatial_hint, topk_sem)
+        
+        # Combine all candidate sources
+        all_candidates = sem + lex + actor_candidates + spatial_candidates
+        
         # Compute attention scores if enabled
         attention_scores = None
         if self.use_attention:
-            # Get embeddings for candidate memories
-            candidate_ids = list(set([m for m, _ in sem + lex]))
+            # Get embeddings for candidate memories (including actor/spatial candidates)
+            candidate_ids = list(set([m for m, _ in all_candidates]))
             if candidate_ids:
                 embeddings = self.index.get_embeddings(candidate_ids) if hasattr(self.index, 'get_embeddings') else None
                 if embeddings is not None:
@@ -141,8 +218,13 @@ class HybridRetriever:
                     attn_weights = self.attention_head.compute_attention_weights(qvec, embeddings)
                     attention_scores = {cid: float(attn_weights[i]) for i, cid in enumerate(candidate_ids)}
         
-        # Merge scores with optional attention
+        # Merge scores with optional attention (now includes actor/spatial candidates)
         merged = self.merge_scores(sem, lex, attention_scores)
+        
+        # Add actor/spatial candidates to merged scores if not already present
+        for mid, score in actor_candidates + spatial_candidates:
+            if mid not in merged:
+                merged[mid] = score * 0.8  # Slightly lower base score for hint-only matches
         
         # Rerank with all signals
         ranked = self.rerank(merged, rq)

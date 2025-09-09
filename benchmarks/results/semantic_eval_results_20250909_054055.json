@@ -1,0 +1,1049 @@
+{
+  "overall": {
+    "@5": {
+      "recall": 0.74,
+      "mrr": 0.4846666666666667,
+      "precision": 0.256,
+      "recall_at_k": 0.3313333333333333,
+      "avg_retrieval_time_ms": 2070.3903198242188,
+      "total_cases": 50
+    },
+    "@10": {
+      "recall": 0.76,
+      "mrr": 0.3577936507936508,
+      "precision": 0.142,
+      "recall_at_k": 0.3546666666666667,
+      "avg_retrieval_time_ms": 2074.1119956970215,
+      "total_cases": 50
+    },
+    "@20": {
+      "recall": 0.76,
+      "mrr": 0.305991563991564,
+      "precision": 0.077,
+      "recall_at_k": 0.37633333333333335,
+      "avg_retrieval_time_ms": 2072.7771520614624,
+      "total_cases": 50
+    }
+  },
+  "by_query_type": {
+    "@5": {
+      "paraphrase": {
+        "recall": 0.8,
+        "mrr": 0.5166666666666666,
+        "precision": 0.24,
+        "avg_rank": 1.875,
+        "count": 10
+      },
+      "summary": {
+        "recall": 0.9,
+        "mrr": 0.7033333333333334,
+        "precision": 0.2800000000000001,
+        "avg_rank": 1.7777777777777777,
+        "count": 10
+      },
+      "question": {
+        "recall": 0.8,
+        "mrr": 0.5083333333333333,
+        "precision": 0.36000000000000004,
+        "avg_rank": 2.0,
+        "count": 10
+      },
+      "expansion": {
+        "recall": 0.8,
+        "mrr": 0.4366666666666667,
+        "precision": 0.24,
+        "avg_rank": 2.375,
+        "count": 10
+      },
+      "abstraction": {
+        "recall": 0.4,
+        "mrr": 0.2583333333333333,
+        "precision": 0.16,
+        "avg_rank": 2.25,
+        "count": 10
+      }
+    },
+    "@10": {
+      "paraphrase": {
+        "recall": 0.8,
+        "mrr": 0.4366666666666667,
+        "precision": 0.13999999999999999,
+        "avg_rank": 3.0,
+        "count": 10
+      },
+      "summary": {
+        "recall": 0.9,
+        "mrr": 0.555952380952381,
+        "precision": 0.14000000000000004,
+        "avg_rank": 2.5555555555555554,
+        "count": 10
+      },
+      "question": {
+        "recall": 0.8,
+        "mrr": 0.27595238095238095,
+        "precision": 0.19,
+        "avg_rank": 3.875,
+        "count": 10
+      },
+      "expansion": {
+        "recall": 0.8,
+        "mrr": 0.2642857142857143,
+        "precision": 0.15000000000000002,
+        "avg_rank": 3.625,
+        "count": 10
+      },
+      "abstraction": {
+        "recall": 0.5,
+        "mrr": 0.2561111111111111,
+        "precision": 0.09,
+        "avg_rank": 4.0,
+        "count": 10
+      }
+    },
+    "@20": {
+      "paraphrase": {
+        "recall": 0.8,
+        "mrr": 0.36333333333333334,
+        "precision": 0.06999999999999999,
+        "avg_rank": 5.625,
+        "count": 10
+      },
+      "summary": {
+        "recall": 0.9,
+        "mrr": 0.4976623376623377,
+        "precision": 0.07000000000000002,
+        "avg_rank": 4.555555555555555,
+        "count": 10
+      },
+      "question": {
+        "recall": 0.8,
+        "mrr": 0.218015873015873,
+        "precision": 0.095,
+        "avg_rank": 6.125,
+        "count": 10
+      },
+      "expansion": {
+        "recall": 0.8,
+        "mrr": 0.20630341880341882,
+        "precision": 0.08499999999999999,
+        "avg_rank": 5.875,
+        "count": 10
+      },
+      "abstraction": {
+        "recall": 0.5,
+        "mrr": 0.24464285714285716,
+        "precision": 0.065,
+        "avg_rank": 5.6,
+        "count": 10
+      }
+    }
+  },
+  "detailed_metrics": {
+    "@5": [
+      {
+        "test_id": "semantic_test_0000",
+        "found": false,
+        "rank": -1,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0001",
+        "found": true,
+        "rank": 1,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0002",
+        "found": true,
+        "rank": 1,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0003",
+        "found": true,
+        "rank": 3,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0004",
+        "found": true,
+        "rank": 1,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0005",
+        "found": false,
+        "rank": -1,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0006",
+        "found": true,
+        "rank": 3,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0007",
+        "found": false,
+        "rank": -1,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0008",
+        "found": true,
+        "rank": 2,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0009",
+        "found": false,
+        "rank": -1,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0010",
+        "found": true,
+        "rank": 3,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0011",
+        "found": true,
+        "rank": 1,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0012",
+        "found": true,
+        "rank": 4,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0013",
+        "found": true,
+        "rank": 1,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0014",
+        "found": true,
+        "rank": 3,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0015",
+        "found": true,
+        "rank": 1,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0016",
+        "found": true,
+        "rank": 2,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0017",
+        "found": true,
+        "rank": 2,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0018",
+        "found": false,
+        "rank": -1,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0019",
+        "found": false,
+        "rank": -1,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0020",
+        "found": true,
+        "rank": 2,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0021",
+        "found": true,
+        "rank": 1,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0022",
+        "found": false,
+        "rank": -1,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0023",
+        "found": true,
+        "rank": 3,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0024",
+        "found": true,
+        "rank": 1,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0025",
+        "found": true,
+        "rank": 3,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0026",
+        "found": true,
+        "rank": 1,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0027",
+        "found": true,
+        "rank": 2,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0028",
+        "found": true,
+        "rank": 2,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0029",
+        "found": false,
+        "rank": -1,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0030",
+        "found": true,
+        "rank": 1,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0031",
+        "found": true,
+        "rank": 5,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0032",
+        "found": true,
+        "rank": 1,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0033",
+        "found": true,
+        "rank": 1,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0034",
+        "found": true,
+        "rank": 4,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0035",
+        "found": true,
+        "rank": 2,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0036",
+        "found": true,
+        "rank": 1,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0037",
+        "found": true,
+        "rank": 2,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0038",
+        "found": false,
+        "rank": -1,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0039",
+        "found": false,
+        "rank": -1,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0040",
+        "found": true,
+        "rank": 1,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0041",
+        "found": true,
+        "rank": 1,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0042",
+        "found": true,
+        "rank": 1,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0043",
+        "found": true,
+        "rank": 5,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0044",
+        "found": false,
+        "rank": -1,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0045",
+        "found": true,
+        "rank": 2,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0046",
+        "found": false,
+        "rank": -1,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0047",
+        "found": true,
+        "rank": 3,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0048",
+        "found": true,
+        "rank": 2,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0049",
+        "found": false,
+        "rank": -1,
+        "type": "abstraction"
+      }
+    ],
+    "@10": [
+      {
+        "test_id": "semantic_test_0000",
+        "found": false,
+        "rank": -1,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0001",
+        "found": true,
+        "rank": 1,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0002",
+        "found": true,
+        "rank": 3,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0003",
+        "found": true,
+        "rank": 7,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0004",
+        "found": true,
+        "rank": 1,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0005",
+        "found": false,
+        "rank": -1,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0006",
+        "found": true,
+        "rank": 4,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0007",
+        "found": false,
+        "rank": -1,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0008",
+        "found": true,
+        "rank": 3,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0009",
+        "found": false,
+        "rank": -1,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0010",
+        "found": true,
+        "rank": 6,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0011",
+        "found": true,
+        "rank": 3,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0012",
+        "found": true,
+        "rank": 7,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0013",
+        "found": true,
+        "rank": 3,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0014",
+        "found": true,
+        "rank": 5,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0015",
+        "found": true,
+        "rank": 1,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0016",
+        "found": true,
+        "rank": 2,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0017",
+        "found": true,
+        "rank": 4,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0018",
+        "found": false,
+        "rank": -1,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0019",
+        "found": false,
+        "rank": -1,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0020",
+        "found": true,
+        "rank": 4,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0021",
+        "found": true,
+        "rank": 1,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0022",
+        "found": false,
+        "rank": -1,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0023",
+        "found": true,
+        "rank": 3,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0024",
+        "found": true,
+        "rank": 1,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0025",
+        "found": true,
+        "rank": 4,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0026",
+        "found": true,
+        "rank": 1,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0027",
+        "found": true,
+        "rank": 4,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0028",
+        "found": true,
+        "rank": 2,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0029",
+        "found": false,
+        "rank": -1,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0030",
+        "found": true,
+        "rank": 1,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0031",
+        "found": true,
+        "rank": 7,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0032",
+        "found": true,
+        "rank": 1,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0033",
+        "found": true,
+        "rank": 3,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0034",
+        "found": true,
+        "rank": 4,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0035",
+        "found": true,
+        "rank": 2,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0036",
+        "found": true,
+        "rank": 1,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0037",
+        "found": true,
+        "rank": 3,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0038",
+        "found": false,
+        "rank": -1,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0039",
+        "found": false,
+        "rank": -1,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0040",
+        "found": true,
+        "rank": 1,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0041",
+        "found": true,
+        "rank": 3,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0042",
+        "found": true,
+        "rank": 4,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0043",
+        "found": true,
+        "rank": 6,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0044",
+        "found": false,
+        "rank": -1,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0045",
+        "found": true,
+        "rank": 5,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0046",
+        "found": false,
+        "rank": -1,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0047",
+        "found": true,
+        "rank": 5,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0048",
+        "found": true,
+        "rank": 2,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0049",
+        "found": true,
+        "rank": 9,
+        "type": "abstraction"
+      }
+    ],
+    "@20": [
+      {
+        "test_id": "semantic_test_0000",
+        "found": false,
+        "rank": -1,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0001",
+        "found": true,
+        "rank": 1,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0002",
+        "found": true,
+        "rank": 7,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0003",
+        "found": true,
+        "rank": 13,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0004",
+        "found": true,
+        "rank": 1,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0005",
+        "found": false,
+        "rank": -1,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0006",
+        "found": true,
+        "rank": 10,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0007",
+        "found": false,
+        "rank": -1,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0008",
+        "found": true,
+        "rank": 3,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0009",
+        "found": false,
+        "rank": -1,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0010",
+        "found": true,
+        "rank": 9,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0011",
+        "found": true,
+        "rank": 7,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0012",
+        "found": true,
+        "rank": 12,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0013",
+        "found": true,
+        "rank": 8,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0014",
+        "found": true,
+        "rank": 8,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0015",
+        "found": true,
+        "rank": 1,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0016",
+        "found": true,
+        "rank": 2,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0017",
+        "found": true,
+        "rank": 4,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0018",
+        "found": false,
+        "rank": -1,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0019",
+        "found": false,
+        "rank": -1,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0020",
+        "found": true,
+        "rank": 10,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0021",
+        "found": true,
+        "rank": 1,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0022",
+        "found": false,
+        "rank": -1,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0023",
+        "found": true,
+        "rank": 4,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0024",
+        "found": true,
+        "rank": 1,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0025",
+        "found": true,
+        "rank": 9,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0026",
+        "found": true,
+        "rank": 1,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0027",
+        "found": true,
+        "rank": 4,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0028",
+        "found": true,
+        "rank": 2,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0029",
+        "found": false,
+        "rank": -1,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0030",
+        "found": true,
+        "rank": 1,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0031",
+        "found": true,
+        "rank": 11,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0032",
+        "found": true,
+        "rank": 1,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0033",
+        "found": true,
+        "rank": 6,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0034",
+        "found": true,
+        "rank": 4,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0035",
+        "found": true,
+        "rank": 5,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0036",
+        "found": true,
+        "rank": 1,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0037",
+        "found": true,
+        "rank": 5,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0038",
+        "found": false,
+        "rank": -1,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0039",
+        "found": false,
+        "rank": -1,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0040",
+        "found": true,
+        "rank": 1,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0041",
+        "found": true,
+        "rank": 7,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0042",
+        "found": true,
+        "rank": 7,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0043",
+        "found": true,
+        "rank": 9,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0044",
+        "found": false,
+        "rank": -1,
+        "type": "abstraction"
+      },
+      {
+        "test_id": "semantic_test_0045",
+        "found": true,
+        "rank": 9,
+        "type": "paraphrase"
+      },
+      {
+        "test_id": "semantic_test_0046",
+        "found": false,
+        "rank": -1,
+        "type": "summary"
+      },
+      {
+        "test_id": "semantic_test_0047",
+        "found": true,
+        "rank": 9,
+        "type": "question"
+      },
+      {
+        "test_id": "semantic_test_0048",
+        "found": true,
+        "rank": 2,
+        "type": "expansion"
+      },
+      {
+        "test_id": "semantic_test_0049",
+        "found": true,
+        "rank": 14,
+        "type": "abstraction"
+      }
+    ]
+  }
+}

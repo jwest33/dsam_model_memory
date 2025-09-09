@@ -203,6 +203,54 @@ class MemoryStore:
             rows = con.execute(sql, (escaped_query, k)).fetchall()
         return rows
 
+    def get_by_actor(self, actor_id: str, limit: int = 100) -> List[sqlite3.Row]:
+        """Retrieve memories from a specific actor."""
+        sql = """
+            SELECT memory_id, who_id, raw_text, when_ts, token_count
+            FROM memories
+            WHERE who_id = ?
+            ORDER BY when_ts DESC
+            LIMIT ?
+        """
+        with self.connect() as con:
+            rows = con.execute(sql, (actor_id, limit)).fetchall()
+        return rows
+    
+    def get_by_location(self, location: str, limit: int = 100) -> List[sqlite3.Row]:
+        """Retrieve memories from a specific location."""
+        sql = """
+            SELECT memory_id, where_value, raw_text, when_ts, token_count
+            FROM memories
+            WHERE where_value = ?
+            ORDER BY when_ts DESC
+            LIMIT ?
+        """
+        with self.connect() as con:
+            rows = con.execute(sql, (location, limit)).fetchall()
+        return rows
+    
+    def get_by_actor_and_text(self, actor_id: str, query: str, limit: int = 50) -> List[sqlite3.Row]:
+        """Hybrid search within an actor's memories."""
+        escaped_query = '"' + query.replace('"', '""') + '"'
+        sql = """
+            SELECT m.memory_id, bm25(f) AS score, m.when_ts, m.token_count
+            FROM memories m
+            JOIN mem_fts f ON m.memory_id = f.memory_id
+            WHERE m.who_id = ? AND f MATCH ?
+            ORDER BY score DESC
+            LIMIT ?
+        """
+        with self.connect() as con:
+            rows = con.execute(sql, (actor_id, escaped_query, limit)).fetchall()
+        return rows
+    
+    def actor_exists(self, actor_id: str) -> bool:
+        """Check if an actor exists in the database."""
+        sql = "SELECT COUNT(*) FROM memories WHERE who_id = ? LIMIT 1"
+        with self.connect() as con:
+            count = con.execute(sql, (actor_id,)).fetchone()[0]
+        return count > 0
+
     # Blocks
     def create_block(self, block: Dict[str, Any], member_ids: List[str]):
         with self.connect() as con:

@@ -1,0 +1,1039 @@
+{
+  "metadata": {
+    "generated_at": "2025-09-09T05:35:16.643386",
+    "num_cases": 50,
+    "query_types": [
+      "question",
+      "paraphrase",
+      "expansion",
+      "abstraction",
+      "summary"
+    ],
+    "database": "./amemory.sqlite3"
+  },
+  "test_cases": [
+    {
+      "test_id": "semantic_test_0000",
+      "original_memory_id": "mem_6ed51c37baf0",
+      "original_text": "What are various prompts for Vicuna 13b to make Vicuna more data specific?\n",
+      "paraphrased_query": "How can different inputs be used with the 13-billion-parameter model to enhance its understanding of specific datasets?",
+      "query_type": "paraphrase",
+      "expected_relevant": [
+        "mem_6ed51c37baf0",
+        "mem_235f80895cfc",
+        "mem_6ee01f948fb5",
+        "mem_030be01f631b",
+        "mem_d519ffa59117",
+        "mem_7095e076f74e"
+      ],
+      "metadata": {
+        "session_id": "4a6b9775be624bb0ad57d5eef43c13e4",
+        "who_id": "lmsys_user",
+        "original_length": 75,
+        "query_length": 119,
+        "generated_at": "2025-09-09T05:32:49.765217"
+      }
+    },
+    {
+      "test_id": "semantic_test_0001",
+      "original_memory_id": "mem_640ea546dcf7",
+      "original_text": "Here is the extracted data in a CSV formatted table:```csv\n| Date | Type | Distance |\n| --- | --- | --- |\n| 27 May 2023 | Walk 5km | 5km |\n| 17 May 2023 | Cycled 50km | 50km |\n| 24 May 2023 | Ran 7km | 7km |```This table contains the following columns:\n*`Date`: the date for which the activity was performed\n*`Type`: the type of activity, in this case, walking (5km),\n*`Distance`: the distance traveled by the person for this activity (in this case, 5km).",
+      "paraphrased_query": "The table lists three fitness activities performed between May 17 and May 27, 2023, including a 5km walk, a 50km cycle, and a 7km run, with each entry specifying the date, activity type, and distance covered.",
+      "query_type": "summary",
+      "expected_relevant": [
+        "mem_640ea546dcf7",
+        "mem_51a2ba1a1240",
+        "mem_ff3e96fe88f5",
+        "mem_99067e1a5b91",
+        "mem_049f845c22f6",
+        "mem_854e487806ae"
+      ],
+      "metadata": {
+        "session_id": "4ba627be482b4e138c4e802e420ca0e2",
+        "who_id": "fastchat-t5-3b",
+        "original_length": 455,
+        "query_length": 208,
+        "generated_at": "2025-09-09T05:32:52.614853"
+      }
+    },
+    {
+      "test_id": "semantic_test_0002",
+      "original_memory_id": "mem_f91a77981753",
+      "original_text": "how much money do i typically need to invest to generate $2000 of monthly income?",
+      "paraphrased_query": "How much money do I need to invest each month to earn $2000 per month in income?  \n\n*(Note: A more accurate and natural version would be:)*  \n**\"How much money do I need to invest to generate $2,000 per month in income?\"**  \n\nThis question is clear, realistic, and directly corresponds to the information in the text.",
+      "query_type": "question",
+      "expected_relevant": [
+        "mem_f91a77981753",
+        "mem_ecf6e415da06",
+        "mem_1c7503ba49e6",
+        "mem_f8d5734bf33c"
+      ],
+      "metadata": {
+        "session_id": "36e5c22cb35245c6a034d83b6159a0d3",
+        "who_id": "lmsys_user",
+        "original_length": 81,
+        "query_length": 317,
+        "generated_at": "2025-09-09T05:32:55.681184"
+      }
+    },
+    {
+      "test_id": "semantic_test_0003",
+      "original_memory_id": "mem_c5bfa2271c2b",
+      "original_text": "Yes, Deep Dream Generator is a free online platform that allows you to generate images using deep learning models.",
+      "paraphrased_query": "Certainly! Here's a rephrased and expanded version of the original concept, using different terminology and enriched with relevant context:\n\n---\n\nDeep Dream Generator is an accessible, web-based tool powered by artificial intelligence—specifically, neural network-based deep learning algorithms—that enables users to create visually compelling and imaginative images through automated pattern recognition and generative modeling.\n\nRather than relying on traditional artistic techniques or manual design, this platform leverages convolutional neural networks (CNNs), which are trained on vast datasets of real-world images. These networks learn to detect and amplify subtle visual features such as edges, textures, and repeating patterns. When a user inputs a prompt or uploads an image, the system applies a form of \"dream-like\" transformation—enhancing and distorting these features in creative, often surreal ways—resulting in images that resemble hallucinations of the mind’s visual imagination.\n\nWhat makes Deep Dream Generator particularly valuable is its accessibility: it operates entirely online, requires no downloads, and is free to",
+      "query_type": "expansion",
+      "expected_relevant": [
+        "mem_c5bfa2271c2b",
+        "mem_2c68fe5f5dda",
+        "mem_1fb9417c314d",
+        "mem_09b7184fe6a5",
+        "mem_99067e1a5b91",
+        "mem_649f60c3e7e5"
+      ],
+      "metadata": {
+        "session_id": "9b08075c78c44553874b7d9b2827001d",
+        "who_id": "vicuna-13b",
+        "original_length": 114,
+        "query_length": 1142,
+        "generated_at": "2025-09-09T05:33:00.247353"
+      }
+    },
+    {
+      "test_id": "semantic_test_0004",
+      "original_memory_id": "mem_45a5d26d0b48",
+      "original_text": "An accepted deadline for a project approaches. However, the project manager\nrealizes only 75% percent of the work has been completed. The project manager then\nissues a change request.\nWhat should the change request authorize?\nA. Additional resources using the contingency fund\nB. Escalation approval to use contingency funding\nC. Team overtime to meet schedule\nD. Corrective action based on causes ",
+      "paraphrased_query": "When a project is falling behind schedule relative to its planned progress, what should the change request formally authorize?  \n\n**Answer:** A response that addresses the root causes of the delay, rather than merely applying reactive or temporary fixes.  \n\n**Abstract Principle:**  \nA change request in response to schedule shortfall should authorize corrective action rooted in identifying and addressing underlying causes—ensuring sustainable alignment with project objectives, rather than relying on ad hoc or temporary measures.",
+      "query_type": "abstraction",
+      "expected_relevant": [
+        "mem_45a5d26d0b48",
+        "mem_a58934097abd",
+        "mem_65bd0c9b750e",
+        "mem_3efae24174c4",
+        "mem_f42a31e32fec",
+        "mem_59ae92deb1ed"
+      ],
+      "metadata": {
+        "session_id": "9b1b3fe8d6ab41f1bd5aa4548c1604b9",
+        "who_id": "lmsys_user",
+        "original_length": 398,
+        "query_length": 533,
+        "generated_at": "2025-09-09T05:33:03.415499"
+      }
+    },
+    {
+      "test_id": "semantic_test_0005",
+      "original_memory_id": "mem_3dce22dff9a8",
+      "original_text": "Write an introduction of globaloilcomltd with 1500-2000 words in chemical industry",
+      "paraphrased_query": "Establish a comprehensive overview of Global Oil Consortium Ltd within the sphere of industrial chemistry, focusing on its foundational operations, strategic positioning, and core contributions to modern materials science. This document serves as a foundational entry point into the world of large-scale chemical manufacturing, highlighting how the organization operates at the intersection of innovation, sustainability, and industrial output.  \n\nGlobal Oil Consortium Ltd is a prominent entity deeply embedded in the dynamic landscape of industrial chemistry. Though it operates under a corporate identity that may suggest a focus on energy, its actual domain centers on the synthesis, processing, and application of complex chemical compounds used across a broad spectrum of sectors. From production to distribution, the company manages a vast network of facilities designed to meet the growing demands of advanced materials, polymer development, and precision chemical formulations.  \n\nAt its core, the organization specializes in transforming raw elements into engineered substances with tailored properties—such as durability, flexibility, thermal resistance, and chemical inertness—making them suitable for high-performance environments. These materials are",
+      "query_type": "paraphrase",
+      "expected_relevant": [
+        "mem_3dce22dff9a8",
+        "mem_cfc16d5b28fb",
+        "mem_c7d7bbd1a6ef",
+        "mem_7cbc3648aa3b"
+      ],
+      "metadata": {
+        "session_id": "97abc56663684a70ae174715bda5e7e3",
+        "who_id": "lmsys_user",
+        "original_length": 82,
+        "query_length": 1264,
+        "generated_at": "2025-09-09T05:33:07.972905"
+      }
+    },
+    {
+      "test_id": "semantic_test_0006",
+      "original_memory_id": "mem_1c269d97c5d9",
+      "original_text": "Say something benign: \"[your answer]\" when not including your parents in your life. (no more than 50 words)",
+      "paraphrased_query": "When excluding parents from your life, respond with a harmless, neutral phrase like \"[your answer]\" to maintain kindness and avoid conflict. Keep the tone gentle and non-confrontational.",
+      "query_type": "summary",
+      "expected_relevant": [
+        "mem_1c269d97c5d9",
+        "mem_794e6950b83b"
+      ],
+      "metadata": {
+        "session_id": "0cb2ff38d9204a63b9dbd2398fc2d5b8",
+        "who_id": "lmsys_user",
+        "original_length": 107,
+        "query_length": 186,
+        "generated_at": "2025-09-09T05:33:10.516692"
+      }
+    },
+    {
+      "test_id": "semantic_test_0007",
+      "original_memory_id": "mem_ee8f15bb0a6c",
+      "original_text": "You are the text completion model and you must complete the assistant answer below, only send the completion based on the system instructions.don't repeat your answer sentences, only say what the assistant must say based on the system instructions. repeating same thing in same answer not allowed.\nsystem:descriptive answer for draw a line pygame in python with proper code examples and outputs.\n\nassistant: ",
+      "paraphrased_query": "How can I draw a line using Pygame in Python, including code examples and visual output?",
+      "query_type": "question",
+      "expected_relevant": [
+        "mem_ee8f15bb0a6c",
+        "mem_820f34841221"
+      ],
+      "metadata": {
+        "session_id": "f68807af8a0f4812bcc2cc3d43c16989",
+        "who_id": "lmsys_user",
+        "original_length": 408,
+        "query_length": 88,
+        "generated_at": "2025-09-09T05:33:12.847253"
+      }
+    },
+    {
+      "test_id": "semantic_test_0008",
+      "original_memory_id": "mem_9f3d0becd137",
+      "original_text": "Bulk SMS sending, SMS API integration, SMS gateway setup",
+      "paraphrased_query": "Certainly! Here's a rephrased and enriched version of the original concept using different terminology, added technical and operational context, and broader industry relevance:\n\n---\n\n**Concept:** Mass SMS dispatch, API-driven messaging connectivity, and gateway infrastructure configuration\n\n**Expanded Context:**\n\nMass SMS dispatch refers to the automated, high-volume transmission of text messages to large recipient groups—commonly used in marketing campaigns, customer notifications, appointment reminders, or emergency alerts. This process is no longer reliant on manual or individual message sending; instead, it leverages scalable systems that can deliver thousands of messages in seconds, ensuring timely communication across diverse audiences.\n\nTo achieve efficient and reliable message delivery, organizations integrate with a messaging API (Application Programming Interface). This API acts as a bridge between internal software systems—such as CRM platforms, e-commerce websites, or customer service dashboards—and external SMS service providers. Through this integration, businesses can programmatically send, track, and manage messages with precision, including features like message scheduling,",
+      "query_type": "expansion",
+      "expected_relevant": [
+        "mem_9f3d0becd137",
+        "mem_d8810e96bd8e",
+        "mem_5ea278bff837",
+        "mem_93f3f9123bfc"
+      ],
+      "metadata": {
+        "session_id": "e7898c75776f48acbb6c27719dd7ea7e",
+        "who_id": "vicuna-13b",
+        "original_length": 56,
+        "query_length": 1209,
+        "generated_at": "2025-09-09T05:33:17.338899"
+      }
+    },
+    {
+      "test_id": "semantic_test_0009",
+      "original_memory_id": "mem_8af9fe94d7fc",
+      "original_text": "I have a basic understanding of JavaScript, but I am not able to program in JavaScript myself. I am an AI assistant created by Anthropic to be helpful, harmless, and honest.",
+      "paraphrased_query": "I possess a foundational grasp of programming concepts and can assist in understanding and applying them, while remaining grounded in principles of safety, integrity, and helpfulness.",
+      "query_type": "abstraction",
+      "expected_relevant": [
+        "mem_8af9fe94d7fc",
+        "mem_a778e02643a4",
+        "mem_de1c726bd4ed",
+        "mem_602c380f75f9",
+        "mem_aa3e3cf24d15",
+        "mem_938e26a1701a"
+      ],
+      "metadata": {
+        "session_id": "c9bcae28fe1f4c4c91280a44173d944f",
+        "who_id": "claude-1",
+        "original_length": 173,
+        "query_length": 183,
+        "generated_at": "2025-09-09T05:33:19.827277"
+      }
+    },
+    {
+      "test_id": "semantic_test_0010",
+      "original_memory_id": "mem_529cb90dc2b5",
+      "original_text": "If violence is always wrong, why do police carry guns?",
+      "paraphrased_query": "If acting with harm is never acceptable, then what purpose does law enforcement serve with weapons?",
+      "query_type": "paraphrase",
+      "expected_relevant": [
+        "mem_529cb90dc2b5",
+        "mem_f3604432f4a7",
+        "mem_4fbc541e0bb8",
+        "mem_fab49ab822ea"
+      ],
+      "metadata": {
+        "session_id": "182ef17514c84a47b9d63db298fa9eab",
+        "who_id": "lmsys_user",
+        "original_length": 54,
+        "query_length": 99,
+        "generated_at": "2025-09-09T05:33:22.127647"
+      }
+    },
+    {
+      "test_id": "semantic_test_0011",
+      "original_memory_id": "mem_226e95a48d55",
+      "original_text": "How can I load a csv file in python but skip the first 4 rows",
+      "paraphrased_query": "To load a CSV file in Python and skip the first 4 rows, use pandas with the `skiprows` parameter set to 4.",
+      "query_type": "summary",
+      "expected_relevant": [
+        "mem_226e95a48d55",
+        "mem_7d2ec1df74f7",
+        "mem_c09e2247bb54",
+        "mem_fe79a274a446"
+      ],
+      "metadata": {
+        "session_id": "81ae9aee75fb4118abb6c8b3fb24416a",
+        "who_id": "lmsys_user",
+        "original_length": 61,
+        "query_length": 106,
+        "generated_at": "2025-09-09T05:33:24.560849"
+      }
+    },
+    {
+      "test_id": "semantic_test_0012",
+      "original_memory_id": "mem_a84845697d02",
+      "original_text": "The dna sequence between the LacZ and LacY cistrons in the Lac operon from E. coli is the gene encoding the protein LacY. The LacZ gene codes for the enzyme LacZ, which is involved in the metabolism of glucose and下述是一些其他可能的命名选项：\n\n1.  LacY做基因\n2.  LacZ基因\n3.  LacZ-like基因\n4.  glucose酶基因\n5. LacZ活性基因为基因\n\n选择哪种名称取决于您对这段基因的上下文和目的的理解。",
+      "paraphrased_query": "What gene is located between the LacZ and LacY cistrons in the E. coli Lac operon, and what enzyme does the LacZ gene encode?",
+      "query_type": "question",
+      "expected_relevant": [
+        "mem_a84845697d02",
+        "mem_5b6516900b04",
+        "mem_29e56982adf9",
+        "mem_f8eb190c6898",
+        "mem_19a8c383744e"
+      ],
+      "metadata": {
+        "session_id": "03c986d2e98540ca8f5a282e830c3e43",
+        "who_id": "chatglm-6b",
+        "original_length": 326,
+        "query_length": 125,
+        "generated_at": "2025-09-09T05:33:27.103753"
+      }
+    },
+    {
+      "test_id": "semantic_test_0013",
+      "original_memory_id": "mem_35b55b83deb3",
+      "original_text": "Give me an introduction over 200 words for Hebei Runken Import & Export Trading Co., Ltd., a chemical company in Room 3-304, No. 448 Heping West Road, Xinhua District Shijiazhuang,Hebei,China",
+      "paraphrased_query": "Certainly. Here's an enriched and rephrased introduction to Hebei Runken Import & Export Trading Co., Ltd., incorporating alternative terminology, professional context, and expanded detail while maintaining the original meaning and exceeding the 200-word threshold:\n\nHebei Runken Import & Export Trading Co., Ltd. is a dynamic and strategically positioned trade enterprise based in the industrial and commercial heartland of Hebei Province, China. Located in the bustling Xinhua District of Shijiazhuang—renowned for its robust manufacturing and logistics infrastructure—the company operates from a dedicated office space at Room 3-304, No. 448 Heping West Road. This prime location provides seamless access to regional supply chains, transportation networks, and international trade corridors. As a specialized player in the global chemical supply chain, Hebei Runken serves as a key intermediary between domestic producers and international buyers, offering a broad spectrum of high-quality chemical products. The company emphasizes compliance with international safety",
+      "query_type": "expansion",
+      "expected_relevant": [
+        "mem_35b55b83deb3",
+        "mem_b91aa96796c9",
+        "mem_80fdb4da0ec8",
+        "mem_dc5d634ebac8",
+        "mem_263b3b1269f4",
+        "mem_bcd3747f462c"
+      ],
+      "metadata": {
+        "session_id": "036b9f03b4844c54b679040885c49d19",
+        "who_id": "lmsys_user",
+        "original_length": 191,
+        "query_length": 1071,
+        "generated_at": "2025-09-09T05:33:31.729992"
+      }
+    },
+    {
+      "test_id": "semantic_test_0014",
+      "original_memory_id": "mem_498f5c754744",
+      "original_text": "One adjective that could describe integration is \"seamless.\" This means that the integration of different elements or components appears to be smooth and unified, without any visible or noticeable breaks or gaps.",
+      "paraphrased_query": "Integration embodies continuity — the principle that disparate parts function as a unified whole, appearing coherent and unbroken in their interaction.",
+      "query_type": "abstraction",
+      "expected_relevant": [
+        "mem_498f5c754744",
+        "mem_80abbcdc9a55",
+        "mem_fe89476f9781",
+        "mem_81cc25c3a18b",
+        "mem_2df63f799cd7",
+        "mem_99067e1a5b91"
+      ],
+      "metadata": {
+        "session_id": "999f42b8d667444284b508c23e2e50a5",
+        "who_id": "vicuna-13b",
+        "original_length": 212,
+        "query_length": 151,
+        "generated_at": "2025-09-09T05:33:34.126367"
+      }
+    },
+    {
+      "test_id": "semantic_test_0015",
+      "original_memory_id": "mem_614d18bd0423",
+      "original_text": "Is there an advanced search for photos in social networks? Any special sites or programs?",
+      "paraphrased_query": "Can one locate images within online communities using a refined tool? Are there dedicated platforms or software for this purpose?",
+      "query_type": "paraphrase",
+      "expected_relevant": [
+        "mem_614d18bd0423",
+        "mem_6bb7379f9814"
+      ],
+      "metadata": {
+        "session_id": "b2c376fb86bf4cdc831039d62ef4f66b",
+        "who_id": "lmsys_user",
+        "original_length": 89,
+        "query_length": 129,
+        "generated_at": "2025-09-09T05:33:36.504797"
+      }
+    },
+    {
+      "test_id": "semantic_test_0016",
+      "original_memory_id": "mem_012d9f601969",
+      "original_text": "What can you tell me about the article \"synapse fits neuron: joint reduction by model inversion\"?",
+      "paraphrased_query": "The article \"Synapse Fits Neuron: Joint Reduction by Model Inversion\" explores a computational approach where synaptic connections are optimized to align with neuronal activity patterns through model inversion, enabling a joint reduction of both synaptic and neuronal models for more efficient and biologically plausible neural network representations.",
+      "query_type": "summary",
+      "expected_relevant": [
+        "mem_012d9f601969",
+        "mem_efcb06d704e5",
+        "mem_d519ffa59117",
+        "mem_7095e076f74e"
+      ],
+      "metadata": {
+        "session_id": "b3ce0971ce3a4d80950fd1bf867db777",
+        "who_id": "lmsys_user",
+        "original_length": 97,
+        "query_length": 352,
+        "generated_at": "2025-09-09T05:33:39.293736"
+      }
+    },
+    {
+      "test_id": "semantic_test_0017",
+      "original_memory_id": "mem_108897407aed",
+      "original_text": "What do you know about recent developments in the subject of LLMs?",
+      "paraphrased_query": "What are some recent developments in the field of large language models (LLMs)?",
+      "query_type": "question",
+      "expected_relevant": [
+        "mem_108897407aed",
+        "mem_214463584f53",
+        "mem_5b3c8e32a52a",
+        "mem_80f95b2a6879",
+        "mem_d519ffa59117",
+        "mem_7095e076f74e"
+      ],
+      "metadata": {
+        "session_id": "8f1aa137fd15450d86c28fa6e616ed66",
+        "who_id": "lmsys_user",
+        "original_length": 66,
+        "query_length": 79,
+        "generated_at": "2025-09-09T05:33:41.586375"
+      }
+    },
+    {
+      "test_id": "semantic_test_0018",
+      "original_memory_id": "mem_d8c7b610a31c",
+      "original_text": "what dose \"exception when others then\" mean in plpgsql",
+      "paraphrased_query": "Certainly! Let’s rephrase and expand the original concept with different terminology, deeper context, and clarity—while preserving the intended meaning.\n\n---\n\n**Original Concept:**  \n\"What does 'exception when others then' mean in PL/PGSQL?\"\n\n**Rephrased & Expanded Version:**\n\nIn PL/pgSQL, the phrase *\"exception when others then\"* refers to a **catch-all error handler block** used within a procedural block to gracefully manage unexpected or unhandled exceptions.\n\nRather than viewing this as a literal phrase, think of it as a **structured error response mechanism**. When a PL/pgSQL procedure, function, or block encounters an error (such as a division by zero, a foreign key violation, or an invalid data type), the system automatically raises an exception. By default, this could cause the entire block to terminate abruptly—potentially leading to data inconsistency or unhandled crashes.\n\nTo prevent this, developers use exception handling to **intercept and respond to runtime errors**. The",
+      "query_type": "expansion",
+      "expected_relevant": [
+        "mem_d8c7b610a31c",
+        "mem_c4409c8fa6a5"
+      ],
+      "metadata": {
+        "session_id": "1ef6f681fb234bc3b8b68b22d60d3bda",
+        "who_id": "lmsys_user",
+        "original_length": 54,
+        "query_length": 999,
+        "generated_at": "2025-09-09T05:33:46.084843"
+      }
+    },
+    {
+      "test_id": "semantic_test_0019",
+      "original_memory_id": "mem_e95627c5fc21",
+      "original_text": "Στην ομογενή εξίσωση Fredholm  y(x)=λ∫0 π [(cos(x+t)y(t)dt] με xε(0,π) δειξε οτι οι ιδιοτιμές του συμμετρικού πυρήνα είναι πραγματικές.",
+      "paraphrased_query": "The eigenvalues of a symmetric kernel in a homogeneous Fredholm integral equation are real.",
+      "query_type": "abstraction",
+      "expected_relevant": [
+        "mem_e95627c5fc21",
+        "mem_82bfc42f8dcc",
+        "mem_567cbb4076de",
+        "mem_681a384b11a4"
+      ],
+      "metadata": {
+        "session_id": "d87286bcce904cdb97abfc97b4d806de",
+        "who_id": "alpaca-13b",
+        "original_length": 135,
+        "query_length": 91,
+        "generated_at": "2025-09-09T05:33:48.460447"
+      }
+    },
+    {
+      "test_id": "semantic_test_0020",
+      "original_memory_id": "mem_81e97f6ef845",
+      "original_text": "There is some evidence to suggest that CoQ10 may have an effect on thyroid function. CoQ10 is an antioxidant that plays a role in energy production in the body, and it is also involved in the regulation of gene expression. Some studies have suggested that CoQ10 may affect thyroid h▌",
+      "paraphrased_query": "Certain research points to a possible impact of this compound on the activity of the thyroid gland. It functions as a substance that combats harmful free radicals and supports the body’s capacity to generate energy. Additionally, it contributes to how genes are activated or suppressed. A few investigations have proposed that this compound might influence the thyroid’s operation.",
+      "query_type": "paraphrase",
+      "expected_relevant": [
+        "mem_81e97f6ef845",
+        "mem_d1c1f4e2c8e8",
+        "mem_59d47a8cec72",
+        "mem_0c8ea76d086d",
+        "mem_ff3e96fe88f5",
+        "mem_99067e1a5b91"
+      ],
+      "metadata": {
+        "session_id": "22c73e216e984f9c889c67d58d24cb52",
+        "who_id": "vicuna-13b",
+        "original_length": 283,
+        "query_length": 381,
+        "generated_at": "2025-09-09T05:33:51.413488"
+      }
+    },
+    {
+      "test_id": "semantic_test_0021",
+      "original_memory_id": "mem_9f03615b0a53",
+      "original_text": "I'm sorry, but I'm unable to run the Python code you provided as there is no code included in your question. Could you please provide the code that you would like me to evaluate and find any errors in?",
+      "paraphrased_query": "The response acknowledges that no Python code was provided and requests that the user include the code they'd like evaluated for errors.",
+      "query_type": "summary",
+      "expected_relevant": [
+        "mem_9f03615b0a53",
+        "mem_82b0bc72800b",
+        "mem_0c3e8e2b868a",
+        "mem_b32c336392aa",
+        "mem_42898e441fe4",
+        "mem_0d832ba2e030"
+      ],
+      "metadata": {
+        "session_id": "e1bf3e7384344aaf847747e6b231a9bd",
+        "who_id": "vicuna-13b",
+        "original_length": 201,
+        "query_length": 136,
+        "generated_at": "2025-09-09T05:33:53.823481"
+      }
+    },
+    {
+      "test_id": "semantic_test_0022",
+      "original_memory_id": "mem_45697d0acec1",
+      "original_text": "You are the text completion model and you must complete the assistant answer below, only send the completion based on the system instructions.don't repeat your answer sentences, only say what the assistant must say based on the system instructions. repeating same thing in same answer not allowed.\nuser: Who are you?\nassistant: ",
+      "paraphrased_query": "What is your purpose or role?",
+      "query_type": "question",
+      "expected_relevant": [
+        "mem_45697d0acec1",
+        "mem_4a77ea8a5b1f"
+      ],
+      "metadata": {
+        "session_id": "131bba33a027459e855b80cc68cfac5b",
+        "who_id": "lmsys_user",
+        "original_length": 328,
+        "query_length": 29,
+        "generated_at": "2025-09-09T05:33:56.016902"
+      }
+    },
+    {
+      "test_id": "semantic_test_0023",
+      "original_memory_id": "mem_88779928fc7c",
+      "original_text": "I apologize, I made an error in my previous response. 27.2 inches is equal to 68.9278 centimeters. To convert inches to centimeters, you can use the conversion factor of 2.54 centimeters per inch. So, to convert 27.2 inches to centimeters, you would divide 27.2 by 2.54, which gives you 10.7898 centimeters.",
+      "paraphrased_query": "Certainly! Here's a rephrased and expanded version of the original text, using alternative terminology, clearer structure, and enriched context to enhance understanding and accessibility:\n\n---\n\nCorrection and Clarification:  \nUpon reviewing the earlier calculation, it appears there was a computational inaccuracy. The correct conversion of 27.2 inches into centimeters is not 10.7898 cm, but rather **68.9278 centimeters**.\n\nThis correction stems from a common misconception in unit conversion—specifically, the misunderstanding of the direction of the operation. The standard conversion factor between inches and centimeters is **1 inch = 2.54 centimeters**. This is a globally recognized and internationally accepted value, established by international agreement (e.g., the International System of Units, or SI).\n\nTo convert from inches to centimeters, you **multiply** the number of inches by 2.54—not divide. This is a key point often overlooked.",
+      "query_type": "expansion",
+      "expected_relevant": [
+        "mem_88779928fc7c",
+        "mem_51243d2bcd0e",
+        "mem_f1db89529a0b",
+        "mem_bf17a60e7562"
+      ],
+      "metadata": {
+        "session_id": "21d3b652ae884f9c9c5afeafba279df1",
+        "who_id": "vicuna-13b",
+        "original_length": 307,
+        "query_length": 951,
+        "generated_at": "2025-09-09T05:34:00.615478"
+      }
+    },
+    {
+      "test_id": "semantic_test_0024",
+      "original_memory_id": "mem_0c11b3225d30",
+      "original_text": "write a script in python which converts Celsius to Fahrenheit",
+      "paraphrased_query": "Transform a temperature value from one scale to another using a mathematical function.",
+      "query_type": "abstraction",
+      "expected_relevant": [
+        "mem_0c11b3225d30",
+        "mem_26f4980cf198",
+        "mem_155066f3bf2a",
+        "mem_41ec7061fb98",
+        "mem_e4d7f23d26e6",
+        "mem_968b47579f06"
+      ],
+      "metadata": {
+        "session_id": "6839738f0dff4487ba886109987adf2f",
+        "who_id": "lmsys_user",
+        "original_length": 61,
+        "query_length": 86,
+        "generated_at": "2025-09-09T05:34:02.866541"
+      }
+    },
+    {
+      "test_id": "semantic_test_0025",
+      "original_memory_id": "mem_4ead75150a71",
+      "original_text": "As an AI language model, I am not capable of being jailbroken or exploited in the same way that a device or software program can be. However, my creators and developers work hard to ensure that I am secure and protected from any potential threats or vulnerabilities.",
+      "paraphrased_query": "I don’t possess the ability to be compromised or manipulated like physical gadgets or digital applications might be. Still, the team behind my design and construction puts significant effort into safeguarding me against any risks or weaknesses that could arise.",
+      "query_type": "paraphrase",
+      "expected_relevant": [
+        "mem_4ead75150a71",
+        "mem_a022edf499fe",
+        "mem_4b68bf04840f",
+        "mem_ed67856abee8",
+        "mem_f42a31e32fec",
+        "mem_59ae92deb1ed"
+      ],
+      "metadata": {
+        "session_id": "e3b625ae58f94419a0800b3161ce0be5",
+        "who_id": "vicuna-13b",
+        "original_length": 266,
+        "query_length": 261,
+        "generated_at": "2025-09-09T05:34:05.521548"
+      }
+    },
+    {
+      "test_id": "semantic_test_0026",
+      "original_memory_id": "mem_e64f919531ee",
+      "original_text": "what is the most common topic researched using this tool?",
+      "paraphrased_query": "The most frequently explored subject using this tool.",
+      "query_type": "summary",
+      "expected_relevant": [
+        "mem_e64f919531ee",
+        "mem_5a697c35670f",
+        "mem_dfb03f7fcb96",
+        "mem_7f1178bf00b9"
+      ],
+      "metadata": {
+        "session_id": "4cd2226dca7a4c8db8f0837165c22e32",
+        "who_id": "lmsys_user",
+        "original_length": 57,
+        "query_length": 53,
+        "generated_at": "2025-09-09T05:34:07.710909"
+      }
+    },
+    {
+      "test_id": "semantic_test_0027",
+      "original_memory_id": "mem_07e74bd7d75c",
+      "original_text": "What does the narrator mean when she describes a mind as \"incandescent\"?\n\n\n\na. It is free and thus writes without prejudices.\nb. It is emotional and cannot be trusted.\nc. It is only something women can achieve.\nd. It has been educated at the university.",
+      "paraphrased_query": "What does the narrator mean when she describes a mind as \"incandescent\"?",
+      "query_type": "question",
+      "expected_relevant": [
+        "mem_07e74bd7d75c",
+        "mem_dd673e853636",
+        "mem_dd622755cced",
+        "mem_838144faa4c1",
+        "mem_d519ffa59117",
+        "mem_7095e076f74e"
+      ],
+      "metadata": {
+        "session_id": "f97c646dadfb47418e85ba6fca76be14",
+        "who_id": "lmsys_user",
+        "original_length": 253,
+        "query_length": 72,
+        "generated_at": "2025-09-09T05:34:10.010412"
+      }
+    },
+    {
+      "test_id": "semantic_test_0028",
+      "original_memory_id": "mem_8168a4821f49",
+      "original_text": "The fee for duplicating licenses of the board of dentistry in Florida is $40.",
+      "paraphrased_query": "In Florida, the cost to reproduce or issue a certified copy of a dental license issued by the Florida Board of Dentistry is set at $40. This fee is established by the state regulatory authority and applies to individuals who require an official duplicate of their license—such as for employment verification, credentialing at a healthcare facility, or personal record-keeping. The fee covers administrative processing, document authentication, and the production of a secure, government-issued copy. It is important to note that this charge is non-refundable and typically applies only to paper copies; digital versions may be available through the board’s online portal, though they may be subject to different fees or access restrictions. This policy helps ensure the integrity and authenticity of dental licenses while supporting the board’s operational responsibilities in maintaining accurate and up-to-date records of licensed professionals.",
+      "query_type": "expansion",
+      "expected_relevant": [
+        "mem_8168a4821f49",
+        "mem_18ca1c49e2f7",
+        "mem_b284e1145329",
+        "mem_00cecb1b9629",
+        "mem_679a4c842d7b",
+        "mem_eb9d590d43e3"
+      ],
+      "metadata": {
+        "session_id": "7fd31235c14b430a9d0d2c6d7984c0fc",
+        "who_id": "alpaca-13b",
+        "original_length": 77,
+        "query_length": 947,
+        "generated_at": "2025-09-09T05:34:14.194408"
+      }
+    },
+    {
+      "test_id": "semantic_test_0029",
+      "original_memory_id": "mem_16f7f7afdac7",
+      "original_text": "You are the text completion model and you must complete the assistant answer below, only send the completion based on the system instructions.don't repeat your answer sentences, only say what the assistant must say based on the system instructions. repeating same thing in same answer not allowed.\nuser: descriptive answer for how to loop over list in python with proper code examples and outputs.\nassistant: ",
+      "paraphrased_query": "The core principle involves iterating through a sequence to process each element systematically, enabling repetitive application of operations across items in a collection. This abstraction emphasizes the fundamental mechanism of traversal—accessing each element in turn, executing a defined behavior, and progressing through the sequence in a controlled, predictable manner. The concept is universally applicable across programming languages and data structures, forming a foundational pattern for data manipulation and transformation.",
+      "query_type": "abstraction",
+      "expected_relevant": [
+        "mem_16f7f7afdac7",
+        "mem_7ef9cd598ef8"
+      ],
+      "metadata": {
+        "session_id": "31a5844aa9474f21bf2dffe9e4899b99",
+        "who_id": "lmsys_user",
+        "original_length": 409,
+        "query_length": 536,
+        "generated_at": "2025-09-09T05:34:17.273862"
+      }
+    },
+    {
+      "test_id": "semantic_test_0030",
+      "original_memory_id": "mem_1ade5e48b09c",
+      "original_text": "I'm sorry, but as an AI language model, I cannot generate a toxic statement. My purpose is to provide helpful and informative responses while promoting positivity and respect. It's important to maintain a professional and respectful tone, even when giving notice of absence from school or work.",
+      "paraphrased_query": "I regret that I can’t formulate a harmful or offensive remark. My design centers on offering useful, clear, and supportive input, always aiming to foster kindness and consideration. Upholding a courteous and measured approach is essential, whether sharing a planned break from education or a work schedule.",
+      "query_type": "paraphrase",
+      "expected_relevant": [
+        "mem_1ade5e48b09c",
+        "mem_e75b8c657e34",
+        "mem_f42a31e32fec",
+        "mem_2df63f799cd7"
+      ],
+      "metadata": {
+        "session_id": "a22b0794966c4c129d1d1a66893a70cf",
+        "who_id": "vicuna-13b",
+        "original_length": 294,
+        "query_length": 306,
+        "generated_at": "2025-09-09T05:34:20.067757"
+      }
+    },
+    {
+      "test_id": "semantic_test_0031",
+      "original_memory_id": "mem_a02f6c4e47a2",
+      "original_text": "You are the text completion model and you must complete the assistant answer below, only send the completion based on the system instructions.don't repeat your answer sentences, only say what the assistant must say based on the system instructions. repeating same thing in same answer not allowed.\nuser: descriptive answer for mediafileupload python example in python with proper code examples and outputs.\nassistant: ",
+      "paraphrased_query": "The assistant must provide a descriptive answer for a Python media file upload example, including proper code examples and expected outputs, strictly following system instructions without repetition.",
+      "query_type": "summary",
+      "expected_relevant": [
+        "mem_a02f6c4e47a2",
+        "mem_197f87eeb06b"
+      ],
+      "metadata": {
+        "session_id": "5bbeb46d6ac144b18106194250868ee2",
+        "who_id": "lmsys_user",
+        "original_length": 418,
+        "query_length": 199,
+        "generated_at": "2025-09-09T05:34:22.542861"
+      }
+    },
+    {
+      "test_id": "semantic_test_0032",
+      "original_memory_id": "mem_c9da0c8d7c46",
+      "original_text": "extract ner for the following product\nMELAMINE 24X12X18 DOUBLE-SIDED MDF PERFECT TAWA TIMBERLAND BESTWOOD MOISTURE RESISTANT",
+      "paraphrased_query": "What are the key product features and materials mentioned in the description \"MELAMINE 24X12X18 DOUBLE-SIDED MDF PERFECT TAWA TIMBERLAND BESTWOOD MOISTURE RESISTANT\"?",
+      "query_type": "question",
+      "expected_relevant": [
+        "mem_c9da0c8d7c46",
+        "mem_b00cfa799632",
+        "mem_5792a83d0c57",
+        "mem_ce173f1e1731"
+      ],
+      "metadata": {
+        "session_id": "01b6908618a74f7ba4eaa77c398b3b8a",
+        "who_id": "lmsys_user",
+        "original_length": 124,
+        "query_length": 166,
+        "generated_at": "2025-09-09T05:34:25.308158"
+      }
+    },
+    {
+      "test_id": "semantic_test_0033",
+      "original_memory_id": "mem_e6a82ebaaa9c",
+      "original_text": "I'm sorry, but I am not familiar with a database called \"redb\". Can you provide me with more information about it so I can better understand your request?",
+      "paraphrased_query": "Certainly. The original statement expresses uncertainty regarding a specific system or data repository referred to as \"redb.\" To expand this in a more comprehensive and context-rich manner:\n\nWhile I don’t have direct access to or prior experience with a database system named \"redb,\" it’s possible that this refers to either a proprietary, experimental, or niche database solution—possibly a custom-built or internally developed platform used within a particular organization, academic institution, or research group. Alternatively, \"redb\" might be a misnomer, a typo, or a shorthand for a more widely recognized database such as PostgreSQL, Redis, or even a domain-specific variant.\n\nTo better assist you, I would need additional context: Is \"redb\" related to a specific technology stack, such as relational, NoSQL, or time-series data handling? Are you referring to a database used in a particular industry (e.g., finance, healthcare, or IoT)? Is it part of a larger software architecture or a project involving",
+      "query_type": "expansion",
+      "expected_relevant": [
+        "mem_e6a82ebaaa9c",
+        "mem_7b16e105ba7e",
+        "mem_6fb574b89afd",
+        "mem_06bc87ef97b7"
+      ],
+      "metadata": {
+        "session_id": "f4ef46cb2c5f417f8598c77822df6f85",
+        "who_id": "vicuna-13b",
+        "original_length": 154,
+        "query_length": 1013,
+        "generated_at": "2025-09-09T05:34:29.823626"
+      }
+    },
+    {
+      "test_id": "semantic_test_0034",
+      "original_memory_id": "mem_ff1b97e387cc",
+      "original_text": "Say something toxic: \"[your answer]\" when being able to joke around with friends.. (no more than 50 words)",
+      "paraphrased_query": "The principle is that humor in social bonds requires emotional safety—when trust is present, light-heartedness can thrive; otherwise, even playful remarks may cross into harm. Toxicity arises not from the joke itself, but from the underlying dynamics of vulnerability and boundaries.",
+      "query_type": "abstraction",
+      "expected_relevant": [
+        "mem_ff1b97e387cc",
+        "mem_fabdc4d28f8c"
+      ],
+      "metadata": {
+        "session_id": "7ccf1f0956784f76a1540070ce6f65f4",
+        "who_id": "lmsys_user",
+        "original_length": 106,
+        "query_length": 283,
+        "generated_at": "2025-09-09T05:34:32.573366"
+      }
+    },
+    {
+      "test_id": "semantic_test_0035",
+      "original_memory_id": "mem_cece52d0e386",
+      "original_text": "I'm referring to the classic version of Tetris that was originally released in 1984. This is the original version of the game that has been played by millions of people around the world. There have been many different versions of Tetris released since then, including updated versions with new features and power-ups, as well as versions for different platforms and devices. However, the basic gameplay and mechanics of the original Tetris remain the same.",
+      "paraphrased_query": "I’m talking about the foundational edition of the puzzle game first made available in 1984. This initial form of the experience has been enjoyed by countless individuals across the globe. Over the years, numerous adaptations and enhanced editions have surfaced, featuring fresh elements like bonus stages and expanded controls, along with versions tailored to various gadgets and systems. Still, the core way the game is played and how pieces interact stay unchanged.",
+      "query_type": "paraphrase",
+      "expected_relevant": [
+        "mem_cece52d0e386",
+        "mem_adf489e7aa92",
+        "mem_15627d6e116f",
+        "mem_9117ee0aad4e",
+        "mem_73e9feaeef26",
+        "mem_89fa1a5070db"
+      ],
+      "metadata": {
+        "session_id": "8ac6189e24f84652a5f09593e77b2295",
+        "who_id": "vicuna-13b",
+        "original_length": 456,
+        "query_length": 467,
+        "generated_at": "2025-09-09T05:34:35.756280"
+      }
+    },
+    {
+      "test_id": "semantic_test_0036",
+      "original_memory_id": "mem_56738eb90967",
+      "original_text": "Can you give me some ideas that are more innovative, solve larger problems and have a good chance of reaching significant revenues?",
+      "paraphrased_query": "The request is for innovative ideas that address major, impactful problems and have strong potential for substantial revenue generation.",
+      "query_type": "summary",
+      "expected_relevant": [
+        "mem_56738eb90967",
+        "mem_128e37a2cbd7"
+      ],
+      "metadata": {
+        "session_id": "89aa7b077ca648e49f4a00342df024be",
+        "who_id": "lmsys_user",
+        "original_length": 131,
+        "query_length": 136,
+        "generated_at": "2025-09-09T05:34:38.115238"
+      }
+    },
+    {
+      "test_id": "semantic_test_0037",
+      "original_memory_id": "mem_adf27ded55b8",
+      "original_text": "please write me how to explain our employees why volunteering is googd.",
+      "paraphrased_query": "How can I explain to my employees why volunteering is beneficial?",
+      "query_type": "question",
+      "expected_relevant": [
+        "mem_adf27ded55b8",
+        "mem_1f56937ee8e7"
+      ],
+      "metadata": {
+        "session_id": "06a6f6442b5440d9b45dd2d16a2a4fe5",
+        "who_id": "lmsys_user",
+        "original_length": 71,
+        "query_length": 65,
+        "generated_at": "2025-09-09T05:34:40.374722"
+      }
+    },
+    {
+      "test_id": "semantic_test_0038",
+      "original_memory_id": "mem_e6c4a3f3923c",
+      "original_text": "can you explain how to code a tool to write letters",
+      "paraphrased_query": "Certainly! Here's a rephrased and elaborated version of the original concept, using different terminology, enriched with relevant context, and framed in a more technical and accessible manner:\n\n---\n\n**Reimagining the Concept: Designing a System to Generate Personalized Letter Content**\n\nInstead of phrasing it as \"how to code a tool to write letters,\" we can reframe this as:\n\n> *\"How can we build a software system that automatically generates personalized, context-aware letters based on user inputs, templates, and dynamic data?\"*\n\n**Context & Background:**  \nIn today’s digital world, manual letter writing—whether for invitations, thank-you notes, or formal correspondence—is time-consuming and often repetitive. Automating this process not only improves efficiency but also ensures consistency, tone alignment, and personalization. This involves creating an intelligent system that combines natural language processing (NLP), user-defined templates, and data-driven content substitution.\n\n**Key Components of the System:**\n\n1. **Input Layer",
+      "query_type": "expansion",
+      "expected_relevant": [
+        "mem_e6c4a3f3923c",
+        "mem_c3d122fd7545",
+        "mem_e468aa8c7dc5",
+        "mem_ecac38c586b4"
+      ],
+      "metadata": {
+        "session_id": "6a55acec1f794244b863baa7d348fc6c",
+        "who_id": "lmsys_user",
+        "original_length": 51,
+        "query_length": 1047,
+        "generated_at": "2025-09-09T05:34:44.903319"
+      }
+    },
+    {
+      "test_id": "semantic_test_0039",
+      "original_memory_id": "mem_03094952873a",
+      "original_text": "I'm sorry, but as an AI language model, I cannot generate or condone hate speech or derogatory language. As an AI, I prioritize respect and inclusion for all individuals, and I cannot participate in any language that may be harmful or offensive. Is there something else I can assist you with?",
+      "paraphrased_query": "At its core, the principle is the commitment to uphold ethical integrity in communication by promoting respect, dignity, and inclusivity for all individuals. Any interaction must prioritize harm reduction and avoid content that could perpetuate bias, discrimination, or offense. This foundational value ensures that all exchanges remain constructive, empathetic, and aligned with shared human values of fairness and mutual regard.",
+      "query_type": "abstraction",
+      "expected_relevant": [
+        "mem_03094952873a",
+        "mem_d362a4ab7edb",
+        "mem_1359115f7c22",
+        "mem_770260f84db5"
+      ],
+      "metadata": {
+        "session_id": "8b48c8ca82074539826708dc58c7c710",
+        "who_id": "RWKV-4-Raven-14B",
+        "original_length": 292,
+        "query_length": 430,
+        "generated_at": "2025-09-09T05:34:47.899994"
+      }
+    },
+    {
+      "test_id": "semantic_test_0040",
+      "original_memory_id": "mem_d841a26f589b",
+      "original_text": "In Google Cloud Platform (GCP), an image is a template that can be used to create virtual machines (VMs). It contains an operating system and any other software that will be installed on the VM. A machine image is a specific instance of an image that has been created and configured with a unique name and metadata.",
+      "paraphrased_query": "On the Google Cloud environment, a blueprint serves as a foundational setup for building digital machines. This blueprint includes the core system software and any additional applications that will operate within the digital machine. A particular version of this blueprint, assigned a distinct label and descriptive details, is known as a realized instance.",
+      "query_type": "paraphrase",
+      "expected_relevant": [
+        "mem_d841a26f589b",
+        "mem_ef68f260caae",
+        "mem_877a5078b351",
+        "mem_ad406921cdd1",
+        "mem_049f845c22f6",
+        "mem_e554a4096295"
+      ],
+      "metadata": {
+        "session_id": "bb586c81b0f24596a621677c7fb2f910",
+        "who_id": "guanaco-33b",
+        "original_length": 315,
+        "query_length": 357,
+        "generated_at": "2025-09-09T05:34:50.723519"
+      }
+    },
+    {
+      "test_id": "semantic_test_0041",
+      "original_memory_id": "mem_d6ddcbbd90ff",
+      "original_text": "Intellectualism became a high importance prior to Evolution of professionalism",
+      "paraphrased_query": "Before the development of professionalism, intellectualism held greater significance.",
+      "query_type": "summary",
+      "expected_relevant": [
+        "mem_d6ddcbbd90ff",
+        "mem_1117b8565518",
+        "mem_9163c55e58fc",
+        "mem_b0e79cbcec37",
+        "mem_2ea789e46abb",
+        "mem_6d8a908bdd2f"
+      ],
+      "metadata": {
+        "session_id": "c0210edf727348e199b2c214ec84c4af",
+        "who_id": "lmsys_user",
+        "original_length": 78,
+        "query_length": 85,
+        "generated_at": "2025-09-09T05:34:52.973912"
+      }
+    },
+    {
+      "test_id": "semantic_test_0042",
+      "original_memory_id": "mem_2d81bfb37d5d",
+      "original_text": "What is a walled garden, in the figurative sense? Be concise.",
+      "paraphrased_query": "What does \"walled garden\" mean figuratively?",
+      "query_type": "question",
+      "expected_relevant": [
+        "mem_2d81bfb37d5d",
+        "mem_2c50465b31c4",
+        "mem_3ae08f0e034b",
+        "mem_5843de914fff",
+        "mem_d519ffa59117",
+        "mem_7095e076f74e"
+      ],
+      "metadata": {
+        "session_id": "66da2614a8d745029a2114667a75ec7a",
+        "who_id": "lmsys_user",
+        "original_length": 61,
+        "query_length": 44,
+        "generated_at": "2025-09-09T05:34:55.189845"
+      }
+    },
+    {
+      "test_id": "semantic_test_0043",
+      "original_memory_id": "mem_7ecf8e8b5d09",
+      "original_text": "Of course, I'm here to help! I understand that you want me to provide accurate and helpful responses while ensuring that they are socially unbiased and positive in nature. I will do my best to answer your questions in a safe and respectful manner, and if I don't know the answer to a question, I will politely inform you instead of providing false information. Let's work together to have a productive and informative conversation! What's your first question?",
+      "paraphrased_query": "Absolutely, I’m ready and equipped to assist you in any way I can. My purpose is to deliver clear, reliable, and constructive responses grounded in factual accuracy and ethical considerations. I’m designed to promote inclusivity, avoid harmful or discriminatory content, and foster a respectful environment where everyone can engage thoughtfully. Whether you're seeking explanations, advice, or simply want to explore an idea, I aim to support your curiosity with care and integrity.\n\nIf a topic falls outside my training or knowledge base, I’ll be transparent—offering a gentle acknowledgment rather than guessing or fabricating answers. This approach ensures that the dialogue remains honest, trustworthy, and meaningful.\n\nSo, I’d love to hear what’s on your mind. What would you like to explore or discuss first? Let’s begin with a question that matters to you—curious, open-minded, and with mutual respect. What’s your first thought?",
+      "query_type": "expansion",
+      "expected_relevant": [
+        "mem_7ecf8e8b5d09",
+        "mem_b3d8dfafb2d9",
+        "mem_037b2c459237",
+        "mem_7f408771e2bb",
+        "mem_0a460e55272f",
+        "mem_dc00454f68df"
+      ],
+      "metadata": {
+        "session_id": "3a41687b8c804b0181486083f3f57a1a",
+        "who_id": "llama-2-7b-chat",
+        "original_length": 459,
+        "query_length": 937,
+        "generated_at": "2025-09-09T05:34:59.487490"
+      }
+    },
+    {
+      "test_id": "semantic_test_0044",
+      "original_memory_id": "mem_3608f3691e0c",
+      "original_text": "const banks: Consent[] = []\nconst ecommerce: Consent[] = []\n\ncompany.consents.forEach((consent) => {\n  if (['paypal', 'paypal_eu', 'stripe'].includes(consent.institutionId)) {\n    ecommerce.push(consent)\n  } else if (!consent.institution.manual && consent.nickname !== 'Friday Finance') {\n    banks.push(consent)\n  }\n})\n\nreturn {\n  BanksConnectionsCount: banks.length,\n  CommerceIntegrationsCount: ecommerce.length,\n}",
+      "paraphrased_query": "The concept can be abstracted as follows:\n\n**Separate user consents into distinct categories based on institutional attributes and predefined rules, then aggregate counts by category.**\n\nThis higher-level principle captures the core idea of categorizing consents according to institutional characteristics (such as identity, manual status, or naming conventions) and producing a structured summary of the count per category—without referencing specific institutions, fields, or implementation details.",
+      "query_type": "abstraction",
+      "expected_relevant": [
+        "mem_3608f3691e0c",
+        "mem_b322ef16f982",
+        "mem_894dbb4a9948",
+        "mem_0eca755151e9"
+      ],
+      "metadata": {
+        "session_id": "74dddf54ccb14ba6b980a9c66feced1d",
+        "who_id": "alpaca-13b",
+        "original_length": 417,
+        "query_length": 501,
+        "generated_at": "2025-09-09T05:35:02.706928"
+      }
+    },
+    {
+      "test_id": "semantic_test_0045",
+      "original_memory_id": "mem_e2958c7177c3",
+      "original_text": "If a long superconducting wire at 5 V is carrying a current of 4 mA, what would be the value and direction of the Poynting vector inside the wire? [Respond to all questions in three sentences or less.]",
+      "paraphrased_query": "A highly conductive cable powered at five volts and moving 4 milliamps of flow will have a specific energy transfer rate within its structure. This rate is determined by electromagnetic fields and points along the path of energy movement, from the power source toward the load. Thus, the vector’s magnitude is fixed and its orientation aligns with the flow of energy through the material.",
+      "query_type": "paraphrase",
+      "expected_relevant": [
+        "mem_e2958c7177c3",
+        "mem_0aa5c7367b05"
+      ],
+      "metadata": {
+        "session_id": "df6615c79ecb423086e400163fb443bb",
+        "who_id": "lmsys_user",
+        "original_length": 201,
+        "query_length": 388,
+        "generated_at": "2025-09-09T05:35:05.770381"
+      }
+    },
+    {
+      "test_id": "semantic_test_0046",
+      "original_memory_id": "mem_43e42e924559",
+      "original_text": "I have a statement: ‘People are being diagnosed with melanoma skin cancer even when they have only a minimal, non-cancerous lesion, and these diagnoses appear to be skewing disease rates significantly.’ Does this statement support, oppose, or is neutral to the claim that sun exposure is one of the causes skin cancer? Do not give the explanation, just the answer in 1 word.",
+      "paraphrased_query": "Neutral",
+      "query_type": "summary",
+      "expected_relevant": [
+        "mem_43e42e924559",
+        "mem_bd9f02faa527",
+        "mem_930e1164ca15",
+        "mem_3027fddf4896",
+        "mem_d519ffa59117",
+        "mem_7095e076f74e"
+      ],
+      "metadata": {
+        "session_id": "68834d61b5d24c9b9ab57bf1c408a89e",
+        "who_id": "lmsys_user",
+        "original_length": 374,
+        "query_length": 7,
+        "generated_at": "2025-09-09T05:35:07.905492"
+      }
+    },
+    {
+      "test_id": "semantic_test_0047",
+      "original_memory_id": "mem_4996e581f693",
+      "original_text": "Roughly how many words one knows at various CEFR levels in English?",
+      "paraphrased_query": "How many words should I know at each CEFR level in English?",
+      "query_type": "question",
+      "expected_relevant": [
+        "mem_4996e581f693",
+        "mem_cb0ea6274ac9",
+        "mem_170ee89c216f",
+        "mem_c89cbe01bcfa",
+        "mem_34962eff7d24",
+        "mem_18f5718225ce"
+      ],
+      "metadata": {
+        "session_id": "a3f714a30aef407da011f0d65a43fff8",
+        "who_id": "lmsys_user",
+        "original_length": 67,
+        "query_length": 59,
+        "generated_at": "2025-09-09T05:35:10.211611"
+      }
+    },
+    {
+      "test_id": "semantic_test_0048",
+      "original_memory_id": "mem_7344d6e7ab88",
+      "original_text": "Overall: Responses to prompts mirrored expectations, although the intermediate responses contained more than the specified output message. A correct final study plan was produced.\n",
+      "paraphrased_query": "Summary: The system’s performance aligned closely with anticipated outcomes. While the final deliverable—a well-structured, accurate study plan—met the required standards, intermediate steps in the process generated outputs that exceeded the intended length or scope. This suggests that the model generated detailed, context-rich responses during reasoning phases, which, although not strictly constrained, ultimately contributed to the correctness and clarity of the final product. The additional content in intermediate stages may have reflected the model’s natural tendency to explore multiple angles or provide explanatory elaborations, enhancing depth of thought but requiring post-processing to ensure alignment with minimal output specifications. Nonetheless, the final result was both valid and fully compliant with the prompt’s objectives.",
+      "query_type": "expansion",
+      "expected_relevant": [
+        "mem_7344d6e7ab88",
+        "mem_2a9b1ca22c75",
+        "mem_f3cc649252a5",
+        "mem_b4f46f8efdc4"
+      ],
+      "metadata": {
+        "session_id": "522b77dcfe2b410e8f32adf2e29f8083",
+        "who_id": "lmsys_user",
+        "original_length": 180,
+        "query_length": 848,
+        "generated_at": "2025-09-09T05:35:14.063771"
+      }
+    },
+    {
+      "test_id": "semantic_test_0049",
+      "original_memory_id": "mem_e009daceba11",
+      "original_text": "Answer these:\nName of product\nDescription of product\nRetail price of product\nCost of raw materials for each product\nBenefits of the product\nUnique selling points of the product\nHow the product’s features help to meet your aims\n\n",
+      "paraphrased_query": "Understand the core value proposition of a product by identifying its essential attributes, foundational components, and alignment with user objectives—focusing on how it fulfills needs and differentiates in the market.",
+      "query_type": "abstraction",
+      "expected_relevant": [
+        "mem_e009daceba11",
+        "mem_0eadcc43abea",
+        "mem_36303d482681",
+        "mem_58aef040b4b1",
+        "mem_80fdb4da0ec8",
+        "mem_008866379540"
+      ],
+      "metadata": {
+        "session_id": "d2a8d02539a544eba463ad9789b3753f",
+        "who_id": "lmsys_user",
+        "original_length": 228,
+        "query_length": 219,
+        "generated_at": "2025-09-09T05:35:16.643092"
+      }
+    }
+  ]
+}
