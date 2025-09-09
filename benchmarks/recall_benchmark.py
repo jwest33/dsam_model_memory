@@ -1,471 +1,484 @@
 #!/usr/bin/env python3
 """
-Recall benchmark for JAM Memory System.
-Tests retrieval precision, recall, and F1 scores across different query types.
+Recall benchmark for JAM memory system.
+Evaluates retrieval performance using pre-generated test sets.
 """
 
 import sys
-import time
 import json
+import time
 import sqlite3
-import numpy as np
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Tuple, Optional, Set, Union
-from dataclasses import dataclass
+from typing import Dict, List, Set, Tuple, Optional
+from dataclasses import dataclass, asdict
 from collections import defaultdict
-import random
 
 # Add project to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from agentic_memory.router import MemoryRouter
-from agentic_memory.config import cfg
 from agentic_memory.storage.sql_store import MemoryStore
 from agentic_memory.storage.faiss_index import FaissIndex
-from agentic_memory.retrieval import HybridRetriever
+from agentic_memory.config import cfg
 from agentic_memory.types import RetrievalQuery
-from agentic_memory.embedding import get_llama_embedder
+
+
+@dataclass
+class QueryTestCase:
+    """A test case for recall evaluation."""
+    test_id: str
+    test_type: str
+    query_text: str
+    query_metadata: Dict
+    expected_relevant: List[str]
+    ground_truth_metadata: Dict
+    difficulty: str
 
 
 @dataclass
 class RecallMetrics:
     """Metrics for recall evaluation."""
-    precision: float  # Retrieved & Relevant / Retrieved
-    recall: float     # Retrieved & Relevant / Total Relevant
-    f1_score: float   # Harmonic mean of precision and recall
-    mrr: float        # Mean Reciprocal Rank
+    precision_at_k: Dict[int, float]
+    recall_at_k: Dict[int, float]
+    f1_at_k: Dict[int, float]
+    mrr: float  # Mean Reciprocal Rank
     map_score: float  # Mean Average Precision
-    ndcg: float       # Normalized Discounted Cumulative Gain
+    ndcg: float  # Normalized Discounted Cumulative Gain
     
-    
-@dataclass
-class QueryTestCase:
-    """A test case for recall evaluation."""
-    query_text: str
-    query_type: str  # 'exact', 'semantic', 'temporal', 'actor', 'session'
-    relevant_memory_ids: Set[str]
-    session_id: Optional[str] = None
-    actor_hint: Optional[str] = None
-    temporal_hint: Optional[Union[str, Tuple[str, str], Dict]] = None
-    metadata: Dict = None
+    def to_dict(self):
+        return asdict(self)
 
 
 class RecallBenchmark:
-    """Comprehensive recall testing for memory retrieval."""
+    """Benchmark for evaluating memory recall performance."""
     
-    def __init__(self):
-        """Initialize benchmark components."""
-        self.store = MemoryStore(cfg.db_path)
-        embed_dim = int(cfg.get('embed_dim', 1024))
-        self.index = FaissIndex(dim=embed_dim, index_path=cfg.index_path)
-        self.router = MemoryRouter(self.store, self.index)
-        self.retriever = HybridRetriever(self.store, self.index)
+    def __init__(self, testset_path: Optional[str] = None):
+        """Initialize benchmark with optional test set."""
+        # Initialize memory system
+        store = MemoryStore(cfg.db_path)
+        index = FaissIndex(dim=int(cfg.get('embedding_dim', 1024)), index_path=cfg.index_path)
+        self.router = MemoryRouter(store, index)
         
-        # Try to initialize embedder
-        try:
-            self.embedder = get_llama_embedder()
-            test_embedding = self.embedder.encode(["test"], normalize_embeddings=True)
-            self.embedder_available = True
-        except:
-            print("Warning: Embedding server not available, using fallback")
-            self.embedder = None
-            self.embedder_available = False
-            
-        # Database connection
+        # Database connection for analysis
         self.db_conn = sqlite3.connect(cfg.db_path)
         self.db_conn.row_factory = sqlite3.Row
         
-    def generate_test_cases(self, num_cases_per_type: int = 10) -> List[QueryTestCase]:
-        """Generate diverse test cases with known ground truth."""
-        test_cases = []
-        cursor = self.db_conn.cursor()
-        
-        # 1. EXACT MATCH TEST CASES - Find memories with specific phrases
-        print("Generating exact match test cases...")
-        cursor.execute("""
-            SELECT memory_id, raw_text, session_id, who_id
-            FROM memories
-            WHERE LENGTH(raw_text) > 50 AND LENGTH(raw_text) < 500
-            ORDER BY RANDOM()
-            LIMIT ?
-        """, (num_cases_per_type * 2,))
-        
-        exact_memories = cursor.fetchall()
-        for i in range(min(num_cases_per_type, len(exact_memories))):
-            mem = exact_memories[i]
-            # Extract a meaningful phrase from the middle
-            text = mem['raw_text']
-            words = text.split()
-            if len(words) > 10:
-                start_idx = len(words) // 4
-                query_phrase = ' '.join(words[start_idx:start_idx+5])
-                
-                # Find all memories containing this exact phrase
-                cursor.execute("""
-                    SELECT memory_id FROM memories
-                    WHERE raw_text LIKE ?
-                    LIMIT 20
-                """, (f'%{query_phrase}%',))
-                
-                relevant_ids = {row['memory_id'] for row in cursor.fetchall()}
-                if relevant_ids:
-                    test_cases.append(QueryTestCase(
-                        query_text=query_phrase,
-                        query_type='exact',
-                        relevant_memory_ids=relevant_ids,
-                        session_id=mem['session_id']
-                    ))
-        
-        # 2. SEMANTIC SIMILARITY TEST CASES - Find topically related memories
-        print("Generating semantic similarity test cases...")
-        topics = [
-            "programming", "health", "travel", "food", "technology",
-            "education", "business", "science", "music", "sports"
-        ]
-        
-        for topic in topics[:num_cases_per_type]:
-            # Find memories mentioning the topic
-            cursor.execute("""
-                SELECT memory_id, raw_text, session_id
-                FROM memories
-                WHERE raw_text LIKE ?
-                LIMIT 30
-            """, (f'%{topic}%',))
-            
-            topic_memories = cursor.fetchall()
-            if len(topic_memories) >= 5:
-                relevant_ids = {row['memory_id'] for row in topic_memories}
-                # Use first memory's text as query
-                query_text = topic_memories[0]['raw_text'][:200]
-                
-                test_cases.append(QueryTestCase(
-                    query_text=query_text,
-                    query_type='semantic',
-                    relevant_memory_ids=relevant_ids,
-                    session_id=topic_memories[0]['session_id']
-                ))
-        
-        # 3. SESSION-BASED TEST CASES - Retrieve all memories from same session
-        print("Generating session-based test cases...")
-        cursor.execute("""
-            SELECT session_id, COUNT(*) as count
-            FROM memories
-            GROUP BY session_id
-            HAVING count >= 5 AND count <= 20
-            ORDER BY RANDOM()
-            LIMIT ?
-        """, (num_cases_per_type,))
-        
-        sessions = cursor.fetchall()
-        for session in sessions:
-            # Get all memories from this session
-            cursor.execute("""
-                SELECT memory_id, raw_text
-                FROM memories
-                WHERE session_id = ?
-            """, (session['session_id'],))
-            
-            session_memories = cursor.fetchall()
-            if session_memories:
-                relevant_ids = {row['memory_id'] for row in session_memories}
-                # Use middle memory as query
-                query_mem = session_memories[len(session_memories)//2]
-                
-                test_cases.append(QueryTestCase(
-                    query_text=query_mem['raw_text'][:200],
-                    query_type='session',
-                    relevant_memory_ids=relevant_ids,
-                    session_id=session['session_id']
-                ))
-        
-        # 4. ACTOR-BASED TEST CASES - Find all memories from same actor
-        print("Generating actor-based test cases...")
-        cursor.execute("""
-            SELECT who_id, COUNT(*) as count
-            FROM memories
-            GROUP BY who_id
-            HAVING count >= 10 AND count <= 50
-            ORDER BY RANDOM()
-            LIMIT ?
-        """, (num_cases_per_type,))
-        
-        actors = cursor.fetchall()
-        for actor in actors:
-            cursor.execute("""
-                SELECT memory_id, raw_text, session_id
-                FROM memories
-                WHERE who_id = ?
-                LIMIT 30
-            """, (actor['who_id'],))
-            
-            actor_memories = cursor.fetchall()
-            if actor_memories:
-                relevant_ids = {row['memory_id'] for row in actor_memories}
-                query_mem = random.choice(actor_memories)
-                
-                test_cases.append(QueryTestCase(
-                    query_text=query_mem['raw_text'][:200],
-                    query_type='actor',
-                    relevant_memory_ids=relevant_ids,
-                    session_id=query_mem['session_id'],
-                    actor_hint=actor['who_id']
-                ))
-        
-        # 5. TEMPORAL TEST CASES - Find memories from same time period
-        print("Generating temporal test cases...")
-        cursor.execute("""
-            SELECT DATE(when_ts) as date, COUNT(*) as count
-            FROM memories
-            WHERE when_ts IS NOT NULL
-            GROUP BY DATE(when_ts)
-            HAVING count >= 5
-            ORDER BY RANDOM()
-            LIMIT ?
-        """, (num_cases_per_type,))
-        
-        dates = cursor.fetchall()
-        for date_row in dates:
-            cursor.execute("""
-                SELECT memory_id, raw_text, session_id
-                FROM memories
-                WHERE DATE(when_ts) = ?
-            """, (date_row['date'],))
-            
-            temporal_memories = cursor.fetchall()
-            if temporal_memories:
-                relevant_ids = {row['memory_id'] for row in temporal_memories}
-                query_mem = random.choice(temporal_memories)
-                
-                test_cases.append(QueryTestCase(
-                    query_text=query_mem['raw_text'][:200],
-                    query_type='temporal',
-                    relevant_memory_ids=relevant_ids,
-                    session_id=query_mem['session_id'],
-                    temporal_hint=date_row['date'],  # Use actual date as temporal hint
-                    metadata={'date': date_row['date']}
-                ))
-        
-        print(f"Generated {len(test_cases)} test cases across {len(set(tc.query_type for tc in test_cases))} types")
-        return test_cases
+        # Load test set if provided
+        self.test_cases = []
+        if testset_path:
+            self.load_testset(testset_path)
     
-    def evaluate_retrieval(self, test_case: QueryTestCase, k_values: List[int] = [5, 10, 20]) -> Dict[int, RecallMetrics]:
-        """Evaluate retrieval for a single test case at different k values."""
-        results = {}
+    def load_testset(self, filepath: str) -> List[QueryTestCase]:
+        """Load test cases from JSON file."""
+        filepath = Path(filepath)
+        if not filepath.exists():
+            # Check in test_data directory
+            test_data_path = Path("benchmarks/test_data") / filepath.name
+            if test_data_path.exists():
+                filepath = test_data_path
+            else:
+                raise FileNotFoundError(f"Test set not found: {filepath}")
         
-        # Generate embedding for query
-        if self.embedder_available and self.embedder:
-            try:
-                qvec = self.embedder.encode([test_case.query_text], normalize_embeddings=True)[0]
-            except:
-                qvec = np.random.randn(int(cfg.get('embed_dim', 1024))).astype('float32')
-                qvec = qvec / np.linalg.norm(qvec)
-        else:
-            qvec = np.random.randn(int(cfg.get('embed_dim', 1024))).astype('float32')
-            qvec = qvec / np.linalg.norm(qvec)
+        with open(filepath, 'r', encoding='utf-8') as f:
+            data = json.load(f)
         
-        # Create retrieval query
-        rq = RetrievalQuery(
-            session_id=test_case.session_id or "test_session",
+        self.test_cases = []
+        for tc_dict in data['test_cases']:
+            # Handle both old semantic testset format and new benchmark format
+            if 'paraphrased_query' in tc_dict:
+                # Old semantic testset format
+                query_text = tc_dict['paraphrased_query']
+                test_type = tc_dict.get('query_type', 'semantic')
+                query_metadata = tc_dict.get('metadata', {})
+                # Map old metadata to new format
+                if 'session_id' in query_metadata:
+                    query_metadata = {'session_id': query_metadata['session_id']}
+            else:
+                # New benchmark format
+                query_text = tc_dict['query_text']
+                test_type = tc_dict['test_type']
+                query_metadata = tc_dict.get('query_metadata', {})
+            
+            self.test_cases.append(QueryTestCase(
+                test_id=tc_dict['test_id'],
+                test_type=test_type,
+                query_text=query_text,
+                query_metadata=query_metadata,
+                expected_relevant=tc_dict['expected_relevant'],
+                ground_truth_metadata=tc_dict.get('ground_truth_metadata', {}),
+                difficulty=tc_dict.get('difficulty', 'medium')
+            ))
+        
+        print(f"Loaded {len(self.test_cases)} test cases from {filepath}")
+        
+        # Show distribution
+        type_counts = defaultdict(int)
+        for tc in self.test_cases:
+            type_counts[tc.test_type] += 1
+        
+        print("Test case distribution:")
+        for test_type, count in sorted(type_counts.items()):
+            print(f"  {test_type}: {count}")
+        
+        return self.test_cases
+    
+    def find_latest_testset(self) -> Optional[Path]:
+        """Find the most recent test set file."""
+        test_data_dir = Path("benchmarks/test_data")
+        if not test_data_dir.exists():
+            return None
+        
+        # Look for benchmark testset files
+        testset_files = list(test_data_dir.glob("benchmark_testset_*.json"))
+        
+        if not testset_files:
+            # Fall back to semantic testset files
+            testset_files = list(test_data_dir.glob("semantic_testset_*.json"))
+        
+        if testset_files:
+            # Sort by modification time and return the newest
+            return max(testset_files, key=lambda p: p.stat().st_mtime)
+        
+        return None
+    
+    def evaluate_retrieval(self, 
+                          test_case: QueryTestCase,
+                          k_values: List[int] = [5, 10, 20]) -> Dict:
+        """Evaluate retrieval for a single test case."""
+        
+        # Build retrieval query
+        retrieval_query = RetrievalQuery(
+            session_id=test_case.query_metadata.get('session_id', 'benchmark_session'),
             text=test_case.query_text,
-            actor_hint=test_case.actor_hint,
-            temporal_hint=test_case.temporal_hint
+            actor_hint=test_case.query_metadata.get('actor_hint'),
+            spatial_hint=test_case.query_metadata.get('spatial_hint'),
+            temporal_hint=test_case.query_metadata.get('temporal_hint')
         )
         
-        # Retrieve with maximum k
-        max_k = max(k_values)
-        try:
-            candidates = self.retriever.search(rq, qvec, topk_sem=max_k, topk_lex=max_k)
-        except Exception as e:
-            print(f"Retrieval error: {e}")
-            # Return zero metrics
-            for k in k_values:
-                results[k] = RecallMetrics(0, 0, 0, 0, 0, 0)
-            return results
+        # Retrieve memories
+        start_time = time.time()
+        candidates = self.router.retrieve(
+            query=retrieval_query,
+            budget_tokens=8000,  # Large budget to get many candidates
+            diversity_weight=0.0  # No diversity for benchmark
+        )
+        retrieval_time = time.time() - start_time
         
-        # Calculate metrics for each k
+        # Extract retrieved memory IDs
+        retrieved_ids = [c.memory_id for c in candidates]
+        
+        # Convert expected to set for faster lookup
+        expected_set = set(test_case.expected_relevant)
+        
+        # Calculate metrics at different k values
+        results = {
+            'test_id': test_case.test_id,
+            'test_type': test_case.test_type,
+            'difficulty': test_case.difficulty,
+            'retrieval_time': retrieval_time,
+            'total_retrieved': len(retrieved_ids),
+            'total_expected': len(expected_set),
+            'first_relevant_position': None,  # Position of first relevant result
+            'metrics': {}
+        }
+        
         for k in k_values:
-            top_k_candidates = candidates[:k]
-            retrieved_ids = {c.memory_id for c in top_k_candidates}
+            retrieved_at_k = retrieved_ids[:k]
+            retrieved_set_at_k = set(retrieved_at_k)
             
-            # Calculate intersection
-            relevant_retrieved = retrieved_ids.intersection(test_case.relevant_memory_ids)
+            # Calculate metrics
+            true_positives = len(retrieved_set_at_k & expected_set)
             
-            # Precision: What fraction of retrieved items are relevant?
-            precision = len(relevant_retrieved) / len(retrieved_ids) if retrieved_ids else 0
-            
-            # Recall: What fraction of relevant items were retrieved?
-            recall = len(relevant_retrieved) / len(test_case.relevant_memory_ids) if test_case.relevant_memory_ids else 0
-            
-            # F1 Score
+            precision = true_positives / k if k > 0 else 0
+            recall = true_positives / len(expected_set) if expected_set else 0
             f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
             
-            # Mean Reciprocal Rank (MRR)
-            mrr = 0
-            for i, candidate in enumerate(top_k_candidates, 1):
-                if candidate.memory_id in test_case.relevant_memory_ids:
-                    mrr = 1.0 / i
-                    break
-            
-            # Mean Average Precision (MAP)
-            avg_precision = 0
-            relevant_count = 0
-            for i, candidate in enumerate(top_k_candidates, 1):
-                if candidate.memory_id in test_case.relevant_memory_ids:
-                    relevant_count += 1
-                    avg_precision += relevant_count / i
-            map_score = avg_precision / len(test_case.relevant_memory_ids) if test_case.relevant_memory_ids else 0
-            
-            # Normalized Discounted Cumulative Gain (NDCG)
-            dcg = 0
-            for i, candidate in enumerate(top_k_candidates, 1):
-                if candidate.memory_id in test_case.relevant_memory_ids:
-                    dcg += 1.0 / np.log2(i + 1)
-            
-            # Ideal DCG (all relevant items at top)
-            idcg = sum(1.0 / np.log2(i + 2) for i in range(min(k, len(test_case.relevant_memory_ids))))
-            ndcg = dcg / idcg if idcg > 0 else 0
-            
-            results[k] = RecallMetrics(precision, recall, f1, mrr, map_score, ndcg)
+            results['metrics'][f'@{k}'] = {
+                'precision': precision,
+                'recall': recall,
+                'f1': f1,
+                'true_positives': true_positives
+            }
+        
+        # Calculate MRR (Mean Reciprocal Rank) and first relevant position
+        reciprocal_rank = 0
+        for i, mem_id in enumerate(retrieved_ids):
+            if mem_id in expected_set:
+                reciprocal_rank = 1.0 / (i + 1)
+                if results['first_relevant_position'] is None:
+                    results['first_relevant_position'] = i + 1
+                break
+        results['mrr'] = reciprocal_rank
+        
+        # Calculate Average Precision
+        precisions = []
+        num_relevant_found = 0
+        for i, mem_id in enumerate(retrieved_ids):
+            if mem_id in expected_set:
+                num_relevant_found += 1
+                precisions.append(num_relevant_found / (i + 1))
+        
+        results['average_precision'] = sum(precisions) / len(expected_set) if expected_set else 0
+        
+        # Calculate NDCG (Normalized Discounted Cumulative Gain)
+        import math
+        dcg = 0
+        for i, mem_id in enumerate(retrieved_ids[:20]):
+            if mem_id in expected_set:
+                # Use proper log2 for discount factor
+                dcg += 1.0 / math.log2(i + 2)
+        
+        # Calculate ideal DCG (all relevant items at top positions)
+        ideal_dcg = sum(1.0 / math.log2(i + 2) for i in range(min(len(expected_set), 20)))
+        results['ndcg'] = dcg / ideal_dcg if ideal_dcg > 0 else 0
         
         return results
     
-    def run_benchmark(self, num_cases_per_type: int = 5, k_values: List[int] = [5, 10, 20]) -> Dict:
-        """Run complete recall benchmark."""
-        print("\n" + "="*60)
-        print("RECALL BENCHMARK")
-        print("="*60)
+    def run_benchmark(self, 
+                     test_cases: Optional[List[QueryTestCase]] = None,
+                     k_values: List[int] = [5, 10, 20]) -> Dict:
+        """Run complete benchmark evaluation."""
         
-        # Generate test cases
-        test_cases = self.generate_test_cases(num_cases_per_type)
+        if test_cases is None:
+            if not self.test_cases:
+                raise ValueError("No test cases loaded. Provide test cases or load a test set first.")
+            test_cases = self.test_cases
         
-        # Results storage
-        results_by_type = defaultdict(lambda: defaultdict(list))
-        overall_results = defaultdict(list)
-        
-        # Evaluate each test case
         print(f"\nEvaluating {len(test_cases)} test cases...")
-        for i, test_case in enumerate(test_cases, 1):
-            if i % 10 == 0:
-                print(f"  Progress: {i}/{len(test_cases)}")
+        
+        all_results = []
+        
+        # Process test cases
+        for i, test_case in enumerate(test_cases):
+            if (i + 1) % 10 == 0:
+                print(f"  Progress: {i + 1}/{len(test_cases)}")
             
-            metrics = self.evaluate_retrieval(test_case, k_values)
-            
-            for k, metric in metrics.items():
-                # Store by type
-                results_by_type[test_case.query_type][k].append(metric)
-                # Store overall
-                overall_results[k].append(metric)
+            result = self.evaluate_retrieval(test_case, k_values)
+            all_results.append(result)
         
-        # Calculate averages
-        summary = {
-            'overall': {},
-            'by_type': {}
-        }
-        
-        # Overall averages
-        for k in k_values:
-            if overall_results[k]:
-                metrics_list = overall_results[k]
-                summary['overall'][f'k_{k}'] = {
-                    'precision': np.mean([m.precision for m in metrics_list]),
-                    'recall': np.mean([m.recall for m in metrics_list]),
-                    'f1_score': np.mean([m.f1_score for m in metrics_list]),
-                    'mrr': np.mean([m.mrr for m in metrics_list]),
-                    'map': np.mean([m.map_score for m in metrics_list]),
-                    'ndcg': np.mean([m.ndcg for m in metrics_list])
-                }
-        
-        # By type averages
-        for query_type, type_results in results_by_type.items():
-            summary['by_type'][query_type] = {}
-            for k in k_values:
-                if type_results[k]:
-                    metrics_list = type_results[k]
-                    summary['by_type'][query_type][f'k_{k}'] = {
-                        'precision': np.mean([m.precision for m in metrics_list]),
-                        'recall': np.mean([m.recall for m in metrics_list]),
-                        'f1_score': np.mean([m.f1_score for m in metrics_list]),
-                        'count': len(metrics_list)
-                    }
+        # Aggregate metrics
+        aggregated = self._aggregate_metrics(all_results, k_values)
         
         # Print results
-        self.print_results(summary, test_cases)
+        self._print_results(aggregated)
         
-        return summary
+        return {
+            'summary': aggregated,
+            'individual_results': all_results,
+            'metadata': {
+                'timestamp': datetime.now().isoformat(),
+                'num_test_cases': len(test_cases),
+                'k_values': k_values
+            }
+        }
     
-    def print_results(self, summary: Dict, test_cases: List[QueryTestCase]):
+    def _aggregate_metrics(self, results: List[Dict], k_values: List[int]) -> Dict:
+        """Aggregate metrics across all test cases."""
+        
+        # Overall metrics
+        overall = {
+            'total_cases': len(results),
+            'avg_retrieval_time': sum(r['retrieval_time'] for r in results) / len(results),
+            'metrics_at_k': {}
+        }
+        
+        for k in k_values:
+            precisions = [r['metrics'][f'@{k}']['precision'] for r in results]
+            recalls = [r['metrics'][f'@{k}']['recall'] for r in results]
+            f1_scores = [r['metrics'][f'@{k}']['f1'] for r in results]
+            
+            overall['metrics_at_k'][f'@{k}'] = {
+                'precision': sum(precisions) / len(precisions),
+                'recall': sum(recalls) / len(recalls),
+                'f1': sum(f1_scores) / len(f1_scores)
+            }
+        
+        overall['mrr'] = sum(r['mrr'] for r in results) / len(results)
+        overall['map'] = sum(r['average_precision'] for r in results) / len(results)
+        overall['ndcg'] = sum(r['ndcg'] for r in results) / len(results)
+        
+        # Metrics by test type
+        by_type = defaultdict(lambda: defaultdict(list))
+        
+        for result in results:
+            test_type = result['test_type']
+            by_type[test_type]['results'].append(result)
+        
+        for test_type, type_data in by_type.items():
+            type_results = type_data['results']
+            type_data['count'] = len(type_results)
+            type_data['metrics_at_k'] = {}
+            
+            for k in k_values:
+                precisions = [r['metrics'][f'@{k}']['precision'] for r in type_results]
+                recalls = [r['metrics'][f'@{k}']['recall'] for r in type_results]
+                f1_scores = [r['metrics'][f'@{k}']['f1'] for r in type_results]
+                
+                type_data['metrics_at_k'][f'@{k}'] = {
+                    'precision': sum(precisions) / len(precisions) if precisions else 0,
+                    'recall': sum(recalls) / len(recalls) if recalls else 0,
+                    'f1': sum(f1_scores) / len(f1_scores) if f1_scores else 0
+                }
+            
+            type_data['mrr'] = sum(r['mrr'] for r in type_results) / len(type_results)
+            type_data['map'] = sum(r['average_precision'] for r in type_results) / len(type_results)
+            type_data['ndcg'] = sum(r['ndcg'] for r in type_results) / len(type_results)
+            
+            # Remove the raw results to keep output clean
+            del type_data['results']
+        
+        # Metrics by difficulty
+        by_difficulty = defaultdict(lambda: defaultdict(list))
+        
+        for result in results:
+            difficulty = result['difficulty']
+            by_difficulty[difficulty]['results'].append(result)
+        
+        for difficulty, diff_data in by_difficulty.items():
+            diff_results = diff_data['results']
+            diff_data['count'] = len(diff_results)
+            diff_data['metrics_at_k'] = {}
+            
+            for k in k_values:
+                precisions = [r['metrics'][f'@{k}']['precision'] for r in diff_results]
+                recalls = [r['metrics'][f'@{k}']['recall'] for r in diff_results]
+                f1_scores = [r['metrics'][f'@{k}']['f1'] for r in diff_results]
+                
+                diff_data['metrics_at_k'][f'@{k}'] = {
+                    'precision': sum(precisions) / len(precisions) if precisions else 0,
+                    'recall': sum(recalls) / len(recalls) if recalls else 0,
+                    'f1': sum(f1_scores) / len(f1_scores) if f1_scores else 0
+                }
+            
+            diff_data['mrr'] = sum(r['mrr'] for r in diff_results) / len(diff_results)
+            diff_data['map'] = sum(r['average_precision'] for r in diff_results) / len(diff_results)
+            diff_data['ndcg'] = sum(r['ndcg'] for r in diff_results) / len(diff_results)
+            
+            # Remove raw results
+            del diff_data['results']
+        
+        return {
+            'overall': overall,
+            'by_type': dict(by_type),
+            'by_difficulty': dict(by_difficulty)
+        }
+    
+    def _print_results(self, aggregated: Dict):
         """Print formatted benchmark results."""
-        print("\n" + "-"*60)
-        print("OVERALL RECALL METRICS")
+        
+        print("\n" + "="*60)
+        print("RECALL BENCHMARK RESULTS")
+        print("="*60)
+        
+        # Overall metrics
+        overall = aggregated['overall']
+        print("\nOVERALL METRICS")
         print("-"*60)
         
-        for k_key, metrics in summary['overall'].items():
-            k = k_key.replace('k_', '')
-            print(f"\n@{k} Results:")
+        for k_label, metrics in overall['metrics_at_k'].items():
+            print(f"\n{k_label} Results:")
             print(f"  Precision: {metrics['precision']:.3f}")
             print(f"  Recall:    {metrics['recall']:.3f}")
-            print(f"  F1 Score:  {metrics['f1_score']:.3f}")
-            print(f"  MRR:       {metrics['mrr']:.3f}")
-            print(f"  MAP:       {metrics['map']:.3f}")
-            print(f"  NDCG:      {metrics['ndcg']:.3f}")
+            print(f"  F1 Score:  {metrics['f1']:.3f}")
         
-        print("\n" + "-"*60)
-        print("RECALL BY QUERY TYPE")
-        print("-"*60)
+        print(f"\nRanking Metrics:")
+        print(f"  MRR:  {overall['mrr']:.3f}")
+        print(f"  MAP:  {overall['map']:.3f}")
+        print(f"  NDCG: {overall['ndcg']:.3f}")
         
-        for query_type, type_metrics in summary['by_type'].items():
-            print(f"\n{query_type.upper()} Queries:")
-            for k_key, metrics in type_metrics.items():
-                k = k_key.replace('k_', '')
-                print(f"  @{k}: P={metrics['precision']:.3f}, R={metrics['recall']:.3f}, F1={metrics['f1_score']:.3f} (n={metrics['count']})")
+        print(f"\nPerformance:")
+        print(f"  Avg retrieval time: {overall['avg_retrieval_time']*1000:.2f} ms")
         
-        # Test case distribution
-        print("\n" + "-"*60)
-        print("TEST CASE DISTRIBUTION")
-        print("-"*60)
-        type_counts = defaultdict(int)
-        for tc in test_cases:
-            type_counts[tc.query_type] += 1
+        # Metrics by type
+        if aggregated['by_type']:
+            print("\n" + "-"*60)
+            print("METRICS BY TEST TYPE")
+            print("-"*60)
+            
+            for test_type, metrics in sorted(aggregated['by_type'].items()):
+                print(f"\n{test_type.upper()} (n={metrics['count']}):")
+                
+                # Show metrics for first k value as summary
+                first_k = list(metrics['metrics_at_k'].keys())[0]
+                k_metrics = metrics['metrics_at_k'][first_k]
+                print(f"  {first_k}: P={k_metrics['precision']:.3f}, R={k_metrics['recall']:.3f}, F1={k_metrics['f1']:.3f}")
+                print(f"  MRR={metrics['mrr']:.3f}, MAP={metrics['map']:.3f}, NDCG={metrics['ndcg']:.3f}")
         
-        for query_type, count in type_counts.items():
-            print(f"  {query_type}: {count} cases")
-        print(f"  Total: {len(test_cases)} cases")
+        # Metrics by difficulty
+        if aggregated['by_difficulty']:
+            print("\n" + "-"*60)
+            print("METRICS BY DIFFICULTY")
+            print("-"*60)
+            
+            for difficulty in ['easy', 'medium', 'hard']:
+                if difficulty in aggregated['by_difficulty']:
+                    metrics = aggregated['by_difficulty'][difficulty]
+                    print(f"\n{difficulty.upper()} (n={metrics['count']}):")
+                    
+                    # Show metrics for first k value
+                    first_k = list(metrics['metrics_at_k'].keys())[0]
+                    k_metrics = metrics['metrics_at_k'][first_k]
+                    print(f"  {first_k}: P={k_metrics['precision']:.3f}, R={k_metrics['recall']:.3f}, F1={k_metrics['f1']:.3f}")
+                    print(f"  MRR={metrics['mrr']:.3f}, MAP={metrics['map']:.3f}, NDCG={metrics['ndcg']:.3f}")
 
 
 def main():
-    """Main entry point for recall benchmark."""
+    """Run recall benchmark."""
     import argparse
     
-    parser = argparse.ArgumentParser(description='Recall benchmark for JAM Memory System')
-    parser.add_argument('--cases', type=int, default=5,
-                       help='Number of test cases per query type')
-    parser.add_argument('--k', type=int, nargs='+', default=[5, 10, 20],
-                       help='k values for recall@k evaluation')
-    parser.add_argument('--output', '-o', help='Save results to JSON file')
+    parser = argparse.ArgumentParser(description='Run recall benchmark for JAM memory system')
+    parser.add_argument('--testset', '-t',
+                       help='Path to test set JSON file')
+    parser.add_argument('--k', nargs='+', type=int, default=[5, 10, 20],
+                       help='k values for precision/recall@k (default: 5 10 20)')
+    parser.add_argument('--output', '-o',
+                       help='Output file for results')
+    parser.add_argument('--latest', action='store_true',
+                       help='Use the latest test set file')
     
     args = parser.parse_args()
     
-    # Run benchmark
+    # Initialize benchmark
     benchmark = RecallBenchmark()
-    results = benchmark.run_benchmark(
-        num_cases_per_type=args.cases,
-        k_values=args.k
-    )
     
-    # Always save results for analysis
-    results_dir = Path("results")
-    results_dir.mkdir(exist_ok=True)
-    
-    if args.output:
-        output_file = Path(args.output)
+    # Load test set
+    if args.testset:
+        benchmark.load_testset(args.testset)
+    elif args.latest:
+        latest = benchmark.find_latest_testset()
+        if latest:
+            print(f"Using latest test set: {latest}")
+            benchmark.load_testset(str(latest))
+        else:
+            print("No test set files found in benchmarks/test_data/")
+            print("Generate one using: python benchmarks/generate_benchmark_testset.py")
+            return
     else:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = results_dir / f"recall_benchmark_{timestamp}.json"
+        print("No test set specified. Use --testset <file> or --latest")
+        print("Generate a test set using: python benchmarks/generate_benchmark_testset.py")
+        return
     
-    with open(output_file, 'w') as f:
-        json.dump(results, f, indent=2)
-    print(f"\n[OK] Results saved to {output_file}")
+    # Run benchmark
+    results = benchmark.run_benchmark(k_values=args.k)
+    
+    # Save results if requested
+    if args.output:
+        output_path = Path(args.output)
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(results, f, indent=2)
+        print(f"\nResults saved to: {output_path}")
+    else:
+        # Save to default location
+        results_dir = Path("results")
+        results_dir.mkdir(exist_ok=True)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = results_dir / f"recall_benchmark_{timestamp}.json"
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(results, f, indent=2)
+        print(f"\nResults saved to: {output_path}")
 
 
 if __name__ == "__main__":
