@@ -1,7 +1,8 @@
 from __future__ import annotations
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 import json
+import re
 from ..types import RawEvent, MemoryRecord, Who, Where
 from ..tokenization import TokenizerAdapter
 from ..config import cfg
@@ -19,17 +20,95 @@ def _get_embedder():
         _embedder = get_llama_embedder()
     return _embedder
 
+def _extract_entities_fallback(text: str) -> List[str]:
+    """Extract entities from text as a fallback when LLM fails.
+    
+    This is a simple rule-based extraction for common patterns.
+    """
+    entities = []
+    
+    # Clean the text
+    text = text.strip()
+    if not text:
+        return []
+    
+    # Extract capitalized words (likely proper nouns)
+    # But skip common words that are often capitalized
+    common_words = {'The', 'This', 'That', 'What', 'When', 'Where', 'Who', 'How', 'Why',
+                   'If', 'Then', 'And', 'But', 'Or', 'In', 'On', 'At', 'To', 'From',
+                   'Is', 'Are', 'Was', 'Were', 'Can', 'Could', 'Would', 'Should'}
+    
+    # Find sequences of capitalized words (e.g., "Growth Hormone")
+    cap_pattern = r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b'
+    for match in re.finditer(cap_pattern, text):
+        entity = match.group()
+        if entity not in common_words and len(entity) > 2:
+            entities.append(entity)
+    
+    # Extract acronyms (e.g., GH, IGF-1, API)
+    acronym_pattern = r'\b[A-Z]{2,}(?:-\d+)?\b'
+    for match in re.finditer(acronym_pattern, text):
+        entities.append(match.group())
+    
+    # Extract technical terms with numbers (e.g., Python3, IPv4)
+    tech_pattern = r'\b[A-Za-z]+\d+[A-Za-z0-9]*\b'
+    for match in re.finditer(tech_pattern, text):
+        entities.append(match.group())
+    
+    # Extract quoted strings (often important terms)
+    quote_pattern = r'["\']([^"\']+)["\']'
+    for match in re.finditer(quote_pattern, text):
+        quoted = match.group(1)
+        if len(quoted) < 50:  # Don't include long quotes
+            entities.append(quoted)
+    
+    # Extract common technical/scientific terms
+    tech_keywords = ['gene', 'protein', 'enzyme', 'hormone', 'receptor', 'molecule',
+                     'Python', 'JavaScript', 'Docker', 'Redis', 'API', 'database',
+                     'script', 'function', 'class', 'method', 'variable',
+                     'player', 'team', 'trade', 'contract', 'game']
+    
+    text_lower = text.lower()
+    for keyword in tech_keywords:
+        if keyword.lower() in text_lower:
+            entities.append(keyword)
+    
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_entities = []
+    for entity in entities:
+        if entity.lower() not in seen:
+            seen.add(entity.lower())
+            unique_entities.append(entity)
+    
+    return unique_entities[:20]  # Limit to 20 entities
+
 PROMPT = """You are a structured-information extractor that converts an interaction into 5W1H fields.
 Return ONLY valid JSON in the following schema:
 
 {{
   "who": {{ "type": "<actor type e.g. user, llm, tool, system, team, group, organization>", "id": "<string identifier>", "label": "<optional descriptive label>" }},
-  "what": "<concise description of the key action or content>",
+  "what": ["<entity1>", "<entity2>", ...],
   "when": "<ISO 8601 timestamp>",
   "where": {{ "type": "<context type e.g. physical, digital, financial, academic, conceptual, social>", "value": "<specific context like UI path, URL, file, location, or domain>" }},
   "why": "<best-effort intent or reason - IMPORTANT: if the user is asking to recall memories, searching for information, or asking 'what do you remember about X' or 'is there any memory about Y', set this to 'memory_recall: <topic>' where <topic> is what they're trying to recall>",
   "how": "<method used, tool/procedure/parameters>"
 }}
+
+CRITICAL: The 'what' field must be a JSON array of key entities, concepts, and topics mentioned.
+Extract specific entities like:
+- Names of people, organizations, teams, products
+- Technical terms, genes, proteins, chemicals
+- Programming languages, frameworks, tools
+- Concepts, theories, methodologies
+- Specific objects, places, or things
+- Numbers, dates, measurements when significant
+
+Examples:
+- "asked which genes encode Growth hormone (GH) and insulin-like growth factor 1" → ["genes", "Growth hormone", "GH", "insulin-like growth factor 1", "IGF-1", "encoding"]
+- "Python script for data analysis" → ["Python", "script", "data analysis"]
+- "Player X was traded from Team A to Team B" → ["Player X", "Team A", "Team B", "trade", "sports transaction"]
+- "configure Docker container with Redis" → ["Docker", "container", "Redis", "configuration"]
 
 Consider the content and metadata; be concise but unambiguous.
 Special instructions for the 'why' field:
@@ -73,7 +152,11 @@ def extract_5w1h(raw: RawEvent, context_hint: str = "") -> MemoryRecord:
         # simple fallback with recall detection
         who_type = 'tool' if raw.event_type in ('tool_call','tool_result') else ('user' if raw.event_type=='user_message' else ('llm' if raw.event_type=='llm_message' else 'system'))
         who = Who(type=who_type, id=raw.actor, label=None)
-        what = raw.metadata.get('operation') or raw.content[:160]
+        
+        # Extract entities from content as fallback
+        what_entities = _extract_entities_fallback(raw.content)
+        what = json.dumps(what_entities) if what_entities else raw.content[:160]
+        
         where = Where(type='digital', value=raw.metadata.get('location') or raw.metadata.get('tool_name') or 'local_ui')
         
         # Detect recall queries in fallback
@@ -93,7 +176,16 @@ def extract_5w1h(raw: RawEvent, context_hint: str = "") -> MemoryRecord:
         how = raw.metadata.get('method') or raw.metadata.get('tool_name') or 'message'
     else:
         who = Who(**parsed['who'])
-        what = parsed.get('what','').strip() or raw.content[:160]
+        
+        # Handle 'what' as array of entities
+        what_raw = parsed.get('what', [])
+        if isinstance(what_raw, list):
+            # Convert list to JSON string for storage
+            what = json.dumps(what_raw) if what_raw else '[]'
+        else:
+            # Fallback if LLM returns string instead of array
+            what = str(what_raw).strip() or raw.content[:160]
+        
         w = parsed.get('where', {'type':'digital','value':'local_ui'})
         where = Where(type=w.get('type','digital'), value=w.get('value','local_ui'))
         why = parsed.get('why','unspecified')

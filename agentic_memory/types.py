@@ -80,5 +80,8 @@ class Candidate(BaseModel):
     importance_score: Optional[float] = None
     actor_score: Optional[float] = None
     temporal_score: Optional[float] = None
+    spatial_score: Optional[float] = None
     usage_score: Optional[float] = None
     attention_score: Optional[float] = None
+    # Detailed attention components (when using attention as reranker)
+    attention_components: Optional[Dict[str, float]] = None

@@ -285,7 +285,7 @@ class MemoryStore:
         from datetime import timedelta
         
         if reference_date is None:
-            reference_date = datetime.now(timezone.utc).astimezone().isoformat()
+            reference_date = datetime.now(timezone.utc).replace(tzinfo=None)
         
         if relative_spec == "today":
             target_date = reference_date.date()

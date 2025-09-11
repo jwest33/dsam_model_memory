@@ -127,6 +127,79 @@ class MemoryAttentionHead(nn.Module):
             
             scores, _ = self.forward(q_tensor, m_tensor)
             return scores.numpy()
+    
+    def compute_detailed_attention(self,
+                                  query_embedding: np.ndarray,
+                                  memory_embeddings: np.ndarray) -> Dict[str, Any]:
+        """Compute detailed attention scores with per-aspect breakdown.
+        
+        Returns:
+            Dictionary containing:
+            - aspect_scores: Dict of aspect name -> array of scores per memory
+            - aspect_weights: The learned weights for combining aspects
+            - combined_scores: Final attention scores after combining all aspects
+            - raw_scores: Scores before softmax normalization
+        """
+        with torch.no_grad():
+            # Convert to tensors
+            q_tensor = torch.FloatTensor(query_embedding)
+            m_tensor = torch.FloatTensor(memory_embeddings)
+            
+            # Ensure proper shapes
+            if q_tensor.dim() == 1:
+                q_tensor = q_tensor.unsqueeze(0)
+            if m_tensor.dim() == 2:
+                m_tensor = m_tensor.unsqueeze(0)
+            
+            n_memories = m_tensor.shape[1]
+            
+            # Generate specialized query vectors for each aspect
+            q_semantic = self.semantic_proj(q_tensor)
+            q_temporal = self.temporal_proj(q_tensor)
+            q_usage = self.usage_proj(q_tensor)
+            q_actor = self.actor_proj(q_tensor)
+            q_spatial = self.spatial_proj(q_tensor)
+            
+            # Compute attention for each aspect separately
+            aspect_names = ['semantic', 'temporal', 'usage', 'actor', 'spatial']
+            aspect_queries = [q_semantic, q_temporal, q_usage, q_actor, q_spatial]
+            aspect_scores = {}
+            
+            for name, q_aspect in zip(aspect_names, aspect_queries):
+                # Compute attention scores for this aspect
+                # Using simplified dot product attention for interpretability
+                scores = torch.matmul(q_aspect, m_tensor.transpose(-2, -1)).squeeze(0)
+                scores = scores / np.sqrt(self.embed_dim)  # Scale by sqrt(d)
+                # Use sigmoid with temperature scaling for more discriminative scores
+                # Temperature of 2.0 spreads the sigmoid response
+                temperature = 2.0
+                aspect_scores[name] = torch.sigmoid(scores * temperature).squeeze().numpy()
+            
+            # Compute combined score using weighted average of aspect scores
+            # Use learnable aspect weights to combine the scores
+            aspect_weights_norm = F.softmax(self.aspect_weights, dim=0).numpy()
+            combined_scores = np.zeros(n_memories)
+            for i, name in enumerate(aspect_names):
+                combined_scores += aspect_weights_norm[i] * aspect_scores[name]
+            
+            # Get the raw scores before softmax (for debugging)
+            attention_outputs = []
+            queries = torch.stack(aspect_queries, dim=1).squeeze(0)
+            for i in range(5):
+                q = queries[i:i+1].unsqueeze(0)
+                attn_output, _ = self.multihead_attn(q, m_tensor, m_tensor)
+                attention_outputs.append(attn_output)
+            
+            attention_stack = torch.cat(attention_outputs, dim=-1)
+            weighted_attention = self.output_proj(attention_stack)
+            raw_scores = torch.matmul(weighted_attention, m_tensor.transpose(-2, -1)).squeeze()
+            
+            return {
+                'aspect_scores': aspect_scores,
+                'aspect_weights': self.aspect_weights.numpy(),
+                'combined_scores': combined_scores,
+                'raw_scores': raw_scores.numpy()
+            }
 
 class AdaptiveEmbeddingSpace:
     """Embeddings that evolve based on access patterns"""
