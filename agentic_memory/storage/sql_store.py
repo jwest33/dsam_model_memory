@@ -146,15 +146,15 @@ class MemoryStore:
         with self.connect() as con:
             con.execute(
                 """INSERT OR REPLACE INTO memories
-                (memory_id, session_id, source_event_id, who_type, who_id, who_label, what, when_ts,
-                 where_type, where_value, where_lat, where_lon, why, how, raw_text, token_count,
+                (memory_id, session_id, source_event_id, who_type, who_id, who_label, who_list, what, when_ts, when_list,
+                 where_type, where_value, where_lat, where_lon, where_list, why, how, raw_text, token_count,
                  embed_model, extra_json, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
                 (
                     rec.memory_id, rec.session_id, rec.source_event_id, rec.who.type, rec.who.id, rec.who.label,
-                    rec.what, rec.when.isoformat(), rec.where.type, rec.where.value, rec.where.lat, rec.where.lon,
-                    rec.why, rec.how, rec.raw_text, rec.token_count, rec.embed_model, json.dumps(rec.extra),
-                    datetime.now(timezone.utc).astimezone().isoformat()
+                    rec.who_list, rec.what, rec.when.isoformat(), rec.when_list, rec.where.type, rec.where.value, 
+                    rec.where.lat, rec.where.lon, rec.where_list, rec.why, rec.how, rec.raw_text, rec.token_count, 
+                    rec.embed_model, json.dumps(rec.extra), datetime.now(timezone.utc).astimezone().isoformat()
                 )
             )
             con.execute(

@@ -16,8 +16,9 @@ from agentic_memory.storage.sql_store import MemoryStore
 from agentic_memory.storage.faiss_index import FaissIndex
 from agentic_memory.retrieval import HybridRetriever
 from agentic_memory.embedding import get_llama_embedder
-from agentic_memory.types import RetrievalQuery
+from agentic_memory.types import RetrievalQuery, Candidate
 from agentic_memory.settings_manager import SettingsManager
+from agentic_memory.block_builder import greedy_knapsack
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 app.secret_key = os.urandom(24)  # For session management
@@ -41,16 +42,32 @@ current_weights = settings_manager.get_weights()
 @app.route('/')
 def analyzer():
     """Main analyzer interface"""
-    return render_template('analyzer.html')
+    # Get context window configuration
+    context_window = cfg.context_window
+    reserve_output = cfg.reserve_output_tokens
+    reserve_system = cfg.reserve_system_tokens
+    default_budget = context_window - reserve_output - reserve_system
+    
+    return render_template('analyzer.html', 
+                         context_window=context_window,
+                         default_budget=default_budget)
 
 @app.route('/api/search', methods=['POST'])
 def search():
-    """Perform retrieval with custom weights"""
+    """Perform retrieval with custom weights and knapsack token packing"""
     try:
         data = request.json
         query = data.get('query', '')
         weights = data.get('weights', current_weights)
-        top_k = data.get('top_k', settings_manager.get('analyzer.top_k', 100))
+        token_budget = data.get('token_budget')
+        
+        # If no token budget specified, use context window minus reserves
+        if token_budget is None:
+            token_budget = cfg.context_window - cfg.reserve_output_tokens - cfg.reserve_system_tokens - 512
+        token_budget = max(512, token_budget)  # Ensure minimum budget
+        
+        # For initial candidate retrieval, get more than we need
+        initial_top_k = data.get('initial_candidates', 500)
         
         if not query:
             return jsonify({'error': 'Query is required'}), 400
@@ -69,22 +86,47 @@ def search():
         # Get query embedding
         qvec = embedder.encode([query], normalize_embeddings=True)[0]
         
-        # Search with custom weights
-        candidates = retriever.search_with_weights(rq, qvec, weights, topk_sem=top_k, topk_lex=top_k)
+        # Search with custom weights - get many candidates for knapsack
+        candidates = retriever.search_with_weights(rq, qvec, weights, topk_sem=initial_top_k, topk_lex=initial_top_k)
         
-        # Get detailed scores
-        detailed = retriever.get_detailed_scores(candidates)
+        # Apply knapsack algorithm to select memories within token budget
+        selected_ids, tokens_used = greedy_knapsack(candidates, token_budget)
+        
+        # Filter candidates to only selected ones
+        selected_candidates = [c for c in candidates if c.memory_id in selected_ids]
+        
+        # Get detailed scores for selected memories
+        detailed = retriever.get_detailed_scores(selected_candidates)
+        
+        # Calculate statistics
+        total_candidates = len(candidates)
+        selected_count = len(selected_candidates)
         
         return jsonify({
             'success': True,
             'results': detailed,
             'decomposition': decomposition,
             'weights': weights,
-            'total_found': len(detailed)
+            'token_budget': token_budget,
+            'tokens_used': tokens_used,
+            'selected_count': selected_count,
+            'total_candidates': total_candidates,
+            'selection_ratio': f"{selected_count}/{total_candidates}"
         })
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/context', methods=['GET'])
+def get_context_info():
+    """Get context window configuration"""
+    return jsonify({
+        'context_window': cfg.context_window,
+        'reserve_output': cfg.reserve_output_tokens,
+        'reserve_system': cfg.reserve_system_tokens,
+        'default_budget': cfg.context_window - cfg.reserve_output_tokens - cfg.reserve_system_tokens,
+        'model': cfg.llm_model
+    })
 
 @app.route('/api/weights', methods=['GET'])
 def get_weights():
@@ -444,6 +486,92 @@ def temporal_analytics():
             'success': True,
             'timeline': timeline,
             'days': days
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/analytics/network/<component>', methods=['GET'])
+def network_analytics(component):
+    """Get network data for any 5W1H component"""
+    try:
+        if component not in ['what', 'who', 'when', 'where', 'why', 'how']:
+            return jsonify({'error': 'Invalid component'}), 400
+            
+        limit = int(request.args.get('limit', 1000))
+        
+        # Get memories
+        con = sqlite3.connect(cfg.db_path)
+        con.row_factory = sqlite3.Row
+        
+        # Select the appropriate column based on component
+        column_map = {
+            'what': 'what',
+            'who': 'who_list',
+            'when': 'when_list',
+            'where': 'where_list',
+            'why': 'why',
+            'how': 'how'
+        }
+        
+        column = column_map[component]
+        query = f"SELECT memory_id, {column} FROM memories WHERE {column} IS NOT NULL ORDER BY created_at DESC LIMIT ?"
+        rows = con.execute(query, (limit,)).fetchall()
+        con.close()
+        
+        # Extract entities/items based on component type
+        item_counts = {}
+        item_memories = {}
+        
+        for row in rows:
+            items = []
+            data = row[column]
+            
+            if component in ['who', 'when', 'where'] and data:
+                # Parse JSON list for list columns
+                try:
+                    items = json.loads(data) if isinstance(data, str) else []
+                except:
+                    items = []
+            elif component == 'what' and data:
+                # Use existing entity extraction for what
+                items = retriever.extract_entities_from_what(data)
+            elif data:
+                # For why and how, extract key phrases
+                # Simple extraction - split on punctuation and take significant phrases
+                import re
+                phrases = re.split(r'[;,.]', str(data))
+                items = [p.strip()[:30] for p in phrases if len(p.strip()) > 10][:3]
+            
+            for item in items:
+                if item:
+                    item_counts[item] = item_counts.get(item, 0) + 1
+                    if item not in item_memories:
+                        item_memories[item] = []
+                    item_memories[item].append(row['memory_id'])
+        
+        # Calculate co-occurrence
+        co_occurrence = []
+        items_list = list(item_counts.keys())
+        for i, item1 in enumerate(items_list[:50]):
+            for item2 in items_list[i+1:i+20]:
+                shared = set(item_memories[item1]) & set(item_memories[item2])
+                if len(shared) > 0:
+                    co_occurrence.append({
+                        'source': item1,
+                        'target': item2,
+                        'weight': len(shared)
+                    })
+        
+        # Sort by frequency
+        sorted_items = sorted(item_counts.items(), key=lambda x: x[1], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'component': component,
+            'top_items': sorted_items[:50],
+            'co_occurrence': co_occurrence[:100],
+            'total_items': len(item_counts)
         })
         
     except Exception as e:

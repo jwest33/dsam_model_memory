@@ -175,7 +175,7 @@ main {
 }
 
 /* Forms */
-textarea, input[type="text"], input[type="search"], select {
+textarea, input[type="text"], input[type="search"], input[type="number"], select {
     width: 100%;
     padding: 0.6rem;
     background: rgba(0,0,0,0.5);
@@ -187,11 +187,45 @@ textarea, input[type="text"], input[type="search"], select {
     transition: all 0.3s ease;
 }
 
-textarea:focus, input[type="text"]:focus, input[type="search"]:focus, select:focus {
+textarea:focus, input[type="text"]:focus, input[type="search"]:focus, input[type="number"]:focus, select:focus {
     outline: none;
     border-color: var(--synth-cyan);
     box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
     background: rgba(0, 255, 255, 0.02);
+}
+
+/* Number input specific styling */
+input[type="number"] {
+    font-family: monospace;
+    text-align: center;
+    letter-spacing: 1px;
+    color: var(--synth-cyan);
+    font-weight: 600;
+}
+
+/* Hide spin buttons for token budget */
+#token-budget::-webkit-inner-spin-button,
+#token-budget::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+    display: none;
+}
+
+#token-budget {
+    -moz-appearance: textfield; /* Firefox */
+}
+
+/* Keep spin buttons for other number inputs */
+input[type="number"]:not(#token-budget)::-webkit-inner-spin-button,
+input[type="number"]:not(#token-budget)::-webkit-outer-spin-button {
+    opacity: 0.5;
+    transition: opacity 0.3s;
+    cursor: pointer;
+}
+
+input[type="number"]:not(#token-budget):hover::-webkit-inner-spin-button,
+input[type="number"]:not(#token-budget):hover::-webkit-outer-spin-button {
+    opacity: 1;
 }
 
 textarea:disabled, input:disabled, select:disabled {
@@ -380,6 +414,48 @@ code {
     50% { opacity: 1; }
 }
 
+/* Search Loading State */
+.search-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 2rem;
+}
+
+.search-loading .spinner {
+    width: 30px;
+    height: 30px;
+    border-width: 2px;
+}
+
+.search-loading span {
+    color: var(--synth-cyan);
+    font-size: 0.9rem;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+button.loading {
+    position: relative;
+    opacity: 0.7;
+    cursor: wait;
+}
+
+button.loading:after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    margin: auto;
+    border: 2px solid transparent;
+    border-radius: 50%;
+    border-top-color: var(--synth-cyan);
+    animation: spin 0.8s linear infinite;
+    top: 50%;
+    left: 10px;
+    transform: translateY(-50%);
+}
+
 /* Footer */
 footer {
     background: var(--synth-surface);
@@ -566,4 +642,25 @@ footer small::after {
         0 0 3px currentColor,
         0 0 6px currentColor,
         0 0 10px currentColor;
+}
+
+/* Network tooltip */
+.network-tooltip {
+    position: fixed;
+    background: rgba(20, 15, 30, 0.95);
+    border: 1px solid var(--synth-cyan);
+    border-radius: 4px;
+    padding: 8px 12px;
+    color: var(--synth-text);
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    z-index: 1000;
+    pointer-events: none;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+}
+
+.network-tooltip strong {
+    color: var(--synth-cyan);
+    display: block;
+    margin-bottom: 4px;
 }

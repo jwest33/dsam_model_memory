@@ -39,13 +39,24 @@
         
         <div class="analytics-grid">
             <div class="analytics-section">
-                <h4>Top Entities</h4>
+                <h4>Top What Items</h4>
                 <div id="top-entities" class="entity-list"></div>
             </div>
             
             <div class="analytics-section">
-                <h4>Entity Network</h4>
-                <canvas id="entity-network" width="500" height="400"></canvas>
+                <h4>5W1H Network Visualization</h4>
+                <div class="network-controls">
+                    <button onclick="setNetworkOverlay('what')" class="network-btn active" data-type="what">What</button>
+                    <button onclick="setNetworkOverlay('who')" class="network-btn" data-type="who">Who</button>
+                    <button onclick="setNetworkOverlay('when')" class="network-btn" data-type="when">When</button>
+                    <button onclick="setNetworkOverlay('where')" class="network-btn" data-type="where">Where</button>
+                    <button onclick="setNetworkOverlay('why')" class="network-btn" data-type="why">Why</button>
+                    <button onclick="setNetworkOverlay('how')" class="network-btn" data-type="how">How</button>
+                </div>
+                <div class="network-container">
+                    <canvas id="entity-network" width="600" height="500"></canvas>
+                    <div class="network-tooltip" id="network-tooltip" style="display: none;"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -198,6 +209,74 @@
     border-radius: 2px;
 }
 
+.network-controls {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background: var(--synth-surface);
+    border-radius: 8px;
+    border: 1px solid var(--synth-border);
+}
+
+.network-btn {
+    padding: 0.4rem 0.8rem;
+    background: transparent;
+    color: var(--synth-text-muted);
+    border: 1px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.network-btn:hover {
+    color: var(--synth-cyan);
+    border-color: var(--synth-cyan);
+    text-shadow: 0 0 10px var(--synth-cyan);
+}
+
+.network-btn.active {
+    background: linear-gradient(135deg, var(--synth-cyan) 0%, var(--synth-pink) 100%);
+    color: var(--synth-dark-bg);
+    font-weight: bold;
+    border-color: var(--synth-cyan);
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+}
+
+.network-container {
+    position: relative;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 8px;
+    padding: 1rem;
+    border: 1px solid var(--synth-border);
+}
+
+.network-container canvas {
+    display: block;
+    margin: 0 auto;
+    cursor: grab;
+}
+
+.network-container canvas:active {
+    cursor: grabbing;
+}
+
+.network-tooltip {
+    position: absolute;
+    background: var(--synth-card-bg);
+    border: 1px solid var(--synth-cyan);
+    border-radius: 4px;
+    padding: 0.5rem;
+    font-size: 0.8rem;
+    pointer-events: none;
+    z-index: 1000;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+    max-width: 250px;
+}
+
 .temporal-stats {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -292,8 +371,9 @@ async function loadEntityAnalytics(limit) {
             // Display top entities
             displayTopEntities(data.top_entities);
             
-            // Draw entity network
-            drawEntityNetwork(data.co_occurrence);
+            // Store and draw entity network
+            networkData.what = data.co_occurrence;
+            drawEntityNetwork(data.co_occurrence, 'what');
         }
     } catch (error) {
         console.error('Failed to load entity analytics:', error);
@@ -329,72 +409,464 @@ function displayTopEntities(entities) {
     });
 }
 
-// Draw entity network
-function drawEntityNetwork(coOccurrence) {
+// Network state management
+let currentNetworkType = 'what';
+let networkData = {
+    what: null,
+    who: null,
+    when: null,
+    where: null,
+    why: null,
+    how: null
+};
+let networkNodes = {};
+let networkLinks = [];
+let isDragging = false;
+let draggedNode = null;
+let mousePos = { x: 0, y: 0 };
+let animationFrame = null;
+
+// Set network overlay type
+function setNetworkOverlay(type) {
+    currentNetworkType = type;
+    
+    // Update button states
+    document.querySelectorAll('.network-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.type === type);
+    });
+    
+    // Load network data for the selected type
+    loadNetworkData(type);
+}
+
+// Load network data for specific 5W1H component
+async function loadNetworkData(type) {
+    try {
+        const response = await fetch(`/api/analytics/network/${type}`);
+        if (response.ok) {
+            const data = await response.json();
+            networkData[type] = data.co_occurrence || [];
+            drawEntityNetwork(networkData[type], type);
+        }
+    } catch (error) {
+        console.error(`Failed to load ${type} network:`, error);
+        // Fall back to existing data if available
+        if (type === 'what' && networkData.what) {
+            drawEntityNetwork(networkData.what, type);
+        }
+    }
+}
+
+// Enhanced entity network drawing with physics and interactivity
+function drawEntityNetwork(coOccurrence, networkType = 'what') {
     const canvas = document.getElementById('entity-network');
     const ctx = canvas.getContext('2d');
     
-    // Clear canvas
+    // Clear any existing animation
+    if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+        animationFrame = null;
+    }
+    
+    // Clear canvas and draw background
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw synthwave grid background
+    drawGridBackground(ctx, canvas.width, canvas.height);
     
     if (!coOccurrence || coOccurrence.length === 0) {
         ctx.fillStyle = 'var(--synth-text-muted)';
-        ctx.font = '14px sans-serif';
+        ctx.font = '14px "Courier New", monospace';
         ctx.textAlign = 'center';
-        ctx.fillText('No co-occurrence data', canvas.width/2, canvas.height/2);
+        ctx.fillText(`No ${networkType} co-occurrence data`, canvas.width/2, canvas.height/2);
         return;
     }
     
-    // Create nodes from co-occurrence data
-    const nodes = {};
+    // Initialize nodes with physics properties
+    networkNodes = {};
+    networkLinks = [];
+    
     coOccurrence.forEach(link => {
-        if (!nodes[link.source]) {
-            nodes[link.source] = {
+        if (!networkNodes[link.source]) {
+            networkNodes[link.source] = {
+                id: link.source,
                 x: Math.random() * (canvas.width - 100) + 50,
                 y: Math.random() * (canvas.height - 100) + 50,
-                connections: 0
+                vx: 0,
+                vy: 0,
+                connections: 0,
+                weight: 0
             };
         }
-        if (!nodes[link.target]) {
-            nodes[link.target] = {
+        if (!networkNodes[link.target]) {
+            networkNodes[link.target] = {
+                id: link.target,
                 x: Math.random() * (canvas.width - 100) + 50,
                 y: Math.random() * (canvas.height - 100) + 50,
-                connections: 0
+                vx: 0,
+                vy: 0,
+                connections: 0,
+                weight: 0
             };
         }
-        nodes[link.source].connections += link.weight;
-        nodes[link.target].connections += link.weight;
+        
+        networkNodes[link.source].connections++;
+        networkNodes[link.target].connections++;
+        networkNodes[link.source].weight += link.weight;
+        networkNodes[link.target].weight += link.weight;
+        
+        networkLinks.push({
+            source: networkNodes[link.source],
+            target: networkNodes[link.target],
+            weight: link.weight
+        });
     });
     
-    // Draw links
-    ctx.strokeStyle = 'rgba(0, 255, 255, 0.2)';
-    coOccurrence.forEach(link => {
-        const source = nodes[link.source];
-        const target = nodes[link.target];
-        
+    // Set up mouse event handlers
+    setupNetworkInteraction(canvas);
+    
+    // Start physics simulation
+    animateNetwork(ctx, canvas, networkType);
+}
+
+// Draw synthwave grid background
+function drawGridBackground(ctx, width, height) {
+    // Create gradient background
+    const gradient = ctx.createLinearGradient(0, 0, 0, height);
+    gradient.addColorStop(0, 'rgba(25, 20, 40, 0.95)');
+    gradient.addColorStop(1, 'rgba(15, 10, 30, 0.95)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+    
+    // Draw grid lines
+    ctx.strokeStyle = 'rgba(255, 0, 255, 0.1)';
+    ctx.lineWidth = 1;
+    
+    // Vertical lines
+    for (let x = 0; x <= width; x += 40) {
         ctx.beginPath();
-        ctx.moveTo(source.x, source.y);
-        ctx.lineTo(target.x, target.y);
-        ctx.lineWidth = Math.min(link.weight / 2, 3);
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
         ctx.stroke();
+    }
+    
+    // Horizontal lines with perspective
+    for (let y = 0; y <= height; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+    }
+}
+
+// Setup mouse interaction for network
+function setupNetworkInteraction(canvas) {
+    // Remove existing listeners
+    const newCanvas = canvas.cloneNode(true);
+    canvas.parentNode.replaceChild(newCanvas, canvas);
+    const updatedCanvas = document.getElementById('entity-network');
+    
+    updatedCanvas.addEventListener('mousedown', (e) => {
+        const rect = updatedCanvas.getBoundingClientRect();
+        mousePos.x = e.clientX - rect.left;
+        mousePos.y = e.clientY - rect.top;
+        
+        // Check if clicking on a node
+        Object.values(networkNodes).forEach(node => {
+            const dist = Math.sqrt(Math.pow(node.x - mousePos.x, 2) + Math.pow(node.y - mousePos.y, 2));
+            const radius = Math.min(8 + node.weight, 20);
+            if (dist <= radius) {
+                isDragging = true;
+                draggedNode = node;
+                updatedCanvas.style.cursor = 'grabbing';
+            }
+        });
     });
     
-    // Draw nodes
-    Object.entries(nodes).forEach(([name, node]) => {
-        const radius = Math.min(5 + node.connections, 15);
+    updatedCanvas.addEventListener('mousemove', (e) => {
+        const rect = updatedCanvas.getBoundingClientRect();
+        mousePos.x = e.clientX - rect.left;
+        mousePos.y = e.clientY - rect.top;
         
-        // Node circle
-        ctx.fillStyle = 'var(--synth-cyan)';
+        if (isDragging && draggedNode) {
+            draggedNode.x = mousePos.x;
+            draggedNode.y = mousePos.y;
+            draggedNode.vx = 0;
+            draggedNode.vy = 0;
+        } else {
+            // Check if hovering over a node
+            let hovering = false;
+            Object.values(networkNodes).forEach(node => {
+                const dist = Math.sqrt(Math.pow(node.x - mousePos.x, 2) + Math.pow(node.y - mousePos.y, 2));
+                const radius = Math.min(8 + node.weight, 20);
+                if (dist <= radius) {
+                    hovering = true;
+                    showNetworkTooltip(node, e.clientX, e.clientY);
+                }
+            });
+            
+            if (!hovering) {
+                hideNetworkTooltip();
+            }
+            
+            updatedCanvas.style.cursor = hovering ? 'grab' : 'default';
+        }
+    });
+    
+    updatedCanvas.addEventListener('mouseup', () => {
+        isDragging = false;
+        draggedNode = null;
+        updatedCanvas.style.cursor = 'default';
+    });
+    
+    updatedCanvas.addEventListener('mouseleave', () => {
+        isDragging = false;
+        draggedNode = null;
+        hideNetworkTooltip();
+        updatedCanvas.style.cursor = 'default';
+    });
+}
+
+// Show tooltip for network node
+function showNetworkTooltip(node, x, y) {
+    const tooltip = document.getElementById('network-tooltip');
+    if (tooltip) {
+        tooltip.innerHTML = `
+            <strong>${node.id}</strong><br>
+            Connections: ${node.connections}<br>
+            Weight: ${node.weight.toFixed(1)}
+        `;
+        tooltip.style.left = `${x + 10}px`;
+        tooltip.style.top = `${y - 30}px`;
+        tooltip.style.display = 'block';
+    }
+}
+
+// Hide network tooltip
+function hideNetworkTooltip() {
+    const tooltip = document.getElementById('network-tooltip');
+    if (tooltip) {
+        tooltip.style.display = 'none';
+    }
+}
+
+// Animate network with physics
+function animateNetwork(ctx, canvas, networkType) {
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const damping = 0.95;
+    const repulsion = 5000;
+    const attraction = 0.001;
+    
+    // Apply physics forces
+    Object.values(networkNodes).forEach(node => {
+        if (isDragging && node === draggedNode) return;
+        
+        // Reset forces
+        let fx = 0, fy = 0;
+        
+        // Repulsion between nodes
+        Object.values(networkNodes).forEach(other => {
+            if (node === other) return;
+            const dx = node.x - other.x;
+            const dy = node.y - other.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 0 && dist < 200) {
+                const force = repulsion / (dist * dist);
+                fx += (dx / dist) * force;
+                fy += (dy / dist) * force;
+            }
+        });
+        
+        // Attraction along links
+        networkLinks.forEach(link => {
+            let other = null;
+            if (link.source === node) other = link.target;
+            if (link.target === node) other = link.source;
+            
+            if (other) {
+                const dx = other.x - node.x;
+                const dy = other.y - node.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 0) {
+                    const force = dist * attraction * link.weight;
+                    fx += (dx / dist) * force;
+                    fy += (dy / dist) * force;
+                }
+            }
+        });
+        
+        // Center gravity
+        fx += (centerX - node.x) * 0.0001;
+        fy += (centerY - node.y) * 0.0001;
+        
+        // Update velocity
+        node.vx = (node.vx + fx) * damping;
+        node.vy = (node.vy + fy) * damping;
+        
+        // Update position
+        node.x += node.vx;
+        node.y += node.vy;
+        
+        // Keep within bounds
+        node.x = Math.max(20, Math.min(canvas.width - 20, node.x));
+        node.y = Math.max(20, Math.min(canvas.height - 20, node.y));
+    });
+    
+    // Clear and redraw
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawGridBackground(ctx, canvas.width, canvas.height);
+    
+    // Get color scheme for network type
+    const colors = getNetworkColors(networkType);
+    
+    // Draw links with glow effect
+    networkLinks.forEach(link => {
+        const gradient = ctx.createLinearGradient(
+            link.source.x, link.source.y,
+            link.target.x, link.target.y
+        );
+        gradient.addColorStop(0, colors.linkStart);
+        gradient.addColorStop(1, colors.linkEnd);
+        
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = Math.min(link.weight / 2, 4);
+        ctx.globalAlpha = 0.3 + Math.min(link.weight * 0.1, 0.5);
+        
+        // Draw glow
+        ctx.shadowColor = colors.glow;
+        ctx.shadowBlur = 5;
+        ctx.beginPath();
+        ctx.moveTo(link.source.x, link.source.y);
+        ctx.lineTo(link.target.x, link.target.y);
+        ctx.stroke();
+        
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+    });
+    
+    // Draw nodes with synthwave style
+    Object.values(networkNodes).forEach(node => {
+        const radius = Math.min(8 + node.weight, 20);
+        
+        // Outer glow
+        const glowGradient = ctx.createRadialGradient(
+            node.x, node.y, 0,
+            node.x, node.y, radius * 2
+        );
+        glowGradient.addColorStop(0, colors.nodeCenter);
+        glowGradient.addColorStop(0.5, colors.nodeMid);
+        glowGradient.addColorStop(1, 'transparent');
+        
+        ctx.fillStyle = glowGradient;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, radius * 2, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Main node
+        const nodeGradient = ctx.createRadialGradient(
+            node.x - radius/3, node.y - radius/3, 0,
+            node.x, node.y, radius
+        );
+        nodeGradient.addColorStop(0, colors.nodeHighlight);
+        nodeGradient.addColorStop(1, colors.nodeBase);
+        
+        ctx.fillStyle = nodeGradient;
         ctx.beginPath();
         ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI);
         ctx.fill();
         
-        // Node label
-        ctx.fillStyle = 'var(--synth-text)';
-        ctx.font = '10px sans-serif';
+        // Node border
+        ctx.strokeStyle = colors.nodeBorder;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        
+        // Label with shadow
+        ctx.fillStyle = colors.text;
+        ctx.font = `${10 + Math.min(node.weight / 5, 4)}px "Courier New", monospace`;
         ctx.textAlign = 'center';
-        ctx.fillText(name.substring(0, 15), node.x, node.y - radius - 5);
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        ctx.shadowBlur = 3;
+        ctx.fillText(node.id.substring(0, 20), node.x, node.y - radius - 8);
+        ctx.shadowBlur = 0;
     });
+    
+    // Continue animation
+    animationFrame = requestAnimationFrame(() => animateNetwork(ctx, canvas, networkType));
+}
+
+// Get color scheme for network type
+function getNetworkColors(type) {
+    const schemes = {
+        what: {
+            nodeBase: '#00ffff',
+            nodeHighlight: '#80ffff',
+            nodeCenter: 'rgba(0, 255, 255, 0.3)',
+            nodeMid: 'rgba(0, 255, 255, 0.1)',
+            nodeBorder: '#00cccc',
+            linkStart: 'rgba(0, 255, 255, 0.6)',
+            linkEnd: 'rgba(0, 200, 200, 0.3)',
+            glow: '#00ffff',
+            text: '#00ffff'
+        },
+        who: {
+            nodeBase: '#ff00ff',
+            nodeHighlight: '#ff80ff',
+            nodeCenter: 'rgba(255, 0, 255, 0.3)',
+            nodeMid: 'rgba(255, 0, 255, 0.1)',
+            nodeBorder: '#cc00cc',
+            linkStart: 'rgba(255, 0, 255, 0.6)',
+            linkEnd: 'rgba(200, 0, 200, 0.3)',
+            glow: '#ff00ff',
+            text: '#ff00ff'
+        },
+        when: {
+            nodeBase: '#ffff00',
+            nodeHighlight: '#ffff80',
+            nodeCenter: 'rgba(255, 255, 0, 0.3)',
+            nodeMid: 'rgba(255, 255, 0, 0.1)',
+            nodeBorder: '#cccc00',
+            linkStart: 'rgba(255, 255, 0, 0.6)',
+            linkEnd: 'rgba(200, 200, 0, 0.3)',
+            glow: '#ffff00',
+            text: '#ffff00'
+        },
+        where: {
+            nodeBase: '#00ff00',
+            nodeHighlight: '#80ff80',
+            nodeCenter: 'rgba(0, 255, 0, 0.3)',
+            nodeMid: 'rgba(0, 255, 0, 0.1)',
+            nodeBorder: '#00cc00',
+            linkStart: 'rgba(0, 255, 0, 0.6)',
+            linkEnd: 'rgba(0, 200, 0, 0.3)',
+            glow: '#00ff00',
+            text: '#00ff00'
+        },
+        why: {
+            nodeBase: '#ff8800',
+            nodeHighlight: '#ffaa44',
+            nodeCenter: 'rgba(255, 136, 0, 0.3)',
+            nodeMid: 'rgba(255, 136, 0, 0.1)',
+            nodeBorder: '#cc6600',
+            linkStart: 'rgba(255, 136, 0, 0.6)',
+            linkEnd: 'rgba(200, 100, 0, 0.3)',
+            glow: '#ff8800',
+            text: '#ff8800'
+        },
+        how: {
+            nodeBase: '#8800ff',
+            nodeHighlight: '#aa44ff',
+            nodeCenter: 'rgba(136, 0, 255, 0.3)',
+            nodeMid: 'rgba(136, 0, 255, 0.1)',
+            nodeBorder: '#6600cc',
+            linkStart: 'rgba(136, 0, 255, 0.6)',
+            linkEnd: 'rgba(100, 0, 200, 0.3)',
+            glow: '#8800ff',
+            text: '#8800ff'
+        }
+    };
+    
+    return schemes[type] || schemes.what;
 }
 
 // Load temporal analytics

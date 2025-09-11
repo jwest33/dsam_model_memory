@@ -13,11 +13,20 @@ let currentResults = [];
 let currentQuery = '';
 let appSettings = {};
 let saveTimeout = null;
+let contextInfo = {
+    context_window: 20480,
+    default_budget: 19968,
+    reserve_output: 256,
+    reserve_system: 256
+};
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     // Load initial settings and weights
     loadSettings();
+    
+    // Load context info
+    loadContextInfo();
     
     // Set up enter key handler for query input
     const queryInput = document.getElementById('query');
@@ -29,6 +38,34 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Load context configuration from server
+async function loadContextInfo() {
+    try {
+        const response = await fetch('/api/context');
+        if (response.ok) {
+            contextInfo = await response.json();
+            
+            // Update UI with context info
+            const tokenBudget = document.getElementById('token-budget');
+            const contextInfoSpan = document.getElementById('context-info');
+            
+            if (tokenBudget) {
+                // Set default and max based on context window
+                if (!tokenBudget.value || tokenBudget.value === '4096') {
+                    tokenBudget.value = contextInfo.default_budget;
+                }
+                tokenBudget.max = contextInfo.context_window;
+            }
+            
+            if (contextInfoSpan) {
+                contextInfoSpan.textContent = `of ${contextInfo.context_window} tokens (Model: ${contextInfo.model || 'Unknown'})`;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load context info:', error);
+    }
+}
 
 // Load all settings from server
 async function loadSettings() {
@@ -57,9 +94,9 @@ async function loadSettings() {
 function applySettingsToUI() {
     // Apply analyzer settings
     if (appSettings.analyzer) {
-        const topK = document.getElementById('top-k');
-        if (topK && appSettings.analyzer.top_k) {
-            topK.value = appSettings.analyzer.top_k;
+        const tokenBudget = document.getElementById('token-budget');
+        if (tokenBudget && appSettings.analyzer.token_budget) {
+            tokenBudget.value = appSettings.analyzer.token_budget;
         }
     }
     
@@ -147,9 +184,22 @@ function updateWeight(dimension, value) {
 function updateWeightSum() {
     const sum = Object.values(currentWeights).reduce((a, b) => a + b, 0);
     const sumSpan = document.getElementById('weight-sum');
+    const statusDiv = document.getElementById('weight-status');
+    
     if (sumSpan) {
-        sumSpan.textContent = `Sum: ${sum.toFixed(2)}`;
-        sumSpan.style.color = Math.abs(sum - 1.0) < 0.001 ? 'var(--synth-green)' : 'var(--synth-pink)';
+        sumSpan.textContent = sum.toFixed(2);
+        const isNormalized = Math.abs(sum - 1.0) < 0.001;
+        sumSpan.style.color = isNormalized ? 'var(--synth-green)' : 'var(--synth-pink)';
+        
+        if (statusDiv) {
+            if (isNormalized) {
+                statusDiv.innerHTML = '<span style="color: var(--synth-green);" title="Weights sum to 1.0">✓</span>';
+            } else if (sum < 1.0) {
+                statusDiv.innerHTML = `<span style="color: var(--synth-yellow);" title="Under by ${(1.0 - sum).toFixed(3)}">↓</span>`;
+            } else {
+                statusDiv.innerHTML = `<span style="color: var(--synth-pink);" title="Over by ${(sum - 1.0).toFixed(3)}">↑</span>`;
+            }
+        }
     }
 }
 
@@ -233,14 +283,15 @@ async function resetWeights() {
 // Perform search
 async function performSearch() {
     const query = document.getElementById('query').value.trim();
-    const topKElement = document.getElementById('top-k');
-    const topK = parseInt(topKElement.value) || 100;
+    const tokenBudgetElement = document.getElementById('token-budget');
+    const tokenBudget = parseInt(tokenBudgetElement.value) || contextInfo.default_budget;
     
-    // Save top_k preference
-    if (appSettings.analyzer) {
-        appSettings.analyzer.top_k = topK;
-        saveSettings();
+    // Save token budget preference
+    if (!appSettings.analyzer) {
+        appSettings.analyzer = {};
     }
+    appSettings.analyzer.token_budget = tokenBudget;
+    saveSettings();
     
     if (!query) {
         alert('Please enter a search query');
@@ -251,7 +302,21 @@ async function performSearch() {
     
     // Show loading state
     const resultsBody = document.getElementById('results-tbody');
-    resultsBody.innerHTML = '<tr><td colspan="14" style="text-align: center;">Searching...</td></tr>';
+    const searchButton = document.querySelector('button[onclick="performSearch()"]');
+    const queryInput = document.getElementById('query');
+    
+    // Disable inputs during search
+    if (searchButton) {
+        searchButton.disabled = true;
+        searchButton.textContent = 'Searching...';
+        searchButton.classList.add('loading');
+    }
+    if (queryInput) {
+        queryInput.disabled = true;
+    }
+    
+    // Show loading message in results
+    resultsBody.innerHTML = '<tr><td colspan="15" style="text-align: center;"><div class="search-loading"><div class="spinner"></div><span>Searching memories...</span></div></td></tr>';
     
     try {
         const response = await fetch('/api/search', {
@@ -260,7 +325,7 @@ async function performSearch() {
             body: JSON.stringify({
                 query: query,
                 weights: currentWeights,
-                top_k: topK
+                token_budget: tokenBudget
             })
         });
         
@@ -277,15 +342,37 @@ async function performSearch() {
             // Update visualizations
             updateVisualizations(data.results);
             
-            // Update result count
-            document.getElementById('result-count').textContent = `(${data.results.length} found)`;
+            // Update result count with token info
+            const resultCount = document.getElementById('result-count');
+            resultCount.innerHTML = `
+                <span>(${data.selected_count} selected from ${data.total_candidates} candidates)</span>
+                <span style="margin-left: 1rem; color: var(--synth-cyan);">
+                    Tokens: ${data.tokens_used}/${data.token_budget} 
+                    (${Math.round(data.tokens_used/data.token_budget * 100)}% used)
+                </span>
+            `;
         } else {
             const error = await response.json();
             alert('Search failed: ' + error.error);
+            resultsBody.innerHTML = '<tr><td colspan="15" style="text-align: center; color: var(--synth-pink);">Search failed. Please try again.</td></tr>';
         }
     } catch (error) {
         console.error('Search error:', error);
         alert('Search failed: ' + error.message);
+        resultsBody.innerHTML = '<tr><td colspan="14" style="text-align: center; color: var(--synth-pink);">Search failed. Please try again.</td></tr>';
+    } finally {
+        // Re-enable inputs
+        const searchButton = document.querySelector('button[onclick="performSearch()"]');
+        const queryInput = document.getElementById('query');
+        
+        if (searchButton) {
+            searchButton.disabled = false;
+            searchButton.textContent = 'Search';
+            searchButton.classList.remove('loading');
+        }
+        if (queryInput) {
+            queryInput.disabled = false;
+        }
     }
 }
 
@@ -322,7 +409,7 @@ function displayDecomposition(decomposition) {
     document.getElementById('decomp-how').textContent = 
         decomposition.how || 'N/A';
     
-    // ENTITIES
+    // WHAT items
     const entities = decomposition.entities || [];
     const entitiesSpan = document.getElementById('decomp-entities');
     if (entities.length > 0) {
@@ -339,7 +426,7 @@ function displayResults(results) {
     const tbody = document.getElementById('results-tbody');
     
     if (!results || results.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="14" class="table-loading">No results found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="15" class="table-loading">No results found</td></tr>';
         return;
     }
     
@@ -365,6 +452,11 @@ function displayResults(results) {
             </td>
             <td class="col-score">
                 <span class="score-value ${getScoreClass(result.scores.total)}">${result.scores.total.toFixed(3)}</span>
+            </td>
+            <td class="col-score">
+                <span style="color: ${result.token_count > 1000 ? 'var(--synth-pink)' : 'var(--synth-text)'};">
+                    ${result.token_count || 0}
+                </span>
             </td>
             <td class="col-score">${result.scores.semantic.toFixed(2)}</td>
             <td class="col-score">${result.scores.lexical.toFixed(2)}</td>
@@ -460,7 +552,7 @@ async function showMemoryDetails(memoryId) {
                 ? `<div class="entity-list-modal">${memory.entities.map(e => 
                     `<span class="entity-tag" onclick="searchForEntity('${e}')">${e}</span>`
                   ).join('')}</div>`
-                : '<span style="color: var(--synth-text-muted);">No entities extracted</span>';
+                : '<span style="color: var(--synth-text-muted);">No what items extracted</span>';
             
             details.innerHTML = `
                 <div class="memory-detail">
@@ -515,7 +607,7 @@ async function showMemoryDetails(memoryId) {
                     </div>
                     
                     <div class="detail-section">
-                        <h5>Extracted Entities (${memory.entities ? memory.entities.length : 0})</h5>
+                        <h5>Extracted What Items (${memory.entities ? memory.entities.length : 0})</h5>
                         ${entitiesHtml}
                     </div>
                     
@@ -539,7 +631,6 @@ async function showMemoryDetails(memoryId) {
             `;
             
             modal.style.display = 'block';
-        }
     } catch (error) {
         console.error('Failed to load memory details:', error);
         alert('Failed to load memory details');
@@ -673,7 +764,7 @@ function updateEntityCloud(results) {
     });
     
     if (sortedEntities.length === 0) {
-        container.innerHTML = '<p style="color: var(--synth-text-muted);">No entities found</p>';
+        container.innerHTML = '<p style="color: var(--synth-text-muted);">No what items found</p>';
     }
 }
 

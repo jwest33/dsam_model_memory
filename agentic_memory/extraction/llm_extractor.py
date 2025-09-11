@@ -88,15 +88,24 @@ Return ONLY valid JSON in the following schema:
 
 {{
   "who": {{ "type": "<actor type e.g. user, llm, tool, system, team, group, organization>", "id": "<string identifier>", "label": "<optional descriptive label>" }},
+  "who_list": ["<person1>", "<person2>", "<organization>", ...],
   "what": ["<entity1>", "<entity2>", ...],
   "when": "<ISO 8601 timestamp>",
+  "when_list": ["<time_expression1>", "<date_reference>", "<temporal_phrase>", ...],
   "where": {{ "type": "<context type e.g. physical, digital, financial, academic, conceptual, social>", "value": "<specific context like UI path, URL, file, location, or domain>" }},
+  "where_list": ["<location1>", "<place2>", "<context>", ...],
   "why": "<best-effort intent or reason - IMPORTANT: if the user is asking to recall memories, searching for information, or asking 'what do you remember about X' or 'is there any memory about Y', set this to 'memory_recall: <topic>' where <topic> is what they're trying to recall>",
   "how": "<method used, tool/procedure/parameters>"
 }}
 
-CRITICAL: The 'what' field must be a JSON array of key entities, concepts, and topics mentioned.
-Extract specific entities like:
+CRITICAL: All list fields (who_list, what, when_list, where_list) must be JSON arrays containing relevant items.
+
+Extract for WHO_LIST: People, organizations, teams, roles, departments mentioned
+- "The CEO told the marketing team" → ["CEO", "marketing team"]
+- "Alice and Bob from engineering" → ["Alice", "Bob", "engineering"]
+- "OpenAI's GPT-4" → ["OpenAI", "GPT-4"]
+
+Extract for WHAT: Key entities, concepts, and topics
 - Names of people, organizations, teams, products
 - Technical terms, genes, proteins, chemicals
 - Programming languages, frameworks, tools
@@ -104,11 +113,20 @@ Extract specific entities like:
 - Specific objects, places, or things
 - Numbers, dates, measurements when significant
 
+Extract for WHEN_LIST: Time expressions and temporal references
+- "yesterday at 3pm during the meeting" → ["yesterday", "3pm", "during the meeting"]
+- "last week's sprint" → ["last week", "sprint"]
+- "Q3 2024 planning" → ["Q3 2024", "planning period"]
+
+Extract for WHERE_LIST: Locations, places, and contexts
+- "in the conference room at headquarters" → ["conference room", "headquarters"]
+- "on GitHub in the main repository" → ["GitHub", "main repository"]
+- "Seattle office's lab" → ["Seattle office", "lab"]
+
 Examples:
-- "asked which genes encode Growth hormone (GH) and insulin-like growth factor 1" → ["genes", "Growth hormone", "GH", "insulin-like growth factor 1", "IGF-1", "encoding"]
-- "Python script for data analysis" → ["Python", "script", "data analysis"]
-- "Player X was traded from Team A to Team B" → ["Player X", "Team A", "Team B", "trade", "sports transaction"]
-- "configure Docker container with Redis" → ["Docker", "container", "Redis", "configuration"]
+- "asked which genes encode Growth hormone (GH) and insulin-like growth factor 1" → what: ["genes", "Growth hormone", "GH", "insulin-like growth factor 1", "IGF-1", "encoding"]
+- "Python script for data analysis" → what: ["Python", "script", "data analysis"]
+- "Player X was traded from Team A to Team B" → who_list: ["Player X"], what: ["trade", "sports transaction"], where_list: ["Team A", "Team B"]
 
 Consider the content and metadata; be concise but unambiguous.
 Special instructions for the 'why' field:
@@ -148,6 +166,11 @@ def extract_5w1h(raw: RawEvent, context_hint: str = "") -> MemoryRecord:
     # Try LLM-based extraction first; fall back to rules
     content = f"EventType: {raw.event_type}\nActor: {raw.actor}\nTimestamp: {raw.timestamp.isoformat()}\nContent: {raw.content}\nMetadata: {raw.metadata}\nContext: {context_hint}"
     parsed = _call_llm(PROMPT, content)
+    # Initialize list fields
+    who_list = None
+    when_list = None
+    where_list = None
+    
     if not parsed:
         # simple fallback with recall detection
         who_type = 'tool' if raw.event_type in ('tool_call','tool_result') else ('user' if raw.event_type=='user_message' else ('llm' if raw.event_type=='llm_message' else 'system'))
@@ -177,6 +200,11 @@ def extract_5w1h(raw: RawEvent, context_hint: str = "") -> MemoryRecord:
     else:
         who = Who(**parsed['who'])
         
+        # Handle list fields
+        who_list_raw = parsed.get('who_list', [])
+        if isinstance(who_list_raw, list) and who_list_raw:
+            who_list = json.dumps(who_list_raw)
+        
         # Handle 'what' as array of entities
         what_raw = parsed.get('what', [])
         if isinstance(what_raw, list):
@@ -186,8 +214,17 @@ def extract_5w1h(raw: RawEvent, context_hint: str = "") -> MemoryRecord:
             # Fallback if LLM returns string instead of array
             what = str(what_raw).strip() or raw.content[:160]
         
+        when_list_raw = parsed.get('when_list', [])
+        if isinstance(when_list_raw, list) and when_list_raw:
+            when_list = json.dumps(when_list_raw)
+        
         w = parsed.get('where', {'type':'digital','value':'local_ui'})
         where = Where(type=w.get('type','digital'), value=w.get('value','local_ui'))
+        
+        where_list_raw = parsed.get('where_list', [])
+        if isinstance(where_list_raw, list) and where_list_raw:
+            where_list = json.dumps(where_list_raw)
+        
         why = parsed.get('why','unspecified')
         how = parsed.get('how','message')
 
@@ -200,9 +237,12 @@ def extract_5w1h(raw: RawEvent, context_hint: str = "") -> MemoryRecord:
         session_id=raw.session_id,
         source_event_id=raw.event_id,
         who=who,
+        who_list=who_list,
         what=what,
         when=raw.timestamp,
+        when_list=when_list,
         where=where,
+        where_list=where_list,
         why=why,
         how=how,
         raw_text=raw.content,

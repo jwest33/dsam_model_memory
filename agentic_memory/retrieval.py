@@ -80,7 +80,10 @@ class HybridRetriever:
         results = []
         for row in rows:
             # Score based on recency - more recent memories get higher scores
-            recency_score = exp_recency(row['when_ts'], now, half_life_hours=168.0)  # 1 week half-life
+            # Use first timestamp from when_list if available
+            when_list = json.loads(row.get('when_list', '[]')) if row.get('when_list') else []
+            when_ts = when_list[0] if when_list else row.get('when_ts', '')
+            recency_score = exp_recency(when_ts, now, half_life_hours=168.0)  # 1 week half-life
             results.append((row['memory_id'], recency_score))
         return results
     
@@ -96,7 +99,10 @@ class HybridRetriever:
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         results = []
         for row in rows:
-            recency_score = exp_recency(row['when_ts'], now, half_life_hours=168.0)
+            # Use first timestamp from when_list if available
+            when_list = json.loads(row.get('when_list', '[]')) if row.get('when_list') else []
+            when_ts = when_list[0] if when_list else row.get('when_ts', '')
+            recency_score = exp_recency(when_ts, now, half_life_hours=168.0)
             results.append((row['memory_id'], recency_score))
         return results
     
@@ -192,7 +198,9 @@ class HybridRetriever:
             lexical_score = lex_scores.get(memory_id, 0.0)
             
             # 3. Smart recency score (only applies as tiebreaker for related memories)
-            base_recency = exp_recency(memory['when_ts'], now, half_life_hours=168.0)
+            when_list = json.loads(memory.get('when_list', '[]')) if memory.get('when_list') else []
+            when_ts = when_list[0] if when_list else memory.get('when_ts', '')
+            base_recency = exp_recency(when_ts, now, half_life_hours=168.0)
             recency_score = self._apply_smart_recency(memory_id, base_recency, memory_groups)
             
             # 4. Actor match (binary or from hint)
@@ -589,7 +597,8 @@ class HybridRetriever:
         # Fetch full memory details
         memory_ids = [c.memory_id for c in candidates]
         memories = self.store.fetch_memories(memory_ids)
-        memory_dict = {m['memory_id']: m for m in memories}
+        # Convert SQLite Row objects to dictionaries
+        memory_dict = {dict(m)['memory_id']: dict(m) for m in memories}
         
         detailed = []
         for c in candidates:
@@ -600,15 +609,23 @@ class HybridRetriever:
             # Extract entities from 'what' field
             entities = self.extract_entities_from_what(memory.get('what', ''))
             
+            # Extract lists from JSON fields
+            who_list = self.extract_list_from_json(memory.get('who_list', ''))
+            when_list = self.extract_list_from_json(memory.get('when_list', ''))
+            where_list = self.extract_list_from_json(memory.get('where_list', ''))
+            
             detailed.append({
                 'memory_id': c.memory_id,
                 'raw_text': memory.get('raw_text', ''),
-                'entities': entities,
+                'entities': entities,  # This is the 'what' list
                 'who': memory.get('who_id', ''),
                 'who_type': memory.get('who_type', ''),
+                'who_list': who_list,
                 'when': memory.get('when_ts', ''),
+                'when_list': when_list,
                 'where': memory.get('where_value', ''),
                 'where_type': memory.get('where_type', ''),
+                'where_list': where_list,
                 'why': memory.get('why', ''),
                 'how': memory.get('how', ''),
                 'scores': {
@@ -625,6 +642,20 @@ class HybridRetriever:
             })
         
         return detailed
+    
+    def extract_list_from_json(self, json_field: str) -> List[str]:
+        """Extract list from a JSON field, return empty list if None or invalid"""
+        if not json_field:
+            return []
+        
+        try:
+            items = json.loads(json_field)
+            if isinstance(items, list):
+                return items
+        except (json.JSONDecodeError, TypeError):
+            pass
+        
+        return []
     
     def extract_entities_from_what(self, what_field: str) -> List[str]:
         """Extract entities from the 'what' field which may be JSON array or text"""

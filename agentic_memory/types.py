@@ -34,9 +34,12 @@ class MemoryRecord(BaseModel):
     session_id: str
     source_event_id: str
     who: Who
+    who_list: Optional[str] = None  # JSON array of who entities
     what: str
     when: datetime
+    when_list: Optional[str] = None  # JSON array of when expressions
     where: Where
+    where_list: Optional[str] = None  # JSON array of where locations
     why: str
     how: str
     raw_text: str

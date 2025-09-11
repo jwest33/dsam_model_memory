@@ -14,8 +14,9 @@
             <div style="display: flex; gap: 1rem; align-items: center;">
                 <input id="query" type="text" placeholder="Enter search query..." style="flex: 1;" />
                 <button onclick="performSearch()" class="btn-primary">Search</button>
-                <label>Top K:</label>
-                <input id="top-k" type="number" value="100" min="10" max="500" style="width: 80px;" />
+                <label>Token Budget:</label>
+                <input id="token-budget" type="number" value="{{ default_budget }}" min="512" max="{{ context_window }}" step="512" style="width: 100px;" />
+                <span id="context-info" style="color: var(--synth-text-muted); font-size: 0.8rem;">of {{ context_window }} tokens</span>
             </div>
             
             <!-- Query Decomposition Display -->
@@ -28,7 +29,7 @@
                     <div><strong>WHERE:</strong> <span id="decomp-where"></span></div>
                     <div><strong>WHY:</strong> <span id="decomp-why"></span></div>
                     <div><strong>HOW:</strong> <span id="decomp-how"></span></div>
-                    <div><strong>ENTITIES:</strong> <span id="decomp-entities"></span></div>
+                    <div><strong>WHAT:</strong> <span id="decomp-entities"></span></div>
                 </div>
             </div>
         </div>
@@ -37,47 +38,63 @@
     <!-- Weights Section -->
     <div class="panel">
         <h3>Scoring Weights</h3>
-        <div id="weight-sliders">
-            <div class="weight-slider">
-                <label>Semantic (0.45)</label>
-                <input type="range" id="weight-semantic" min="0" max="100" value="45" onchange="updateWeight('semantic', this.value)">
-                <span id="weight-semantic-val">0.45</span>
+        <div class="weights-container">
+            <div class="weights-controls">
+                <button onclick="normalizeWeights()" class="btn-secondary" style="width: 100%;">Normalize to 1.0</button>
+                <button onclick="resetWeights()" class="btn-secondary" style="width: 100%; margin-top: 0.5rem;">Reset to Defaults</button>
             </div>
-            <div class="weight-slider">
-                <label>Lexical (0.25)</label>
-                <input type="range" id="weight-lexical" min="0" max="100" value="25" onchange="updateWeight('lexical', this.value)">
-                <span id="weight-lexical-val">0.25</span>
+            <div class="weights-sliders-section">
+                <div id="weight-sliders">
+                    <div class="weight-slider">
+                        <label>Semantic</label>
+                        <input type="range" id="weight-semantic" min="0" max="100" value="45" onchange="updateWeight('semantic', this.value)">
+                        <span id="weight-semantic-val">0.45</span>
+                    </div>
+                    <div class="weight-slider">
+                        <label>Lexical</label>
+                        <input type="range" id="weight-lexical" min="0" max="100" value="25" onchange="updateWeight('lexical', this.value)">
+                        <span id="weight-lexical-val">0.25</span>
+                    </div>
+                    <div class="weight-slider">
+                        <label>Recency</label>
+                        <input type="range" id="weight-recency" min="0" max="100" value="2" onchange="updateWeight('recency', this.value)">
+                        <span id="weight-recency-val">0.02</span>
+                    </div>
+                    <div class="weight-slider">
+                        <label>Actor</label>
+                        <input type="range" id="weight-actor" min="0" max="100" value="10" onchange="updateWeight('actor', this.value)">
+                        <span id="weight-actor-val">0.10</span>
+                    </div>
+                    <div class="weight-slider">
+                        <label>Temporal</label>
+                        <input type="range" id="weight-temporal" min="0" max="100" value="10" onchange="updateWeight('temporal', this.value)">
+                        <span id="weight-temporal-val">0.10</span>
+                    </div>
+                    <div class="weight-slider">
+                        <label>Spatial</label>
+                        <input type="range" id="weight-spatial" min="0" max="100" value="4" onchange="updateWeight('spatial', this.value)">
+                        <span id="weight-spatial-val">0.04</span>
+                    </div>
+                    <div class="weight-slider">
+                        <label>Usage</label>
+                        <input type="range" id="weight-usage" min="0" max="100" value="4" onchange="updateWeight('usage', this.value)">
+                        <span id="weight-usage-val">0.04</span>
+                    </div>
+                    <!-- Sum row -->
+                    <div class="weight-sum-row">
+                        <label></label>
+                        <div class="sum-line"></div>
+                        <span id="weight-sum">1.00</span>
+                    </div>
+                    <div class="weight-status-row">
+                        <label></label>
+                        <div></div>
+                        <div id="weight-status" style="font-size: 0.7rem; text-align: center;">
+                            <span style="color: var(--synth-green);">✓</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="weight-slider">
-                <label>Recency (0.02)</label>
-                <input type="range" id="weight-recency" min="0" max="100" value="2" onchange="updateWeight('recency', this.value)">
-                <span id="weight-recency-val">0.02</span>
-            </div>
-            <div class="weight-slider">
-                <label>Actor (0.10)</label>
-                <input type="range" id="weight-actor" min="0" max="100" value="10" onchange="updateWeight('actor', this.value)">
-                <span id="weight-actor-val">0.10</span>
-            </div>
-            <div class="weight-slider">
-                <label>Temporal (0.10)</label>
-                <input type="range" id="weight-temporal" min="0" max="100" value="10" onchange="updateWeight('temporal', this.value)">
-                <span id="weight-temporal-val">0.10</span>
-            </div>
-            <div class="weight-slider">
-                <label>Spatial (0.04)</label>
-                <input type="range" id="weight-spatial" min="0" max="100" value="4" onchange="updateWeight('spatial', this.value)">
-                <span id="weight-spatial-val">0.04</span>
-            </div>
-            <div class="weight-slider">
-                <label>Usage (0.04)</label>
-                <input type="range" id="weight-usage" min="0" max="100" value="4" onchange="updateWeight('usage', this.value)">
-                <span id="weight-usage-val">0.04</span>
-            </div>
-        </div>
-        <div style="margin-top: 1rem; display: flex; gap: 1rem; align-items: center;">
-            <button onclick="normalizeWeights()" class="btn-secondary">Normalize to 1.0</button>
-            <span id="weight-sum" style="color: var(--synth-cyan);">Sum: 1.00</span>
-            <button onclick="resetWeights()" class="btn-secondary">Reset to Defaults</button>
         </div>
     </div>
     
@@ -92,6 +109,7 @@
                             <th class="col-rank">Rank</th>
                             <th class="col-memory-id">Memory ID</th>
                             <th class="col-score">Total</th>
+                            <th class="col-score">Tokens</th>
                             <th class="col-score">Sem</th>
                             <th class="col-score">Lex</th>
                             <th class="col-score">Rec</th>
@@ -99,7 +117,7 @@
                             <th class="col-score">Tmp</th>
                             <th class="col-score">Spt</th>
                             <th class="col-score">Usg</th>
-                            <th class="col-entities">Entities</th>
+                            <th class="col-entities">What</th>
                             <th class="col-when">When</th>
                             <th class="col-text">Raw Text</th>
                             <th class="col-actions">Actions</th>
@@ -122,7 +140,7 @@
                 <canvas id="score-chart" width="400" height="300"></canvas>
             </div>
             <div>
-                <h4>Top Entities</h4>
+                <h4>Top What Items</h4>
                 <div id="entity-cloud"></div>
             </div>
         </div>
@@ -167,12 +185,59 @@
     padding: 0.25rem;
 }
 
+.weights-container {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 2rem;
+    align-items: start;
+}
+
+.weights-controls {
+    position: sticky;
+    top: 1rem;
+}
+
+.weights-sliders-section {
+    flex: 1;
+}
+
 .weight-slider {
     display: grid;
-    grid-template-columns: 150px 1fr 80px;
+    grid-template-columns: 100px 1fr 60px;
     align-items: center;
     gap: 1rem;
     margin-bottom: 0.5rem;
+}
+
+.weight-sum-row {
+    display: grid;
+    grid-template-columns: 100px 1fr 60px;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+}
+
+.sum-line {
+    height: 2px;
+    background: var(--synth-cyan);
+    opacity: 0.5;
+}
+
+.weight-sum-row #weight-sum {
+    font-size: 1.1rem;
+    font-weight: bold;
+    font-family: monospace;
+    text-align: center;
+    transition: color 0.3s ease;
+    text-shadow: 0 0 10px currentColor;
+}
+
+.weight-status-row {
+    display: grid;
+    grid-template-columns: 100px 1fr 60px;
+    align-items: center;
+    gap: 1rem;
 }
 
 .weight-slider label {
