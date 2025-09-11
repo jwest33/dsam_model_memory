@@ -1,0 +1,612 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="analytics-container">
+    <!-- Overview Stats -->
+    <div class="panel">
+        <h3>System Overview</h3>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="total-memories">-</div>
+                <div class="stat-label">Total Memories</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="unique-sessions">-</div>
+                <div class="stat-label">Unique Sessions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="unique-actors">-</div>
+                <div class="stat-label">Unique Actors</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avg-tokens">-</div>
+                <div class="stat-label">Avg Tokens/Memory</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="date-range">-</div>
+                <div class="stat-label">Date Range</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Entity Analytics -->
+    <div class="panel">
+        <h3>Entity Analysis</h3>
+        <div class="entity-controls">
+            <button onclick="loadEntityAnalytics(500)" class="btn-secondary">Top 500</button>
+            <button onclick="loadEntityAnalytics(1000)" class="btn-secondary">Top 1000</button>
+            <button onclick="loadEntityAnalytics(5000)" class="btn-secondary">Top 5000</button>
+        </div>
+        
+        <div class="analytics-grid">
+            <div class="analytics-section">
+                <h4>Top Entities</h4>
+                <div id="top-entities" class="entity-list"></div>
+            </div>
+            
+            <div class="analytics-section">
+                <h4>Entity Network</h4>
+                <canvas id="entity-network" width="500" height="400"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Temporal Analytics -->
+    <div class="panel">
+        <h3>Temporal Distribution</h3>
+        <div class="temporal-controls">
+            <button onclick="loadTemporalAnalytics(7)" class="btn-secondary">7 Days</button>
+            <button onclick="loadTemporalAnalytics(30)" class="btn-secondary">30 Days</button>
+            <button onclick="loadTemporalAnalytics(90)" class="btn-secondary">90 Days</button>
+        </div>
+        
+        <canvas id="temporal-chart" width="1200" height="300"></canvas>
+        
+        <div id="temporal-stats" class="temporal-stats"></div>
+    </div>
+    
+    <!-- Score Analysis -->
+    <div class="panel">
+        <h3>Query Score Analysis</h3>
+        <div class="score-section">
+            <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                <input type="text" id="score-query" placeholder="Enter query to analyze..." style="flex: 1;" />
+                <button onclick="analyzeScores()" class="btn-primary">Analyze</button>
+            </div>
+            
+            <div class="analytics-grid">
+                <div class="analytics-section">
+                    <h4>Score Distribution</h4>
+                    <canvas id="score-distribution" width="400" height="300"></canvas>
+                </div>
+                
+                <div class="analytics-section">
+                    <h4>Component Averages</h4>
+                    <div id="component-averages"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.analytics-container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.stat-card {
+    background: var(--synth-surface);
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--synth-border);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--synth-cyan) 0%, var(--synth-pink) 100%);
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--synth-cyan);
+    text-shadow: 0 0 10px var(--synth-cyan);
+}
+
+.stat-label {
+    color: var(--synth-text-muted);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.entity-controls,
+.temporal-controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.analytics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+.analytics-section {
+    background: var(--synth-surface);
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--synth-border);
+}
+
+.analytics-section h4 {
+    color: var(--synth-pink);
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+.entity-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.entity-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--synth-border);
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.entity-item:hover {
+    background: rgba(0, 255, 255, 0.1);
+}
+
+.entity-name {
+    color: var(--synth-text);
+    flex: 1;
+}
+
+.entity-count {
+    color: var(--synth-cyan);
+    font-weight: bold;
+    margin-left: 1rem;
+}
+
+.entity-bar {
+    height: 4px;
+    background: linear-gradient(90deg, var(--synth-cyan) 0%, var(--synth-pink) 100%);
+    margin-top: 0.25rem;
+    border-radius: 2px;
+}
+
+.temporal-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.temporal-stat {
+    background: var(--synth-surface);
+    padding: 1rem;
+    border-radius: 4px;
+    border: 1px solid var(--synth-border);
+}
+
+.component-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    background: var(--synth-surface);
+    border-radius: 4px;
+}
+
+.component-name {
+    color: var(--synth-cyan);
+    font-weight: 600;
+}
+
+.component-value {
+    color: var(--synth-text);
+    font-family: monospace;
+}
+
+.component-visual {
+    height: 4px;
+    background: var(--synth-cyan);
+    border-radius: 2px;
+    margin-top: 0.25rem;
+}
+
+canvas {
+    max-width: 100%;
+    height: auto;
+}
+</style>
+
+<script>
+// Load initial stats
+document.addEventListener('DOMContentLoaded', function() {
+    loadStats();
+    loadEntityAnalytics(1000);
+    loadTemporalAnalytics(30);
+});
+
+// Load system stats
+async function loadStats() {
+    try {
+        const response = await fetch('/api/stats');
+        if (response.ok) {
+            const stats = await response.json();
+            
+            document.getElementById('total-memories').textContent = 
+                stats.total_memories ? stats.total_memories.toLocaleString() : '0';
+            document.getElementById('unique-sessions').textContent = 
+                stats.unique_sessions ? stats.unique_sessions.toLocaleString() : '0';
+            document.getElementById('unique-actors').textContent = 
+                stats.unique_actors ? stats.unique_actors.toLocaleString() : '0';
+            document.getElementById('avg-tokens').textContent = 
+                stats.avg_tokens ? Math.round(stats.avg_tokens).toLocaleString() : '0';
+            
+            if (stats.date_range && stats.date_range.from && stats.date_range.to) {
+                const from = new Date(stats.date_range.from).toLocaleDateString();
+                const to = new Date(stats.date_range.to).toLocaleDateString();
+                document.getElementById('date-range').textContent = `${from} - ${to}`;
+            } else {
+                document.getElementById('date-range').textContent = 'N/A';
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load stats:', error);
+    }
+}
+
+// Load entity analytics
+async function loadEntityAnalytics(limit) {
+    try {
+        const response = await fetch(`/api/analytics/entities?limit=${limit}`);
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Display top entities
+            displayTopEntities(data.top_entities);
+            
+            // Draw entity network
+            drawEntityNetwork(data.co_occurrence);
+        }
+    } catch (error) {
+        console.error('Failed to load entity analytics:', error);
+    }
+}
+
+// Display top entities
+function displayTopEntities(entities) {
+    const container = document.getElementById('top-entities');
+    
+    if (!entities || entities.length === 0) {
+        container.innerHTML = '<p style="color: var(--synth-text-muted);">No entities found</p>';
+        return;
+    }
+    
+    const maxCount = entities[0][1];
+    
+    container.innerHTML = '';
+    entities.slice(0, 30).forEach(([entity, count]) => {
+        const item = document.createElement('div');
+        item.className = 'entity-item';
+        item.onclick = () => searchForEntity(entity);
+        
+        const barWidth = (count / maxCount) * 100;
+        
+        item.innerHTML = `
+            <span class="entity-name">${entity}</span>
+            <span class="entity-count">${count}</span>
+            <div class="entity-bar" style="width: ${barWidth}%;"></div>
+        `;
+        
+        container.appendChild(item);
+    });
+}
+
+// Draw entity network
+function drawEntityNetwork(coOccurrence) {
+    const canvas = document.getElementById('entity-network');
+    const ctx = canvas.getContext('2d');
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    if (!coOccurrence || coOccurrence.length === 0) {
+        ctx.fillStyle = 'var(--synth-text-muted)';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('No co-occurrence data', canvas.width/2, canvas.height/2);
+        return;
+    }
+    
+    // Create nodes from co-occurrence data
+    const nodes = {};
+    coOccurrence.forEach(link => {
+        if (!nodes[link.source]) {
+            nodes[link.source] = {
+                x: Math.random() * (canvas.width - 100) + 50,
+                y: Math.random() * (canvas.height - 100) + 50,
+                connections: 0
+            };
+        }
+        if (!nodes[link.target]) {
+            nodes[link.target] = {
+                x: Math.random() * (canvas.width - 100) + 50,
+                y: Math.random() * (canvas.height - 100) + 50,
+                connections: 0
+            };
+        }
+        nodes[link.source].connections += link.weight;
+        nodes[link.target].connections += link.weight;
+    });
+    
+    // Draw links
+    ctx.strokeStyle = 'rgba(0, 255, 255, 0.2)';
+    coOccurrence.forEach(link => {
+        const source = nodes[link.source];
+        const target = nodes[link.target];
+        
+        ctx.beginPath();
+        ctx.moveTo(source.x, source.y);
+        ctx.lineTo(target.x, target.y);
+        ctx.lineWidth = Math.min(link.weight / 2, 3);
+        ctx.stroke();
+    });
+    
+    // Draw nodes
+    Object.entries(nodes).forEach(([name, node]) => {
+        const radius = Math.min(5 + node.connections, 15);
+        
+        // Node circle
+        ctx.fillStyle = 'var(--synth-cyan)';
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Node label
+        ctx.fillStyle = 'var(--synth-text)';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(name.substring(0, 15), node.x, node.y - radius - 5);
+    });
+}
+
+// Load temporal analytics
+async function loadTemporalAnalytics(days) {
+    try {
+        const response = await fetch(`/api/analytics/temporal?days=${days}`);
+        if (response.ok) {
+            const data = await response.json();
+            drawTemporalChart(data.timeline);
+            displayTemporalStats(data.timeline);
+        }
+    } catch (error) {
+        console.error('Failed to load temporal analytics:', error);
+    }
+}
+
+// Draw temporal chart
+function drawTemporalChart(timeline) {
+    const canvas = document.getElementById('temporal-chart');
+    const ctx = canvas.getContext('2d');
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    if (!timeline || timeline.length === 0) {
+        ctx.fillStyle = 'var(--synth-text-muted)';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('No temporal data', canvas.width/2, canvas.height/2);
+        return;
+    }
+    
+    const padding = 40;
+    const chartWidth = canvas.width - 2 * padding;
+    const chartHeight = canvas.height - 2 * padding;
+    const barWidth = chartWidth / timeline.length;
+    
+    const maxCount = Math.max(...timeline.map(t => t.memories));
+    
+    // Draw axes
+    ctx.strokeStyle = 'var(--synth-border)';
+    ctx.beginPath();
+    ctx.moveTo(padding, padding);
+    ctx.lineTo(padding, canvas.height - padding);
+    ctx.lineTo(canvas.width - padding, canvas.height - padding);
+    ctx.stroke();
+    
+    // Draw bars
+    timeline.forEach((day, index) => {
+        const barHeight = (day.memories / maxCount) * chartHeight;
+        const x = padding + index * barWidth;
+        const y = canvas.height - padding - barHeight;
+        
+        // Bar
+        ctx.fillStyle = 'var(--synth-cyan)';
+        ctx.fillRect(x + 2, y, barWidth - 4, barHeight);
+        
+        // Date label (every 7th day)
+        if (index % 7 === 0) {
+            ctx.fillStyle = 'var(--synth-text)';
+            ctx.font = '10px sans-serif';
+            ctx.save();
+            ctx.translate(x + barWidth/2, canvas.height - padding + 15);
+            ctx.rotate(-Math.PI/4);
+            ctx.textAlign = 'right';
+            ctx.fillText(day.date, 0, 0);
+            ctx.restore();
+        }
+    });
+    
+    // Title
+    ctx.fillStyle = 'var(--synth-text)';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Memories Over Time', canvas.width/2, 20);
+}
+
+// Display temporal stats
+function displayTemporalStats(timeline) {
+    const container = document.getElementById('temporal-stats');
+    
+    if (!timeline || timeline.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    const totalMemories = timeline.reduce((sum, day) => sum + day.memories, 0);
+    const avgPerDay = totalMemories / timeline.length;
+    const maxDay = timeline.reduce((max, day) => day.memories > max.memories ? day : max);
+    const totalSessions = timeline.reduce((sum, day) => sum + day.sessions, 0);
+    
+    container.innerHTML = `
+        <div class="temporal-stat">
+            <div class="stat-label">Total Period</div>
+            <div class="stat-value">${timeline.length} days</div>
+        </div>
+        <div class="temporal-stat">
+            <div class="stat-label">Avg Memories/Day</div>
+            <div class="stat-value">${Math.round(avgPerDay)}</div>
+        </div>
+        <div class="temporal-stat">
+            <div class="stat-label">Peak Day</div>
+            <div class="stat-value">${maxDay.date}<br>${maxDay.memories} memories</div>
+        </div>
+        <div class="temporal-stat">
+            <div class="stat-label">Total Sessions</div>
+            <div class="stat-value">${totalSessions}</div>
+        </div>
+    `;
+}
+
+// Analyze scores for a query
+async function analyzeScores() {
+    const query = document.getElementById('score-query').value.trim();
+    if (!query) {
+        alert('Please enter a query to analyze');
+        return;
+    }
+    
+    try {
+        // Get current weights from analyzer
+        const weightsResponse = await fetch('/api/weights');
+        const weights = await weightsResponse.json();
+        
+        const response = await fetch('/api/analytics/scores', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                query: query,
+                weights: weights
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            drawScoreDistribution(data.score_distribution);
+            displayComponentAverages(data.component_averages);
+        }
+    } catch (error) {
+        console.error('Failed to analyze scores:', error);
+    }
+}
+
+// Draw score distribution
+function drawScoreDistribution(distribution) {
+    const canvas = document.getElementById('score-distribution');
+    const ctx = canvas.getContext('2d');
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const labels = Object.keys(distribution);
+    const values = Object.values(distribution);
+    const maxValue = Math.max(...values, 1);
+    
+    const barWidth = canvas.width / labels.length;
+    const chartHeight = canvas.height - 40;
+    
+    // Draw bars
+    labels.forEach((label, index) => {
+        const barHeight = (values[index] / maxValue) * chartHeight;
+        const x = index * barWidth;
+        const y = canvas.height - barHeight - 20;
+        
+        // Bar
+        ctx.fillStyle = 'var(--synth-cyan)';
+        ctx.fillRect(x + 5, y, barWidth - 10, barHeight);
+        
+        // Label
+        ctx.fillStyle = 'var(--synth-text)';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, x + barWidth/2, canvas.height - 5);
+        
+        // Count
+        if (values[index] > 0) {
+            ctx.fillText(values[index].toString(), x + barWidth/2, y - 5);
+        }
+    });
+    
+    // Title
+    ctx.fillStyle = 'var(--synth-text)';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Score Distribution', canvas.width/2, 15);
+}
+
+// Display component averages
+function displayComponentAverages(averages) {
+    const container = document.getElementById('component-averages');
+    
+    container.innerHTML = '';
+    Object.entries(averages).forEach(([component, avg]) => {
+        const bar = document.createElement('div');
+        bar.className = 'component-bar';
+        
+        const width = avg * 100;
+        
+        bar.innerHTML = `
+            <span class="component-name">${component}</span>
+            <span class="component-value">${avg.toFixed(3)}</span>
+            <div class="component-visual" style="width: ${width}%;"></div>
+        `;
+        
+        container.appendChild(bar);
+    });
+}
+
+// Search for entity in analyzer
+function searchForEntity(entity) {
+    // Navigate to analyzer with entity as query
+    window.location.href = `/?query=${encodeURIComponent(entity)}`;
+}
+</script>
+{% endblock %}

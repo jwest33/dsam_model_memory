@@ -1,0 +1,42 @@
+{
+  "weights": {
+    "semantic": 0.45,
+    "lexical": 0.25,
+    "recency": 0.02,
+    "actor": 0.1,
+    "temporal": 0.1,
+    "spatial": 0.04,
+    "usage": 0.04
+  },
+  "analyzer": {
+    "top_k": 100,
+    "auto_normalize_weights": true,
+    "show_decomposition": true,
+    "highlight_high_scores": true,
+    "high_score_threshold": 0.8,
+    "medium_score_threshold": 0.5
+  },
+  "browser": {
+    "per_page": 50,
+    "sort_by": "when_ts",
+    "sort_order": "desc",
+    "show_entities": true,
+    "date_format": "local"
+  },
+  "analytics": {
+    "default_entity_limit": 1000,
+    "default_temporal_days": 30,
+    "entity_co_occurrence_limit": 100,
+    "show_network_labels": true
+  },
+  "ui": {
+    "theme": "synthwave",
+    "compact_mode": false,
+    "show_stats_in_header": true,
+    "enable_animations": true
+  },
+  "_metadata": {
+    "version": "1.0",
+    "last_modified": "2025-09-11T06:21:12.905821"
+  }
+}

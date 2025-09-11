@@ -1,0 +1,298 @@
+/* Consistent table styling for Analyzer and Browser */
+
+/* Container adjustments for wider layout */
+.analyzer-container,
+.browser-container {
+    max-width: 95vw;  /* Use most of viewport width */
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+/* Responsive table container */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    margin: 1rem 0;
+    border: 1px solid var(--synth-border);
+    border-radius: 8px;
+    background: var(--synth-surface);
+}
+
+/* Main table styling */
+.data-table {
+    width: 100%;
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.875rem;
+    table-layout: auto;  /* Auto-size columns based on content */
+}
+
+/* Table headers */
+.data-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--synth-card-bg);
+}
+
+.data-table th {
+    background: linear-gradient(180deg, var(--synth-card-bg) 0%, var(--synth-surface) 100%);
+    color: var(--synth-cyan);
+    padding: 0.75rem 0.5rem;
+    text-align: left;
+    border-bottom: 2px solid var(--synth-cyan);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    position: relative;
+    user-select: none;
+    min-width: fit-content;
+}
+
+/* Column resizer */
+.data-table th::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    cursor: col-resize;
+    background: transparent;
+    transition: background 0.2s;
+}
+
+.data-table th:hover::after {
+    background: var(--synth-cyan);
+    opacity: 0.5;
+}
+
+/* Table cells */
+.data-table td {
+    padding: 0.5rem;
+    border-bottom: 1px solid rgba(45, 36, 56, 0.5);
+    color: var(--synth-text);
+    vertical-align: middle;
+    max-width: 300px;  /* Default max width */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Specific column widths */
+.data-table .col-memory-id {
+    width: 120px;
+    min-width: 120px;
+}
+
+.data-table .col-score {
+    width: 70px;
+    min-width: 60px;
+    text-align: center;
+    font-family: monospace;
+}
+
+.data-table .col-checkbox {
+    width: 40px;
+    min-width: 40px;
+    text-align: center;
+}
+
+.data-table .col-entities {
+    min-width: 200px;
+    white-space: normal;
+}
+
+.data-table .col-text {
+    min-width: 250px;
+    max-width: 400px;
+}
+
+.data-table .col-when {
+    width: 150px;
+    min-width: 150px;
+}
+
+.data-table .col-actions {
+    width: 100px;
+    min-width: 100px;
+    text-align: center;
+}
+
+/* Row styling */
+.data-table tbody tr {
+    transition: background-color 0.2s;
+    cursor: pointer;
+}
+
+.data-table tbody tr:hover {
+    background: rgba(0, 255, 255, 0.05);
+}
+
+.data-table tbody tr.selected {
+    background: rgba(0, 255, 255, 0.1);
+}
+
+/* Score-based row highlighting */
+.data-table tbody tr.high-score {
+    background: linear-gradient(90deg, 
+        rgba(0, 255, 0, 0.05) 0%, 
+        transparent 50%);
+}
+
+.data-table tbody tr.medium-score {
+    background: linear-gradient(90deg, 
+        rgba(255, 255, 0, 0.05) 0%, 
+        transparent 50%);
+}
+
+.data-table tbody tr.low-score {
+    background: linear-gradient(90deg, 
+        rgba(255, 0, 0, 0.02) 0%, 
+        transparent 50%);
+}
+
+/* Memory ID styling - clickable */
+.memory-id-link {
+    color: var(--synth-cyan);
+    text-decoration: none;
+    font-family: monospace;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.memory-id-link:hover {
+    color: var(--synth-pink);
+    text-shadow: 0 0 10px var(--synth-pink);
+    text-decoration: underline;
+}
+
+/* Entity tags in tables */
+.entity-tag {
+    display: inline-block;
+    background: var(--synth-card-bg);
+    color: var(--synth-cyan);
+    padding: 0.125rem 0.5rem;
+    border-radius: 12px;
+    margin: 0.125rem;
+    font-size: 0.75rem;
+    border: 1px solid var(--synth-border);
+    white-space: nowrap;
+}
+
+/* Score cells */
+.score-value {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.8rem;
+    min-width: 50px;
+    text-align: center;
+}
+
+.score-high {
+    background: rgba(0, 255, 0, 0.2);
+    color: var(--synth-green);
+}
+
+.score-medium {
+    background: rgba(255, 255, 0, 0.2);
+    color: var(--synth-yellow);
+}
+
+.score-low {
+    background: rgba(255, 0, 0, 0.1);
+    color: var(--synth-text-muted);
+}
+
+/* Action buttons in tables */
+.btn-table {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid var(--synth-border);
+    background: var(--synth-surface);
+    color: var(--synth-cyan);
+    transition: all 0.2s;
+    margin: 0 0.125rem;
+}
+
+.btn-table:hover {
+    background: var(--synth-cyan);
+    color: var(--synth-dark-bg);
+    transform: translateY(-1px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 1400px) {
+    .data-table {
+        font-size: 0.8rem;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: 0.4rem;
+    }
+}
+
+/* Make tables scrollable with fixed header */
+.table-wrapper {
+    max-height: 70vh;
+    overflow-y: auto;
+    overflow-x: auto;
+    position: relative;
+}
+
+/* Custom scrollbar */
+.table-container::-webkit-scrollbar,
+.table-wrapper::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+}
+
+.table-container::-webkit-scrollbar-track,
+.table-wrapper::-webkit-scrollbar-track {
+    background: var(--synth-surface);
+}
+
+.table-container::-webkit-scrollbar-thumb,
+.table-wrapper::-webkit-scrollbar-thumb {
+    background: var(--synth-cyan);
+    border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover,
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: var(--synth-pink);
+}
+
+/* Loading state */
+.table-loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--synth-text-muted);
+}
+
+.table-loading::after {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-left: 10px;
+    border: 3px solid var(--synth-border);
+    border-top: 3px solid var(--synth-cyan);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/tables.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modal.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="analyzer-container">
+    <!-- Query Section -->
+    <div class="panel">
+        <h3>Query Input</h3>
+        <div class="query-section">
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <input id="query" type="text" placeholder="Enter search query..." style="flex: 1;" />
+                <button onclick="performSearch()" class="btn-primary">Search</button>
+                <label>Top K:</label>
+                <input id="top-k" type="number" value="100" min="10" max="500" style="width: 80px;" />
+            </div>
+            
+            <!-- Query Decomposition Display -->
+            <div id="decomposition" class="decomposition-display" style="margin-top: 1rem; display: none;">
+                <h4>Query Decomposition</h4>
+                <div class="decomp-grid">
+                    <div><strong>WHO:</strong> <span id="decomp-who"></span></div>
+                    <div><strong>WHAT:</strong> <span id="decomp-what"></span></div>
+                    <div><strong>WHEN:</strong> <span id="decomp-when"></span></div>
+                    <div><strong>WHERE:</strong> <span id="decomp-where"></span></div>
+                    <div><strong>WHY:</strong> <span id="decomp-why"></span></div>
+                    <div><strong>HOW:</strong> <span id="decomp-how"></span></div>
+                    <div><strong>ENTITIES:</strong> <span id="decomp-entities"></span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Weights Section -->
+    <div class="panel">
+        <h3>Scoring Weights</h3>
+        <div id="weight-sliders">
+            <div class="weight-slider">
+                <label>Semantic (0.45)</label>
+                <input type="range" id="weight-semantic" min="0" max="100" value="45" onchange="updateWeight('semantic', this.value)">
+                <span id="weight-semantic-val">0.45</span>
+            </div>
+            <div class="weight-slider">
+                <label>Lexical (0.25)</label>
+                <input type="range" id="weight-lexical" min="0" max="100" value="25" onchange="updateWeight('lexical', this.value)">
+                <span id="weight-lexical-val">0.25</span>
+            </div>
+            <div class="weight-slider">
+                <label>Recency (0.02)</label>
+                <input type="range" id="weight-recency" min="0" max="100" value="2" onchange="updateWeight('recency', this.value)">
+                <span id="weight-recency-val">0.02</span>
+            </div>
+            <div class="weight-slider">
+                <label>Actor (0.10)</label>
+                <input type="range" id="weight-actor" min="0" max="100" value="10" onchange="updateWeight('actor', this.value)">
+                <span id="weight-actor-val">0.10</span>
+            </div>
+            <div class="weight-slider">
+                <label>Temporal (0.10)</label>
+                <input type="range" id="weight-temporal" min="0" max="100" value="10" onchange="updateWeight('temporal', this.value)">
+                <span id="weight-temporal-val">0.10</span>
+            </div>
+            <div class="weight-slider">
+                <label>Spatial (0.04)</label>
+                <input type="range" id="weight-spatial" min="0" max="100" value="4" onchange="updateWeight('spatial', this.value)">
+                <span id="weight-spatial-val">0.04</span>
+            </div>
+            <div class="weight-slider">
+                <label>Usage (0.04)</label>
+                <input type="range" id="weight-usage" min="0" max="100" value="4" onchange="updateWeight('usage', this.value)">
+                <span id="weight-usage-val">0.04</span>
+            </div>
+        </div>
+        <div style="margin-top: 1rem; display: flex; gap: 1rem; align-items: center;">
+            <button onclick="normalizeWeights()" class="btn-secondary">Normalize to 1.0</button>
+            <span id="weight-sum" style="color: var(--synth-cyan);">Sum: 1.00</span>
+            <button onclick="resetWeights()" class="btn-secondary">Reset to Defaults</button>
+        </div>
+    </div>
+    
+    <!-- Results Section -->
+    <div class="panel">
+        <h3>Search Results <span id="result-count"></span></h3>
+        <div class="table-container">
+            <div class="table-wrapper">
+                <table id="results-table" class="data-table">
+                    <thead>
+                        <tr>
+                            <th class="col-rank">Rank</th>
+                            <th class="col-memory-id">Memory ID</th>
+                            <th class="col-score">Total</th>
+                            <th class="col-score">Sem</th>
+                            <th class="col-score">Lex</th>
+                            <th class="col-score">Rec</th>
+                            <th class="col-score">Act</th>
+                            <th class="col-score">Tmp</th>
+                            <th class="col-score">Spt</th>
+                            <th class="col-score">Usg</th>
+                            <th class="col-entities">Entities</th>
+                            <th class="col-when">When</th>
+                            <th class="col-text">Raw Text</th>
+                            <th class="col-actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-tbody">
+                        <!-- Results will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Visualizations -->
+    <div class="panel">
+        <h3>Score Analysis</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+            <div>
+                <h4>Score Distribution</h4>
+                <canvas id="score-chart" width="400" height="300"></canvas>
+            </div>
+            <div>
+                <h4>Top Entities</h4>
+                <div id="entity-cloud"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Memory Detail Modal -->
+<div id="memory-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Memory Details</h3>
+            <span class="close" onclick="closeModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="memory-details"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+.analyzer-container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+.decomposition-display {
+    background: var(--synth-surface);
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--synth-border);
+}
+
+.decomp-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.decomp-grid > div {
+    padding: 0.25rem;
+}
+
+.weight-slider {
+    display: grid;
+    grid-template-columns: 150px 1fr 80px;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.weight-slider label {
+    color: var(--synth-cyan);
+    font-weight: 600;
+}
+
+.weight-slider input[type="range"] {
+    -webkit-appearance: none;
+    height: 4px;
+    background: var(--synth-border);
+    outline: none;
+    border-radius: 2px;
+}
+
+.weight-slider input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--synth-cyan);
+    cursor: pointer;
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--synth-cyan);
+}
+
+.weight-slider span {
+    color: var(--synth-text);
+    font-family: monospace;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.data-table th {
+    background: var(--synth-surface);
+    color: var(--synth-cyan);
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 2px solid var(--synth-border);
+}
+
+.data-table td {
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--synth-border);
+}
+
+.data-table tbody tr:hover {
+    background: rgba(0, 255, 255, 0.05);
+}
+
+.score-cell {
+    font-family: monospace;
+    font-size: 0.8rem;
+}
+
+.entity-tag {
+    display: inline-block;
+    background: var(--synth-surface);
+    color: var(--synth-cyan);
+    padding: 0.125rem 0.5rem;
+    border-radius: 12px;
+    margin: 0.125rem;
+    font-size: 0.75rem;
+    border: 1px solid var(--synth-border);
+}
+
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+}
+
+.modal-content {
+    background-color: var(--synth-card-bg);
+    margin: 5% auto;
+    padding: 2rem;
+    border: 1px solid var(--synth-border);
+    width: 80%;
+    max-width: 800px;
+    max-height: 80vh;
+    overflow-y: auto;
+    border-radius: 8px;
+}
+
+.close {
+    color: var(--synth-text);
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close:hover {
+    color: var(--synth-cyan);
+}
+
+#entity-cloud {
+    padding: 1rem;
+    min-height: 300px;
+}
+
+.entity-item {
+    display: inline-block;
+    margin: 0.25rem;
+    padding: 0.25rem 0.75rem;
+    background: var(--synth-surface);
+    border: 1px solid var(--synth-cyan);
+    border-radius: 16px;
+    color: var(--synth-text);
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.entity-item:hover {
+    background: var(--synth-cyan);
+    color: var(--synth-dark-bg);
+    transform: scale(1.1);
+}
+
+.entity-count {
+    margin-left: 0.5rem;
+    color: var(--synth-pink);
+    font-weight: bold;
+}
+</style>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}

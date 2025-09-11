@@ -553,3 +553,196 @@ class HybridRetriever:
         top_k_candidates = candidates[:final_k]
         
         return top_k_candidates
+    
+    def get_current_weights(self) -> Dict[str, float]:
+        """Return current weight configuration for UI display"""
+        return {
+            'semantic': 0.45,   # Fixed weights from compute_all_scores
+            'lexical': 0.25,
+            'recency': 0.02,
+            'actor': 0.1,
+            'temporal': 0.1,
+            'spatial': 0.04,
+            'usage': 0.04
+        }
+    
+    def update_weights(self, weights: Dict[str, float]) -> Dict[str, float]:
+        """Validate and normalize weights, return normalized version"""
+        # Ensure all weights are present
+        default_weights = self.get_current_weights()
+        for key in default_weights:
+            if key not in weights:
+                weights[key] = default_weights[key]
+        
+        # Normalize to sum to 1.0
+        total = sum(weights.values())
+        if abs(total - 1.0) > 0.001:
+            weights = {k: v/total for k, v in weights.items()}
+        
+        return weights
+    
+    def get_detailed_scores(self, candidates: List[Candidate]) -> List[Dict]:
+        """Return detailed breakdown for UI display with entity extraction"""
+        if not candidates:
+            return []
+        
+        # Fetch full memory details
+        memory_ids = [c.memory_id for c in candidates]
+        memories = self.store.fetch_memories(memory_ids)
+        memory_dict = {m['memory_id']: m for m in memories}
+        
+        detailed = []
+        for c in candidates:
+            memory = memory_dict.get(c.memory_id)
+            if not memory:
+                continue
+            
+            # Extract entities from 'what' field
+            entities = self.extract_entities_from_what(memory.get('what', ''))
+            
+            detailed.append({
+                'memory_id': c.memory_id,
+                'raw_text': memory.get('raw_text', ''),
+                'entities': entities,
+                'who': memory.get('who_id', ''),
+                'who_type': memory.get('who_type', ''),
+                'when': memory.get('when_ts', ''),
+                'where': memory.get('where_value', ''),
+                'where_type': memory.get('where_type', ''),
+                'why': memory.get('why', ''),
+                'how': memory.get('how', ''),
+                'scores': {
+                    'total': c.score,
+                    'semantic': c.semantic_score if c.semantic_score is not None else 0.0,
+                    'lexical': c.lexical_score if c.lexical_score is not None else 0.0,
+                    'recency': c.recency_score if c.recency_score is not None else 0.0,
+                    'actor': c.actor_score if c.actor_score is not None else 0.0,
+                    'temporal': c.temporal_score if c.temporal_score is not None else 0.0,
+                    'spatial': c.spatial_score if hasattr(c, 'spatial_score') and c.spatial_score is not None else 0.0,
+                    'usage': c.usage_score if c.usage_score is not None else 0.0
+                },
+                'token_count': c.token_count if c.token_count is not None else 0
+            })
+        
+        return detailed
+    
+    def extract_entities_from_what(self, what_field: str) -> List[str]:
+        """Extract entities from the 'what' field which may be JSON array or text"""
+        if not what_field:
+            return []
+        
+        # Try to parse as JSON array first
+        try:
+            entities = json.loads(what_field)
+            if isinstance(entities, list):
+                return entities
+        except (json.JSONDecodeError, TypeError):
+            pass
+        
+        # Fallback to simple entity extraction from text
+        entities = []
+        
+        # Extract capitalized words (likely proper nouns)
+        cap_pattern = r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b'
+        for match in re.finditer(cap_pattern, what_field):
+            entity = match.group()
+            if len(entity) > 2 and entity not in ['The', 'This', 'That', 'What', 'When', 'Where']:
+                entities.append(entity)
+        
+        # Extract acronyms
+        acronym_pattern = r'\b[A-Z]{2,}(?:-\d+)?\b'
+        for match in re.finditer(acronym_pattern, what_field):
+            entities.append(match.group())
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_entities = []
+        for entity in entities:
+            if entity.lower() not in seen:
+                seen.add(entity.lower())
+                unique_entities.append(entity)
+        
+        return unique_entities[:20]  # Limit to 20 entities
+    
+    def decompose_query(self, query: str) -> Dict[str, Any]:
+        """Decompose query into 5W1H components using LLM extraction"""
+        from .extraction.llm_extractor import extract_5w1h
+        from .types import RawEvent
+        
+        # Create a raw event for the query
+        raw_event = RawEvent(
+            session_id='analyzer',
+            event_type='user_message',
+            actor='user:analyzer',
+            content=query,
+            metadata={}
+        )
+        
+        try:
+            # Extract 5W1H components
+            extracted = extract_5w1h(raw_event)
+            
+            # Convert to dictionary format
+            components = {
+                'who': {
+                    'type': extracted.who.type if hasattr(extracted, 'who') else None,
+                    'id': extracted.who.id if hasattr(extracted, 'who') else None,
+                    'label': extracted.who.label if hasattr(extracted, 'who') else None
+                },
+                'what': extracted.what if hasattr(extracted, 'what') else query,
+                'when': str(extracted.when) if hasattr(extracted, 'when') else None,
+                'where': {
+                    'type': extracted.where.type if hasattr(extracted, 'where') else None,
+                    'value': extracted.where.value if hasattr(extracted, 'where') else None
+                },
+                'why': extracted.why if hasattr(extracted, 'why') else None,
+                'how': extracted.how if hasattr(extracted, 'how') else None
+            }
+            
+            # Extract entities from the what field
+            if components['what']:
+                components['entities'] = self.extract_entities_from_what(components['what'])
+            else:
+                components['entities'] = []
+                
+        except Exception as e:
+            # Fallback if extraction fails
+            print(f"Query decomposition failed: {e}")
+            components = {
+                'who': {'type': None, 'id': None, 'label': None},
+                'what': query,
+                'when': None,
+                'where': {'type': None, 'value': None},
+                'why': None,
+                'how': None,
+                'entities': []
+            }
+        
+        return components
+    
+    def search_with_weights(self, rq: RetrievalQuery, qvec: np.ndarray, weights: Dict[str, float], 
+                           topk_sem: int = 100, topk_lex: int = 100) -> List[Candidate]:
+        """Search with custom weights provided by UI"""
+        # Normalize weights
+        weights = self.update_weights(weights)
+        
+        # Temporarily override the fixed weights in compute_all_scores
+        # We'll need to modify compute_all_scores to accept weights parameter
+        # For now, use standard search and re-score
+        candidates = self.search(rq, qvec, topk_sem=1000, topk_lex=1000)
+        
+        # Re-score with custom weights
+        for c in candidates:
+            c.score = (
+                weights['semantic'] * (c.semantic_score or 0.0) +
+                weights['lexical'] * (c.lexical_score or 0.0) +
+                weights['recency'] * (c.recency_score or 0.0) +
+                weights['actor'] * (c.actor_score or 0.0) +
+                weights['temporal'] * (c.temporal_score or 0.0) +
+                weights['spatial'] * (getattr(c, 'spatial_score', 0.0) or 0.0) +
+                weights['usage'] * (c.usage_score or 0.0)
+            )
+        
+        # Re-sort and return top-k
+        candidates.sort(key=lambda x: x.score, reverse=True)
+        return candidates[:topk_sem]

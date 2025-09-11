@@ -1,0 +1,682 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/tables.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modal.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="browser-container">
+    <!-- Filters Section -->
+    <div class="panel">
+        <h3>Filters</h3>
+        <div class="filter-grid">
+            <div class="filter-group">
+                <label>Text Search</label>
+                <input type="text" id="filter-search" placeholder="Search in memories..." />
+            </div>
+            
+            <div class="filter-group">
+                <label>Session ID</label>
+                <input type="text" id="filter-session" placeholder="e.g., analyzer" />
+            </div>
+            
+            <div class="filter-group">
+                <label>Who (Actor)</label>
+                <input type="text" id="filter-who" placeholder="e.g., user, llm" />
+            </div>
+            
+            <div class="filter-group">
+                <label>Where (Location)</label>
+                <input type="text" id="filter-where" placeholder="e.g., digital, local_ui" />
+            </div>
+            
+            <div class="filter-group">
+                <label>Entity</label>
+                <input type="text" id="filter-entity" placeholder="Search for entity..." />
+            </div>
+            
+            <div class="filter-group">
+                <label>Date From</label>
+                <input type="datetime-local" id="filter-date-from" />
+            </div>
+            
+            <div class="filter-group">
+                <label>Date To</label>
+                <input type="datetime-local" id="filter-date-to" />
+            </div>
+            
+            <div class="filter-group">
+                <label>Sort By</label>
+                <select id="sort-by">
+                    <option value="when_ts">When (Time)</option>
+                    <option value="created_at">Created At</option>
+                    <option value="memory_id">Memory ID</option>
+                    <option value="session_id">Session ID</option>
+                    <option value="token_count">Token Count</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>Order</label>
+                <select id="sort-order">
+                    <option value="desc">Descending</option>
+                    <option value="asc">Ascending</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>Per Page</label>
+                <select id="per-page">
+                    <option value="25">25</option>
+                    <option value="50" selected>50</option>
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="filter-actions">
+            <button onclick="applyFilters()" class="btn-primary">Apply Filters</button>
+            <button onclick="clearFilters()" class="btn-secondary">Clear All</button>
+            <button onclick="exportMemories()" class="btn-secondary">Export Results</button>
+        </div>
+    </div>
+    
+    <!-- Results Section -->
+    <div class="panel">
+        <h3>Memory Database <span id="memory-count"></span></h3>
+        
+        <!-- Pagination Top -->
+        <div id="pagination-top" class="pagination"></div>
+        
+        <!-- Results Table -->
+        <div class="table-container">
+            <div class="table-wrapper">
+                <table class="data-table" id="memories-table">
+                    <thead>
+                        <tr>
+                            <th class="col-checkbox"><input type="checkbox" id="select-all" onchange="toggleSelectAll()" /></th>
+                            <th class="col-memory-id">Memory ID</th>
+                            <th>Session</th>
+                            <th>Who</th>
+                            <th class="col-entities">Entities</th>
+                            <th class="col-when">When</th>
+                            <th>Where</th>
+                            <th>Why</th>
+                            <th>How</th>
+                            <th class="col-score">Tokens</th>
+                            <th class="col-text">Raw Text</th>
+                            <th class="col-actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="memories-tbody">
+                        <!-- Memories will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Pagination Bottom -->
+        <div id="pagination-bottom" class="pagination"></div>
+        
+        <!-- Bulk Actions -->
+        <div class="bulk-actions" id="bulk-actions" style="display: none;">
+            <span id="selected-count">0 selected</span>
+            <button onclick="deleteSelected()" class="btn-danger">Delete Selected</button>
+            <button onclick="exportSelected()" class="btn-secondary">Export Selected</button>
+        </div>
+    </div>
+</div>
+
+<!-- Memory Detail Modal -->
+<div id="memory-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Memory Details</h3>
+            <span class="close" onclick="closeModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="memory-details"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+.browser-container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+.filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.filter-group label {
+    color: var(--synth-cyan);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.filter-group input,
+.filter-group select {
+    background: var(--synth-surface);
+    border: 1px solid var(--synth-border);
+    color: var(--synth-text);
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+
+.filter-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.table-container {
+    overflow-x: auto;
+    margin: 1rem 0;
+}
+
+.pagination {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: center;
+    margin: 1rem 0;
+}
+
+.pagination button {
+    background: var(--synth-surface);
+    border: 1px solid var(--synth-border);
+    color: var(--synth-text);
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.pagination button:hover:not(:disabled) {
+    background: var(--synth-cyan);
+    color: var(--synth-dark-bg);
+}
+
+.pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination .page-info {
+    color: var(--synth-text);
+    margin: 0 1rem;
+}
+
+.bulk-actions {
+    background: var(--synth-surface);
+    padding: 1rem;
+    border-radius: 4px;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-top: 1rem;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ff0040 0%, #ff10f0 100%);
+    color: white;
+    border: none;
+    padding: 0.5rem 1.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.btn-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(255, 0, 64, 0.4);
+}
+
+.memory-row {
+    cursor: pointer;
+}
+
+.memory-row:hover {
+    background: rgba(0, 255, 255, 0.05);
+}
+
+.memory-row.selected {
+    background: rgba(0, 255, 255, 0.1);
+}
+</style>
+
+<script>
+let currentPage = 1;
+let currentFilters = {};
+let selectedMemories = new Set();
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadMemories();
+    
+    // Set up enter key handlers
+    document.querySelectorAll('.filter-group input').forEach(input => {
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                applyFilters();
+            }
+        });
+    });
+});
+
+// Load memories with current filters
+async function loadMemories(page = 1) {
+    currentPage = page;
+    
+    // Build query parameters
+    const params = new URLSearchParams({
+        page: page,
+        per_page: document.getElementById('per-page').value,
+        sort_by: document.getElementById('sort-by').value,
+        sort_order: document.getElementById('sort-order').value
+    });
+    
+    // Add filters
+    const search = document.getElementById('filter-search').value;
+    if (search) params.append('search', search);
+    
+    const session = document.getElementById('filter-session').value;
+    if (session) params.append('session_id', session);
+    
+    const who = document.getElementById('filter-who').value;
+    if (who) params.append('who', who);
+    
+    const where = document.getElementById('filter-where').value;
+    if (where) params.append('where', where);
+    
+    const entity = document.getElementById('filter-entity').value;
+    if (entity) params.append('entity', entity);
+    
+    const dateFrom = document.getElementById('filter-date-from').value;
+    if (dateFrom) params.append('date_from', dateFrom);
+    
+    const dateTo = document.getElementById('filter-date-to').value;
+    if (dateTo) params.append('date_to', dateTo);
+    
+    // Show loading state
+    const tbody = document.getElementById('memories-tbody');
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align: center;">Loading...</td></tr>';
+    
+    try {
+        const response = await fetch('/api/memories?' + params);
+        if (response.ok) {
+            const data = await response.json();
+            displayMemories(data.memories);
+            updatePagination(data.pagination);
+            
+            // Update count
+            document.getElementById('memory-count').textContent = 
+                `(${data.pagination.total} total)`;
+        }
+    } catch (error) {
+        console.error('Failed to load memories:', error);
+        tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; color: var(--synth-pink);">Failed to load memories</td></tr>';
+    }
+}
+
+// Display memories in table
+function displayMemories(memories) {
+    const tbody = document.getElementById('memories-tbody');
+    
+    if (!memories || memories.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="12" class="table-loading">No memories found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = '';
+    
+    memories.forEach(memory => {
+        const row = document.createElement('tr');
+        if (selectedMemories.has(memory.memory_id)) {
+            row.classList.add('selected');
+        }
+        
+        row.innerHTML = `
+            <td class="col-checkbox">
+                <input type="checkbox" value="${memory.memory_id}" 
+                       onchange="toggleSelection('${memory.memory_id}')" 
+                       ${selectedMemories.has(memory.memory_id) ? 'checked' : ''} />
+            </td>
+            <td class="col-memory-id">
+                <a class="memory-id-link" onclick="showMemoryDetails('${memory.memory_id}')">${memory.memory_id.substring(0, 12)}...</a>
+            </td>
+            <td>${memory.session_id || 'N/A'}</td>
+            <td>${memory.who_type}:${memory.who_id}</td>
+            <td class="col-entities">${formatEntities(memory.entities)}</td>
+            <td class="col-when">${formatDate(memory.when_ts)}</td>
+            <td>${memory.where_type}:${memory.where_value}</td>
+            <td title="${escapeHtml(memory.why || '')}">${truncateText(memory.why || 'N/A', 50)}</td>
+            <td title="${escapeHtml(memory.how || '')}">${truncateText(memory.how || 'N/A', 50)}</td>
+            <td class="col-score">${memory.token_count || 0}</td>
+            <td class="col-text" title="${escapeHtml(memory.raw_text || '')}">${truncateText(memory.raw_text || '', 100)}</td>
+            <td class="col-actions">
+                <button onclick="showMemoryDetails('${memory.memory_id}')" class="btn-table">View</button>
+                <button onclick="deleteMemory('${memory.memory_id}')" class="btn-table btn-danger">Delete</button>
+            </td>
+        `;
+        
+        // Add click handler for entire row (except checkbox and buttons)
+        row.addEventListener('click', function(e) {
+            // Don't trigger if clicking checkbox, button, or link
+            if (!e.target.matches('input') && !e.target.matches('button') && !e.target.matches('a')) {
+                showMemoryDetails(memory.memory_id);
+            }
+        });
+        
+        tbody.appendChild(row);
+    });
+}
+
+// Update pagination controls
+function updatePagination(pagination) {
+    const topPag = document.getElementById('pagination-top');
+    const bottomPag = document.getElementById('pagination-bottom');
+    
+    const pagHTML = `
+        <button onclick="loadMemories(1)" ${!pagination.has_prev ? 'disabled' : ''}>First</button>
+        <button onclick="loadMemories(${pagination.page - 1})" ${!pagination.has_prev ? 'disabled' : ''}>Previous</button>
+        <span class="page-info">Page ${pagination.page} of ${pagination.total_pages}</span>
+        <button onclick="loadMemories(${pagination.page + 1})" ${!pagination.has_next ? 'disabled' : ''}>Next</button>
+        <button onclick="loadMemories(${pagination.total_pages})" ${!pagination.has_next ? 'disabled' : ''}>Last</button>
+    `;
+    
+    topPag.innerHTML = pagHTML;
+    bottomPag.innerHTML = pagHTML;
+}
+
+// Apply filters
+function applyFilters() {
+    selectedMemories.clear();
+    updateBulkActions();
+    loadMemories(1);
+}
+
+// Clear all filters
+function clearFilters() {
+    document.getElementById('filter-search').value = '';
+    document.getElementById('filter-session').value = '';
+    document.getElementById('filter-who').value = '';
+    document.getElementById('filter-where').value = '';
+    document.getElementById('filter-entity').value = '';
+    document.getElementById('filter-date-from').value = '';
+    document.getElementById('filter-date-to').value = '';
+    selectedMemories.clear();
+    updateBulkActions();
+    loadMemories(1);
+}
+
+// Toggle selection
+function toggleSelection(memoryId) {
+    if (selectedMemories.has(memoryId)) {
+        selectedMemories.delete(memoryId);
+    } else {
+        selectedMemories.add(memoryId);
+    }
+    updateBulkActions();
+}
+
+// Toggle select all
+function toggleSelectAll() {
+    const checkboxes = document.querySelectorAll('#memories-tbody input[type="checkbox"]');
+    const selectAll = document.getElementById('select-all').checked;
+    
+    checkboxes.forEach(cb => {
+        cb.checked = selectAll;
+        if (selectAll) {
+            selectedMemories.add(cb.value);
+        } else {
+            selectedMemories.delete(cb.value);
+        }
+    });
+    
+    updateBulkActions();
+}
+
+// Update bulk actions display
+function updateBulkActions() {
+    const bulkActions = document.getElementById('bulk-actions');
+    const selectedCount = document.getElementById('selected-count');
+    
+    if (selectedMemories.size > 0) {
+        bulkActions.style.display = 'flex';
+        selectedCount.textContent = `${selectedMemories.size} selected`;
+    } else {
+        bulkActions.style.display = 'none';
+    }
+}
+
+// Delete single memory
+async function deleteMemory(memoryId) {
+    if (!confirm('Are you sure you want to delete this memory?')) return;
+    
+    try {
+        const response = await fetch(`/api/memories/${memoryId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            loadMemories(currentPage);
+        } else {
+            alert('Failed to delete memory');
+        }
+    } catch (error) {
+        console.error('Delete error:', error);
+        alert('Failed to delete memory');
+    }
+}
+
+// Delete selected memories
+async function deleteSelected() {
+    if (selectedMemories.size === 0) return;
+    
+    if (!confirm(`Are you sure you want to delete ${selectedMemories.size} memories?`)) return;
+    
+    for (const memoryId of selectedMemories) {
+        try {
+            await fetch(`/api/memories/${memoryId}`, {
+                method: 'DELETE'
+            });
+        } catch (error) {
+            console.error(`Failed to delete ${memoryId}:`, error);
+        }
+    }
+    
+    selectedMemories.clear();
+    updateBulkActions();
+    loadMemories(currentPage);
+}
+
+// Export memories (stub)
+function exportMemories() {
+    alert('Export functionality will be implemented');
+}
+
+// Export selected (stub)
+function exportSelected() {
+    alert('Export selected functionality will be implemented');
+}
+
+// Show memory details modal
+async function showMemoryDetails(memoryId) {
+    try {
+        const response = await fetch(`/api/memories/${memoryId}`);
+        if (!response.ok) {
+            const error = await response.json();
+            console.error('Failed to fetch memory:', error);
+            alert(`Failed to load memory details: ${error.error || 'Unknown error'}`);
+            return;
+        }
+        
+        const memory = await response.json();
+            
+            const modal = document.getElementById('memory-modal');
+            const details = document.getElementById('memory-details');
+            
+            // Format entities
+            const entitiesHtml = memory.entities && memory.entities.length > 0
+                ? `<div class="entity-list-modal">${memory.entities.map(e => 
+                    `<span class="entity-tag" onclick="searchForEntity('${e}')">${e}</span>`
+                  ).join('')}</div>`
+                : '<span style="color: var(--synth-text-muted);">No entities extracted</span>';
+            
+            details.innerHTML = `
+                <div class="memory-detail">
+                    <div class="detail-section">
+                        <h5>Memory Identifier</h5>
+                        <div style="font-family: monospace; color: var(--synth-cyan); font-size: 1.1rem;">
+                            ${memory.memory_id}
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h5>5W1H Components</h5>
+                        <div class="detail-grid">
+                            <div>
+                                <strong>WHO:</strong> 
+                                <span style="color: var(--synth-text);">
+                                    ${memory.who_type}:${memory.who_id}
+                                    ${memory.who_label ? `<em>(${memory.who_label})</em>` : ''}
+                                </span>
+                            </div>
+                            <div>
+                                <strong>WHAT:</strong> 
+                                <span style="color: var(--synth-text);" title="${escapeHtml(memory.what || '')}">
+                                    ${truncateText(memory.what || 'N/A', 100)}
+                                </span>
+                            </div>
+                            <div>
+                                <strong>WHEN:</strong> 
+                                <span style="color: var(--synth-text);">
+                                    ${formatDate(memory.when_ts)}
+                                </span>
+                            </div>
+                            <div>
+                                <strong>WHERE:</strong> 
+                                <span style="color: var(--synth-text);">
+                                    ${memory.where_type}:${memory.where_value}
+                                </span>
+                            </div>
+                            <div>
+                                <strong>WHY:</strong> 
+                                <span style="color: var(--synth-text);">
+                                    ${memory.why || 'N/A'}
+                                </span>
+                            </div>
+                            <div>
+                                <strong>HOW:</strong> 
+                                <span style="color: var(--synth-text);">
+                                    ${memory.how || 'N/A'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h5>Entities</h5>
+                        ${entitiesHtml}
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h5>Metadata</h5>
+                        <div class="detail-grid">
+                            <div><strong>SESSION:</strong> ${memory.session_id || 'N/A'}</div>
+                            <div><strong>SOURCE EVENT:</strong> ${memory.source_event_id || 'N/A'}</div>
+                            <div><strong>TOKEN COUNT:</strong> ${memory.token_count || 0}</div>
+                            <div><strong>CREATED:</strong> ${formatDate(memory.created_at)}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h5>Raw Text</h5>
+                        <div class="raw-text-display">
+                            ${escapeHtml(memory.raw_text || 'No raw text available')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            modal.style.display = 'block';
+    } catch (error) {
+        console.error('Failed to load memory details:', error);
+        alert('Failed to load memory details: ' + error.message);
+    }
+}
+
+// Close modal
+function closeModal() {
+    document.getElementById('memory-modal').style.display = 'none';
+}
+
+// Search for entity
+function searchForEntity(entity) {
+    // Set the entity filter and apply
+    document.getElementById('filter-entity').value = entity;
+    applyFilters();
+    // Close the modal
+    closeModal();
+}
+
+// Helper functions
+function formatEntities(entities) {
+    if (!entities || entities.length === 0) return '';
+    
+    const maxShow = 3;
+    const shown = entities.slice(0, maxShow);
+    const html = shown.map(e => `<span class="entity-tag">${e}</span>`).join('');
+    
+    if (entities.length > maxShow) {
+        return html + ` <small>+${entities.length - maxShow}</small>`;
+    }
+    return html;
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return 'N/A';
+    try {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    } catch {
+        return dateStr;
+    }
+}
+
+function truncateText(text, maxLength) {
+    if (!text) return '';
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Window click handler for modal
+window.onclick = function(event) {
+    const modal = document.getElementById('memory-modal');
+    if (event.target === modal) {
+        modal.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}
