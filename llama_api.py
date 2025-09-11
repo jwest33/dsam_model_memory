@@ -87,7 +87,7 @@ class ModelInfo(BaseModel):
 
 class DocumentIngestionRequest(BaseModel):
     chunking_strategy: Optional[str] = Field(default="semantic", pattern="^(semantic|paragraph|sentence)$")
-    max_chunk_size: Optional[int] = Field(default=2000, gt=100, le=15360)
+    max_chunk_size: Optional[int] = Field(default=2000, gt=100, le=20480)
     chunk_overlap: Optional[int] = Field(default=200, ge=0, le=1000)
     metadata: Optional[Dict[str, Any]] = None
 

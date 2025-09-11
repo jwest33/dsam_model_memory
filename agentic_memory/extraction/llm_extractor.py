@@ -27,11 +27,15 @@ Return ONLY valid JSON in the following schema:
   "what": "<concise description of the key action or content>",
   "when": "<ISO 8601 timestamp>",
   "where": {{ "type": "<context type e.g. physical, digital, financial, academic, conceptual, social>", "value": "<specific context like UI path, URL, file, location, or domain>" }},
-  "why": "<best-effort intent or reason>",
+  "why": "<best-effort intent or reason - IMPORTANT: if the user is asking to recall memories, searching for information, or asking 'what do you remember about X' or 'is there any memory about Y', set this to 'memory_recall: <topic>' where <topic> is what they're trying to recall>",
   "how": "<method used, tool/procedure/parameters>"
 }}
 
 Consider the content and metadata; be concise but unambiguous.
+Special instructions for the 'why' field:
+- If user asks "do you remember...", "what do you know about...", "recall memories about...", "find memories of...", "is there any memory about...", set why to "memory_recall: <topic>"
+- If user asks "what did we discuss about...", "what was said about...", set why to "memory_recall: <topic>"
+- If user asks for past information, history, or previous discussions, set why to "memory_recall: <topic>"
 """
 
 def _call_llm(prompt: str, content: str) -> Optional[Dict[str, Any]]:
@@ -66,12 +70,26 @@ def extract_5w1h(raw: RawEvent, context_hint: str = "") -> MemoryRecord:
     content = f"EventType: {raw.event_type}\nActor: {raw.actor}\nTimestamp: {raw.timestamp.isoformat()}\nContent: {raw.content}\nMetadata: {raw.metadata}\nContext: {context_hint}"
     parsed = _call_llm(PROMPT, content)
     if not parsed:
-        # simple fallback
+        # simple fallback with recall detection
         who_type = 'tool' if raw.event_type in ('tool_call','tool_result') else ('user' if raw.event_type=='user_message' else ('llm' if raw.event_type=='llm_message' else 'system'))
         who = Who(type=who_type, id=raw.actor, label=None)
         what = raw.metadata.get('operation') or raw.content[:160]
         where = Where(type='digital', value=raw.metadata.get('location') or raw.metadata.get('tool_name') or 'local_ui')
+        
+        # Detect recall queries in fallback
+        content_lower = raw.content.lower()
+        recall_keywords = ['remember', 'recall', 'memory', 'memories', 'what do you know', 
+                          'what did we discuss', 'what was said', 'find information',
+                          'is there any memory', 'do you have any memory']
+        
         why = raw.metadata.get('intent') or 'unspecified'
+        for keyword in recall_keywords:
+            if keyword in content_lower:
+                # Extract topic from the content
+                topic = raw.content[content_lower.index(keyword)+len(keyword):].strip()[:50]
+                why = f"memory_recall: {topic}"
+                break
+        
         how = raw.metadata.get('method') or raw.metadata.get('tool_name') or 'message'
     else:
         who = Who(**parsed['who'])

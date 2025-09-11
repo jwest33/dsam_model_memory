@@ -2,7 +2,7 @@ from __future__ import annotations
 import sqlite3
 from typing import List, Tuple, Optional, Iterable, Dict, Any
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import os
 import numpy as np
@@ -154,7 +154,7 @@ class MemoryStore:
                     rec.memory_id, rec.session_id, rec.source_event_id, rec.who.type, rec.who.id, rec.who.label,
                     rec.what, rec.when.isoformat(), rec.where.type, rec.where.value, rec.where.lat, rec.where.lon,
                     rec.why, rec.how, rec.raw_text, rec.token_count, rec.embed_model, json.dumps(rec.extra),
-                    datetime.utcnow().isoformat()
+                    datetime.now(timezone.utc).astimezone().isoformat()
                 )
             )
             con.execute(
@@ -168,7 +168,7 @@ class MemoryStore:
             )
             con.execute(
                 """INSERT OR IGNORE INTO usage_stats (memory_id, accesses, last_access) VALUES (?, 0, ?)""", 
-                (rec.memory_id, datetime.utcnow().isoformat())
+                (rec.memory_id, datetime.now(timezone.utc).astimezone().isoformat())
             )
 
     def fetch_memories(self, ids: List[str]):
@@ -181,7 +181,7 @@ class MemoryStore:
         if not memory_ids:
             return
         with self.connect() as con:
-            now = datetime.utcnow().isoformat()
+            now = datetime.now(timezone.utc).astimezone().isoformat()
             for mid in memory_ids:
                 con.execute(
                     """INSERT INTO usage_stats (memory_id, accesses, last_access)
@@ -285,7 +285,7 @@ class MemoryStore:
         from datetime import timedelta
         
         if reference_date is None:
-            reference_date = datetime.utcnow()
+            reference_date = datetime.now(timezone.utc).astimezone().isoformat()
         
         if relative_spec == "today":
             target_date = reference_date.date()
@@ -356,7 +356,7 @@ class MemoryStore:
         """Update synaptic weight between two memories"""
         # Ensure consistent ordering
         m1, m2 = (memory_id1, memory_id2) if memory_id1 < memory_id2 else (memory_id2, memory_id1)
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).astimezone().isoformat()
         
         with self.connect() as con:
             con.execute(
@@ -384,7 +384,7 @@ class MemoryStore:
     
     def update_importance(self, memory_id: str, importance_score: float, connection_count: int):
         """Update importance score for a memory"""
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).astimezone().isoformat()
         
         with self.connect() as con:
             con.execute(
@@ -426,7 +426,7 @@ class MemoryStore:
     
     def store_embedding_drift(self, memory_id: str, drift_vector: np.ndarray):
         """Store embedding drift vector for a memory"""
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).astimezone().isoformat()
         drift_blob = drift_vector.tobytes()
         
         with self.connect() as con:

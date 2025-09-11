@@ -176,7 +176,7 @@ class MemoryRouter:
         return result_ids
 
     def retrieve_block(self, session_id: str, context_messages: List[Dict[str, str]],
-                       actor_hint: Optional[str] = None, spatial_hint: Optional[str] = None,
+                       actor_hint: Optional[str] = None,
                        temporal_hint: Optional[Union[str, Tuple[str, str], Dict]] = None) -> Dict[str, Any]:
         # Construct query text from context (last N messages)
         ctx_text = "\n".join([f"{m.get('role','')}: {m.get('content','')}" for m in context_messages[-6:]])
@@ -192,7 +192,6 @@ class MemoryRouter:
         rq = RetrievalQuery(
             session_id=session_id, 
             actor_hint=actor_hint, 
-            spatial_hint=spatial_hint,
             temporal_hint=temporal_hint,
             text=ctx_text
         )
@@ -237,7 +236,11 @@ class MemoryRouter:
         if not blocks:
             return {"block": None, "members": []}
         first = blocks[0]
-        out = self.store.get_block(first.block_id)
+        # Use the dynamically generated block directly instead of trying to retrieve from DB
+        out = {
+            'block': first.dict(),
+            'members': first.member_ids
+        }
         
         # Update embedding drift based on retrieval context
         if self.adaptive_embeddings and out.get('members'):

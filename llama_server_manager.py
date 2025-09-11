@@ -28,14 +28,14 @@ class BaseLlamaServerConfig:
     # Server settings
     host: str = "0.0.0.0"
     port: int = 8000
-    context_size: int = 15360
+    context_size: int = 20480
     threads: int = 1
     
     # GPU/VRAM optimization settings
     n_gpu_layers: int = -1  # Use ALL layers on GPU
     no_mmap: bool = True  # Keep entire model in VRAM
     lock_memory: bool = True  # Lock model in memory
-    batch_size: int = 15360
+    batch_size: int = 20480
     ubatch_size: int = 1024
     
     # Model settings (to be overridden)
@@ -55,8 +55,8 @@ class LLMServerConfig(BaseLlamaServerConfig):
     model_path: str = r"C:\models\Qwen3-4B-Instruct-2507\Qwen3-4B-Instruct-2507-Q8_0.gguf"
     model_alias: str = "qwen3-4b-instruct"
     port: int = 8000
-    context_size: int = 15360
-    batch_size: int = 15360
+    context_size: int = 20480
+    batch_size: int = 20480
     ubatch_size: int = 1024
     
     # Performance optimizations
@@ -100,8 +100,8 @@ class EmbeddingServerConfig(BaseLlamaServerConfig):
     model_path: str = r"C:\models\Qwen3-Embedding-0.6B\qwen3-embedding-0.6b-q8_0.gguf"
     model_alias: str = "qwen3-embedding"
     port: int = 8002
-    context_size: int = 15360  # Smaller context for embeddings
-    batch_size: int = 15360
+    context_size: int = 20480  # Smaller context for embeddings
+    batch_size: int = 20480
     ubatch_size: int = 1024
 
     # Embedding specific settings

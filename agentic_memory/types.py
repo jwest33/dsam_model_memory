@@ -64,12 +64,21 @@ class MemoryBlock(BaseModel):
 
 class RetrievalQuery(BaseModel):
     session_id: str
-    actor_hint: Optional[str] = None
-    spatial_hint: Optional[str] = None
-    temporal_hint: Optional[Union[str, Tuple[str, str], Dict]] = None  # Date, date range, or relative time
-    text: str
+    actor_hint: Optional[str] = None  # Maps to WHO
+    temporal_hint: Optional[Union[str, Tuple[str, str], Dict]] = None  # Maps to WHEN - Date, date range, or relative time
+    text: str  # Used for WHAT/WHY/HOW semantic search
 
 class Candidate(BaseModel):
     memory_id: str
     score: float
     token_count: int
+    # Optional component scores for debugging
+    base_score: Optional[float] = None
+    semantic_score: Optional[float] = None
+    lexical_score: Optional[float] = None
+    recency_score: Optional[float] = None
+    importance_score: Optional[float] = None
+    actor_score: Optional[float] = None
+    temporal_score: Optional[float] = None
+    usage_score: Optional[float] = None
+    attention_score: Optional[float] = None

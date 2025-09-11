@@ -81,18 +81,87 @@ def llama_chat(messages, tools_enabled=False):
 def index():
     return render_template('index.html')
 
+@app.route('/api/debug_retrieval', methods=['POST'])
+def api_debug_retrieval():
+    """Debug endpoint to get detailed scoring information for retrieval."""
+    data = request.get_json(force=True)
+    session_id = data.get('session_id', 'default')
+    query_text = data.get('query', '')
+    
+    # Get the query vector
+    from agentic_memory.types import RetrievalQuery
+    rq = RetrievalQuery(
+        session_id=session_id,
+        text=query_text,
+        actor_hint=None,
+        temporal_hint=None
+    )
+    
+    # Get embedding
+    qvec = router.embedder.encode([query_text], normalize_embeddings=True)[0]
+    
+    # Perform search with detailed scoring
+    ranked = router.retriever.search(rq, qvec, topk_sem=60, topk_lex=60)
+    
+    # Extract scores and weights including component scores
+    scores = {}
+    for cand in ranked[:20]:  # Top 20 for analysis
+        score_data = {
+            'total_score': cand.score,
+            'token_count': cand.token_count
+        }
+        
+        # Add component scores if available
+        if cand.base_score is not None:
+            score_data['base_score'] = cand.base_score
+        if cand.semantic_score is not None:
+            score_data['semantic_score'] = cand.semantic_score
+        if cand.lexical_score is not None:
+            score_data['lexical_score'] = cand.lexical_score
+        if cand.recency_score is not None:
+            score_data['recency_score'] = cand.recency_score
+        if cand.importance_score is not None:
+            score_data['importance_score'] = cand.importance_score
+        if cand.actor_score is not None:
+            score_data['actor_score'] = cand.actor_score
+        if cand.temporal_score is not None:
+            score_data['temporal_score'] = cand.temporal_score
+        if cand.usage_score is not None:
+            score_data['usage_score'] = cand.usage_score
+        if cand.attention_score is not None:
+            score_data['attention_score'] = cand.attention_score
+            
+        scores[cand.memory_id] = score_data
+    
+    # Get current weight configuration
+    weights = {
+        'use_attention': cfg.use_attention,
+        'w_semantic': cfg.w_semantic if hasattr(cfg, 'w_semantic') else None,
+        'w_lexical': cfg.w_lexical if hasattr(cfg, 'w_lexical') else None,
+        'w_recency': cfg.w_recency if hasattr(cfg, 'w_recency') else None,
+        'w_actor': cfg.w_actor if hasattr(cfg, 'w_actor') else None,
+        'w_spatial': cfg.w_spatial if hasattr(cfg, 'w_spatial') else None,
+        'w_usage': cfg.w_usage if hasattr(cfg, 'w_usage') else None
+    }
+    
+    return jsonify({
+        'scores': scores,
+        'weights': weights,
+        'top_memory_ids': [c.memory_id for c in ranked[:10]]
+    })
+
 @app.route('/api/chat', methods=['POST'])
 def api_chat():
     data = request.get_json(force=True)
     session_id = data.get('session_id', 'default')
     user_text = data.get('text','')
     messages = data.get('messages', [])
-    # Ingest user event
+    # Retrieve memory block for context packing BEFORE ingesting the current message
+    block = router.retrieve_block(session_id=session_id, context_messages=messages + [{"role":"user","content":user_text}], actor_hint=None)
+    
+    # Ingest user event AFTER retrieval to avoid self-matching
     raw = RawEvent(session_id=session_id, event_type='user_message', actor='user:local', content=user_text, metadata={'location':'flask_ui'})
     router.ingest(raw)
-
-    # Retrieve memory block for context packing
-    block = router.retrieve_block(session_id=session_id, context_messages=messages + [{"role":"user","content":user_text}], actor_hint=None, spatial_hint='flask_ui')
 
     mem_texts = []
     if block and block.get('members'):
@@ -101,7 +170,8 @@ def api_chat():
         
         rows = store.fetch_memories(block['members'])
         for r in rows:
-            mem_texts.append(f"[MEM:{r['memory_id']}] WHO={r['who_type']}:{r['who_id']} WHEN={r['when_ts']} WHERE={r['where_value']}\nWHAT={r['what']}\nWHY={r['why']}\nHOW={r['how']}\nRAW={r['raw_text']}\n")
+            # Match the format used for token counting during creation
+            mem_texts.append(f"[MEM:{r['memory_id']}] WHAT: {r['what']}\nWHY: {r['why']}\nHOW: {r['how']}\n")
         # record usage
         store.record_access(block['members'])
 
@@ -111,13 +181,7 @@ def api_chat():
     # Construct LLM messages with tool support
     if suggested_tool:
         # Add a more forceful example when weather is mentioned
-        if "weather" in user_text.lower():
-            example_query = user_text.replace("'", "").replace('"', '')
-            base_prompt = f"""You MUST search for current weather information.
-Output this EXACT format:
-<tool_call>{{"name": "web_search", "arguments": {{"query": "{example_query}"}}}}</tool_call>"""
-        else:
-            base_prompt = f"""You are a helpful assistant. The user is asking about current/real-time information.
+        base_prompt = f"""You are a helpful assistant. The user is asking about current/real-time information.
 YOU MUST use the {suggested_tool} tool. Do not claim you lack access to current information.
 Output the tool call immediately without explanation."""
     else:
@@ -131,14 +195,17 @@ You may reference the [MEM:<id>] annotations to ground your reply."""
         # The BlockBuilder already handled token budgeting, just use what it selected
         llm_messages.append({"role":"system","content":"\n\n".join(mem_texts)})
 
-    llm_messages += messages
+    # Limit conversation history to prevent context overflow
+    # Only include last 10 messages (5 exchanges) to stay within limits
+    recent_messages = messages[-10:] if len(messages) > 10 else messages
+    llm_messages += recent_messages
     
     # Simple evaluation based on query type - let the LLM decide based on actual retrieved memories
     query_type = MemoryEvaluator.classify_query_type(user_text)
     
     # For time-sensitive queries, suggest using tools
     time_sensitive_types = [
-        'weather_current', 'weather_today', 'weather_forecast',
+      #  'weather_current', 'weather_today', 'weather_forecast',
         'stock_price', 'cryptocurrency', 'news_breaking', 
         'news_daily', 'sports_score', 'traffic'
     ]

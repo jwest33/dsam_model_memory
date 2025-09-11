@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Union
 import numpy as np
 from datetime import datetime, timezone
 from .config import cfg
@@ -75,9 +75,12 @@ class HybridRetriever:
             results.append((row['memory_id'], recency_score))
         return results
     
-    def _spatial_based(self, location: str, topk: int) -> List[Tuple[str, float]]:
-        """Retrieve memories from specific location with recency-based scoring."""
-        rows = self.store.get_by_location(location, limit=topk)
+    def _where_based(self, where_value: str, topk: int) -> List[Tuple[str, float]]:
+        """Retrieve memories from specific WHERE location with recency-based scoring.
+        
+        This searches the where_value field in the 5W1H model.
+        """
+        rows = self.store.get_by_location(where_value, limit=topk)
         if not rows:
             return []
         
@@ -165,7 +168,10 @@ class HybridRetriever:
 
     def rerank(self, merged: Dict[str, float], rq: RetrievalQuery, 
                memory_embeddings: Optional[Dict[str, np.ndarray]] = None,
-               temporal_candidate_ids: Optional[List[str]] = None) -> List[Candidate]:
+               temporal_candidate_ids: Optional[List[str]] = None,
+               sem_scores: Optional[Dict[str, float]] = None,
+               lex_scores: Optional[Dict[str, float]] = None,
+               attention_scores: Optional[Dict[str, float]] = None) -> List[Candidate]:
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         metas = self._fetch_meta(list(merged.keys()))
         cands = []
@@ -175,8 +181,19 @@ class HybridRetriever:
         
         # Determine if we have hints to adjust weights
         has_actor_hint = bool(rq.actor_hint)
-        has_spatial_hint = bool(rq.spatial_hint and rq.spatial_hint != 'flask_ui')
         has_temporal_hint = bool(rq.temporal_hint)
+        
+        # Check if this is a memory recall query
+        is_recall_query = False
+        recall_boost = 1.0
+        query_lower = rq.text.lower()
+        recall_indicators = ['remember', 'recall', 'memory', 'what do you know', 
+                           'what did we discuss', 'find memories', 'is there any memory']
+        for indicator in recall_indicators:
+            if indicator in query_lower:
+                is_recall_query = True
+                recall_boost = 1.5  # Boost all matching memories for recall queries
+                break
         
         for mid, base in merged.items():
             m = metas.get(mid)
@@ -189,7 +206,6 @@ class HybridRetriever:
             # Extra signals
             rec = exp_recency(m['when_ts'], now)
             actor_match = 1.0 if (rq.actor_hint and m['who_id'] == rq.actor_hint) else 0.0
-            spatial_match = 1.0 if (rq.spatial_hint and m['where_value'] == rq.spatial_hint) else 0.0
             
             # Check temporal match
             temporal_match = 0.0
@@ -218,39 +234,27 @@ class HybridRetriever:
                 # Dynamic weights based on whether hints are provided
                 if has_temporal_hint:
                     # Boost temporal weight when hint is provided
-                    score = (base * 0.3 +
-                            importance * 0.1 +
-                            rec * 0.05 +            # Less recency weight when temporal hint active
+                    score = (base * 0.35 +
+                            importance * 0.15 +
+                            rec * 0.0 +            # No recency bias when temporal hint active
                             usage_score * 0.05 +
                             actor_match * 0.05 +
-                            spatial_match * 0.05 +
                             temporal_match * 0.40)   # Strong temporal weight
                 elif has_actor_hint:
                     # Boost actor weight when hint is provided
-                    score = (base * 0.35 +          # Reduced from 0.5
-                            importance * 0.15 +      # Reduced from 0.2
-                            rec * 0.15 +
+                    score = (base * 0.45 +          
+                            importance * 0.20 +      
+                            rec * 0.0 +              # No recency bias - treat all memories equally
                             usage_score * 0.1 +
-                            actor_match * 0.20 +     # Increased from 0.025
-                            spatial_match * 0.05 +
-                            temporal_match * 0.0)
-                elif has_spatial_hint:
-                    # Boost spatial weight when hint is provided
-                    score = (base * 0.35 +
-                            importance * 0.15 +
-                            rec * 0.15 +
-                            usage_score * 0.1 +
-                            actor_match * 0.05 +
-                            spatial_match * 0.20 +   # Increased for spatial
+                            actor_match * 0.25 +     
                             temporal_match * 0.0)
                 else:
-                    # Default weights when no hints
-                    score = (base * 0.5 + 
-                            importance * 0.2 +
-                            rec * 0.15 +
+                    # Default weights when no hints - no recency bias
+                    score = (base * 0.65 +           # Increased base weight
+                            importance * 0.25 +       # Increased importance weight
+                            rec * 0.0 +               # Removed recency bias completely
                             usage_score * 0.1 +
-                            actor_match * 0.025 +
-                            spatial_match * 0.025 +
+                            actor_match * 0.0 +
                             temporal_match * 0.0)
             else:
                 # Original static scoring - also adjust for hints
@@ -259,27 +263,51 @@ class HybridRetriever:
                 else:
                     actor_weight = cfg.w_actor
                     
-                if has_spatial_hint:
-                    spatial_weight = 0.20  # Boost from cfg.w_spatial (0.03)
-                else:
-                    spatial_weight = cfg.w_spatial
-                
                 if has_temporal_hint:
                     temporal_weight = 0.35  # Boost for temporal hint
-                    recency_weight = 0.05   # Reduce recency when temporal hint active
+                    recency_weight = 0.0   # No recency bias
                 else:
                     temporal_weight = 0.0
-                    recency_weight = cfg.w_recency
+                    recency_weight = 0.0  # Remove recency bias - treat all memories equally
                     
-                usage_boost = 0.2 if actor_match or spatial_match or temporal_match else 0.0
-                score = base + recency_weight*rec + actor_weight*actor_match + spatial_weight*spatial_match + temporal_weight*temporal_match + cfg.w_usage*usage_boost
+                usage_boost = 0.2 if actor_match or temporal_match else 0.0
+                score = base + recency_weight*rec + actor_weight*actor_match + temporal_weight*temporal_match + cfg.w_usage*usage_boost
+            
+            # Apply recall boost if this is a memory recall query
+            if is_recall_query:
+                score = score * recall_boost
                 
-            cands.append(Candidate(memory_id=mid, score=score, token_count=int(m['token_count'])))
+            # Create candidate with component scores for debugging
+            candidate = Candidate(
+                memory_id=mid, 
+                score=score, 
+                token_count=int(m['token_count']),
+                base_score=base,
+                semantic_score=sem_scores.get(mid, 0.0) if sem_scores else None,
+                lexical_score=lex_scores.get(mid, 0.0) if lex_scores else None,
+                recency_score=rec,
+                importance_score=importance if self.use_attention else None,
+                actor_score=actor_match,
+                temporal_score=temporal_match,
+                usage_score=usage_score,
+                attention_score=attention_scores.get(mid, 0.0) if attention_scores else None
+            )
+            cands.append(candidate)
             
         cands.sort(key=lambda x: x.score, reverse=True)
         return cands
 
     def search(self, rq: RetrievalQuery, qvec: np.ndarray, topk_sem: int = 50, topk_lex: int = 50) -> List[Candidate]:
+        # Increase topk for recall queries to cast wider net
+        query_lower = rq.text.lower()
+        recall_indicators = ['remember', 'recall', 'memory', 'what do you know', 
+                           'what did we discuss', 'find memories', 'is there any memory']
+        is_recall = any(indicator in query_lower for indicator in recall_indicators)
+        
+        if is_recall:
+            topk_sem = min(200, topk_sem * 3)  # Triple the search space for recalls
+            topk_lex = min(200, topk_lex * 3)
+        
         sem = self._semantic(qvec, topk_sem)
         lex = self._lexical(rq.text, topk_lex)
         
@@ -288,10 +316,7 @@ class HybridRetriever:
         if rq.actor_hint:
             actor_candidates = self._actor_based(rq.actor_hint, topk_sem)
         
-        # NEW: Add spatial-specific retrieval if hint provided  
-        spatial_candidates = []
-        if rq.spatial_hint and rq.spatial_hint != 'flask_ui':  # Ignore default
-            spatial_candidates = self._spatial_based(rq.spatial_hint, topk_sem)
+        # WHERE-based retrieval is now handled through semantic search of the 'where_value' field
         
         # NEW: Add temporal-specific retrieval if hint provided
         temporal_candidates = []
@@ -299,7 +324,7 @@ class HybridRetriever:
             temporal_candidates = self._temporal_based(rq.temporal_hint, topk_sem)
         
         # Combine all candidate sources
-        all_candidates = sem + lex + actor_candidates + spatial_candidates + temporal_candidates
+        all_candidates = sem + lex + actor_candidates + temporal_candidates
         
         # Compute attention scores if enabled
         attention_scores = None
@@ -316,14 +341,19 @@ class HybridRetriever:
         # Merge scores with optional attention (now includes actor/spatial/temporal candidates)
         merged = self.merge_scores(sem, lex, attention_scores)
         
-        # Add actor/spatial/temporal candidates to merged scores if not already present
-        for mid, score in actor_candidates + spatial_candidates + temporal_candidates:
+        # Add actor/temporal candidates to merged scores if not already present
+        for mid, score in actor_candidates + temporal_candidates:
             if mid not in merged:
                 merged[mid] = score * 0.8  # Slightly lower base score for hint-only matches
         
+        # Create score dictionaries for component tracking
+        sem_dict = {mid: score for mid, score in sem}
+        lex_dict = {mid: score for mid, score in lex}
+        
         # Rerank with all signals
         temporal_candidate_ids = [mid for mid, _ in temporal_candidates] if temporal_candidates else None
-        ranked = self.rerank(merged, rq, temporal_candidate_ids=temporal_candidate_ids)
+        ranked = self.rerank(merged, rq, temporal_candidate_ids=temporal_candidate_ids,
+                           sem_scores=sem_dict, lex_scores=lex_dict, attention_scores=attention_scores)
         
         # Update consolidation based on retrieval
         if ranked and self.use_attention:
