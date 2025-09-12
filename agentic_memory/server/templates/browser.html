@@ -80,6 +80,7 @@
             <button onclick="applyFilters()" class="btn-primary">Apply Filters</button>
             <button onclick="clearFilters()" class="btn-secondary">Clear All</button>
             <button onclick="exportMemories()" class="btn-secondary">Export Results</button>
+            <button onclick="showImportDialog()" class="btn-secondary">Import Memories</button>
         </div>
     </div>
     
@@ -138,6 +139,56 @@
         </div>
         <div class="modal-body">
             <div id="memory-details"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div id="import-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Import Memories</h3>
+            <span class="close" onclick="closeImportModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="import-section">
+                <h5>Upload File</h5>
+                <p style="color: var(--synth-text-muted); font-size: 0.9rem; margin-bottom: 1rem;">
+                    Supported formats: JSON (exported memories), CSV, or plain text files
+                </p>
+                
+                <div class="file-upload-area" id="file-upload-area">
+                    <input type="file" id="import-file" accept=".json,.csv,.txt" style="display: none;" onchange="handleFileSelect(event)" />
+                    <div class="upload-prompt" onclick="document.getElementById('import-file').click()">
+                        <div style="font-size: 2rem; color: var(--synth-cyan);">📁</div>
+                        <p>Click to select file or drag and drop</p>
+                        <p style="font-size: 0.85rem; color: var(--synth-text-muted);">JSON, CSV, or TXT</p>
+                    </div>
+                </div>
+                
+                <div id="file-info" style="display: none; margin-top: 1rem;">
+                    <div style="background: var(--synth-surface); padding: 1rem; border-radius: 4px; border: 1px solid var(--synth-cyan);">
+                        <strong>Selected File:</strong> <span id="file-name"></span><br>
+                        <strong>Size:</strong> <span id="file-size"></span><br>
+                        <strong>Type:</strong> <span id="file-type"></span>
+                    </div>
+                </div>
+                
+                <div class="import-options" style="margin-top: 1.5rem;">
+                    <label style="color: var(--synth-cyan); font-size: 0.875rem; font-weight: 600;">Session ID (optional)</label>
+                    <input type="text" id="import-session-id" placeholder="e.g., import_2025" style="width: 100%; margin-bottom: 1rem;" />
+                    
+                    <button onclick="startImport()" id="start-import-btn" class="btn-primary" style="width: 100%;">Start Import</button>
+                </div>
+            </div>
+            
+            <!-- Import Jobs List -->
+            <div class="import-jobs" style="margin-top: 2rem; border-top: 1px solid var(--synth-border); padding-top: 1.5rem;">
+                <h5>Import Jobs</h5>
+                <div id="import-jobs-list">
+                    <p style="color: var(--synth-text-muted);">No import jobs yet</p>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -257,9 +308,198 @@
 .memory-row.selected {
     background: rgba(0, 255, 255, 0.1);
 }
+
+.file-upload-area {
+    border: 2px dashed var(--synth-cyan);
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.file-upload-area:hover {
+    background: rgba(0, 255, 255, 0.05);
+    border-color: var(--synth-pink);
+}
+
+.file-upload-area.dragover {
+    background: rgba(0, 255, 255, 0.1);
+    border-color: var(--synth-pink);
+}
+
+.import-job {
+    background: var(--synth-surface);
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--synth-border);
+}
+
+.import-job.processing {
+    border-color: var(--synth-cyan);
+    animation: pulse 2s infinite;
+}
+
+.import-job.completed {
+    border-color: var(--synth-green);
+}
+
+.import-job.failed {
+    border-color: var(--synth-pink);
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.progress-bar {
+    width: 100%;
+    height: 24px;
+    background: var(--synth-dark-bg);
+    border-radius: 10px;
+    overflow: visible;
+    margin: 0.5rem 0;
+    position: relative;
+    border: 1px solid var(--synth-border);
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--synth-cyan) 0%, var(--synth-pink) 100%);
+    transition: width 0.5s ease;
+    border-radius: 9px;
+    min-width: 0;
+}
+
+.progress-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+    z-index: 1;
+    pointer-events: none;
+}
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    min-width: 300px;
+    max-width: 500px;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    animation: slideIn 0.3s ease-out;
+    font-family: 'Space Mono', monospace;
+    border: 1px solid;
+}
+
+.notification.success {
+    background: linear-gradient(135deg, rgba(0, 255, 0, 0.1), rgba(0, 255, 255, 0.1));
+    border-color: #00ff00;
+    color: #00ff00;
+}
+
+.notification.error {
+    background: linear-gradient(135deg, rgba(255, 0, 64, 0.1), rgba(255, 16, 240, 0.1));
+    border-color: var(--synth-pink);
+    color: var(--synth-pink);
+}
+
+.notification.warning {
+    background: linear-gradient(135deg, rgba(255, 165, 0, 0.1), rgba(255, 255, 0, 0.1));
+    border-color: #ffa500;
+    color: #ffa500;
+}
+
+.notification.info {
+    background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(128, 0, 255, 0.1));
+    border-color: var(--synth-cyan);
+    color: var(--synth-cyan);
+}
+
+.notification-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.notification-message {
+    flex: 1;
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+.notification-close {
+    cursor: pointer;
+    font-size: 1.2rem;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.notification-close:hover {
+    opacity: 1;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+}
 </style>
 
 <script>
+// Notification system
+function showNotification(type, message, duration = 5000) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    
+    notification.innerHTML = `
+        <div class="notification-content">
+            <div class="notification-message">${message}</div>
+            <span class="notification-close" onclick="this.parentElement.parentElement.remove()">✕</span>
+        </div>
+    `;
+    
+    // Add to body
+    document.body.appendChild(notification);
+    
+    // Auto-remove after duration
+    if (duration > 0) {
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s ease-out';
+            setTimeout(() => notification.remove(), 300);
+        }, duration);
+    }
+    
+    return notification;
+}
+
 let currentPage = 1;
 let currentFilters = {};
 let selectedMemories = new Set();
@@ -468,19 +708,41 @@ function updateBulkActions() {
 async function deleteMemory(memoryId) {
     if (!confirm('Are you sure you want to delete this memory?')) return;
     
+    // Show loading feedback on the delete button
+    const deleteButtons = document.querySelectorAll(`button[onclick="deleteMemory('${memoryId}')"]`);
+    deleteButtons.forEach(btn => {
+        btn.disabled = true;
+        btn.textContent = 'Deleting...';
+    });
+    
     try {
         const response = await fetch(`/api/memories/${memoryId}`, {
             method: 'DELETE'
         });
         
         if (response.ok) {
+            // Remove from selected if it was selected
+            selectedMemories.delete(memoryId);
+            updateBulkActions();
+            // Reload the current page
             loadMemories(currentPage);
         } else {
-            alert('Failed to delete memory');
+            const error = await response.json();
+            showNotification('error', `Failed to delete memory: ${error.error || 'Unknown error'}`);
+            // Restore button state
+            deleteButtons.forEach(btn => {
+                btn.disabled = false;
+                btn.textContent = 'Delete';
+            });
         }
     } catch (error) {
         console.error('Delete error:', error);
-        alert('Failed to delete memory');
+        showNotification('error', 'Failed to delete memory: ' + error.message);
+        // Restore button state
+        deleteButtons.forEach(btn => {
+            btn.disabled = false;
+            btn.textContent = 'Delete';
+        });
     }
 }
 
@@ -490,29 +752,137 @@ async function deleteSelected() {
     
     if (!confirm(`Are you sure you want to delete ${selectedMemories.size} memories?`)) return;
     
-    for (const memoryId of selectedMemories) {
-        try {
-            await fetch(`/api/memories/${memoryId}`, {
-                method: 'DELETE'
-            });
-        } catch (error) {
-            console.error(`Failed to delete ${memoryId}:`, error);
+    // Show loading state
+    const bulkActions = document.getElementById('bulk-actions');
+    const originalContent = bulkActions.innerHTML;
+    bulkActions.innerHTML = '<span style="color: var(--synth-cyan);">Deleting memories...</span>';
+    
+    try {
+        const response = await fetch('/api/memories/delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                memory_ids: Array.from(selectedMemories)
+            })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            if (result.failed_ids && result.failed_ids.length > 0) {
+                showNotification('warning', `Deleted ${result.deleted_count} memories. Failed to delete ${result.failed_ids.length} memories.`);
+            } else {
+                // Success - clear selection and reload
+                showNotification('success', `Successfully deleted ${selectedMemories.size} memories`);
+                selectedMemories.clear();
+                document.getElementById('select-all').checked = false;
+            }
+        } else {
+            const error = await response.json();
+            showNotification('error', `Failed to delete memories: ${error.error || 'Unknown error'}`);
         }
+    } catch (error) {
+        console.error('Delete error:', error);
+        showNotification('error', 'Failed to delete memories: ' + error.message);
+    } finally {
+        // Restore original content and reload
+        bulkActions.innerHTML = originalContent;
+        updateBulkActions();
+        loadMemories(currentPage);
+    }
+}
+
+// Export memories based on current filters
+async function exportMemories() {
+    // Get current filter values
+    const filters = {
+        search: document.getElementById('filter-search').value,
+        session_id: document.getElementById('filter-session').value,
+        who: document.getElementById('filter-who').value,
+        where: document.getElementById('filter-where').value,
+        entity: document.getElementById('filter-entity').value,
+        date_from: document.getElementById('filter-date-from').value,
+        date_to: document.getElementById('filter-date-to').value
+    };
+    
+    // Ask for format
+    const format = confirm('Export as CSV? (OK for CSV, Cancel for JSON)') ? 'csv' : 'json';
+    
+    try {
+        const response = await fetch('/api/memories/export', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                filters: filters,
+                format: format
+            })
+        });
+        
+        if (response.ok) {
+            // Create download link
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `memories_export_${new Date().toISOString().slice(0,10)}.${format}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        } else {
+            const error = await response.json();
+            showNotification('error', `Failed to export memories: ${error.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        console.error('Export error:', error);
+        showNotification('error', 'Failed to export memories: ' + error.message);
+    }
+}
+
+// Export selected memories
+async function exportSelected() {
+    if (selectedMemories.size === 0) {
+        showNotification('warning', 'No memories selected for export');
+        return;
     }
     
-    selectedMemories.clear();
-    updateBulkActions();
-    loadMemories(currentPage);
-}
-
-// Export memories (stub)
-function exportMemories() {
-    alert('Export functionality will be implemented');
-}
-
-// Export selected (stub)
-function exportSelected() {
-    alert('Export selected functionality will be implemented');
+    // Ask for format
+    const format = confirm('Export as CSV? (OK for CSV, Cancel for JSON)') ? 'csv' : 'json';
+    
+    try {
+        const response = await fetch('/api/memories/export', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                memory_ids: Array.from(selectedMemories),
+                format: format
+            })
+        });
+        
+        if (response.ok) {
+            // Create download link
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `memories_export_selected_${new Date().toISOString().slice(0,10)}.${format}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        } else {
+            const error = await response.json();
+            showNotification('error', `Failed to export memories: ${error.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        console.error('Export error:', error);
+        showNotification('error', 'Failed to export memories: ' + error.message);
+    }
 }
 
 // Show memory details modal
@@ -522,7 +892,7 @@ async function showMemoryDetails(memoryId) {
         if (!response.ok) {
             const error = await response.json();
             console.error('Failed to fetch memory:', error);
-            alert(`Failed to load memory details: ${error.error || 'Unknown error'}`);
+            showNotification('error', `Failed to load memory details: ${error.error || 'Unknown error'}`);
             return;
         }
         
@@ -617,7 +987,7 @@ async function showMemoryDetails(memoryId) {
             modal.style.display = 'block';
     } catch (error) {
         console.error('Failed to load memory details:', error);
-        alert('Failed to load memory details: ' + error.message);
+        showNotification('error', 'Failed to load memory details: ' + error.message);
     }
 }
 
@@ -674,8 +1044,265 @@ function escapeHtml(text) {
 // Window click handler for modal
 window.onclick = function(event) {
     const modal = document.getElementById('memory-modal');
+    const importModal = document.getElementById('import-modal');
     if (event.target === modal) {
         modal.style.display = 'none';
+    }
+    if (event.target === importModal) {
+        importModal.style.display = 'none';
+    }
+}
+
+// Import functionality
+let selectedFile = null;
+let importJobs = [];
+let importJobsInterval = null;
+
+function showImportDialog() {
+    document.getElementById('import-modal').style.display = 'block';
+    loadImportJobs();
+    // Start polling for job updates
+    if (importJobsInterval) clearInterval(importJobsInterval);
+    importJobsInterval = setInterval(loadImportJobs, 2000);
+}
+
+function closeImportModal() {
+    document.getElementById('import-modal').style.display = 'none';
+    // Stop polling
+    if (importJobsInterval) {
+        clearInterval(importJobsInterval);
+        importJobsInterval = null;
+    }
+}
+
+// File handling
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (file) {
+        selectedFile = file;
+        displayFileInfo(file);
+    }
+}
+
+function displayFileInfo(file) {
+    document.getElementById('file-info').style.display = 'block';
+    document.getElementById('file-name').textContent = file.name;
+    document.getElementById('file-size').textContent = formatFileSize(file.size);
+    
+    let fileType = 'Unknown';
+    if (file.name.endsWith('.json')) fileType = 'JSON';
+    else if (file.name.endsWith('.csv')) fileType = 'CSV';
+    else if (file.name.endsWith('.txt')) fileType = 'Text';
+    
+    document.getElementById('file-type').textContent = fileType;
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' bytes';
+    else if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+    else return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+// Drag and drop
+const uploadArea = document.getElementById('file-upload-area');
+if (uploadArea) {
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+    
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+    });
+    
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        
+        const file = e.dataTransfer.files[0];
+        if (file) {
+            selectedFile = file;
+            displayFileInfo(file);
+        }
+    });
+}
+
+// Start import
+async function startImport() {
+    if (!selectedFile) {
+        showNotification('warning', 'Please select a file to import');
+        return;
+    }
+    
+    const btn = document.getElementById('start-import-btn');
+    btn.disabled = true;
+    btn.textContent = 'Starting import...';
+    
+    try {
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        
+        const sessionId = document.getElementById('import-session-id').value;
+        if (sessionId) {
+            formData.append('session_id', sessionId);
+        }
+        
+        const response = await fetch('/api/memories/import', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            
+            // Reset form
+            selectedFile = null;
+            document.getElementById('import-file').value = '';
+            document.getElementById('file-info').style.display = 'none';
+            document.getElementById('import-session-id').value = '';
+            
+            // Reload jobs list
+            loadImportJobs();
+            
+            // Show success
+            showNotification('success', `Import job started! Job ID: ${result.job_id.substring(0, 8)}...`);
+        } else {
+            const error = await response.json();
+            showNotification('error', `Failed to start import: ${error.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        console.error('Import error:', error);
+        showNotification('error', 'Failed to start import: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Start Import';
+    }
+}
+
+// Track previous job statuses for completion detection
+let previousJobStatuses = {};
+
+// Load import jobs
+async function loadImportJobs() {
+    try {
+        const response = await fetch('/api/import/jobs');
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Check for newly completed jobs
+            let hasNewlyCompleted = false;
+            for (const job of data.jobs) {
+                const prevStatus = previousJobStatuses[job.job_id];
+                if (prevStatus === 'processing' && job.status === 'completed') {
+                    hasNewlyCompleted = true;
+                    // Show completion notification
+                    showNotification('success', `Import job completed! ${job.successful_imports} records imported successfully.`);
+                }
+            }
+            
+            // Update previous statuses
+            previousJobStatuses = {};
+            for (const job of data.jobs) {
+                previousJobStatuses[job.job_id] = job.status;
+            }
+            
+            displayImportJobs(data.jobs);
+            
+            // Refresh memories list if any job just completed
+            if (hasNewlyCompleted) {
+                loadMemories(currentPage);
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load import jobs:', error);
+    }
+}
+
+// Display import jobs
+function displayImportJobs(jobs) {
+    const container = document.getElementById('import-jobs-list');
+    
+    if (!jobs || jobs.length === 0) {
+        container.innerHTML = '<p style="color: var(--synth-text-muted);">No import jobs yet</p>';
+        return;
+    }
+    
+    container.innerHTML = jobs.map(job => {
+        const statusClass = job.status.toLowerCase();
+        const progressPercent = Math.round(job.progress_percentage || 0);
+        
+        return `
+            <div class="import-job ${statusClass}">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong>Job ID:</strong> ${job.job_id.substring(0, 8)}...<br>
+                        <strong>Status:</strong> <span style="color: ${getStatusColor(job.status)};">${job.status.toUpperCase()}</span><br>
+                        <strong>Progress:</strong> ${job.processed_records}/${job.total_records} records
+                    </div>
+                    <div style="text-align: right;">
+                        <strong>Success:</strong> ${job.successful_imports}<br>
+                        <strong>Failed:</strong> ${job.failed_imports}<br>
+                        <strong>Session:</strong> ${job.session_id || 'N/A'}
+                    </div>
+                </div>
+                
+                ${job.status === 'processing' ? `
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${progressPercent}%;"></div>
+                        <div class="progress-text">${progressPercent}%</div>
+                    </div>
+                ` : ''}
+                
+                ${job.error_messages && job.error_messages.length > 0 ? `
+                    <div style="margin-top: 0.5rem; color: var(--synth-pink); font-size: 0.85rem;">
+                        <strong>Errors:</strong><br>
+                        ${job.error_messages.slice(0, 3).map(err => `• ${err}`).join('<br>')}
+                    </div>
+                ` : ''}
+                
+                <div style="margin-top: 0.5rem; color: var(--synth-text-muted); font-size: 0.85rem;">
+                    Started: ${formatDate(job.start_time)}
+                    ${job.end_time ? `<br>Ended: ${formatDate(job.end_time)}` : ''}
+                </div>
+                
+                ${job.status === 'processing' ? `
+                    <button onclick="cancelImportJob('${job.job_id}')" class="btn-danger" style="margin-top: 0.5rem;">
+                        Cancel Job
+                    </button>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+function getStatusColor(status) {
+    switch(status.toLowerCase()) {
+        case 'completed': return 'var(--synth-green)';
+        case 'processing': return 'var(--synth-cyan)';
+        case 'failed': return 'var(--synth-pink)';
+        case 'cancelled': return 'var(--synth-text-muted)';
+        default: return 'var(--synth-text)';
+    }
+}
+
+// Cancel import job
+async function cancelImportJob(jobId) {
+    if (!confirm('Are you sure you want to cancel this import job?')) return;
+    
+    try {
+        const response = await fetch(`/api/import/cancel/${jobId}`, {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            loadImportJobs();
+        } else {
+            const error = await response.json();
+            showNotification('error', `Failed to cancel job: ${error.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        console.error('Cancel error:', error);
+        showNotification('error', 'Failed to cancel job: ' + error.message);
     }
 }
 </script>

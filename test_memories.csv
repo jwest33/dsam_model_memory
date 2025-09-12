@@ -1,0 +1,6 @@
+raw_text,session_id,who_type,who_id,when_ts,where_type,where_value
+"User asked about implementing a new feature for dark mode toggle in the application settings. They want to ensure proper theme switching across all components.",test_import,user,user_001,2025-01-10T10:30:00,digital,web_interface
+"The AI assistant analyzed the codebase and found that the application uses CSS variables for theming. Proposed a solution using React context for theme state management.",test_import,llm,assistant,2025-01-10T10:31:00,digital,code_editor
+"Created a new DarkModeContext component with theme provider that wraps the entire application. This allows any component to access and modify the theme.",test_import,llm,assistant,2025-01-10T10:35:00,digital,code_editor
+"User reported a bug where the navigation menu disappears on mobile devices when scrolling. This happens specifically on iOS Safari.",test_import,user,user_001,2025-01-10T14:00:00,digital,mobile_browser
+"Investigation revealed that the CSS position:sticky property was conflicting with the iOS Safari's bounce scroll behavior. Fixed by using position:fixed with proper z-index.",test_import,llm,assistant,2025-01-10T14:15:00,digital,debugger

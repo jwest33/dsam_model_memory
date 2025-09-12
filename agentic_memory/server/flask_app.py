@@ -2,7 +2,9 @@ from __future__ import annotations
 import os
 import json
 import sqlite3
-from flask import Flask, render_template, request, jsonify, session
+import csv
+import io
+from flask import Flask, render_template, request, jsonify, session, make_response
 from datetime import datetime
 import numpy as np
 from pathlib import Path
@@ -19,6 +21,7 @@ from agentic_memory.embedding import get_llama_embedder
 from agentic_memory.types import RetrievalQuery, Candidate
 from agentic_memory.settings_manager import SettingsManager
 from agentic_memory.block_builder import greedy_knapsack
+from agentic_memory.import_processor import ImportProcessor
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 app.secret_key = os.urandom(24)  # For session management
@@ -386,6 +389,278 @@ def delete_memory(memory_id):
         return jsonify({
             'success': True,
             'deleted': deleted_count > 0
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/memories/export', methods=['POST'])
+def export_memories():
+    """Export memories based on filters or selection"""
+    try:
+        data = request.json or {}
+        memory_ids = data.get('memory_ids', [])
+        format_type = data.get('format', 'json')  # json or csv
+        filters = data.get('filters', {})
+        
+        con = sqlite3.connect(cfg.db_path)
+        con.row_factory = sqlite3.Row
+        
+        # Build query based on whether specific IDs or filters
+        if memory_ids:
+            # Export specific memories
+            placeholders = ','.join(['?' for _ in memory_ids])
+            query = f"""
+                SELECT * FROM memories 
+                WHERE memory_id IN ({placeholders})
+                ORDER BY when_ts DESC
+            """
+            rows = con.execute(query, memory_ids).fetchall()
+        else:
+            # Export based on filters (similar to browse query)
+            query = "SELECT * FROM memories WHERE 1=1"
+            params = []
+            
+            # Apply filters
+            if filters.get('search'):
+                query += " AND (raw_text LIKE ? OR what LIKE ? OR why LIKE ? OR how LIKE ?)"
+                search_term = f"%{filters['search']}%"
+                params.extend([search_term] * 4)
+            
+            if filters.get('session_id'):
+                query += " AND session_id LIKE ?"
+                params.append(f"%{filters['session_id']}%")
+            
+            if filters.get('who'):
+                query += " AND (who_type LIKE ? OR who_id LIKE ?)"
+                who_term = f"%{filters['who']}%"
+                params.extend([who_term, who_term])
+            
+            if filters.get('where'):
+                query += " AND (where_type LIKE ? OR where_value LIKE ?)"
+                where_term = f"%{filters['where']}%"
+                params.extend([where_term, where_term])
+            
+            if filters.get('date_from'):
+                query += " AND when_ts >= ?"
+                params.append(filters['date_from'])
+            
+            if filters.get('date_to'):
+                query += " AND when_ts <= ?"
+                params.append(filters['date_to'])
+            
+            query += " ORDER BY when_ts DESC"
+            rows = con.execute(query, params).fetchall()
+        
+        con.close()
+        
+        # Convert to desired format
+        memories = [dict(row) for row in rows]
+        
+        if format_type == 'csv':
+            # Create CSV
+            import csv
+            import io
+            
+            output = io.StringIO()
+            if memories:
+                fieldnames = memories[0].keys()
+                writer = csv.DictWriter(output, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(memories)
+            
+            response = make_response(output.getvalue())
+            response.headers['Content-Type'] = 'text/csv'
+            response.headers['Content-Disposition'] = 'attachment; filename=memories_export.csv'
+            return response
+        else:
+            # JSON format
+            response = jsonify({
+                'memories': memories,
+                'count': len(memories),
+                'export_time': datetime.now().isoformat()
+            })
+            response.headers['Content-Disposition'] = 'attachment; filename=memories_export.json'
+            return response
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/memories/delete', methods=['POST'])
+def delete_memories_bulk():
+    """Delete multiple memories at once"""
+    try:
+        data = request.json or {}
+        memory_ids = data.get('memory_ids', [])
+        
+        if not memory_ids:
+            return jsonify({'error': 'No memory IDs provided'}), 400
+        
+        con = sqlite3.connect(cfg.db_path)
+        cursor = con.cursor()
+        
+        deleted_count = 0
+        failed_ids = []
+        
+        for memory_id in memory_ids:
+            try:
+                # Delete from memories table
+                cursor.execute("DELETE FROM memories WHERE memory_id = ?", (memory_id,))
+                if cursor.rowcount > 0:
+                    deleted_count += 1
+                    
+                    # Delete from FTS
+                    cursor.execute("DELETE FROM memories_fts WHERE memory_id = ?", (memory_id,))
+                    
+                    # Remove from FAISS index
+                    try:
+                        faiss_index.remove(memory_id)
+                    except:
+                        pass  # Memory might not be in index
+                else:
+                    failed_ids.append(memory_id)
+            except Exception as e:
+                failed_ids.append(memory_id)
+                print(f"Failed to delete {memory_id}: {e}")
+        
+        con.commit()
+        con.close()
+        
+        # Save FAISS index if any deletions
+        if deleted_count > 0:
+            try:
+                faiss_index.save()
+            except:
+                pass
+        
+        return jsonify({
+            'success': True,
+            'deleted_count': deleted_count,
+            'failed_ids': failed_ids
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Initialize import processor singleton
+import_processor = ImportProcessor(cfg)
+
+@app.route('/api/memories/import', methods=['POST'])
+def import_memories():
+    """Import memories from uploaded file or data"""
+    try:
+        content = None
+        source_type = None
+        session_id = None
+        metadata = None
+        
+        # Check if file upload (multipart/form-data)
+        if 'file' in request.files:
+            file = request.files['file']
+            if file.filename == '':
+                return jsonify({'error': 'No file selected'}), 400
+            
+            # Read file content
+            content = file.read().decode('utf-8')
+            
+            # Determine file type from extension
+            if file.filename.endswith('.json'):
+                source_type = 'json'
+            elif file.filename.endswith('.csv'):
+                source_type = 'csv'
+            else:
+                source_type = 'text'
+                
+            # Get optional parameters from form data
+            session_id = request.form.get('session_id')
+            metadata = request.form.get('metadata')
+            
+        # Check if JSON data submission
+        elif request.is_json:
+            data = request.get_json()
+            if not data:
+                return jsonify({'error': 'No data provided'}), 400
+            
+            content = data.get('content')
+            source_type = data.get('source_type', 'auto')
+            session_id = data.get('session_id')
+            metadata = data.get('metadata')
+        else:
+            # No valid data format
+            return jsonify({'error': 'No file or JSON data provided'}), 400
+        
+        if metadata and isinstance(metadata, str):
+            try:
+                metadata = json.loads(metadata)
+            except:
+                metadata = None
+        
+        # Validate content
+        if not content:
+            return jsonify({'error': 'No content to import'}), 400
+        
+        # Create import job
+        job_id = import_processor.create_import_job(
+            data=content,
+            source_type=source_type,
+            session_id=session_id,
+            metadata=metadata
+        )
+        
+        return jsonify({
+            'success': True,
+            'job_id': job_id,
+            'message': 'Import job started'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/import/status/<job_id>', methods=['GET'])
+def get_import_status(job_id):
+    """Get status of an import job"""
+    try:
+        status = import_processor.get_job_status(job_id)
+        if not status:
+            return jsonify({'error': 'Job not found'}), 404
+        
+        return jsonify(status)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/import/cancel/<job_id>', methods=['POST'])
+def cancel_import(job_id):
+    """Cancel an import job"""
+    try:
+        success = import_processor.cancel_job(job_id)
+        if not success:
+            return jsonify({'error': 'Job not found or already completed'}), 400
+        
+        return jsonify({
+            'success': True,
+            'message': 'Import job cancelled'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/import/jobs', methods=['GET'])
+def list_import_jobs():
+    """List all import jobs"""
+    try:
+        jobs = []
+        for job_id in import_processor.jobs:
+            status = import_processor.get_job_status(job_id)
+            if status:
+                jobs.append(status)
+        
+        # Sort by start time descending
+        jobs.sort(key=lambda x: x['start_time'], reverse=True)
+        
+        return jsonify({
+            'jobs': jobs[:20],  # Return last 20 jobs
+            'total': len(jobs)
         })
         
     except Exception as e:
