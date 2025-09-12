@@ -18,6 +18,7 @@ class FaissIndex:
                     self.id_map = [line.strip() for line in f]
         else:
             # cosine similarity -> normalize and use Inner Product
+            # Create a flat index first, then wrap with HNSW
             self.index = faiss.IndexHNSWFlat(dim, 32, faiss.METRIC_INNER_PRODUCT)
             self.index.hnsw.efSearch = 64
             self.index.hnsw.efConstruction = 80

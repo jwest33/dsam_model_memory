@@ -69,6 +69,8 @@ class ChatCompletionRequest(BaseModel):
     stream: Optional[bool] = False
     presence_penalty: Optional[float] = Field(default=0.0, ge=-2.0, le=2.0)
     frequency_penalty: Optional[float] = Field(default=0.0, ge=-2.0, le=2.0)
+    memory_search: Optional[bool] = Field(default=False, description="Enable memory search augmentation")
+    memory_token_budget: Optional[int] = Field(default=None, description="Token budget for memory search")
 
 
 class EmbeddingRequest(BaseModel):
@@ -93,6 +95,20 @@ class DocumentIngestionRequest(BaseModel):
 
 
 class DocumentIngestionResponse(BaseModel):
+    file_name: str
+    file_type: str
+    chunks_created: int
+    memories_created: int
+
+
+class MemorySearchRequest(BaseModel):
+    query: str
+    token_budget: Optional[int] = None
+    initial_candidates: Optional[int] = Field(default=100, gt=0, le=1000)
+    weights: Optional[Dict[str, float]] = None
+
+
+class DocumentIngestionFinalResponse(BaseModel):
     file_name: str
     file_type: str
     chunks_created: int
@@ -206,17 +222,67 @@ class LlamaAPIWrapper:
         return response
     
     async def chat_completion(self, request: ChatCompletionRequest) -> Dict[str, Any]:
-        """Handle chat completion requests"""
+        """Handle chat completion requests with optional memory search augmentation"""
         self.request_count += 1
         
         # Convert messages to format expected by llama server
         messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
         
+        # If memory search is enabled, augment the context
+        if request.memory_search and self.memory_router:
+            # Extract query from recent messages (last 3 user messages)
+            query_parts = []
+            for msg in reversed(request.messages):
+                if msg.role == "user":
+                    query_parts.append(msg.content)
+                    if len(query_parts) >= 3:
+                        break
+            
+            if query_parts:
+                # Combine recent user messages as query
+                search_query = "\n".join(reversed(query_parts))
+                
+                # Perform memory search
+                memory_result = self.memory_router.search_memories(
+                    query=search_query,
+                    token_budget=request.memory_token_budget,
+                    initial_candidates=100
+                )
+                
+                # Format memories as context
+                if memory_result.get('memories'):
+                    memory_context = "## Relevant Memories:\n\n"
+                    for mem in memory_result['memories'][:10]:  # Limit to top 10
+                        memory_context += f"**Memory {mem['memory_id']} (score: {mem['total_score']}):**\n"
+                        memory_context += f"- When: {mem['when']}\n"
+                        memory_context += f"- Who: {mem['who']}\n"
+                        memory_context += f"- What: {mem['what']}\n"
+                        if mem.get('why'):
+                            memory_context += f"- Why: {mem['why']}\n"
+                        if mem.get('how'):
+                            memory_context += f"- How: {mem['how']}\n"
+                        memory_context += f"- Context: {mem['raw_text'][:300]}...\n\n"
+                    
+                    # Insert memory context as a system message
+                    memory_msg = {
+                        "role": "system",
+                        "content": f"The following memories from your knowledge base may be relevant to this conversation:\n\n{memory_context}"
+                    }
+                    
+                    # Insert after initial system message or at beginning
+                    if messages and messages[0]["role"] == "system":
+                        messages.insert(1, memory_msg)
+                    else:
+                        messages.insert(0, memory_msg)
+        
+        # Prepare request without memory_search fields
+        forward_params = request.dict(exclude={'messages', 'memory_search', 'memory_token_budget'}, exclude_none=True)
+        
         response = await self.forward_request(
             "/chat/completions",
             json={
                 "messages": messages,
-                **request.dict(exclude={'messages'}, exclude_none=True)
+                **forward_params
             }
         )
         
@@ -283,6 +349,21 @@ class LlamaAPIWrapper:
                 pass
         
         return stats
+    
+    async def search_memories(self, request: MemorySearchRequest) -> Dict[str, Any]:
+        """Search memories using the same process as the analyzer"""
+        if not self.memory_router:
+            raise HTTPException(status_code=503, detail="Memory search not available")
+        
+        # Call router's search_memories method
+        result = self.memory_router.search_memories(
+            query=request.query,
+            weights=request.weights,
+            token_budget=request.token_budget,
+            initial_candidates=request.initial_candidates
+        )
+        
+        return result
     
     async def ingest_document(self, file_path: str, request: DocumentIngestionRequest) -> DocumentIngestionResponse:
         """Ingest a document into memory"""
@@ -500,6 +581,13 @@ def create_app(config: Optional[APIConfig] = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="File not found")
         
         result = await wrapper.ingest_document(file_path, request)
+        return result
+    
+    @app.post("/v1/memory/search")
+    @app.post("/memory/search")
+    async def memory_search(request: MemorySearchRequest):
+        """Search the memory database using the same process as the analyzer"""
+        result = await wrapper.search_memories(request)
         return result
     
     return app

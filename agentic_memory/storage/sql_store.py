@@ -175,7 +175,8 @@ class MemoryStore:
         qmarks = ','.join('?' * len(ids))
         with self.connect() as con:
             rows = con.execute(f"SELECT * FROM memories WHERE memory_id IN ({qmarks})", ids).fetchall()
-        return rows
+        # Convert Row objects to dictionaries
+        return [dict(row) for row in rows]
 
     def record_access(self, memory_ids: List[str]):
         if not memory_ids:

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Dict, Tuple, Optional, Union
+from typing import List, Dict, Tuple, Optional, Union, Any
 import numpy as np
 import json
 import re
@@ -306,7 +306,7 @@ class HybridRetriever:
                     # Check different types of relatedness:
                     
                     # 1. Same actor discussing similar topic (updates/corrections)
-                    if json.loads(memory.get('who_list', '[]'))[0] if json.loads(memory.get('who_list', '[]')) else '' == other_json.loads(memory.get('who_list', '[]'))[0] if json.loads(memory.get('who_list', '[]')) else '' and entity_overlap > 3:
+                    if json.loads(memory.get('who_list', '[]'))[0] if json.loads(memory.get('who_list', '[]')) else '' == json.loads(other_memory.get('who_list', '[]'))[0] if json.loads(other_memory.get('who_list', '[]')) else '' and entity_overlap > 3:
                         is_related = True
                     
                     # 2. High overlap ratio (>40% of words in common) - likely same topic
@@ -527,7 +527,7 @@ class HybridRetriever:
         # The topk parameters now only control the FINAL output size, not initial retrieval
         
         # Step 1: Get large candidate sets from each source (cast wide net)
-        initial_retrieval_size = 1000  # Retrieve top 1000 from each source
+        initial_retrieval_size = 10000  # Retrieve top 10000 from each source
         
         # Get semantic candidates (vector similarity)
         sem = self._semantic(qvec, initial_retrieval_size)
@@ -772,7 +772,7 @@ class HybridRetriever:
         # Temporarily override the fixed weights in compute_all_scores
         # We'll need to modify compute_all_scores to accept weights parameter
         # For now, use standard search and re-score
-        candidates = self.search(rq, qvec, topk_sem=1000, topk_lex=1000)
+        candidates = self.search(rq, qvec, topk_sem=10000, topk_lex=10000)
         
         # Re-score with custom weights
         for c in candidates:

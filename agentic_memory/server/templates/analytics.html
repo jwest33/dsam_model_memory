@@ -30,34 +30,28 @@
     
     <!-- Entity Analytics -->
     <div class="panel">
-        <h3>Entity Analysis</h3>
+        <h3>Top What Items</h3>
         <div class="entity-controls">
             <button onclick="loadEntityAnalytics(500)" class="btn-secondary">Top 500</button>
             <button onclick="loadEntityAnalytics(1000)" class="btn-secondary">Top 1000</button>
             <button onclick="loadEntityAnalytics(5000)" class="btn-secondary">Top 5000</button>
         </div>
-        
-        <div class="analytics-grid">
-            <div class="analytics-section">
-                <h4>Top What Items</h4>
-                <div id="top-entities" class="entity-list"></div>
-            </div>
-            
-            <div class="analytics-section">
-                <h4>5W1H Network Visualization</h4>
-                <div class="network-controls">
-                    <button onclick="setNetworkOverlay('what')" class="network-btn active" data-type="what">What</button>
-                    <button onclick="setNetworkOverlay('who')" class="network-btn" data-type="who">Who</button>
-                    <button onclick="setNetworkOverlay('when')" class="network-btn" data-type="when">When</button>
-                    <button onclick="setNetworkOverlay('where')" class="network-btn" data-type="where">Where</button>
-                    <button onclick="setNetworkOverlay('why')" class="network-btn" data-type="why">Why</button>
-                    <button onclick="setNetworkOverlay('how')" class="network-btn" data-type="how">How</button>
-                </div>
-                <div class="network-container">
-                    <canvas id="entity-network" width="600" height="500"></canvas>
-                    <div class="network-tooltip" id="network-tooltip" style="display: none;"></div>
-                </div>
-            </div>
+        <div id="top-entities" class="entity-list"></div>
+    </div>
+    
+    <!-- Network Visualization - Separate Panel -->
+    <div class="panel" style="margin-top: 20px;">
+        <h3>5W1H Network Visualization</h3>
+        <div class="network-controls" style="margin-bottom: 15px;">
+            <button onclick="loadAndDrawNetwork('what')" class="network-btn active" data-type="what">What</button>
+            <button onclick="loadAndDrawNetwork('who')" class="network-btn" data-type="who">Who</button>
+            <button onclick="loadAndDrawNetwork('when')" class="network-btn" data-type="when">When</button>
+            <button onclick="loadAndDrawNetwork('where')" class="network-btn" data-type="where">Where</button>
+            <button onclick="loadAndDrawNetwork('why')" class="network-btn" data-type="why">Why</button>
+            <button onclick="loadAndDrawNetwork('how')" class="network-btn" data-type="how">How</button>
+        </div>
+        <div id="network-container" style="width: 100%; height: 600px; background: #0a0814; border: 2px solid #00ffff; border-radius: 8px; position: relative; overflow: hidden;">
+            <!-- Canvas will be created dynamically -->
         </div>
     </div>
     
@@ -68,9 +62,10 @@
             <button onclick="loadTemporalAnalytics(7)" class="btn-secondary">7 Days</button>
             <button onclick="loadTemporalAnalytics(30)" class="btn-secondary">30 Days</button>
             <button onclick="loadTemporalAnalytics(90)" class="btn-secondary">90 Days</button>
+            <button onclick="loadTemporalAnalytics(3650)" class="btn-secondary">All Time</button>
         </div>
         
-        <canvas id="temporal-chart" width="1200" height="300"></canvas>
+        <canvas id="temporal-chart" width="1200" height="400"></canvas>
         
         <div id="temporal-stats" class="temporal-stats"></div>
     </div>
@@ -134,10 +129,12 @@
 }
 
 .stat-value {
-    font-size: 2rem;
+    font-size: 1.8rem;
     font-weight: bold;
     color: var(--synth-cyan);
     text-shadow: 0 0 10px var(--synth-cyan);
+    word-break: break-word;
+    line-height: 1.2;
 }
 
 .stat-label {
@@ -248,7 +245,6 @@
 
 .network-container {
     position: relative;
-    background: rgba(0, 0, 0, 0.5);
     border-radius: 8px;
     padding: 1rem;
     border: 1px solid var(--synth-border);
@@ -318,7 +314,8 @@
     margin-top: 0.25rem;
 }
 
-canvas {
+/* Remove generic canvas rule that breaks network visualization */
+#temporal-chart, #score-distribution {
     max-width: 100%;
     height: auto;
 }
@@ -330,6 +327,8 @@ document.addEventListener('DOMContentLoaded', function() {
     loadStats();
     loadEntityAnalytics(1000);
     loadTemporalAnalytics(30);
+    // Initialize network with 'what' data
+    loadAndDrawNetwork('what');
 });
 
 // Load system stats
@@ -349,8 +348,8 @@ async function loadStats() {
                 stats.avg_tokens ? Math.round(stats.avg_tokens).toLocaleString() : '0';
             
             if (stats.date_range && stats.date_range.from && stats.date_range.to) {
-                const from = new Date(stats.date_range.from).toLocaleDateString();
-                const to = new Date(stats.date_range.to).toLocaleDateString();
+                const from = new Date(stats.date_range.from).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: '2-digit'});
+                const to = new Date(stats.date_range.to).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: '2-digit'});
                 document.getElementById('date-range').textContent = `${from} - ${to}`;
             } else {
                 document.getElementById('date-range').textContent = 'N/A';
@@ -371,9 +370,11 @@ async function loadEntityAnalytics(limit) {
             // Display top entities
             displayTopEntities(data.top_entities);
             
-            // Store and draw entity network
-            networkData.what = data.co_occurrence;
-            drawEntityNetwork(data.co_occurrence, 'what');
+            // Initialize and draw network with 'what' data
+            if (!networkGraph) {
+                networkGraph = new NetworkGraph('network-container');
+            }
+            networkGraph.setData(data.co_occurrence || [], 'what');
         }
     } catch (error) {
         console.error('Failed to load entity analytics:', error);
@@ -409,58 +410,362 @@ function displayTopEntities(entities) {
     });
 }
 
-// Network state management
-let currentNetworkType = 'what';
-let networkData = {
-    what: null,
-    who: null,
-    when: null,
-    where: null,
-    why: null,
-    how: null
-};
-let networkNodes = {};
-let networkLinks = [];
-let isDragging = false;
-let draggedNode = null;
-let mousePos = { x: 0, y: 0 };
-let animationFrame = null;
-
-// Set network overlay type
-function setNetworkOverlay(type) {
-    currentNetworkType = type;
+// Simple, clean network visualization
+class NetworkGraph {
+    constructor(containerId) {
+        this.container = document.getElementById(containerId);
+        this.nodes = [];
+        this.links = [];
+        this.canvas = null;
+        this.ctx = null;
+        this.width = 0;
+        this.height = 0;
+        this.currentType = 'what';
+        this.isDragging = false;
+        this.draggedNode = null;
+        this.mouseX = 0;
+        this.mouseY = 0;
+        this.zoom = 1;
+        this.offsetX = 0;
+        this.offsetY = 0;
+        this.isPanning = false;
+        this.lastMouseX = 0;
+        this.lastMouseY = 0;
+        
+        this.init();
+    }
     
+    init() {
+        // Clear container and create fresh canvas
+        this.container.innerHTML = '';
+        this.canvas = document.createElement('canvas');
+        this.canvas.style.width = '100%';
+        this.canvas.style.height = '100%';
+        this.canvas.style.cursor = 'grab';
+        this.container.appendChild(this.canvas);
+        
+        // Set canvas size
+        this.resize();
+        
+        // Get context
+        this.ctx = this.canvas.getContext('2d');
+        
+        // Setup event listeners
+        this.setupEvents();
+        
+        // Handle resize
+        window.addEventListener('resize', () => this.resize());
+    }
+    
+    resize() {
+        const rect = this.container.getBoundingClientRect();
+        this.width = rect.width;
+        this.height = rect.height;
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+    }
+    
+    setupEvents() {
+        this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
+        this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
+        this.canvas.addEventListener('mouseup', () => this.onMouseUp());
+        this.canvas.addEventListener('mouseleave', () => this.onMouseUp());
+        this.canvas.addEventListener('wheel', (e) => this.onWheel(e));
+    }
+    
+    onMouseDown(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left - this.offsetX) / this.zoom;
+        const y = (e.clientY - rect.top - this.offsetY) / this.zoom;
+        
+        // Store initial mouse position for panning
+        this.lastMouseX = e.clientX;
+        this.lastMouseY = e.clientY;
+        this.isPanning = false;
+        
+        // Check if clicking on a node
+        for (let node of this.nodes) {
+            const dist = Math.sqrt((node.x - x) ** 2 + (node.y - y) ** 2);
+            if (dist < node.radius) {
+                this.isDragging = true;
+                this.draggedNode = node;
+                this.canvas.style.cursor = 'grabbing';
+                return;
+            }
+        }
+        
+        // If not clicking on a node, prepare for panning
+        this.isPanning = true;
+        this.canvas.style.cursor = 'grabbing';
+    }
+    
+    onMouseMove(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        this.mouseX = (e.clientX - rect.left - this.offsetX) / this.zoom;
+        this.mouseY = (e.clientY - rect.top - this.offsetY) / this.zoom;
+        
+        if (this.isDragging && this.draggedNode) {
+            this.draggedNode.x = this.mouseX;
+            this.draggedNode.y = this.mouseY;
+            this.draw();
+        } else if (this.isPanning) {
+            // Calculate pan offset
+            const deltaX = e.clientX - this.lastMouseX;
+            const deltaY = e.clientY - this.lastMouseY;
+            
+            this.offsetX += deltaX;
+            this.offsetY += deltaY;
+            
+            this.lastMouseX = e.clientX;
+            this.lastMouseY = e.clientY;
+            
+            this.draw();
+        }
+    }
+    
+    onMouseUp() {
+        this.isDragging = false;
+        this.draggedNode = null;
+        this.isPanning = false;
+        this.canvas.style.cursor = 'grab';
+    }
+    
+    onWheel(e) {
+        e.preventDefault();
+        
+        const rect = this.canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        
+        // Calculate zoom
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        const newZoom = Math.max(0.3, Math.min(5, this.zoom * delta));
+        
+        // Calculate offset to zoom towards mouse position
+        const scaleChange = newZoom - this.zoom;
+        this.offsetX -= mouseX * scaleChange;
+        this.offsetY -= mouseY * scaleChange;
+        
+        this.zoom = newZoom;
+        this.draw();
+    }
+    
+    setData(coOccurrenceData, type) {
+        this.currentType = type;
+        this.nodes = [];
+        this.links = [];
+        
+        if (!coOccurrenceData || coOccurrenceData.length === 0) {
+            this.draw();
+            return;
+        }
+        
+        // Build node map
+        const nodeMap = {};
+        coOccurrenceData.forEach(link => {
+            if (!nodeMap[link.source]) {
+                nodeMap[link.source] = { 
+                    id: link.source, 
+                    x: 0, 
+                    y: 0, 
+                    radius: 10,
+                    weight: 0 
+                };
+            }
+            if (!nodeMap[link.target]) {
+                nodeMap[link.target] = { 
+                    id: link.target, 
+                    x: 0, 
+                    y: 0, 
+                    radius: 10,
+                    weight: 0 
+                };
+            }
+            nodeMap[link.source].weight += link.weight;
+            nodeMap[link.target].weight += link.weight;
+        });
+        
+        // Convert to array and position in circle
+        this.nodes = Object.values(nodeMap);
+        const centerX = this.width / 2;
+        const centerY = this.height / 2;
+        const radius = Math.min(this.width, this.height) * 0.3;
+        
+        this.nodes.forEach((node, i) => {
+            const angle = (i / this.nodes.length) * 2 * Math.PI;
+            node.x = centerX + Math.cos(angle) * radius;
+            node.y = centerY + Math.sin(angle) * radius;
+            node.radius = Math.min(8 + node.weight * 2, 25);
+        });
+        
+        // Build links
+        this.links = coOccurrenceData.map(link => ({
+            source: nodeMap[link.source],
+            target: nodeMap[link.target],
+            weight: link.weight
+        }));
+        
+        this.draw();
+    }
+    
+    draw() {
+        if (!this.ctx) return;
+        
+        // Clear canvas
+        this.ctx.clearRect(0, 0, this.width, this.height);
+        
+        // Dark background
+        this.ctx.fillStyle = '#0a0814';
+        this.ctx.fillRect(0, 0, this.width, this.height);
+        
+        // Save context state
+        this.ctx.save();
+        
+        // Apply zoom and offset transformations
+        this.ctx.translate(this.offsetX, this.offsetY);
+        this.ctx.scale(this.zoom, this.zoom);
+        
+        // Draw grid
+        this.drawGrid();
+        
+        // Draw links
+        this.ctx.strokeStyle = '#00ffff30';  // Cyan with transparency
+        this.links.forEach(link => {
+            this.ctx.lineWidth = Math.min(link.weight * 0.5, 3);
+            this.ctx.beginPath();
+            this.ctx.moveTo(link.source.x, link.source.y);
+            this.ctx.lineTo(link.target.x, link.target.y);
+            this.ctx.stroke();
+        });
+        
+        // Draw nodes
+        this.nodes.forEach(node => {
+            // Node circle
+            this.ctx.fillStyle = this.getNodeColor(this.currentType);
+            this.ctx.beginPath();
+            this.ctx.arc(node.x, node.y, node.radius, 0, 2 * Math.PI);
+            this.ctx.fill();
+            
+            // Node border
+            this.ctx.strokeStyle = '#ffffff';
+            this.ctx.lineWidth = 2;
+            this.ctx.stroke();
+            
+            // Node label
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.font = '12px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(node.id.substring(0, 20), node.x, node.y - node.radius - 5);
+        });
+        
+        // Restore context state
+        this.ctx.restore();
+        
+        // Draw info (not affected by zoom)
+        this.ctx.fillStyle = '#00ffff';
+        this.ctx.font = '12px monospace';
+        this.ctx.textAlign = 'left';
+        this.ctx.fillText(`${this.currentType.toUpperCase()} Network: ${this.nodes.length} nodes, ${this.links.length} links | Zoom: ${(this.zoom * 100).toFixed(0)}%`, 10, 20);
+    }
+    
+    drawGrid() {
+        this.ctx.strokeStyle = '#00ffff10';  // Very faint cyan
+        this.ctx.lineWidth = 1;
+        
+        // Calculate visible area in world coordinates
+        const startX = -this.offsetX / this.zoom;
+        const startY = -this.offsetY / this.zoom;
+        const endX = (this.width - this.offsetX) / this.zoom;
+        const endY = (this.height - this.offsetY) / this.zoom;
+        
+        // Vertical lines
+        const gridSize = 50;
+        for (let x = Math.floor(startX / gridSize) * gridSize; x < endX; x += gridSize) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, startY);
+            this.ctx.lineTo(x, endY);
+            this.ctx.stroke();
+        }
+        
+        // Horizontal lines
+        for (let y = Math.floor(startY / gridSize) * gridSize; y < endY; y += gridSize) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(startX, y);
+            this.ctx.lineTo(endX, y);
+            this.ctx.stroke();
+        }
+    }
+    
+    getNodeColor(type) {
+        const colors = {
+            what: '#00ffff',   // cyan
+            who: '#ff00ff',    // magenta
+            when: '#ffff00',   // yellow
+            where: '#00ff00',  // green
+            why: '#ff8800',    // orange
+            how: '#8800ff'     // purple
+        };
+        return colors[type] || '#00ffff';
+    }
+}
+
+// Global network instance
+let networkGraph = null;
+
+// Load and draw network
+async function loadAndDrawNetwork(type) {
     // Update button states
     document.querySelectorAll('.network-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.type === type);
     });
     
-    // Load network data for the selected type
-    loadNetworkData(type);
-}
-
-// Load network data for specific 5W1H component
-async function loadNetworkData(type) {
+    // Initialize network if needed
+    if (!networkGraph) {
+        networkGraph = new NetworkGraph('network-container');
+    }
+    
     try {
+        // Load data from API
         const response = await fetch(`/api/analytics/network/${type}`);
         if (response.ok) {
             const data = await response.json();
-            networkData[type] = data.co_occurrence || [];
-            drawEntityNetwork(networkData[type], type);
+            networkGraph.setData(data.co_occurrence || [], type);
+        } else {
+            console.error('Failed to load network data');
+            networkGraph.setData([], type);
         }
     } catch (error) {
-        console.error(`Failed to load ${type} network:`, error);
-        // Fall back to existing data if available
-        if (type === 'what' && networkData.what) {
-            drawEntityNetwork(networkData.what, type);
-        }
+        console.error('Error loading network:', error);
+        networkGraph.setData([], type);
     }
 }
 
-// Enhanced entity network drawing with physics and interactivity
-function drawEntityNetwork(coOccurrence, networkType = 'what') {
+// REMOVED OLD NETWORK CODE - Using NetworkGraph class instead
+// Old drawEntityNetwork function removed
+function OLD_drawEntityNetwork(coOccurrence, networkType = 'what') {
+    console.log(`Drawing network for type: ${networkType}`);
+    console.log(`Co-occurrence data:`, coOccurrence);
+    
     const canvas = document.getElementById('entity-network');
+    if (!canvas) {
+        console.error('Canvas element not found!');
+        return;
+    }
+    
+    // Get the actual displayed size of the canvas
+    const rect = canvas.getBoundingClientRect();
+    
+    // Set canvas internal size to match its display size
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    
     const ctx = canvas.getContext('2d');
+    if (!ctx) {
+        console.error('Could not get canvas context!');
+        return;
+    }
+    
+    console.log(`Canvas dimensions: ${canvas.width}x${canvas.height}`);
     
     // Clear any existing animation
     if (animationFrame) {
@@ -468,14 +773,15 @@ function drawEntityNetwork(coOccurrence, networkType = 'what') {
         animationFrame = null;
     }
     
-    // Clear canvas and draw background
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw synthwave grid background
-    drawGridBackground(ctx, canvas.width, canvas.height);
-    
     if (!coOccurrence || coOccurrence.length === 0) {
-        ctx.fillStyle = 'var(--synth-text-muted)';
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Fill with dark background
+        ctx.fillStyle = 'rgba(10, 10, 30, 0.95)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.fillStyle = '#888888';  // Gray text
         ctx.font = '14px "Courier New", monospace';
         ctx.textAlign = 'center';
         ctx.fillText(`No ${networkType} co-occurrence data`, canvas.width/2, canvas.height/2);
@@ -486,29 +792,38 @@ function drawEntityNetwork(coOccurrence, networkType = 'what') {
     networkNodes = {};
     networkLinks = [];
     
+    // Position nodes in a circle initially for better visibility
+    const nodeArray = [];
+    const uniqueNodes = new Set();
+    
     coOccurrence.forEach(link => {
-        if (!networkNodes[link.source]) {
-            networkNodes[link.source] = {
-                id: link.source,
-                x: Math.random() * (canvas.width - 100) + 50,
-                y: Math.random() * (canvas.height - 100) + 50,
-                vx: 0,
-                vy: 0,
-                connections: 0,
-                weight: 0
-            };
-        }
-        if (!networkNodes[link.target]) {
-            networkNodes[link.target] = {
-                id: link.target,
-                x: Math.random() * (canvas.width - 100) + 50,
-                y: Math.random() * (canvas.height - 100) + 50,
-                vx: 0,
-                vy: 0,
-                connections: 0,
-                weight: 0
-            };
-        }
+        uniqueNodes.add(link.source);
+        uniqueNodes.add(link.target);
+    });
+    
+    const nodeCount = uniqueNodes.size;
+    const angleStep = (2 * Math.PI) / nodeCount;
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = Math.min(canvas.width, canvas.height) * 0.35; // Use 35% of canvas size
+    
+    let index = 0;
+    uniqueNodes.forEach(nodeName => {
+        const angle = index * angleStep;
+        networkNodes[nodeName] = {
+            id: nodeName,
+            x: centerX + Math.cos(angle) * radius,
+            y: centerY + Math.sin(angle) * radius,
+            vx: 0,
+            vy: 0,
+            connections: 0,
+            weight: 0
+        };
+        index++;
+    });
+    
+    // Now process the links
+    coOccurrence.forEach(link => {
         
         networkNodes[link.source].connections++;
         networkNodes[link.target].connections++;
@@ -522,24 +837,133 @@ function drawEntityNetwork(coOccurrence, networkType = 'what') {
         });
     });
     
+    // Log initial node positions for debugging
+    console.log(`Initialized ${Object.keys(networkNodes).length} nodes`);
+    const sampleNodes = Object.values(networkNodes).slice(0, 3);
+    sampleNodes.forEach(node => {
+        console.log(`Node ${node.id}: position (${node.x.toFixed(0)}, ${node.y.toFixed(0)})`);
+    });
+    
     // Set up mouse event handlers
     setupNetworkInteraction(canvas);
     
-    // Start physics simulation
-    animateNetwork(ctx, canvas, networkType);
+    // Draw the network ONCE without animation for now
+    drawNetworkFrame(ctx, canvas, networkType);
+    
+    // Comment out animation for debugging
+    // setTimeout(() => {
+    //     animateNetwork(ctx, canvas, networkType);
+    // }, 100);
+}
+
+// Draw a single frame of the network (extracted from animateNetwork)
+function drawNetworkFrame(ctx, canvas, networkType) {
+    // Clear the canvas first
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw a subtle grid background instead of solid black
+    drawGridBackground(ctx, canvas.width, canvas.height);
+    
+    // Debug logging (only log once)
+    const nodeCount = Object.keys(networkNodes).length;
+    const linkCount = networkLinks.length;
+    if (!window.networkDebugLogged) {
+        console.log(`Drawing frame - Nodes: ${nodeCount}, Links: ${linkCount}`);
+        window.networkDebugLogged = true;
+    }
+    
+    if (nodeCount === 0) {
+        console.error('No nodes to draw!');
+        ctx.fillStyle = '#ff0000';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('ERROR: No nodes loaded', canvas.width/2, canvas.height/2);
+        return;
+    }
+    
+    // Get color scheme for network type
+    const colors = getNetworkColors(networkType);
+    
+    // Draw links with HIGH VISIBILITY
+    let linksDrawn = 0;
+    networkLinks.forEach(link => {
+        if (!link.source || !link.target) {
+            console.error('Invalid link:', link);
+            return;
+        }
+        
+        // Simple bright yellow lines
+        ctx.strokeStyle = '#ffff00';  // Bright yellow
+        ctx.lineWidth = Math.max(1, Math.min(link.weight || 1, 3));
+        ctx.globalAlpha = 0.7;
+        
+        ctx.beginPath();
+        ctx.moveTo(link.source.x, link.source.y);
+        ctx.lineTo(link.target.x, link.target.y);
+        ctx.stroke();
+        
+        ctx.globalAlpha = 1;
+        linksDrawn++;
+    });
+    
+    // Draw nodes with HIGH VISIBILITY
+    let nodesDrawn = 0;
+    Object.values(networkNodes).forEach((node, index) => {
+        if (!node || typeof node.x !== 'number' || typeof node.y !== 'number') {
+            console.error('Invalid node:', node);
+            return;
+        }
+        
+        // Log first few nodes for debugging
+        if (index < 3) {
+            console.log(`Drawing node ${node.id} at (${node.x.toFixed(1)}, ${node.y.toFixed(1)}), color: ${colors.nodeBase || '#00ffff'}`);
+        }
+        
+        const radius = Math.min(10 + (node.weight || 0) * 2, 25);
+        
+        // Draw a TEST RECTANGLE first to make sure drawing works
+        ctx.fillStyle = '#ff00ff';  // Bright magenta for visibility
+        ctx.fillRect(node.x - 5, node.y - 5, 10, 10);
+        
+        // Simple bright solid color node
+        ctx.fillStyle = '#00ffff';  // Force bright cyan
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Bright border
+        ctx.strokeStyle = '#ffff00';  // Yellow border for visibility
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        
+        // Label with white text (skip background for now)
+        const label = (node.id || 'Unknown').substring(0, 15);
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(label, node.x, node.y - radius - 10);
+        
+        nodesDrawn++;
+    });
+    
+    // Debug: Show node and link count
+    ctx.fillStyle = 'rgba(0, 255, 255, 0.8)';
+    ctx.font = '12px "Courier New", monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Nodes: ${nodeCount} (${nodesDrawn} drawn), Links: ${linkCount} (${linksDrawn} drawn)`, 10, canvas.height - 10);
 }
 
 // Draw synthwave grid background
 function drawGridBackground(ctx, width, height) {
-    // Create gradient background
+    // Create gradient background with synthwave colors
     const gradient = ctx.createLinearGradient(0, 0, 0, height);
-    gradient.addColorStop(0, 'rgba(25, 20, 40, 0.95)');
-    gradient.addColorStop(1, 'rgba(15, 10, 30, 0.95)');
+    gradient.addColorStop(0, 'rgba(10, 8, 20, 0.95)');  // Dark purple-black
+    gradient.addColorStop(1, 'rgba(20, 16, 31, 0.95)');  // Slightly lighter
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
     
     // Draw grid lines
-    ctx.strokeStyle = 'rgba(255, 0, 255, 0.1)';
+    ctx.strokeStyle = 'rgba(0, 255, 255, 0.1)';  // Cyan grid
     ctx.lineWidth = 1;
     
     // Vertical lines
@@ -565,6 +989,27 @@ function setupNetworkInteraction(canvas) {
     const newCanvas = canvas.cloneNode(true);
     canvas.parentNode.replaceChild(newCanvas, canvas);
     const updatedCanvas = document.getElementById('entity-network');
+    
+    // Add zoom functionality
+    let zoomLevel = 1.0;
+    updatedCanvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        zoomLevel *= delta;
+        zoomLevel = Math.max(0.5, Math.min(3.0, zoomLevel));
+        
+        // Apply zoom to all nodes
+        const centerX = updatedCanvas.width / 2;
+        const centerY = updatedCanvas.height / 2;
+        
+        Object.values(networkNodes).forEach(node => {
+            // Zoom relative to center
+            node.x = centerX + (node.x - centerX) * delta;
+            node.y = centerY + (node.y - centerY) * delta;
+        });
+        
+        console.log(`Zoom level: ${zoomLevel.toFixed(2)}`);
+    });
     
     updatedCanvas.addEventListener('mousedown', (e) => {
         const rect = updatedCanvas.getBoundingClientRect();
@@ -654,9 +1099,9 @@ function hideNetworkTooltip() {
 function animateNetwork(ctx, canvas, networkType) {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
-    const damping = 0.95;
-    const repulsion = 5000;
-    const attraction = 0.001;
+    const damping = 0.92;  // Slightly more damping to stabilize
+    const repulsion = 1500;  // Reduced repulsion force
+    const attraction = 0.005;  // Increased attraction to keep connected nodes closer
     
     // Apply physics forces
     Object.values(networkNodes).forEach(node => {
@@ -696,9 +1141,9 @@ function animateNetwork(ctx, canvas, networkType) {
             }
         });
         
-        // Center gravity
-        fx += (centerX - node.x) * 0.0001;
-        fy += (centerY - node.y) * 0.0001;
+        // Center gravity - stronger to keep nodes in view
+        fx += (centerX - node.x) * 0.001;
+        fy += (centerY - node.y) * 0.001;
         
         // Update velocity
         node.vx = (node.vx + fx) * damping;
@@ -713,83 +1158,8 @@ function animateNetwork(ctx, canvas, networkType) {
         node.y = Math.max(20, Math.min(canvas.height - 20, node.y));
     });
     
-    // Clear and redraw
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawGridBackground(ctx, canvas.width, canvas.height);
-    
-    // Get color scheme for network type
-    const colors = getNetworkColors(networkType);
-    
-    // Draw links with glow effect
-    networkLinks.forEach(link => {
-        const gradient = ctx.createLinearGradient(
-            link.source.x, link.source.y,
-            link.target.x, link.target.y
-        );
-        gradient.addColorStop(0, colors.linkStart);
-        gradient.addColorStop(1, colors.linkEnd);
-        
-        ctx.strokeStyle = gradient;
-        ctx.lineWidth = Math.min(link.weight / 2, 4);
-        ctx.globalAlpha = 0.3 + Math.min(link.weight * 0.1, 0.5);
-        
-        // Draw glow
-        ctx.shadowColor = colors.glow;
-        ctx.shadowBlur = 5;
-        ctx.beginPath();
-        ctx.moveTo(link.source.x, link.source.y);
-        ctx.lineTo(link.target.x, link.target.y);
-        ctx.stroke();
-        
-        ctx.shadowBlur = 0;
-        ctx.globalAlpha = 1;
-    });
-    
-    // Draw nodes with synthwave style
-    Object.values(networkNodes).forEach(node => {
-        const radius = Math.min(8 + node.weight, 20);
-        
-        // Outer glow
-        const glowGradient = ctx.createRadialGradient(
-            node.x, node.y, 0,
-            node.x, node.y, radius * 2
-        );
-        glowGradient.addColorStop(0, colors.nodeCenter);
-        glowGradient.addColorStop(0.5, colors.nodeMid);
-        glowGradient.addColorStop(1, 'transparent');
-        
-        ctx.fillStyle = glowGradient;
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, radius * 2, 0, 2 * Math.PI);
-        ctx.fill();
-        
-        // Main node
-        const nodeGradient = ctx.createRadialGradient(
-            node.x - radius/3, node.y - radius/3, 0,
-            node.x, node.y, radius
-        );
-        nodeGradient.addColorStop(0, colors.nodeHighlight);
-        nodeGradient.addColorStop(1, colors.nodeBase);
-        
-        ctx.fillStyle = nodeGradient;
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI);
-        ctx.fill();
-        
-        // Node border
-        ctx.strokeStyle = colors.nodeBorder;
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        
-        // Label with shadow
-        ctx.fillStyle = colors.text;
-        ctx.font = `${10 + Math.min(node.weight / 5, 4)}px "Courier New", monospace`;
-        ctx.textAlign = 'center';
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-        ctx.shadowBlur = 3;
-        ctx.fillText(node.id.substring(0, 20), node.x, node.y - radius - 8);
-        ctx.shadowBlur = 0;
-    });
+    // Draw the current frame
+    drawNetworkFrame(ctx, canvas, networkType);
     
     // Continue animation
     animationFrame = requestAnimationFrame(() => animateNetwork(ctx, canvas, networkType));
@@ -892,56 +1262,148 @@ function drawTemporalChart(timeline) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     if (!timeline || timeline.length === 0) {
-        ctx.fillStyle = 'var(--synth-text-muted)';
+        // Fill background
+        ctx.fillStyle = 'rgba(10, 10, 30, 0.95)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.fillStyle = '#888888';  // Gray text
         ctx.font = '14px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('No temporal data', canvas.width/2, canvas.height/2);
         return;
     }
     
-    const padding = 40;
+    const padding = 60;  // Increased padding for labels
+    const bottomPadding = 100;  // Extra padding for date labels
     const chartWidth = canvas.width - 2 * padding;
-    const chartHeight = canvas.height - 2 * padding;
+    const chartHeight = canvas.height - padding - bottomPadding;
     const barWidth = chartWidth / timeline.length;
     
     const maxCount = Math.max(...timeline.map(t => t.memories));
     
-    // Draw axes
-    ctx.strokeStyle = 'var(--synth-border)';
+    // Fill background with synthwave gradient
+    const bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    bgGradient.addColorStop(0, 'rgba(10, 8, 20, 0.98)');
+    bgGradient.addColorStop(1, 'rgba(20, 16, 31, 0.98)');
+    ctx.fillStyle = bgGradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw grid lines
+    ctx.strokeStyle = 'rgba(0, 255, 255, 0.1)';
+    ctx.lineWidth = 0.5;
+    // Horizontal grid lines
+    for (let i = 0; i <= 5; i++) {
+        const y = padding + (chartHeight * i / 5);
+        ctx.beginPath();
+        ctx.moveTo(padding, y);
+        ctx.lineTo(canvas.width - padding, y);
+        ctx.stroke();
+    }
+    
+    // Draw axes with glow effect
+    ctx.strokeStyle = '#00ffff';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = '#00ffff';
+    ctx.shadowBlur = 10;
     ctx.beginPath();
     ctx.moveTo(padding, padding);
-    ctx.lineTo(padding, canvas.height - padding);
-    ctx.lineTo(canvas.width - padding, canvas.height - padding);
+    ctx.lineTo(padding, canvas.height - bottomPadding);
+    ctx.lineTo(canvas.width - padding, canvas.height - bottomPadding);
     ctx.stroke();
+    ctx.shadowBlur = 0;
+    
+    // Y-axis labels
+    ctx.fillStyle = '#00ffff';
+    ctx.font = 'bold 11px "Courier New", monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i <= 5; i++) {
+        const value = Math.round(maxCount * (5 - i) / 5);
+        const y = padding + (chartHeight * i / 5);
+        ctx.fillText(value.toString(), padding - 10, y);
+    }
     
     // Draw bars
     timeline.forEach((day, index) => {
         const barHeight = (day.memories / maxCount) * chartHeight;
         const x = padding + index * barWidth;
-        const y = canvas.height - padding - barHeight;
+        const y = canvas.height - bottomPadding - barHeight;
         
-        // Bar
-        ctx.fillStyle = 'var(--synth-cyan)';
+        // Bar with synthwave gradient
+        const gradient = ctx.createLinearGradient(x, y, x, y + barHeight);
+        gradient.addColorStop(0, '#ff00ff');
+        gradient.addColorStop(0.5, '#00ffff');
+        gradient.addColorStop(1, '#0088aa');
+        ctx.fillStyle = gradient;
         ctx.fillRect(x + 2, y, barWidth - 4, barHeight);
         
-        // Date label (every 7th day)
-        if (index % 7 === 0) {
-            ctx.fillStyle = 'var(--synth-text)';
-            ctx.font = '10px sans-serif';
+        // Bar glow effect
+        ctx.shadowColor = '#00ffff';
+        ctx.shadowBlur = 5;
+        ctx.strokeStyle = '#00ffff';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 2, y, barWidth - 4, barHeight);
+        ctx.shadowBlur = 0;
+        
+        // Date label (show more frequently based on timeline length)
+        const labelFrequency = Math.max(1, Math.floor(timeline.length / 10));
+        if (index % labelFrequency === 0 || index === timeline.length - 1) {
+            // Date label background for better readability
             ctx.save();
-            ctx.translate(x + barWidth/2, canvas.height - padding + 15);
-            ctx.rotate(-Math.PI/4);
+            ctx.translate(x + barWidth/2, canvas.height - bottomPadding + 25);
+            ctx.rotate(-Math.PI/6);  // Less rotation for better readability
+            
+            // Background box
+            const dateText = day.date;
+            ctx.font = 'bold 11px "Courier New", monospace';
+            const textWidth = ctx.measureText(dateText).width;
+            ctx.fillStyle = 'rgba(10, 8, 20, 0.9)';
+            ctx.fillRect(-textWidth - 5, -12, textWidth + 10, 18);
+            
+            // Date text with glow
+            ctx.fillStyle = '#00ffff';
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 8;
             ctx.textAlign = 'right';
-            ctx.fillText(day.date, 0, 0);
+            ctx.textBaseline = 'middle';
+            ctx.fillText(dateText, 0, 0);
             ctx.restore();
+            ctx.shadowBlur = 0;
+        }
+        
+        // Value label on top of bar for significant values
+        if (day.memories > maxCount * 0.7) {
+            ctx.fillStyle = '#ffff00';
+            ctx.font = 'bold 10px "Courier New", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(day.memories.toString(), x + barWidth/2, y - 3);
         }
     });
     
-    // Title
-    ctx.fillStyle = 'var(--synth-text)';
-    ctx.font = '14px sans-serif';
+    // Title with synthwave style
+    ctx.fillStyle = '#ff00ff';
+    ctx.font = 'bold 16px "Courier New", monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('Memories Over Time', canvas.width/2, 20);
+    ctx.textBaseline = 'top';
+    ctx.shadowColor = '#ff00ff';
+    ctx.shadowBlur = 10;
+    ctx.fillText('TEMPORAL DISTRIBUTION', canvas.width/2, 10);
+    ctx.shadowBlur = 0;
+    
+    // X-axis label
+    ctx.fillStyle = '#00ffff';
+    ctx.font = 'bold 12px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('DATE', canvas.width/2, canvas.height - 10);
+    
+    // Y-axis label
+    ctx.save();
+    ctx.translate(15, canvas.height/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.fillText('MEMORIES', 0, 0);
+    ctx.restore();
 }
 
 // Display temporal stats
@@ -1032,11 +1494,11 @@ function drawScoreDistribution(distribution) {
         const y = canvas.height - barHeight - 20;
         
         // Bar
-        ctx.fillStyle = 'var(--synth-cyan)';
+        ctx.fillStyle = '#00ffff';  // Cyan color
         ctx.fillRect(x + 5, y, barWidth - 10, barHeight);
         
         // Label
-        ctx.fillStyle = 'var(--synth-text)';
+        ctx.fillStyle = '#ffffff';  // White text
         ctx.font = '10px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(label, x + barWidth/2, canvas.height - 5);
@@ -1048,7 +1510,7 @@ function drawScoreDistribution(distribution) {
     });
     
     // Title
-    ctx.fillStyle = 'var(--synth-text)';
+    ctx.fillStyle = '#ffffff';  // White text
     ctx.font = '12px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('Score Distribution', canvas.width/2, 15);

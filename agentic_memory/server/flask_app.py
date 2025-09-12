@@ -49,7 +49,7 @@ memory_router = MemoryRouter(store, faiss_index)
 # Load persisted weights or use defaults
 current_weights = settings_manager.get_weights()
 
-@app.route('/')
+@app.route('/analyzer')
 def analyzer():
     """Main analyzer interface"""
     # Get context window configuration
@@ -77,7 +77,7 @@ def search():
         token_budget = max(512, token_budget)  # Ensure minimum budget
         
         # For initial candidate retrieval, get more than we need
-        initial_top_k = data.get('initial_candidates', 500)
+        initial_top_k = data.get('initial_candidates', 10000)
         
         if not query:
             return jsonify({'error': 'Query is required'}), 400
@@ -130,6 +130,17 @@ def search():
 @app.route('/api/context', methods=['GET'])
 def get_context_info():
     """Get context window configuration"""
+    return jsonify({
+        'context_window': cfg.context_window,
+        'reserve_output': cfg.reserve_output_tokens,
+        'reserve_system': cfg.reserve_system_tokens,
+        'default_budget': cfg.context_window - cfg.reserve_output_tokens - cfg.reserve_system_tokens,
+        'model': cfg.llm_model
+    })
+
+@app.route('/api/model_config', methods=['GET'])
+def get_model_config():
+    """Get model configuration (alias for context endpoint)"""
     return jsonify({
         'context_window': cfg.context_window,
         'reserve_output': cfg.reserve_output_tokens,
@@ -697,12 +708,14 @@ def entity_analytics():
         entity_memories = {}  # Track which memories contain each entity
         
         for row in rows:
-            entities = retriever.extract_entities_from_what(row['what'])
+            # Convert SQLite Row to dict
+            row_dict = dict(row)
+            entities = retriever.extract_entities_from_what(row_dict['what'])
             for entity in entities:
                 entity_counts[entity] = entity_counts.get(entity, 0) + 1
                 if entity not in entity_memories:
                     entity_memories[entity] = []
-                entity_memories[entity].append(row['memory_id'])
+                entity_memories[entity].append(row_dict['memory_id'])
         
         # Calculate co-occurrence
         co_occurrence = []
@@ -740,6 +753,32 @@ def temporal_analytics():
         con = sqlite3.connect(cfg.db_path)
         con.row_factory = sqlite3.Row
         
+        # First get the actual date range from the database
+        date_range_query = "SELECT MIN(when_ts) as min_date, MAX(when_ts) as max_date FROM memories"
+        date_range = con.execute(date_range_query).fetchone()
+        
+        if not date_range or not date_range['min_date']:
+            con.close()
+            return jsonify({
+                'success': True,
+                'timeline': [],
+                'days': days
+            })
+        
+        # Determine the actual query range
+        from datetime import datetime, timedelta
+        end_date = datetime.fromisoformat(date_range['max_date'].replace(' ', 'T') if date_range['max_date'] else datetime.now().isoformat())
+        
+        # For specific day requests, show last N days from most recent data
+        # For "all time" (days > 365), show full range
+        if days > 365:
+            # Show all data from beginning
+            start_date = datetime.fromisoformat(date_range['min_date'].replace(' ', 'T'))
+        else:
+            # Show last N days from the most recent date
+            start_date = end_date - timedelta(days=days)
+        
+        # Get aggregated data by date
         query = """
             SELECT 
                 DATE(when_ts) as date,
@@ -747,27 +786,107 @@ def temporal_analytics():
                 COUNT(DISTINCT session_id) as sessions,
                 COUNT(DISTINCT who_list) as actors
             FROM memories
-            WHERE when_ts >= datetime('now', '-' || ? || ' days')
+            WHERE DATE(when_ts) >= DATE(?) AND DATE(when_ts) <= DATE(?)
             GROUP BY DATE(when_ts)
             ORDER BY date
         """
         
-        rows = con.execute(query, (days,)).fetchall()
+        rows = con.execute(query, (start_date.date().isoformat(), end_date.date().isoformat())).fetchall()
         con.close()
         
-        timeline = []
+        # Create a dict for easy lookup
+        data_by_date = {}
         for row in rows:
-            timeline.append({
-                'date': row['date'],
-                'memories': row['count'],
-                'sessions': row['sessions'],
-                'actors': row['actors']
-            })
+            row_dict = dict(row)
+            data_by_date[row_dict['date']] = {
+                'date': row_dict['date'],
+                'memories': row_dict['count'],
+                'sessions': row_dict['sessions'],
+                'actors': row_dict['actors']
+            }
+        
+        # Fill in timeline with all dates in range (including gaps with 0)
+        timeline = []
+        current_date = start_date.date()
+        end_date_obj = end_date.date()
+        
+        # Limit to reasonable number of data points for display
+        total_days = (end_date_obj - current_date).days + 1
+        
+        # If more than 365 days, aggregate by week or month
+        if total_days > 365:
+            # Aggregate by month for very long ranges
+            month_data = {}
+            for date_str, data in data_by_date.items():
+                month_key = date_str[:7]  # YYYY-MM format
+                if month_key not in month_data:
+                    month_data[month_key] = {
+                        'date': f"{month_key}-01",
+                        'memories': 0,
+                        'sessions': set(),
+                        'actors': set()
+                    }
+                month_data[month_key]['memories'] += data['memories']
+                month_data[month_key]['sessions'].add(data['sessions'])
+                month_data[month_key]['actors'].add(data['actors'])
+            
+            for month_key in sorted(month_data.keys()):
+                timeline.append({
+                    'date': month_data[month_key]['date'],
+                    'memories': month_data[month_key]['memories'],
+                    'sessions': len(month_data[month_key]['sessions']),
+                    'actors': len(month_data[month_key]['actors'])
+                })
+        elif total_days > 90:
+            # Aggregate by week for medium ranges
+            week_data = {}
+            for date_str, data in data_by_date.items():
+                date_obj = datetime.fromisoformat(date_str).date()
+                week_start = date_obj - timedelta(days=date_obj.weekday())
+                week_key = week_start.isoformat()
+                
+                if week_key not in week_data:
+                    week_data[week_key] = {
+                        'date': week_key,
+                        'memories': 0,
+                        'sessions': set(),
+                        'actors': set()
+                    }
+                week_data[week_key]['memories'] += data['memories']
+                week_data[week_key]['sessions'].add(data['sessions'])
+                week_data[week_key]['actors'].add(data['actors'])
+            
+            for week_key in sorted(week_data.keys()):
+                timeline.append({
+                    'date': week_data[week_key]['date'],
+                    'memories': week_data[week_key]['memories'],
+                    'sessions': len(week_data[week_key]['sessions']),
+                    'actors': len(week_data[week_key]['actors'])
+                })
+        else:
+            # Daily data for short ranges
+            while current_date <= end_date_obj:
+                date_str = current_date.isoformat()
+                if date_str in data_by_date:
+                    timeline.append(data_by_date[date_str])
+                else:
+                    timeline.append({
+                        'date': date_str,
+                        'memories': 0,
+                        'sessions': 0,
+                        'actors': 0
+                    })
+                current_date += timedelta(days=1)
         
         return jsonify({
             'success': True,
             'timeline': timeline,
-            'days': days
+            'days': days,
+            'actual_range': {
+                'from': start_date.date().isoformat(),
+                'to': end_date.date().isoformat(),
+                'total_days': total_days
+            }
         })
         
     except Exception as e:
@@ -806,8 +925,10 @@ def network_analytics(component):
         item_memories = {}
         
         for row in rows:
+            # Convert SQLite Row to dict
+            row_dict = dict(row)
             items = []
-            data = row[column]
+            data = row_dict[column]
             
             if component in ['who', 'when', 'where'] and data:
                 # Parse JSON list for list columns
@@ -830,7 +951,7 @@ def network_analytics(component):
                     item_counts[item] = item_counts.get(item, 0) + 1
                     if item not in item_memories:
                         item_memories[item] = []
-                    item_memories[item].append(row['memory_id'])
+                    item_memories[item].append(row_dict['memory_id'])
         
         # Calculate co-occurrence
         co_occurrence = []
@@ -1094,10 +1215,51 @@ def import_settings():
         return jsonify({'error': str(e)}), 400
 
 # Chat Interface Routes
+@app.route('/')
 @app.route('/chat')
 def chat():
-    """Chat interface page"""
+    """Chat interface page with memory search (default page)"""
+    return render_template('chat_enhanced.html')
+
+@app.route('/chat_basic')
+def chat_basic():
+    """Basic chat interface without memory search"""
     return render_template('chat.html')
+
+@app.route('/api/memory/search', methods=['POST'])
+def memory_search():
+    """Search memories using the same process as the analyzer"""
+    try:
+        data = request.json
+        query = data.get('query', '')
+        weights = data.get('weights')  # Accept weights from client
+        token_budget = data.get('token_budget')
+        initial_candidates = data.get('initial_candidates', 10000)
+        score_threshold = data.get('score_threshold', 0.0)
+        top_k = data.get('top_k')
+        removed_ids = data.get('removed_ids', [])
+        
+        if not query:
+            return jsonify({'error': 'Query is required'}), 400
+        
+        # Use the memory_router's search_memories method
+        result = memory_router.search_memories(
+            query=query,
+            weights=weights,  # Pass weights if provided
+            token_budget=token_budget,
+            initial_candidates=initial_candidates,
+            score_threshold=score_threshold,
+            top_k=top_k,
+            excluded_ids=removed_ids
+        )
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        import traceback
+        print(f"Memory search error: {e}")
+        print(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
 
 @app.route('/api/chat/completions', methods=['POST'])
 def chat_completions():
@@ -1110,6 +1272,51 @@ def chat_completions():
         
         # Extract messages
         messages = data.get('messages', [])
+        
+        # Check if memory search is enabled
+        memory_search_enabled = data.get('memory_search', False)
+        memory_token_budget = data.get('memory_token_budget', 2000)
+        
+        # If memory search is enabled, search for relevant memories
+        if memory_search_enabled and messages:
+            # Extract query from recent user messages
+            query_parts = []
+            for msg in reversed(messages):
+                if msg['role'] == 'user':
+                    query_parts.append(msg['content'])
+                    if len(query_parts) >= 3:
+                        break
+            
+            if query_parts:
+                # Combine recent user messages as query
+                search_query = "\n".join(reversed(query_parts))
+                
+                # Perform memory search
+                memory_result = memory_router.search_memories(
+                    query=search_query,
+                    token_budget=memory_token_budget,
+                    initial_candidates=10000
+                )
+                
+                # If memories found, inject them as a system message
+                if memory_result.get('memories'):
+                    memory_context = "Based on your memory database, here are relevant past experiences:\n\n"
+                    for mem in memory_result['memories'][:10]:  # Limit to top 10
+                        memory_context += f"• [{mem['when']}] {mem['what']}\n"
+                        if mem.get('why'):
+                            memory_context += f"  Context: {mem['why'][:100]}...\n"
+                    
+                    # Insert memory context as a system message
+                    memory_msg = {
+                        'role': 'system',
+                        'content': memory_context
+                    }
+                    
+                    # Insert after initial system message or at beginning
+                    if messages and messages[0]['role'] == 'system':
+                        messages = [messages[0], memory_msg] + messages[1:]
+                    else:
+                        messages = [memory_msg] + messages
         
         # Prepare request for llama.cpp with all parameters
         llama_request = {

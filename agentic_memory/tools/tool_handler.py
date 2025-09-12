@@ -7,6 +7,7 @@ import logging
 logger = logging.getLogger(__name__)
 from .base import Tool, ToolCall, ToolResult
 from .llama_agent_websearch import LlamaAgentWebSearchTool
+from .memory_search_tool import MemorySearchTool
 
 
 class ToolHandler:
@@ -17,6 +18,8 @@ class ToolHandler:
     def _register_default_tools(self):
         # Use llama-agent based web search with content fetching disabled by default for speed
         self.register_tool(LlamaAgentWebSearchTool(fetch_content=False, max_results=5))
+        # Register memory search tool for LLM access to memory database
+        self.register_tool(MemorySearchTool())
 
     def register_tool(self, tool: Tool):
         self.tools[tool.name] = tool

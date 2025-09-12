@@ -17,8 +17,20 @@ from .storage.faiss_index import FaissIndex
 from .retrieval import HybridRetriever
 from .block_builder import BlockBuilder
 from .tokenization import TokenizerAdapter
-from .attention import AdaptiveEmbeddingSpace
-from .cluster.concept_cluster import LiquidMemoryClusters
+# Try to import optional components
+try:
+    from .attention import AdaptiveEmbeddingSpace
+    HAS_ATTENTION = True
+except ImportError:
+    HAS_ATTENTION = False
+    AdaptiveEmbeddingSpace = None
+
+try:
+    from .cluster.concept_cluster import LiquidMemoryClusters
+    HAS_CLUSTERING = True
+except ImportError:
+    HAS_CLUSTERING = False
+    LiquidMemoryClusters = None
 
 class MemoryRouter:
     def __init__(self, store: MemoryStore, index: FaissIndex):
@@ -30,8 +42,8 @@ class MemoryRouter:
         self.embedder = _embedder
         self.tok = TokenizerAdapter()
         
-        # Initialize dynamic components if enabled
-        if cfg.use_attention_retrieval:
+        # Initialize dynamic components if enabled and available
+        if cfg.use_attention_retrieval and HAS_ATTENTION:
             self.adaptive_embeddings = AdaptiveEmbeddingSpace(
                 base_dim=cfg.embed_dim,
                 meta_dim=64
@@ -39,7 +51,7 @@ class MemoryRouter:
         else:
             self.adaptive_embeddings = None
             
-        if cfg.use_liquid_clustering:
+        if cfg.use_liquid_clustering and HAS_CLUSTERING:
             self.liquid_clusters = LiquidMemoryClusters(
                 n_clusters=64,
                 dim=cfg.embed_dim
@@ -262,3 +274,119 @@ class MemoryRouter:
                         self.store.store_embedding_drift(mid, drift)
         
         return out
+    
+    def search_memories(self, query: str, weights: Optional[Dict[str, float]] = None, 
+                       token_budget: Optional[int] = None, initial_candidates: int = 100,
+                       score_threshold: float = 0.0, top_k: Optional[int] = None,
+                       excluded_ids: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Search memories using the same process as the analyzer with knapsack optimization.
+        
+        Args:
+            query: Search query text
+            weights: Optional custom weights (uses config defaults if not provided)
+            token_budget: Optional token budget (defaults to context window - reserves)
+            initial_candidates: Number of initial candidates to retrieve before knapsack
+            score_threshold: Minimum score threshold for memories (default 0.0)
+            top_k: Maximum number of results to return (None for unlimited)
+            excluded_ids: List of memory IDs to exclude from results
+            
+        Returns:
+            Dictionary containing selected memories and metadata
+        """
+        from .settings_manager import SettingsManager
+        from .block_builder import greedy_knapsack
+        
+        # Get weights from settings if not provided
+        if weights is None:
+            settings_manager = SettingsManager()
+            weights = settings_manager.get_weights()
+        
+        # Calculate token budget if not provided
+        if token_budget is None:
+            token_budget = cfg.context_window - cfg.reserve_output_tokens - cfg.reserve_system_tokens - 512
+        token_budget = max(512, token_budget)
+        
+        # Decompose query
+        decomposition = self.retriever.decompose_query(query)
+        
+        # Create retrieval query
+        rq = RetrievalQuery(
+            session_id='memory_search',
+            text=decomposition.get('what', query),
+            actor_hint=decomposition['who'].get('id') if decomposition.get('who') else None,
+            temporal_hint=decomposition.get('when')
+        )
+        
+        # Get query embedding
+        qvec = self.embedder.encode([query], normalize_embeddings=True)[0]
+        
+        # Apply adaptive embedding if enabled
+        if self.adaptive_embeddings:
+            query_stats = {'access_count': 1, 'recency_score': 1.0, 'diversity_score': 0.5}
+            qvec = self.adaptive_embeddings.encode_with_context(qvec, query_stats, None)
+        
+        # Search with weights - get many candidates for knapsack
+        candidates = self.retriever.search_with_weights(
+            rq, qvec, weights,
+            topk_sem=initial_candidates,
+            topk_lex=initial_candidates
+        )
+        
+        # Apply knapsack algorithm
+        selected_ids, tokens_used = greedy_knapsack(candidates, token_budget)
+        
+        # Filter to selected memories
+        selected_candidates = [c for c in candidates if c.memory_id in selected_ids]
+        
+        # Apply additional filters
+        if excluded_ids:
+            excluded_set = set(excluded_ids)
+            selected_candidates = [c for c in selected_candidates if c.memory_id not in excluded_set]
+        
+        if score_threshold > 0:
+            selected_candidates = [c for c in selected_candidates if c.score >= score_threshold]
+        
+        if top_k is not None and top_k > 0:
+            selected_candidates = selected_candidates[:top_k]
+        
+        # Get detailed scores
+        detailed_scores = self.retriever.get_detailed_scores(selected_candidates)
+        
+        # Build response with memory details
+        memories = []
+        # Fetch all selected memories at once
+        if selected_candidates:
+            memory_ids = [c.memory_id for c in selected_candidates]
+            fetched_memories = self.store.fetch_memories(memory_ids)
+            memory_lookup = {m['memory_id']: m for m in fetched_memories}
+            
+        for candidate in selected_candidates:
+            memory_dict = memory_lookup.get(candidate.memory_id)
+            if memory_dict:
+                # Find detailed score for this memory
+                detail = next((d for d in detailed_scores if d['memory_id'] == candidate.memory_id), {})
+                memories.append({
+                    'memory_id': candidate.memory_id,
+                    'total_score': round(candidate.score, 3),
+                    'token_count': candidate.token_count,
+                    'scores': detail.get('scores', {}),
+                    'when': memory_dict.get('when_ts', memory_dict.get('created_at', '')),
+                    'who': f"{memory_dict.get('who_type', '')}: {memory_dict.get('who_id', '')}",
+                    'what': memory_dict.get('what', ''),
+                    'where': f"{memory_dict.get('where_type', '')}: {memory_dict.get('where_value', '')}",
+                    'why': memory_dict.get('why', ''),
+                    'how': memory_dict.get('how', ''),
+                    'raw_text': memory_dict.get('raw_text', '')
+                })
+        
+        return {
+            'query': query,
+            'decomposition': decomposition,
+            'weights': weights,
+            'total_candidates': len(candidates),
+            'selected_count': len(selected_candidates),
+            'token_budget': token_budget,
+            'tokens_used': tokens_used,
+            'memories': memories
+        }
