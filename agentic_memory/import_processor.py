@@ -344,14 +344,14 @@ class ImportProcessor:
             
             # Store each extracted memory
             for memory_record in memory_records:
-                # Get embedding from the extracted record
+                # Get embedding from the extracted record (and remove it from extra)
                 if 'embed_vector_np' in memory_record.extra:
-                    embedding = memory_record.extra['embed_vector_np']
+                    embedding = memory_record.extra.pop('embed_vector_np')  # Remove from extra dict
                     if embedding is not None:
                         import numpy as np
                         embedding_array = np.array(embedding, dtype='float32')
                         
-                        # Store in database with embedding
+                        # Store in database with embedding (extra no longer contains embed_vector_np)
                         self.memory_store.upsert_memory(
                             memory_record, 
                             embedding=embedding_array.tobytes(), 

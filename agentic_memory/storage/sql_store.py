@@ -246,7 +246,7 @@ class MemoryStore:
     
     def actor_exists(self, actor_id: str) -> bool:
         """Check if an actor exists in the database."""
-        sql = "SELECT COUNT(*) FROM memories WHERE who_id = ? LIMIT 1"
+        sql = "SELECT COUNT(*) FROM memories WHERE who_list LIKE '%"' || ? || '"%' LIMIT 1"
         with self.connect() as con:
             count = con.execute(sql, (actor_id,)).fetchone()[0]
         return count > 0

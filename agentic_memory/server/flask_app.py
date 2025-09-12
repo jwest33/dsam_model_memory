@@ -277,11 +277,11 @@ def api_memories():
         query = f"""
             SELECT 
                 memory_id, session_id, source_event_id,
-                who_type, who_id, who_label, 
-                what, when_ts, 
-                where_type, where_value,
+                who_type, who_id, who_label, who_list,
+                what, when_ts, when_list,
+                where_type, where_value, where_list,
                 why, how, 
-                raw_text, token_count, 
+                raw_text, token_count, extra_json,
                 created_at
             FROM memories{where_clause}
             ORDER BY {sort_by} {sort_order}
@@ -328,11 +328,11 @@ def get_memory(memory_id):
         query = """
             SELECT 
                 memory_id, session_id, source_event_id,
-                who_type, who_id, who_label, 
-                what, when_ts, 
-                where_type, where_value,
+                who_type, who_id, who_label, who_list,
+                what, when_ts, when_list,
+                where_type, where_value, where_list,
                 why, how, 
-                raw_text, token_count, 
+                raw_text, token_count, extra_json,
                 created_at
             FROM memories
             WHERE memory_id = ?
@@ -738,7 +738,7 @@ def temporal_analytics():
                 DATE(when_ts) as date,
                 COUNT(*) as count,
                 COUNT(DISTINCT session_id) as sessions,
-                COUNT(DISTINCT who_id) as actors
+                COUNT(DISTINCT who_list) as actors
             FROM memories
             WHERE when_ts >= datetime('now', '-' || ? || ' days')
             GROUP BY DATE(when_ts)

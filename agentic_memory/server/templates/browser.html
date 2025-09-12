@@ -98,15 +98,15 @@
                     <thead>
                         <tr>
                             <th class="col-checkbox"><input type="checkbox" id="select-all" onchange="toggleSelectAll()" /></th>
-                            <th class="col-memory-id">Memory ID</th>
-                            <th>Session</th>
-                            <th>Who</th>
-                            <th class="col-entities">What</th>
-                            <th class="col-when">When</th>
-                            <th>Where</th>
+                            <th class="col-memory-id sortable" onclick="sortTable('memory_id')">Memory ID <span class="sort-indicator"></span></th>
+                            <th class="sortable" onclick="sortTable('session_id')">Session <span class="sort-indicator"></span></th>
+                            <th class="sortable" onclick="sortTable('who_id')">Who <span class="sort-indicator"></span></th>
+                            <th class="col-entities sortable" onclick="sortTable('what')">What <span class="sort-indicator"></span></th>
+                            <th class="col-when sortable" onclick="sortTable('when_ts')">When <span class="sort-indicator"></span></th>
+                            <th class="sortable" onclick="sortTable('where_value')">Where <span class="sort-indicator"></span></th>
                             <th>Why</th>
                             <th>How</th>
-                            <th class="col-score">Tokens</th>
+                            <th class="col-score sortable" onclick="sortTable('token_count')">Tokens <span class="sort-indicator"></span></th>
                             <th class="col-text">Raw Text</th>
                             <th class="col-actions">Actions</th>
                         </tr>
@@ -470,6 +470,38 @@
         opacity: 0;
     }
 }
+
+/* Sortable headers */
+.sortable {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+.sortable:hover {
+    background: rgba(0, 255, 255, 0.1);
+}
+
+.sort-indicator {
+    margin-left: 5px;
+    font-size: 0.8em;
+    color: var(--synth-cyan);
+}
+
+.sort-indicator::after {
+    content: '↕';
+    opacity: 0.3;
+}
+
+.sortable.sort-asc .sort-indicator::after {
+    content: '↑';
+    opacity: 1;
+}
+
+.sortable.sort-desc .sort-indicator::after {
+    content: '↓';
+    opacity: 1;
+}
 </style>
 
 <script>
@@ -503,6 +535,8 @@ function showNotification(type, message, duration = 5000) {
 let currentPage = 1;
 let currentFilters = {};
 let selectedMemories = new Set();
+let currentSortField = 'when_ts';
+let currentSortOrder = 'desc';
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -526,8 +560,8 @@ async function loadMemories(page = 1) {
     const params = new URLSearchParams({
         page: page,
         per_page: document.getElementById('per-page').value,
-        sort_by: document.getElementById('sort-by').value,
-        sort_order: document.getElementById('sort-order').value
+        sort_by: currentSortField,
+        sort_order: currentSortOrder
     });
     
     // Add filters
@@ -584,6 +618,11 @@ function displayMemories(memories) {
     
     tbody.innerHTML = '';
     
+    // Debug: Log first memory to see structure
+    if (memories.length > 0) {
+        console.log('First memory data:', memories[0]);
+    }
+    
     memories.forEach(memory => {
         const row = document.createElement('tr');
         if (selectedMemories.has(memory.memory_id)) {
@@ -600,10 +639,10 @@ function displayMemories(memories) {
                 <a class="memory-id-link" onclick="showMemoryDetails('${memory.memory_id}')">${memory.memory_id.substring(0, 12)}...</a>
             </td>
             <td>${memory.session_id || 'N/A'}</td>
-            <td>${memory.who_type}:${memory.who_id}</td>
+            <td>${formatWhoList(memory.who_list, memory.who_type, memory.who_id)}</td>
             <td class="col-entities">${formatEntities(memory.entities)}</td>
-            <td class="col-when">${formatDate(memory.when_ts)}</td>
-            <td>${memory.where_type}:${memory.where_value}</td>
+            <td class="col-when">${formatWhenList(memory.when_list, memory.when_ts)}</td>
+            <td>${formatWhereList(memory.where_list, memory.where_type, memory.where_value)}</td>
             <td title="${escapeHtml(memory.why || '')}">${truncateText(memory.why || 'N/A', 50)}</td>
             <td title="${escapeHtml(memory.how || '')}">${truncateText(memory.how || 'N/A', 50)}</td>
             <td class="col-score">${memory.token_count || 0}</td>
@@ -641,6 +680,36 @@ function updatePagination(pagination) {
     
     topPag.innerHTML = pagHTML;
     bottomPag.innerHTML = pagHTML;
+}
+
+// Sort table by column
+function sortTable(field) {
+    // Update sort indicators
+    const headers = document.querySelectorAll('.sortable');
+    headers.forEach(header => {
+        header.classList.remove('sort-asc', 'sort-desc');
+    });
+    
+    // Toggle sort order if clicking same field
+    if (currentSortField === field) {
+        currentSortOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSortField = field;
+        currentSortOrder = 'desc';
+    }
+    
+    // Update UI to show current sort
+    const clickedHeader = event.currentTarget;
+    if (clickedHeader) {
+        clickedHeader.classList.add(currentSortOrder === 'asc' ? 'sort-asc' : 'sort-desc');
+    }
+    
+    // Update dropdown to match
+    document.getElementById('sort-by').value = field;
+    document.getElementById('sort-order').value = currentSortOrder;
+    
+    // Reload with new sort
+    loadMemories(1);
 }
 
 // Apply filters
@@ -923,7 +992,7 @@ async function showMemoryDetails(memoryId) {
                             <div>
                                 <strong>WHO:</strong> 
                                 <span style="color: var(--synth-text);">
-                                    ${memory.who_type}:${memory.who_id}
+                                    ${formatWhoList(memory.who_list, memory.who_type, memory.who_id)}
                                     ${memory.who_label ? `<em>(${memory.who_label})</em>` : ''}
                                 </span>
                             </div>
@@ -936,13 +1005,13 @@ async function showMemoryDetails(memoryId) {
                             <div>
                                 <strong>WHEN:</strong> 
                                 <span style="color: var(--synth-text);">
-                                    ${formatDate(memory.when_ts)}
+                                    ${formatJsonList(memory.when_list, formatDate(memory.when_ts))}
                                 </span>
                             </div>
                             <div>
                                 <strong>WHERE:</strong> 
                                 <span style="color: var(--synth-text);">
-                                    ${memory.where_type}:${memory.where_value}
+                                    ${formatWhereList(memory.where_list, memory.where_type, memory.where_value)}
                                 </span>
                             </div>
                             <div>
@@ -972,6 +1041,7 @@ async function showMemoryDetails(memoryId) {
                             <div><strong>SOURCE EVENT:</strong> ${memory.source_event_id || 'N/A'}</div>
                             <div><strong>TOKEN COUNT:</strong> ${memory.token_count || 0}</div>
                             <div><strong>CREATED:</strong> ${formatDate(memory.created_at)}</div>
+                            ${formatExtraJson(memory.extra_json)}
                         </div>
                     </div>
                     
@@ -1019,6 +1089,71 @@ function formatEntities(entities) {
     return html;
 }
 
+function formatJsonList(jsonStr, fallbackValue) {
+    try {
+        if (!jsonStr) return fallbackValue || 'N/A';
+        const list = JSON.parse(jsonStr);
+        if (Array.isArray(list) && list.length > 0) {
+            return list.join(', ');
+        }
+        return fallbackValue || 'N/A';
+    } catch {
+        return fallbackValue || jsonStr || 'N/A';
+    }
+}
+
+function formatWhoList(whoList, whoType, whoId) {
+    try {
+        if (whoList) {
+            const list = JSON.parse(whoList);
+            if (Array.isArray(list) && list.length > 0) {
+                return list.join(', ');
+            }
+        }
+    } catch (e) {
+        console.error('Error parsing who_list:', e, whoList);
+    }
+    // Fallback to old format
+    if (whoType && whoId) {
+        return `${whoType}:${whoId}`;
+    }
+    return 'N/A';
+}
+
+function formatWhenList(whenList, whenTs) {
+    try {
+        if (whenList) {
+            const list = JSON.parse(whenList);
+            if (Array.isArray(list) && list.length > 0) {
+                // Format first date nicely, show count if more
+                const firstDate = formatDate(list[0]);
+                if (list.length > 1) {
+                    return `${firstDate} (+${list.length - 1})`;
+                }
+                return firstDate;
+            }
+        }
+    } catch {}
+    // Fallback to when_ts
+    return formatDate(whenTs);
+}
+
+function formatWhereList(whereList, whereType, whereValue) {
+    try {
+        if (whereList) {
+            const list = JSON.parse(whereList);
+            if (Array.isArray(list) && list.length > 0) {
+                return list.join(', ');
+            }
+        }
+    } catch {}
+    // Fallback to old format
+    if (whereType && whereValue) {
+        return `${whereType}:${whereValue}`;
+    }
+    return 'N/A';
+}
+
 function formatDate(dateStr) {
     if (!dateStr) return 'N/A';
     try {
@@ -1039,6 +1174,38 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function formatExtraJson(extraJson) {
+    if (!extraJson) return '';
+    try {
+        const data = JSON.parse(extraJson);
+        let html = '';
+        
+        // Check for part information
+        if (data.part_index !== undefined && data.total_parts !== undefined) {
+            html += `<div><strong>PART:</strong> ${data.part_index} of ${data.total_parts}</div>`;
+        }
+        
+        // Don't display embedding vectors
+        if (data.embedding || data.embed || data.vector) {
+            // Skip embedding data
+            return html;
+        }
+        
+        // Display any other relevant metadata
+        for (const [key, value] of Object.entries(data)) {
+            if (key !== 'part_index' && key !== 'total_parts' && 
+                key !== 'embedding' && key !== 'embed' && key !== 'vector' &&
+                value !== null && value !== undefined) {
+                html += `<div><strong>${key.toUpperCase()}:</strong> ${value}</div>`;
+            }
+        }
+        
+        return html;
+    } catch {
+        return '';
+    }
 }
 
 // Window click handler for modal

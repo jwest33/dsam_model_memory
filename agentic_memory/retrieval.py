@@ -82,7 +82,7 @@ class HybridRetriever:
             # Score based on recency - more recent memories get higher scores
             # Use first timestamp from when_list if available
             when_list = json.loads(row.get('when_list', '[]')) if row.get('when_list') else []
-            when_ts = when_list[0] if when_list else row.get('when_ts', '')
+            when_ts = when_list[0] if when_list else row.get('when_list', '[]')
             recency_score = exp_recency(when_ts, now, half_life_hours=168.0)  # 1 week half-life
             results.append((row['memory_id'], recency_score))
         return results
@@ -101,7 +101,7 @@ class HybridRetriever:
         for row in rows:
             # Use first timestamp from when_list if available
             when_list = json.loads(row.get('when_list', '[]')) if row.get('when_list') else []
-            when_ts = when_list[0] if when_list else row.get('when_ts', '')
+            when_ts = when_list[0] if when_list else row.get('when_list', '[]')
             recency_score = exp_recency(when_ts, now, half_life_hours=168.0)
             results.append((row['memory_id'], recency_score))
         return results
@@ -199,7 +199,7 @@ class HybridRetriever:
             
             # 3. Smart recency score (only applies as tiebreaker for related memories)
             when_list = json.loads(memory.get('when_list', '[]')) if memory.get('when_list') else []
-            when_ts = when_list[0] if when_list else memory.get('when_ts', '')
+            when_ts = when_list[0] if when_list else memory.get('when_list', '[]')
             base_recency = exp_recency(when_ts, now, half_life_hours=168.0)
             recency_score = self._apply_smart_recency(memory_id, base_recency, memory_groups)
             
@@ -207,7 +207,9 @@ class HybridRetriever:
             actor_score = actor_matches.get(memory_id, 0.0)
             if not actor_score and query.actor_hint:
                 # Check if memory actor matches query hint
-                actor_score = 1.0 if memory['who_id'] == query.actor_hint else 0.0
+                who_list = json.loads(memory.get('who_list', '[]'))
+                first_who = who_list[0] if who_list else ''
+                actor_score = 1.0 if first_who == query.actor_hint else 0.0
             
             # 5. Temporal match (binary or from hint)
             temporal_score = temporal_matches.get(memory_id, 0.0)
@@ -304,7 +306,7 @@ class HybridRetriever:
                     # Check different types of relatedness:
                     
                     # 1. Same actor discussing similar topic (updates/corrections)
-                    if memory['who_id'] == other_memory['who_id'] and entity_overlap > 3:
+                    if json.loads(memory.get('who_list', '[]'))[0] if json.loads(memory.get('who_list', '[]')) else '' == other_json.loads(memory.get('who_list', '[]'))[0] if json.loads(memory.get('who_list', '[]')) else '' and entity_overlap > 3:
                         is_related = True
                     
                     # 2. High overlap ratio (>40% of words in common) - likely same topic
@@ -450,13 +452,23 @@ class HybridRetriever:
             importance = 0.0  # Will be computed during attention phase if needed
             
             # Extra signals
-            rec = exp_recency(m['when_ts'], now)
-            actor_match = 1.0 if (rq.actor_hint and m['who_id'] == rq.actor_hint) else 0.0
+            when_list_for_rec = json.loads(m.get('when_list', '[]'))
+            rec_date = when_list_for_rec[0] if when_list_for_rec else ''
+            rec = exp_recency(rec_date, now)
+            who_list = json.loads(m.get('who_list', '[]'))
+            first_who = who_list[0] if who_list else ''
+            actor_match = 1.0 if (rq.actor_hint and first_who == rq.actor_hint) else 0.0
             
             # Check temporal match
             temporal_match = 0.0
             if has_temporal_hint:
-                mem_date = m['when_ts'].split('T')[0] if 'T' in m['when_ts'] else m['when_ts'][:10]
+                when_list = json.loads(m.get('when_list', '[]'))
+                if when_list:
+                    mem_date = when_list[0]
+                    if 'T' in mem_date:
+                        mem_date = mem_date.split('T')[0]
+                else:
+                    mem_date = ''
                 
                 if isinstance(rq.temporal_hint, str):
                     # Single date match
@@ -618,10 +630,10 @@ class HybridRetriever:
                 'memory_id': c.memory_id,
                 'raw_text': memory.get('raw_text', ''),
                 'entities': entities,  # This is the 'what' list
-                'who': memory.get('who_id', ''),
+                'who': memory.get('who_list', '[]'),
                 'who_type': memory.get('who_type', ''),
                 'who_list': who_list,
-                'when': memory.get('when_ts', ''),
+                'when': memory.get('when_list', '[]'),
                 'when_list': when_list,
                 'where': memory.get('where_value', ''),
                 'where_type': memory.get('where_type', ''),
