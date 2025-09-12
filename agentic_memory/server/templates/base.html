@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>{% block title %}JAM Memory Analyzer{% endblock %}</title>
+  <title>{% block title %}JAM Journalistic Agent Memory{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
   <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
@@ -62,10 +62,11 @@
   <header>
     <div style="display: flex; align-items: center; gap: 1rem;">
       <h4 style="margin: 0;">[JAM]</h4>
-      <h1 style="margin: 0;">Memory Analyzer</h1>
+      <h1 style="margin: 0;">Journalistic Agent Memory</h1>
     </div>
     <nav>
       <a href="/" {% if request.endpoint == 'analyzer' %}class="active"{% endif %}>Analyzer</a>
+      <a href="/chat" {% if request.endpoint == 'chat' %}class="active"{% endif %}>Chat</a>
       <a href="/memories" {% if request.endpoint == 'browse_memories' %}class="active"{% endif %}>Browse</a>
       <a href="/analytics" {% if request.endpoint == 'analytics' %}class="active"{% endif %}>Analytics</a>
     </nav>

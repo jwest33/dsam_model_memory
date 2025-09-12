@@ -1,0 +1,1165 @@
+{% extends "base.html" %}
+
+{% block title %}JAM Chat Interface{% endblock %}
+
+{% block head %}
+<style>
+.chat-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 120px);
+    max-width: 1800px;
+    margin: 0 auto;
+    padding: 1rem;
+    width: 95%;
+}
+
+.chat-header {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    padding: 1rem;
+    background: var(--synth-card-bg);
+    border: 1px solid var(--synth-border);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 10px rgba(0, 255, 255, 0.1);
+}
+
+.session-selector {
+    flex: 1;
+    max-width: 300px;
+    padding: 0.5rem;
+    background: var(--synth-surface);
+    border: 1px solid var(--synth-cyan);
+    color: var(--synth-text);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.session-selector:hover {
+    border-color: var(--synth-pink);
+    box-shadow: 0 0 10px rgba(255, 16, 240, 0.3);
+}
+
+.session-selector:focus {
+    outline: none;
+    border-color: var(--synth-pink);
+    box-shadow: 0 0 15px rgba(255, 16, 240, 0.4);
+}
+
+.session-selector option {
+    background: var(--synth-dark-bg);
+    color: var(--synth-text);
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--synth-border);
+}
+
+.session-selector option:hover {
+    background: var(--synth-surface);
+    color: var(--synth-cyan);
+}
+
+.session-selector option:checked {
+    background: linear-gradient(90deg, var(--synth-surface), var(--synth-card-bg));
+    color: var(--synth-cyan);
+    font-weight: bold;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--synth-surface);
+    border: 1px solid var(--synth-border);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.message {
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    animation: messageSlide 0.3s ease-out;
+}
+
+@keyframes messageSlide {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.message.user {
+    background: linear-gradient(135deg, 
+        rgba(255, 16, 240, 0.15) 0%, 
+        rgba(255, 16, 240, 0.05) 100%);
+    border-left: 3px solid var(--synth-pink);
+    margin-left: 2rem;
+}
+
+.message.assistant {
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.15) 0%,
+        rgba(0, 255, 255, 0.05) 100%);
+    border-left: 3px solid var(--synth-cyan);
+    margin-right: 2rem;
+}
+
+.message.system {
+    background: linear-gradient(135deg,
+        rgba(168, 85, 247, 0.15) 0%,
+        rgba(168, 85, 247, 0.05) 100%);
+    border-left: 3px solid var(--synth-purple);
+    font-size: 0.8rem;
+    color: var(--synth-text-muted);
+}
+
+.message-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--synth-text-muted);
+}
+
+.message-role {
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.message-time {
+    opacity: 0.7;
+}
+
+.message-content {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    line-height: 1.5;
+}
+
+.message-content code {
+    background: var(--synth-dark-bg);
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+.message-content pre {
+    background: var(--synth-dark-bg);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 0.5rem 0;
+    border: 1px solid var(--synth-border);
+}
+
+.message-meta {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    font-size: 0.7rem;
+    color: var(--synth-text-muted);
+    opacity: 0.6;
+}
+
+.chat-input-area {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--synth-card-bg);
+    border: 1px solid var(--synth-border);
+    border-radius: 8px;
+    box-shadow: 0 -2px 10px rgba(0, 255, 255, 0.1);
+}
+
+.chat-input {
+    flex: 1;
+    padding: 0.75rem;
+    background: var(--synth-surface);
+    border: 1px solid var(--synth-cyan);
+    color: var(--synth-text);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.875rem;
+    resize: vertical;
+    min-height: 60px;
+    max-height: 200px;
+}
+
+.chat-input:focus {
+    outline: none;
+    border-color: var(--synth-pink);
+    box-shadow: 0 0 10px rgba(255, 16, 240, 0.3);
+}
+
+.send-button {
+    padding: 0.75rem 2rem;
+    background: linear-gradient(135deg, var(--synth-cyan), var(--synth-pink));
+    color: var(--synth-dark-bg);
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+}
+
+.send-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(255, 16, 240, 0.4);
+}
+
+.send-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.chat-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.token-counter {
+    font-size: 0.75rem;
+    color: var(--synth-text-muted);
+    padding: 0.25rem 0.5rem;
+    background: var(--synth-surface);
+    border-radius: 4px;
+    align-self: flex-end;
+}
+
+.settings-panel {
+    position: fixed;
+    right: -500px;
+    top: 80px;
+    width: 500px;
+    height: calc(100vh - 100px);
+    background: var(--synth-card-bg);
+    border: 1px solid var(--synth-cyan);
+    border-radius: 8px 0 0 8px;
+    padding: 1.5rem;
+    transition: right 0.3s ease;
+    z-index: 1000;
+    overflow-y: auto;
+    box-shadow: -4px 0 20px rgba(0, 255, 255, 0.2);
+}
+
+.settings-panel.visible {
+    right: 0;
+}
+
+.settings-group {
+    margin-bottom: 1.5rem;
+}
+
+.settings-group h3 {
+    color: var(--synth-cyan);
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.setting-label {
+    font-size: 0.8rem;
+    color: var(--synth-text-muted);
+}
+
+.setting-input {
+    width: 150px;
+    padding: 0.25rem 0.5rem;
+    background: var(--synth-surface);
+    border: 1px solid var(--synth-border);
+    color: var(--synth-text);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-family: inherit;
+}
+
+.setting-input:focus {
+    border-color: var(--synth-cyan);
+    outline: none;
+    box-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+}
+
+.setting-textarea {
+    width: 100%;
+    padding: 0.5rem;
+    background: var(--synth-surface);
+    border: 1px solid var(--synth-border);
+    color: var(--synth-text);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.setting-textarea:focus {
+    border-color: var(--synth-cyan);
+    outline: none;
+    box-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+}
+
+.typing-indicator {
+    display: none;
+    padding: 0.5rem 1rem;
+    color: var(--synth-text-muted);
+    font-style: italic;
+}
+
+.typing-indicator.visible {
+    display: block;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+
+.memory-indicator {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    font-size: 0.7rem;
+    color: var(--synth-green);
+    opacity: 0;
+    animation: fadeIn 0.5s ease-out 0.5s forwards;
+}
+
+@keyframes fadeIn {
+    to { opacity: 0.8; }
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--synth-cyan);
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 0.8s linear infinite;
+    margin-left: 0.5rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.error-message {
+    background: linear-gradient(135deg,
+        rgba(255, 0, 0, 0.15) 0%,
+        rgba(255, 0, 0, 0.05) 100%);
+    border-left: 3px solid #ff0066;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.delete-btn {
+    background: linear-gradient(135deg, #ff0066, #ff3366);
+}
+
+.delete-btn:hover {
+    background: linear-gradient(135deg, #ff3366, #ff0066);
+    box-shadow: 0 4px 20px rgba(255, 0, 102, 0.4);
+}
+
+.process-btn {
+    background: linear-gradient(135deg, var(--synth-purple), var(--synth-pink));
+}
+
+.process-btn:hover {
+    background: linear-gradient(135deg, var(--synth-pink), var(--synth-purple));
+    box-shadow: 0 4px 20px rgba(168, 85, 247, 0.4);
+}
+
+/* Modal Styles */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(10, 8, 20, 0.9);
+    backdrop-filter: blur(5px);
+    z-index: 2000;
+    animation: fadeIn 0.3s ease;
+}
+
+.modal-overlay.visible {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal {
+    background: var(--synth-card-bg);
+    border: 2px solid var(--synth-cyan);
+    border-radius: 12px;
+    padding: 2rem;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 
+        0 0 50px rgba(0, 255, 255, 0.3),
+        0 0 100px rgba(255, 16, 240, 0.1),
+        inset 0 0 20px rgba(0, 255, 255, 0.05);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--synth-border);
+}
+
+.modal-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #ff0066, #ff3366);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+.modal-icon svg {
+    width: 24px;
+    height: 24px;
+    stroke: white;
+    stroke-width: 2;
+    fill: none;
+}
+
+.modal-title {
+    color: var(--synth-cyan);
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+}
+
+.modal-body {
+    margin-bottom: 1.5rem;
+    color: var(--synth-text);
+    line-height: 1.6;
+}
+
+.modal-info {
+    background: var(--synth-surface);
+    border-left: 3px solid var(--synth-pink);
+    padding: 1rem;
+    margin: 1rem 0;
+    border-radius: 4px;
+}
+
+.modal-info-label {
+    color: var(--synth-text-muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 0.25rem;
+}
+
+.modal-info-value {
+    color: var(--synth-cyan);
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+}
+
+.modal-warning {
+    background: linear-gradient(135deg,
+        rgba(255, 0, 102, 0.1),
+        rgba(255, 0, 102, 0.05));
+    border: 1px solid #ff0066;
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin: 1rem 0;
+    color: #ff6699;
+    font-size: 0.9rem;
+}
+
+.modal-footer {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+}
+
+.modal-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+}
+
+.modal-btn-cancel {
+    background: var(--synth-surface);
+    color: var(--synth-text);
+    border: 1px solid var(--synth-border);
+}
+
+.modal-btn-cancel:hover {
+    background: var(--synth-card-bg);
+    border-color: var(--synth-cyan);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+}
+
+.modal-btn-confirm {
+    background: linear-gradient(135deg, #ff0066, #ff3366);
+    color: white;
+}
+
+.modal-btn-confirm:hover {
+    background: linear-gradient(135deg, #ff3366, #ff0066);
+    box-shadow: 0 4px 20px rgba(255, 0, 102, 0.5);
+    transform: translateY(-2px);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <div class="chat-header">
+        <select id="session-selector" class="session-selector">
+            <option value="new">New Conversation</option>
+        </select>
+        <button class="synthwave-btn" onclick="toggleSettings()">
+            <span class="btn-text">Settings</span>
+        </button>
+        <button class="synthwave-btn" onclick="exportChat()">
+            <span class="btn-text">Export</span>
+        </button>
+        <button class="synthwave-btn delete-btn" onclick="deleteConversation()">
+            <span class="btn-text">Delete</span>
+        </button>
+        <button class="synthwave-btn process-btn" onclick="processConversation()">
+            <span class="btn-text">Process Chain</span>
+        </button>
+    </div>
+    
+    <div id="chat-messages" class="chat-messages">
+        <div class="message system">
+            <div class="message-content">
+                Welcome to JAM Chat. Your conversation will be automatically logged as searchable memories using 5W1H extraction.
+            </div>
+        </div>
+    </div>
+    
+    <div class="typing-indicator" id="typing-indicator">
+        Assistant is typing<span class="loading-spinner"></span>
+    </div>
+    
+    <div class="chat-input-area">
+        <textarea 
+            id="chat-input" 
+            class="chat-input" 
+            placeholder="Type your message... (Shift+Enter for new line, Enter to send)"
+            rows="2"
+        ></textarea>
+        <div class="chat-controls">
+            <button id="send-button" class="send-button" onclick="sendMessage()">
+                Send
+            </button>
+            <span class="token-counter" id="token-counter">0 tokens</span>
+        </div>
+    </div>
+</div>
+
+<div id="settings-panel" class="settings-panel">
+    <h2 style="color: var(--synth-cyan); margin-bottom: 1.5rem;">Chat Settings</h2>
+    
+    <div class="settings-group">
+        <h3>Model Parameters</h3>
+        <div class="setting-row">
+            <span class="setting-label">Temperature</span>
+            <input type="number" id="temperature" class="setting-input" value="0.7" min="0" max="2" step="0.1">
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">Max Tokens</span>
+            <input type="number" id="max-tokens" class="setting-input" value="2048" min="1" max="4096">
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">Top P</span>
+            <input type="number" id="top-p" class="setting-input" value="0.9" min="0" max="1" step="0.1">
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">Top K</span>
+            <input type="number" id="top-k" class="setting-input" value="40" min="0" max="100">
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">Min P</span>
+            <input type="number" id="min-p" class="setting-input" value="0.05" min="0" max="1" step="0.01">
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">Repetition Penalty</span>
+            <input type="number" id="rep-penalty" class="setting-input" value="1.1" min="0" max="2" step="0.1">
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">Frequency Penalty</span>
+            <input type="number" id="freq-penalty" class="setting-input" value="0" min="-2" max="2" step="0.1">
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">Presence Penalty</span>
+            <input type="number" id="pres-penalty" class="setting-input" value="0" min="-2" max="2" step="0.1">
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">Typical P</span>
+            <input type="number" id="typical-p" class="setting-input" value="1" min="0" max="1" step="0.05">
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">TFS-Z</span>
+            <input type="number" id="tfs-z" class="setting-input" value="1" min="0" max="1" step="0.05">
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">Mirostat Mode</span>
+            <select id="mirostat" class="setting-input">
+                <option value="0">Disabled</option>
+                <option value="1">Mirostat 1</option>
+                <option value="2">Mirostat 2</option>
+            </select>
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">Mirostat Tau</span>
+            <input type="number" id="mirostat-tau" class="setting-input" value="5" min="0" max="10" step="0.1">
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">Mirostat Eta</span>
+            <input type="number" id="mirostat-eta" class="setting-input" value="0.1" min="0" max="1" step="0.01">
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">Seed</span>
+            <input type="number" id="seed" class="setting-input" value="-1" min="-1">
+        </div>
+    </div>
+    
+    <div class="settings-group">
+        <h3>System Prompt</h3>
+        <textarea id="system-prompt" class="setting-textarea" rows="4" placeholder="You are a helpful assistant...">You are a helpful assistant.</textarea>
+    </div>
+    
+    <div class="settings-group">
+        <h3>Advanced Settings</h3>
+        <div class="setting-row">
+            <span class="setting-label">Stop Sequences</span>
+            <input type="text" id="stop-sequences" class="setting-input" style="width: 250px;" placeholder='["\\n", "User:", "Assistant:"]'>
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">Grammar</span>
+            <textarea id="grammar" class="setting-textarea" rows="3" placeholder="Optional BNF grammar..."></textarea>
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">N Predict</span>
+            <input type="number" id="n-predict" class="setting-input" value="-1" min="-1">
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">Penalize Newline</span>
+            <input type="checkbox" id="penalize-nl">
+        </div>
+    </div>
+    
+    <div class="settings-group">
+        <h3>Memory Settings</h3>
+        <div class="setting-row">
+            <span class="setting-label">Log Messages</span>
+            <input type="checkbox" id="log-messages" checked>
+        </div>
+        <div class="setting-row">
+            <span class="setting-label">Multi-Part Extraction</span>
+            <input type="checkbox" id="multi-part" checked>
+        </div>
+    </div>
+    
+    <button class="synthwave-btn" onclick="saveSettings()" style="width: 100%;">
+        <span class="btn-text">Save Settings</span>
+    </button>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="delete-modal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/>
+                    <path d="M12 8v4M12 16h.01"/>
+                </svg>
+            </div>
+            <h2 class="modal-title">Delete Conversation</h2>
+        </div>
+        <div class="modal-body">
+            <p>Are you sure you want to delete this conversation?</p>
+            <div class="modal-info">
+                <div class="modal-info-label">Session ID</div>
+                <div class="modal-info-value" id="modal-session-id">-</div>
+            </div>
+            <div class="modal-warning">
+                ⚠ Warning: This action is permanent and will delete all memories associated with this conversation.
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-btn modal-btn-cancel" onclick="closeDeleteModal()">Cancel</button>
+            <button class="modal-btn modal-btn-confirm" onclick="confirmDelete()">Delete</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentSessionId = null;
+let messageHistory = [];
+let isStreaming = false;
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    generateNewSession();
+    loadSessions();
+    setupEventListeners();
+    loadSettings();
+});
+
+function generateNewSession() {
+    const now = new Date();
+    currentSessionId = `chat_${now.toISOString().replace(/[:.]/g, '-')}`;
+    messageHistory = [];
+    document.getElementById('chat-messages').innerHTML = `
+        <div class="message system">
+            <div class="message-content">
+                New conversation started. Session ID: ${currentSessionId}
+            </div>
+        </div>
+    `;
+}
+
+function setupEventListeners() {
+    const input = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('send-button');
+    
+    // Handle Enter key
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    
+    // Update token count
+    input.addEventListener('input', updateTokenCount);
+    
+    // Session selector
+    document.getElementById('session-selector').addEventListener('change', (e) => {
+        if (e.target.value === 'new') {
+            generateNewSession();
+        } else {
+            loadSession(e.target.value);
+        }
+    });
+}
+
+function updateTokenCount() {
+    const text = document.getElementById('chat-input').value;
+    // Rough approximation: 1 token ≈ 4 characters
+    const tokens = Math.ceil(text.length / 4);
+    document.getElementById('token-counter').textContent = `${tokens} tokens`;
+}
+
+async function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    
+    if (!message || isStreaming) return;
+    
+    // Add user message to UI
+    addMessage('user', message);
+    
+    // Clear input
+    input.value = '';
+    updateTokenCount();
+    
+    // Disable send button
+    const sendBtn = document.getElementById('send-button');
+    sendBtn.disabled = true;
+    isStreaming = true;
+    
+    // Show typing indicator
+    document.getElementById('typing-indicator').classList.add('visible');
+    
+    try {
+        // Get system prompt
+        const systemPrompt = document.getElementById('system-prompt').value.trim();
+        
+        // Prepare messages for API
+        const messages = [];
+        if (systemPrompt) {
+            messages.push({ role: 'system', content: systemPrompt });
+        }
+        messages.push(...messageHistory);
+        messages.push({ role: 'user', content: message });
+        
+        // Get settings
+        const stopSeqValue = document.getElementById('stop-sequences').value.trim();
+        let stopSequences = [];
+        if (stopSeqValue) {
+            try {
+                stopSequences = JSON.parse(stopSeqValue);
+            } catch (e) {
+                // If not valid JSON, treat as single stop sequence
+                stopSequences = [stopSeqValue];
+            }
+        }
+        
+        const settings = {
+            temperature: parseFloat(document.getElementById('temperature').value),
+            max_tokens: parseInt(document.getElementById('max-tokens').value),
+            top_p: parseFloat(document.getElementById('top-p').value),
+            top_k: parseInt(document.getElementById('top-k').value),
+            min_p: parseFloat(document.getElementById('min-p').value),
+            repetition_penalty: parseFloat(document.getElementById('rep-penalty').value),
+            frequency_penalty: parseFloat(document.getElementById('freq-penalty').value),
+            presence_penalty: parseFloat(document.getElementById('pres-penalty').value),
+            typical_p: parseFloat(document.getElementById('typical-p').value),
+            tfs_z: parseFloat(document.getElementById('tfs-z').value),
+            mirostat: parseInt(document.getElementById('mirostat').value),
+            mirostat_tau: parseFloat(document.getElementById('mirostat-tau').value),
+            mirostat_eta: parseFloat(document.getElementById('mirostat-eta').value),
+            seed: parseInt(document.getElementById('seed').value),
+            stop: stopSequences.length > 0 ? stopSequences : undefined,
+            grammar: document.getElementById('grammar').value.trim() || undefined,
+            n_predict: parseInt(document.getElementById('n-predict').value),
+            penalize_nl: document.getElementById('penalize-nl').checked
+        };
+        
+        // Send to API
+        const response = await fetch('/api/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                messages: messages,
+                session_id: currentSessionId,
+                log_memory: document.getElementById('log-messages').checked,
+                use_multi_part: document.getElementById('multi-part').checked,
+                ...settings
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Add assistant message
+        if (data.choices && data.choices[0]) {
+            const assistantMessage = data.choices[0].message.content;
+            addMessage('assistant', assistantMessage, data.memory_ids);
+        }
+        
+    } catch (error) {
+        console.error('Error:', error);
+        addMessage('system', `Error: ${error.message}`, null, true);
+    } finally {
+        // Hide typing indicator
+        document.getElementById('typing-indicator').classList.remove('visible');
+        
+        // Re-enable send button
+        sendBtn.disabled = false;
+        isStreaming = false;
+    }
+}
+
+function addMessage(role, content, memoryIds = null, isError = false) {
+    const messagesDiv = document.getElementById('chat-messages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${role}${isError ? ' error-message' : ''}`;
+    
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString();
+    
+    let memoryIndicator = '';
+    if (memoryIds && memoryIds.length > 0) {
+        memoryIndicator = `<span class="memory-indicator">✓ Saved to memory (${memoryIds.length} parts)</span>`;
+    }
+    
+    messageDiv.innerHTML = `
+        <div class="message-header">
+            <span class="message-role">${role}</span>
+            <span class="message-time">${timeStr}</span>
+            ${memoryIndicator}
+        </div>
+        <div class="message-content">${escapeHtml(content)}</div>
+        <div class="message-meta">
+            <span>Session: ${currentSessionId.substring(5, 20)}...</span>
+            <span>${content.length} chars</span>
+        </div>
+    `;
+    
+    messagesDiv.appendChild(messageDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    
+    // Add to history if not system/error
+    if (!isError && role !== 'system') {
+        messageHistory.push({ role, content });
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+async function loadSessions() {
+    try {
+        const response = await fetch('/api/chat/sessions');
+        const sessions = await response.json();
+        
+        const selector = document.getElementById('session-selector');
+        
+        // Clear existing options except "New"
+        while (selector.options.length > 1) {
+            selector.remove(1);
+        }
+        
+        // Add sessions
+        sessions.forEach(session => {
+            const option = document.createElement('option');
+            option.value = session.session_id;
+            option.textContent = `${session.session_id.substring(5, 25)} (${session.message_count} messages)`;
+            selector.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading sessions:', error);
+    }
+}
+
+async function loadSession(sessionId) {
+    try {
+        const response = await fetch(`/api/chat/session/${sessionId}`);
+        const data = await response.json();
+        
+        currentSessionId = sessionId;
+        messageHistory = data.messages;
+        
+        // Clear and rebuild chat
+        const messagesDiv = document.getElementById('chat-messages');
+        messagesDiv.innerHTML = '';
+        
+        // Add all messages
+        data.messages.forEach(msg => {
+            addMessage(msg.role, msg.content);
+        });
+        
+    } catch (error) {
+        console.error('Error loading session:', error);
+        addMessage('system', `Error loading session: ${error.message}`, null, true);
+    }
+}
+
+function toggleSettings() {
+    const panel = document.getElementById('settings-panel');
+    panel.classList.toggle('visible');
+}
+
+function saveSettings() {
+    // Settings are applied in real-time, just close the panel
+    toggleSettings();
+}
+
+function loadSettings() {
+    // Load from localStorage or use defaults
+    const settings = JSON.parse(localStorage.getItem('chatSettings') || '{}');
+    
+    if (settings.temperature !== undefined) {
+        document.getElementById('temperature').value = settings.temperature;
+    }
+    if (settings.maxTokens !== undefined) {
+        document.getElementById('max-tokens').value = settings.maxTokens;
+    }
+    if (settings.topP !== undefined) {
+        document.getElementById('top-p').value = settings.topP;
+    }
+    if (settings.repetitionPenalty !== undefined) {
+        document.getElementById('rep-penalty').value = settings.repetitionPenalty;
+    }
+}
+
+async function exportChat() {
+    const data = {
+        session_id: currentSessionId,
+        messages: messageHistory,
+        timestamp: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chat_${currentSessionId}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+let sessionToDelete = null;
+
+function deleteConversation() {
+    const selector = document.getElementById('session-selector');
+    if (selector.value === 'new') {
+        addMessage('system', 'No conversation selected to delete', null, true);
+        return;
+    }
+    
+    sessionToDelete = selector.value || currentSessionId;
+    
+    // Update modal with session info
+    document.getElementById('modal-session-id').textContent = sessionToDelete;
+    
+    // Show modal
+    document.getElementById('delete-modal').classList.add('visible');
+}
+
+function closeDeleteModal() {
+    document.getElementById('delete-modal').classList.remove('visible');
+    sessionToDelete = null;
+}
+
+async function confirmDelete() {
+    if (!sessionToDelete) return;
+    
+    try {
+        const response = await fetch(`/api/chat/session/${sessionToDelete}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        // Remove from selector
+        const selector = document.getElementById('session-selector');
+        for (let i = 0; i < selector.options.length; i++) {
+            if (selector.options[i].value === sessionToDelete) {
+                selector.remove(i);
+                break;
+            }
+        }
+        
+        // If we deleted the current session, start a new one
+        if (sessionToDelete === currentSessionId) {
+            generateNewSession();
+            selector.value = 'new';
+        }
+        
+        addMessage('system', `Conversation deleted successfully. ${result.deleted_count} memories removed.`);
+        closeDeleteModal();
+    } catch (error) {
+        console.error('Error deleting conversation:', error);
+        addMessage('system', `Error deleting conversation: ${error.message}`, null, true);
+        closeDeleteModal();
+    }
+}
+
+// Close modal on escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeDeleteModal();
+    }
+});
+
+// Close modal on overlay click
+document.getElementById('delete-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'delete-modal') {
+        closeDeleteModal();
+    }
+});
+
+async function processConversation() {
+    if (!messageHistory || messageHistory.length === 0) {
+        addMessage('system', 'No messages to process. Start a conversation first.', null, true);
+        return;
+    }
+    
+    if (!confirm(`Process this entire conversation chain into interconnected memories?\n\nThis will:\n• Analyze relationships between messages\n• Extract deeper context and patterns\n• Create enhanced memory connections\n• May take a moment for long conversations`)) {
+        return;
+    }
+    
+    try {
+        addMessage('system', 'Processing conversation chain... This may take a moment.');
+        
+        // Prepare the conversation chain data
+        const chainData = {
+            session_id: currentSessionId,
+            messages: messageHistory,
+            process_type: 'deep_chain',  // Indicates we want deep processing
+            extract_relationships: true,
+            multi_part: true
+        };
+        
+        const response = await fetch('/api/chat/process-chain', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(chainData)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        addMessage('system', `Conversation chain processed successfully!\n• ${result.memories_created} memories created\n• ${result.relationships_found} relationships identified\n• ${result.entities_extracted} entities extracted`);
+        
+    } catch (error) {
+        console.error('Error processing conversation:', error);
+        addMessage('system', `Error processing conversation: ${error.message}`, null, true);
+    }
+}
+</script>
+{% endblock %}

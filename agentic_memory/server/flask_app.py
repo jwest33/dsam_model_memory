@@ -22,6 +22,10 @@ from agentic_memory.types import RetrievalQuery, Candidate
 from agentic_memory.settings_manager import SettingsManager
 from agentic_memory.block_builder import greedy_knapsack
 from agentic_memory.import_processor import ImportProcessor
+from agentic_memory.router import MemoryRouter
+from agentic_memory.types import RawEvent
+import httpx
+import asyncio
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 app.secret_key = os.urandom(24)  # For session management
@@ -38,6 +42,9 @@ embed_dim = int(os.getenv('AM_EMBEDDING_DIM', '1024'))
 faiss_index = FaissIndex(dim=embed_dim, index_path=cfg.index_path)
 retriever = HybridRetriever(store, faiss_index)
 embedder = get_llama_embedder()
+
+# Initialize memory router for chat integration
+memory_router = MemoryRouter(store, faiss_index)
 
 # Load persisted weights or use defaults
 current_weights = settings_manager.get_weights()
@@ -1085,6 +1092,334 @@ def import_settings():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+
+# Chat Interface Routes
+@app.route('/chat')
+def chat():
+    """Chat interface page"""
+    return render_template('chat.html')
+
+@app.route('/api/chat/completions', methods=['POST'])
+def chat_completions():
+    """Proxy chat completions to llama.cpp with memory logging"""
+    try:
+        data = request.json
+        session_id = data.get('session_id', f'chat_{datetime.now().isoformat()}')
+        log_memory = data.get('log_memory', True)
+        use_multi_part = data.get('use_multi_part', True)
+        
+        # Extract messages
+        messages = data.get('messages', [])
+        
+        # Prepare request for llama.cpp with all parameters
+        llama_request = {
+            'messages': messages,
+            'temperature': data.get('temperature', 0.7),
+            'max_tokens': data.get('max_tokens', 2048),
+            'top_p': data.get('top_p', 0.9),
+            'top_k': data.get('top_k', 40),
+            'min_p': data.get('min_p', 0.05),
+            'repetition_penalty': data.get('repetition_penalty', 1.1),
+            'frequency_penalty': data.get('frequency_penalty', 0.0),
+            'presence_penalty': data.get('presence_penalty', 0.0),
+            'typical_p': data.get('typical_p', 1.0),
+            'tfs_z': data.get('tfs_z', 1.0),
+            'mirostat': data.get('mirostat', 0),
+            'mirostat_tau': data.get('mirostat_tau', 5.0),
+            'mirostat_eta': data.get('mirostat_eta', 0.1),
+            'seed': data.get('seed', -1),
+            'stop': data.get('stop', []),
+            'grammar': data.get('grammar', None),
+            'n_predict': data.get('n_predict', -1),
+            'penalize_nl': data.get('penalize_nl', False),
+            'stream': False
+        }
+        
+        # Forward to llama.cpp server
+        llama_url = f"{cfg.llm_base_url}/chat/completions"
+        
+        import requests
+        response = requests.post(llama_url, json=llama_request, timeout=60)
+        response.raise_for_status()
+        
+        result = response.json()
+        
+        # Log messages as memories if enabled
+        memory_ids = []
+        if log_memory and messages:
+            # Log only the last user message (the one just sent)
+            if messages and messages[-1]['role'] == 'user':
+                user_msg = messages[-1]
+                user_event = RawEvent(
+                    session_id=session_id,
+                    event_type='user_message',
+                    actor='user:chat',
+                    content=user_msg['content'],
+                    metadata={
+                        'role': 'user',
+                        'timestamp': datetime.now().isoformat()
+                    }
+                )
+                user_memory_id = memory_router.ingest(
+                    user_event, 
+                    context_hint=f"User message in chat conversation session {session_id}. This is a direct conversation between a human user and an AI assistant.",
+                    use_multi_part=use_multi_part
+                )
+                if user_memory_id:
+                    memory_ids.extend(user_memory_id.split(','))
+            
+            # Log the assistant response
+            if result.get('choices') and result['choices'][0].get('message'):
+                assistant_msg = result['choices'][0]['message']['content']
+                assistant_event = RawEvent(
+                    session_id=session_id,
+                    event_type='llm_message',
+                    actor=f'llm:{cfg.llm_model}',
+                    content=assistant_msg,
+                    metadata={
+                        'role': 'assistant',
+                        'timestamp': datetime.now().isoformat()
+                    }
+                )
+                assistant_memory_id = memory_router.ingest(
+                    assistant_event,
+                    context_hint=f"AI assistant response in chat conversation session {session_id}. This is a direct conversation between a human user and an AI assistant.",
+                    use_multi_part=use_multi_part
+                )
+                if assistant_memory_id:
+                    memory_ids.extend(assistant_memory_id.split(','))
+        
+        # Add memory IDs to response
+        result['memory_ids'] = memory_ids
+        
+        return jsonify(result)
+        
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': f'Error communicating with LLM server: {str(e)}'}), 502
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chat/sessions', methods=['GET'])
+def get_chat_sessions():
+    """Get list of chat sessions"""
+    try:
+        con = sqlite3.connect(cfg.db_path)
+        con.row_factory = sqlite3.Row
+        
+        query = """
+            SELECT 
+                session_id,
+                MIN(created_at) as start_time,
+                MAX(created_at) as last_message,
+                COUNT(*) as message_count
+            FROM memories
+            WHERE session_id LIKE 'chat_%'
+            GROUP BY session_id
+            ORDER BY MAX(created_at) DESC
+            LIMIT 50
+        """
+        
+        rows = con.execute(query).fetchall()
+        con.close()
+        
+        sessions = []
+        for row in rows:
+            sessions.append({
+                'session_id': row['session_id'],
+                'start_time': row['start_time'],
+                'last_message': row['last_message'],
+                'message_count': row['message_count']
+            })
+        
+        return jsonify(sessions)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chat/session/<session_id>', methods=['GET'])
+def get_session_history(session_id):
+    """Get chat history for a specific session"""
+    try:
+        con = sqlite3.connect(cfg.db_path)
+        con.row_factory = sqlite3.Row
+        
+        query = """
+            SELECT 
+                memory_id,
+                raw_text,
+                extra_json,
+                created_at
+            FROM memories
+            WHERE session_id = ?
+            ORDER BY created_at ASC
+        """
+        
+        rows = con.execute(query, (session_id,)).fetchall()
+        con.close()
+        
+        messages = []
+        for row in rows:
+            # Parse metadata from extra_json
+            extra = json.loads(row['extra_json']) if row['extra_json'] else {}
+            metadata = extra.get('metadata', {})
+            
+            role = metadata.get('role', 'user')
+            content = row['raw_text']
+            
+            messages.append({
+                'role': role,
+                'content': content,
+                'timestamp': row['created_at'],
+                'memory_id': row['memory_id']
+            })
+        
+        return jsonify({
+            'session_id': session_id,
+            'messages': messages,
+            'message_count': len(messages)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chat/session/<session_id>', methods=['DELETE'])
+def delete_session(session_id):
+    """Delete a chat session and its memories"""
+    try:
+        con = sqlite3.connect(cfg.db_path)
+        cursor = con.cursor()
+        
+        # Get memory IDs for this session
+        memory_ids = cursor.execute(
+            "SELECT memory_id FROM memories WHERE session_id = ?",
+            (session_id,)
+        ).fetchall()
+        
+        # Delete from all tables
+        cursor.execute("DELETE FROM memories WHERE session_id = ?", (session_id,))
+        cursor.execute("DELETE FROM mem_fts WHERE memory_id IN (SELECT memory_id FROM memories WHERE session_id = ?)", (session_id,))
+        cursor.execute("DELETE FROM embeddings WHERE memory_id IN (SELECT memory_id FROM memories WHERE session_id = ?)", (session_id,))
+        cursor.execute("DELETE FROM usage_stats WHERE memory_id IN (SELECT memory_id FROM memories WHERE session_id = ?)", (session_id,))
+        
+        deleted_count = cursor.rowcount
+        con.commit()
+        con.close()
+        
+        # Remove from FAISS index
+        for (memory_id,) in memory_ids:
+            try:
+                faiss_index.remove(memory_id)
+            except:
+                pass
+        
+        if deleted_count > 0:
+            faiss_index.save()
+        
+        return jsonify({
+            'success': True,
+            'deleted_count': deleted_count
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chat/process-chain', methods=['POST'])
+def process_conversation_chain():
+    """Process an entire conversation chain into interconnected memories"""
+    try:
+        data = request.json
+        session_id = data.get('session_id')
+        messages = data.get('messages', [])
+        process_type = data.get('process_type', 'deep_chain')
+        extract_relationships = data.get('extract_relationships', True)
+        use_multi_part = data.get('multi_part', True)
+        
+        if not messages:
+            return jsonify({'error': 'No messages to process'}), 400
+        
+        memories_created = 0
+        relationships_found = 0
+        entities_extracted = set()
+        
+        # Build conversation context for better extraction
+        conversation_context = "\n".join([
+            f"{msg['role'].upper()}: {msg['content']}" 
+            for msg in messages
+        ])
+        
+        # Process each message with enhanced context
+        for i, msg in enumerate(messages):
+            # Create context hints that include surrounding messages
+            prev_msg = messages[i-1]['content'] if i > 0 else ""
+            next_msg = messages[i+1]['content'] if i < len(messages)-1 else ""
+            
+            context_hint = f"""This is message {i+1} of {len(messages)} in a chat conversation.
+Previous message: {prev_msg[:100]}...
+Current role: {msg['role']}
+Next message: {next_msg[:100]}...
+Full conversation context for relationship extraction."""
+            
+            # Create RawEvent for the message
+            event = RawEvent(
+                session_id=f"{session_id}_chain",
+                event_type='user_message' if msg['role'] == 'user' else 'llm_message',
+                actor=f"{msg['role']}:chain_process",
+                content=msg['content'],
+                metadata={
+                    'role': msg['role'],
+                    'position': i,
+                    'total_messages': len(messages),
+                    'process_type': process_type,
+                    'original_session': session_id,
+                    'timestamp': msg.get('timestamp', datetime.now().isoformat())
+                }
+            )
+            
+            # Ingest with enhanced context
+            memory_id = memory_router.ingest(
+                event,
+                context_hint=context_hint,
+                use_multi_part=use_multi_part
+            )
+            
+            if memory_id:
+                memories_created += len(memory_id.split(','))
+            
+            # Extract entities from the message for tracking
+            if extract_relationships:
+                # Get the memory to extract entities
+                con = sqlite3.connect(cfg.db_path)
+                con.row_factory = sqlite3.Row
+                row = con.execute(
+                    "SELECT what FROM memories WHERE memory_id = ?",
+                    (memory_id.split(',')[0] if ',' in memory_id else memory_id,)
+                ).fetchone()
+                con.close()
+                
+                if row and row['what']:
+                    extracted = retriever.extract_entities_from_what(row['what'])
+                    entities_extracted.update(extracted)
+        
+        # Identify relationships between messages (simplified)
+        if extract_relationships and len(messages) > 1:
+            # Count Q&A pairs, follow-ups, etc.
+            for i in range(len(messages)-1):
+                if messages[i]['role'] == 'user' and messages[i+1]['role'] == 'assistant':
+                    relationships_found += 1  # Q&A relationship
+                elif messages[i]['role'] == messages[i+1]['role']:
+                    relationships_found += 1  # Follow-up relationship
+        
+        return jsonify({
+            'success': True,
+            'memories_created': memories_created,
+            'relationships_found': relationships_found,
+            'entities_extracted': len(entities_extracted),
+            'entities': list(entities_extracted)[:50],  # Return first 50 entities
+            'session_id': f"{session_id}_chain"
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5001, debug=False)

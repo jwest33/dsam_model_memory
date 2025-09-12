@@ -1,5 +1,5 @@
 """
-Settings persistence manager for the JAM Memory Analyzer.
+Settings persistence manager for JAM.
 Stores user preferences and custom weights in a JSON file.
 """
 
