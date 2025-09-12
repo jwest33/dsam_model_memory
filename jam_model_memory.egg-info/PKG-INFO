@@ -1,0 +1,21 @@
+Metadata-Version: 2.4
+Name: jam-model-memory
+Version: 0.1.0
+Summary: JAM (Journalistic Agent Memory) - Local-first memory system for LLM agents
+Author: JAM Team
+Requires-Python: >=3.11
+License-File: LICENSE
+Requires-Dist: flask
+Requires-Dist: fastapi
+Requires-Dist: click
+Requires-Dist: faiss-cpu
+Requires-Dist: httpx
+Requires-Dist: numpy
+Requires-Dist: scikit-learn
+Requires-Dist: tiktoken
+Requires-Dist: python-dotenv
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: pytest-cov; extra == "dev"
+Requires-Dist: pytest-asyncio; extra == "dev"
+Dynamic: license-file

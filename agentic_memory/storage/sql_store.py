@@ -21,12 +21,15 @@ CREATE TABLE IF NOT EXISTS memories (
     who_type TEXT NOT NULL,
     who_id TEXT NOT NULL,
     who_label TEXT,
+    who_list TEXT,  -- JSON array of who entities
     what TEXT NOT NULL,
     when_ts TEXT NOT NULL,
+    when_list TEXT,  -- JSON array of when expressions
     where_type TEXT NOT NULL,
     where_value TEXT NOT NULL,
     where_lat REAL,
     where_lon REAL,
+    where_list TEXT,  -- JSON array of where locations
     why TEXT,
     how TEXT,
     raw_text TEXT NOT NULL,

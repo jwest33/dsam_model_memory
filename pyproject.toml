@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jam-model-memory"
+version = "0.1.0"
+description = "JAM (Journalistic Agent Memory) - Local-first memory system for LLM agents"
+authors = [
+    {name = "JAM Team"},
+]
+requires-python = ">=3.11"
+dependencies = [
+    "flask",
+    "fastapi",
+    "click",
+    "faiss-cpu",
+    "httpx",
+    "numpy",
+    "scikit-learn",
+    "tiktoken",
+    "python-dotenv",
+]
+
+[tool.setuptools.packages.find]
+include = ["agentic_memory*"]
+exclude = ["logs*", "tests*"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "pytest-asyncio",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v"

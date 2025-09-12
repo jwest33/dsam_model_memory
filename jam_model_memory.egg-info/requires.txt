@@ -1,0 +1,14 @@
+flask
+fastapi
+click
+faiss-cpu
+httpx
+numpy
+scikit-learn
+tiktoken
+python-dotenv
+
+[dev]
+pytest
+pytest-cov
+pytest-asyncio
