@@ -52,8 +52,8 @@
                     </div>
                     <div class="weight-slider">
                         <label>Recency</label>
-                        <input type="range" id="weight-recency" min="0" max="100" value="15" onchange="updateWeight('recency', this.value)">
-                        <span id="weight-recency-val">0.15</span>
+                        <input type="range" id="weight-recency" min="0" max="100" value="2" onchange="updateWeight('recency', this.value)">
+                        <span id="weight-recency-val">0.02</span>
                     </div>
                     <div class="weight-slider">
                         <label>Actor</label>
@@ -221,7 +221,9 @@
 }
 
 #token-budget {
+    -webkit-appearance: textfield;
     -moz-appearance: textfield;
+    appearance: textfield;
 }
 
 .decomposition-display {
@@ -304,6 +306,8 @@
 
 .weight-slider input[type="range"] {
     -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
     height: 4px;
     background: var(--synth-border);
     outline: none;

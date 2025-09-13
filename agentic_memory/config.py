@@ -13,7 +13,7 @@ def get_config_manager() -> ConfigManager:
     """Get or create the singleton ConfigManager instance."""
     global _config_manager
     if _config_manager is None:
-        db_path = os.getenv("AM_DB_PATH", "./amemory.sqlite3")
+        db_path = os.getenv("AM_DB_PATH", "./data/amemory.sqlite3")
         _config_manager = ConfigManager(db_path)
     return _config_manager
 

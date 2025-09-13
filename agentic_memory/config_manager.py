@@ -92,7 +92,7 @@ class ConfigSetting:
 class ConfigManager:
     """Manages configuration with persistence and UI integration"""
     
-    def __init__(self, db_path: str = "./amemory.sqlite3"):
+    def __init__(self, db_path: str = "./data/amemory.sqlite3"):
         self.db_path = db_path
         self._ensure_tables()
         self.settings = self._define_settings()
@@ -599,8 +599,8 @@ class ConfigManager:
             display_name='Database Path',
             description='Path to SQLite database',
             type=ConfigType.STRING,
-            default_value='./amemory.sqlite3',
-            current_value=os.getenv('AM_DB_PATH', './amemory.sqlite3'),
+            default_value='./data/amemory.sqlite3',
+            current_value=os.getenv('AM_DB_PATH', './data/amemory.sqlite3'),
             category='System',
             editable=False,
             requires_restart=True
@@ -628,8 +628,8 @@ class ConfigManager:
             display_name='FAISS Index Path',
             description='Path to FAISS vector index',
             type=ConfigType.STRING,
-            default_value='./faiss.index',
-            current_value=os.getenv('AM_INDEX_PATH', './faiss.index'),
+            default_value='./data/faiss.index',
+            current_value=os.getenv('AM_INDEX_PATH', './data/faiss.index'),
             category='System',
             editable=False,
             requires_restart=True

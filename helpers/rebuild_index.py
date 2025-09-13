@@ -19,15 +19,15 @@ def backup_files():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     # Backup FAISS index
-    if os.path.exists('faiss.index'):
-        backup_name = f'faiss.index.backup_{timestamp}'
-        shutil.copy2('faiss.index', backup_name)
+    if os.path.exists('./data/faiss.index'):
+        backup_name = f'./data/faiss.index.backup_{timestamp}'
+        shutil.copy2('./data/faiss.index', backup_name)
         print(f"[OK] Backed up FAISS index to {backup_name}")
 
     # Backup index map
-    if os.path.exists('faiss.index.map'):
-        backup_name = f'faiss.index.map.backup_{timestamp}'
-        shutil.copy2('faiss.index.map', backup_name)
+    if os.path.exists('./data/faiss.index.map'):
+        backup_name = f'./data/faiss.index.map.backup_{timestamp}'
+        shutil.copy2('./data/faiss.index.map', backup_name)
         print(f"[OK] Backed up index map to {backup_name}")
 
     print()
@@ -52,7 +52,7 @@ def rebuild_index():
     print(f"[OK] Embedding dimension: {embed_dim}")
 
     # Connect to database
-    con = sqlite3.connect('amemory.sqlite3')
+    con = sqlite3.connect('./data/amemory.sqlite3')
     con.row_factory = sqlite3.Row
 
     # Get all memories
@@ -133,11 +133,11 @@ def rebuild_index():
 
     # Save FAISS index
     print("\nStep 6: Saving FAISS index...")
-    faiss.write_index(index, 'faiss.index')
-    print("[OK] Saved FAISS index to faiss.index")
+    faiss.write_index(index, './data/faiss.index')
+    print("[OK] Saved FAISS index to ./data/faiss.index")
 
     # Save ID map
-    with open('faiss.index.map', 'w', encoding='utf-8') as f:
+    with open('./data/faiss.index.map', 'w', encoding='utf-8') as f:
         for memory_id in id_map:
             f.write(memory_id + '\n')
     print(f"[OK] Saved ID map with {len(id_map)} entries")

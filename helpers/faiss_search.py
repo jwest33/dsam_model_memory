@@ -95,12 +95,12 @@ def search_memories(query: str, top_k: int = 10, show_vectors: bool = False):
     print("Loading FAISS index...")
     index = FaissIndex(
         dim=cfg.get('embedding_dim', 2048),
-        index_path=cfg.get('index_path', './faiss.index')
+        index_path=cfg.get('index_path', './data/faiss.index')
     )
     print(f"Index loaded with {index.index.ntotal} vectors")
 
     print("Connecting to database...")
-    store = MemoryStore(db_path=cfg.get('db_path', './amemory.sqlite3'))
+    store = MemoryStore(db_path=cfg.get('db_path', './data/amemory.sqlite3'))
 
     # Get embedding for query
     print("\nGenerating query embedding...")
@@ -155,7 +155,7 @@ def list_recent_memories(limit: int = 10):
     print(f"\nListing {limit} most recent memories")
     print("="*80)
 
-    store = MemoryStore(db_path=cfg.get('db_path', './amemory.sqlite3'))
+    store = MemoryStore(db_path=cfg.get('db_path', './data/amemory.sqlite3'))
 
     # Get recent memories
     conn = sqlite3.connect(store.db_path)
@@ -182,7 +182,7 @@ def lookup_memory(memory_id: str, show_vector: bool = False):
 
     # Connect to database
     print("Connecting to database...")
-    store = MemoryStore(db_path=cfg.get('db_path', './amemory.sqlite3'))
+    store = MemoryStore(db_path=cfg.get('db_path', './data/amemory.sqlite3'))
 
     # Fetch the memory
     memories = store.fetch_memories([memory_id])
@@ -200,7 +200,7 @@ def lookup_memory(memory_id: str, show_vector: bool = False):
         print("\nLoading FAISS index for vector information...")
         index = FaissIndex(
             dim=cfg.get('embedding_dim', 2048),
-            index_path=cfg.get('index_path', './faiss.index')
+            index_path=cfg.get('index_path', './data/faiss.index')
         )
 
         # Try to get vector from FAISS
@@ -219,10 +219,10 @@ def compare_memory_to_query(memory_id: str, query: str):
     print("="*80)
 
     # Connect to database and index
-    store = MemoryStore(db_path=cfg.get('db_path', './amemory.sqlite3'))
+    store = MemoryStore(db_path=cfg.get('db_path', './data/amemory.sqlite3'))
     index = FaissIndex(
         dim=cfg.get('embedding_dim', 2048),
-        index_path=cfg.get('index_path', './faiss.index')
+        index_path=cfg.get('index_path', './data/faiss.index')
     )
 
     # Initialize retriever with store and index
@@ -384,10 +384,10 @@ def check_zero_embeddings(limit: Optional[int] = None, fix: bool = False, delete
     print("="*80)
 
     # Initialize components
-    store = MemoryStore(db_path=cfg.get('db_path', './amemory.sqlite3'))
+    store = MemoryStore(db_path=cfg.get('db_path', './data/amemory.sqlite3'))
     index = FaissIndex(
         dim=cfg.get('embedding_dim', 2048),
-        index_path=cfg.get('index_path', './faiss.index')
+        index_path=cfg.get('index_path', './data/faiss.index')
     )
 
     # Get all memory IDs from database
@@ -629,14 +629,14 @@ def show_stats():
     # Index stats
     index = FaissIndex(
         dim=cfg.get('embedding_dim', 2048),
-        index_path=cfg.get('index_path', './faiss.index')
+        index_path=cfg.get('index_path', './data/faiss.index')
     )
     print(f"FAISS Index: {index.index.ntotal} vectors")
     print(f"Index dimension: {index.dim}")
     print(f"Index type: {type(index.index).__name__}")
 
     # Database stats
-    store = MemoryStore(db_path=cfg.get('db_path', './amemory.sqlite3'))
+    store = MemoryStore(db_path=cfg.get('db_path', './data/amemory.sqlite3'))
     conn = sqlite3.connect(store.db_path)
     cursor = conn.cursor()
 

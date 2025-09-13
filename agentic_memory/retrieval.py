@@ -213,7 +213,7 @@ class HybridRetriever:
             # Default weights (can be configured)
             # Note: recency is reduced since it's now a smart tiebreaker
             w_semantic = 0.68
-            w_recency = 0.15  # Small weight - mainly acts as tiebreaker
+            w_recency = 0.02  # Small weight - mainly acts as tiebreaker
             w_actor = 0.10
             w_temporal = 0.10
             w_spatial = 0.05
@@ -558,12 +558,12 @@ class HybridRetriever:
         """Return current weight configuration for UI display"""
         # Redistributed weights after removing lexical (was 0.25)
         return {
-            'semantic': 0.68,   # Increased from 0.45 (+0.10)
-            'recency': 0.02,    # Increased from 0.02 (+0.13)
-            'actor': 0.10,      # Unchanged
-            'temporal': 0.10,   # Unchanged
-            'spatial': 0.05,    # Increased from 0.04 (+0.01)
-            'usage': 0.05       # Increased from 0.04 (+0.01)
+            'semantic': 0.68,
+            'recency': 0.02,
+            'actor': 0.10,
+            'temporal': 0.10,
+            'spatial': 0.05,
+            'usage': 0.05
         }
     
     def update_weights(self, weights: Dict[str, float]) -> Dict[str, float]:
