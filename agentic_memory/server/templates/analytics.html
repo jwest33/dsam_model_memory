@@ -69,29 +69,6 @@
         
         <div id="temporal-stats" class="temporal-stats"></div>
     </div>
-    
-    <!-- Score Analysis -->
-    <div class="panel">
-        <h3>Query Score Analysis</h3>
-        <div class="score-section">
-            <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
-                <input type="text" id="score-query" placeholder="Enter query to analyze..." style="flex: 1;" />
-                <button onclick="analyzeScores()" class="btn-primary">Analyze</button>
-            </div>
-            
-            <div class="analytics-grid">
-                <div class="analytics-section">
-                    <h4>Score Distribution</h4>
-                    <canvas id="score-distribution" width="400" height="300"></canvas>
-                </div>
-                
-                <div class="analytics-section">
-                    <h4>Component Averages</h4>
-                    <div id="component-averages"></div>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
 <style>
@@ -315,7 +292,7 @@
 }
 
 /* Remove generic canvas rule that breaks network visualization */
-#temporal-chart, #score-distribution {
+#temporal-chart {
     max-width: 100%;
     height: auto;
 }
@@ -1440,107 +1417,11 @@ function displayTemporalStats(timeline) {
     `;
 }
 
-// Analyze scores for a query
-async function analyzeScores() {
-    const query = document.getElementById('score-query').value.trim();
-    if (!query) {
-        alert('Please enter a query to analyze');
-        return;
-    }
-    
-    try {
-        // Get current weights from analyzer
-        const weightsResponse = await fetch('/api/weights');
-        const weights = await weightsResponse.json();
-        
-        const response = await fetch('/api/analytics/scores', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                query: query,
-                weights: weights
-            })
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            drawScoreDistribution(data.score_distribution);
-            displayComponentAverages(data.component_averages);
-        }
-    } catch (error) {
-        console.error('Failed to analyze scores:', error);
-    }
-}
 
-// Draw score distribution
-function drawScoreDistribution(distribution) {
-    const canvas = document.getElementById('score-distribution');
-    const ctx = canvas.getContext('2d');
-    
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    const labels = Object.keys(distribution);
-    const values = Object.values(distribution);
-    const maxValue = Math.max(...values, 1);
-    
-    const barWidth = canvas.width / labels.length;
-    const chartHeight = canvas.height - 40;
-    
-    // Draw bars
-    labels.forEach((label, index) => {
-        const barHeight = (values[index] / maxValue) * chartHeight;
-        const x = index * barWidth;
-        const y = canvas.height - barHeight - 20;
-        
-        // Bar
-        ctx.fillStyle = '#00ffff';  // Cyan color
-        ctx.fillRect(x + 5, y, barWidth - 10, barHeight);
-        
-        // Label
-        ctx.fillStyle = '#ffffff';  // White text
-        ctx.font = '10px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(label, x + barWidth/2, canvas.height - 5);
-        
-        // Count
-        if (values[index] > 0) {
-            ctx.fillText(values[index].toString(), x + barWidth/2, y - 5);
-        }
-    });
-    
-    // Title
-    ctx.fillStyle = '#ffffff';  // White text
-    ctx.font = '12px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('Score Distribution', canvas.width/2, 15);
-}
-
-// Display component averages
-function displayComponentAverages(averages) {
-    const container = document.getElementById('component-averages');
-    
-    container.innerHTML = '';
-    Object.entries(averages).forEach(([component, avg]) => {
-        const bar = document.createElement('div');
-        bar.className = 'component-bar';
-        
-        const width = avg * 100;
-        
-        bar.innerHTML = `
-            <span class="component-name">${component}</span>
-            <span class="component-value">${avg.toFixed(3)}</span>
-            <div class="component-visual" style="width: ${width}%;"></div>
-        `;
-        
-        container.appendChild(bar);
-    });
-}
-
-// Search for entity in analyzer
+// Search for entity in memories tab
 function searchForEntity(entity) {
-    // Navigate to analyzer with entity as query
-    window.location.href = `/?query=${encodeURIComponent(entity)}`;
+    // Navigate to memories tab with entity as "what" filter
+    window.location.href = `/memories?what=${encodeURIComponent(entity)}`;
 }
 </script>
 {% endblock %}

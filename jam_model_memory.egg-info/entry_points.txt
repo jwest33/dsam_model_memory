@@ -1,0 +1,5 @@
+[console_scripts]
+jam = agentic_memory.cli:main
+jam-analyze = retrieval_analyzer:main
+jam-api = llama_api:main
+jam-server = agentic_memory.server.flask_app:main

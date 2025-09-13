@@ -180,24 +180,8 @@ class ConfigManager:
             display_name='Semantic Weight',
             description='Weight for semantic similarity (when attention disabled)',
             type=ConfigType.FLOAT,
-            default_value=0.55,
-            current_value=float(os.getenv('AM_W_SEMANTIC', '0.55')),
-            category='Weights',
-            editable=True,
-            requires_restart=False,
-            min_value=0.0,
-            max_value=1.0,
-            unit='%',
-            advanced=True
-        )
-        
-        settings['AM_W_LEXICAL'] = ConfigSetting(
-            key='AM_W_LEXICAL',
-            display_name='Lexical Weight',
-            description='Weight for keyword matches (when attention disabled)',
-            type=ConfigType.FLOAT,
-            default_value=0.20,
-            current_value=float(os.getenv('AM_W_LEXICAL', '0.20')),
+            default_value=0.68,
+            current_value=float(os.getenv('AM_W_SEMANTIC', '0.68')),
             category='Weights',
             editable=True,
             requires_restart=False,
@@ -1063,7 +1047,7 @@ class ConfigManager:
         """Validate that retrieval weights sum to 1.0"""
         if not self.get_value('AM_USE_ATTENTION'):
             # When attention is disabled, weights should sum to 1.0
-            weight_keys = ['AM_W_SEMANTIC', 'AM_W_LEXICAL', 'AM_W_RECENCY', 
+            weight_keys = ['AM_W_SEMANTIC', 'AM_W_RECENCY', 
                           'AM_W_ACTOR', 'AM_W_SPATIAL', 'AM_W_USAGE']
             total = sum(self.get_value(key) for key in weight_keys)
             if abs(total - 1.0) > 0.01:  # Allow small floating point errors

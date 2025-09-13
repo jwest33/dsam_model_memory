@@ -39,16 +39,7 @@ CREATE TABLE IF NOT EXISTS memories (
     created_at TEXT NOT NULL
 );
 
--- SQLite FTS5 for lexical retrieval (what/why/how/raw_text)
-CREATE VIRTUAL TABLE IF NOT EXISTS mem_fts USING fts5(
-    memory_id UNINDEXED,
-    what,
-    why,
-    how,
-    raw_text,
-    content='',
-    tokenize='porter'
-);
+-- FTS5 table removed - lexical search was broken and not needed
 
 CREATE TABLE IF NOT EXISTS embeddings (
     memory_id TEXT PRIMARY KEY REFERENCES memories(memory_id) ON DELETE CASCADE,
@@ -160,11 +151,7 @@ class MemoryStore:
                     rec.embed_model, json.dumps(rec.extra), datetime.now(timezone.utc).astimezone().isoformat()
                 )
             )
-            con.execute(
-                """INSERT OR REPLACE INTO mem_fts (memory_id, what, why, how, raw_text)
-                VALUES (?, ?, ?, ?, ?)""",
-                (rec.memory_id, rec.what, rec.why or '', rec.how or '', rec.raw_text)
-            )
+            # FTS5 table removed - lexical search not needed
             con.execute(
                 """INSERT OR REPLACE INTO embeddings (memory_id, dim, vector) VALUES (?, ?, ?)""", 
                 (rec.memory_id, dim, embedding)
@@ -196,16 +183,7 @@ class MemoryStore:
                     (mid, now)
                 )
 
-    def lexical_search(self, query: str, k: int = 50) -> List[sqlite3.Row]:
-        # Use FTS5 bm25
-        # Escape special FTS5 characters by quoting the entire query
-        escaped_query = '"' + query.replace('"', '""') + '"'
-        sql = """SELECT memory_id, bm25(mem_fts) AS score FROM mem_fts
-                 WHERE mem_fts MATCH ?
-                 ORDER BY score LIMIT ?"""
-        with self.connect() as con:
-            rows = con.execute(sql, (escaped_query, k)).fetchall()
-        return rows
+    # Lexical search removed - FTS5 was broken and not needed
 
     def get_by_actor(self, actor_id: str, limit: int = 100) -> List[sqlite3.Row]:
         """Retrieve memories from a specific actor."""
@@ -233,24 +211,11 @@ class MemoryStore:
             rows = con.execute(sql, (location, limit)).fetchall()
         return rows
     
-    def get_by_actor_and_text(self, actor_id: str, query: str, limit: int = 50) -> List[sqlite3.Row]:
-        """Hybrid search within an actor's memories."""
-        escaped_query = '"' + query.replace('"', '""') + '"'
-        sql = """
-            SELECT m.memory_id, bm25(f) AS score, m.when_ts, m.token_count
-            FROM memories m
-            JOIN mem_fts f ON m.memory_id = f.memory_id
-            WHERE m.who_id = ? AND f MATCH ?
-            ORDER BY score DESC
-            LIMIT ?
-        """
-        with self.connect() as con:
-            rows = con.execute(sql, (actor_id, escaped_query, limit)).fetchall()
-        return rows
+    # get_by_actor_and_text removed - FTS5 was removed
     
     def actor_exists(self, actor_id: str) -> bool:
         """Check if an actor exists in the database."""
-        sql = "SELECT COUNT(*) FROM memories WHERE who_list LIKE '%"' || ? || '"%' LIMIT 1"
+        sql = "SELECT COUNT(*) FROM memories WHERE who_id = ? LIMIT 1"
         with self.connect() as con:
             count = con.execute(sql, (actor_id,)).fetchone()[0]
         return count > 0

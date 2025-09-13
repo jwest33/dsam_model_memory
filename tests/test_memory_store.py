@@ -87,54 +87,7 @@ class TestMemoryStore:
         for mem_id in memory_ids:
             assert mem_id in memory_ids_fetched
     
-    def test_lexical_search(self, memory_store, sample_vector):
-        """Test lexical (full-text) search."""
-        from agentic_memory.types import MemoryRecord, Who, Where
-        from datetime import datetime, timezone
-        
-        embedding_bytes = sample_vector.tobytes()
-        
-        # Add memories with different content - create fresh records each time
-        memory_ids = []
-        for i in range(5):
-            record = MemoryRecord(
-                memory_id=f"mem_{i:04d}",
-                session_id="test_session",
-                source_event_id=f"evt_{i}",
-                who=Who(type="user", id="test", label="Test User"),
-                what=f"Test action {i} about Python",
-                when=datetime.now(timezone.utc),
-                where=Where(type="digital", value="test_location"),
-                why="Testing Python search",
-                how="Via test",
-                raw_text=f"Content {i}: Python programming tutorial",
-                token_count=10,
-                embed_text="python programming",
-                embed_model="test-model"
-            )
-            memory_store.upsert_memory(record, embedding_bytes, len(sample_vector))
-            memory_ids.append(record.memory_id)
-        
-        # Search for Python
-        results = memory_store.lexical_search("Python", k=3)
-        
-        # Should find some results
-        assert len(results) > 0, "Should find at least one result for 'Python'"
-        assert len(results) <= 3, "Should not exceed requested limit"
-        
-        # Results should have memory_id and score
-        for result in results:
-            # SQLite Row objects need to be accessed by index or key
-            memory_id = result[0] if isinstance(result, tuple) else result['memory_id']
-            assert memory_id in memory_ids
-        
-        # Fetch the actual memories to verify content
-        if results:
-            result_ids = [r[0] if isinstance(r, tuple) else r['memory_id'] for r in results]
-            memories = memory_store.fetch_memories(result_ids)
-            assert len(memories) > 0, "Should be able to fetch the found memories"
-            for memory in memories:
-                assert "Python" in memory['raw_text']
+    # Lexical search test removed - FTS5 was broken and removed from application
     
     def test_record_access(self, memory_store, sample_memory_record, sample_vector):
         """Test recording memory access."""
@@ -149,19 +102,34 @@ class TestMemoryStore:
         assert sample_memory_record.memory_id in stats
         assert stats[sample_memory_record.memory_id]['accesses'] == 1
     
-    def test_get_by_actor(self, memory_store, sample_memory_record, sample_vector):
+    def test_get_by_actor(self, memory_store, sample_vector):
         """Test retrieving memories by actor."""
+        from agentic_memory.types import MemoryRecord, Who, Where
+        from datetime import datetime, timezone
+        
         embedding_bytes = sample_vector.tobytes()
         
-        # Add memories with specific actor
+        # Add memories with specific actor - create fresh records each time
         for i in range(3):
-            record = sample_memory_record
-            record.memory_id = f"mem_{i:04d}"
-            record.who = Who(type="user", id="test_user", label="Test User")
+            record = MemoryRecord(
+                memory_id=f"mem_{i:04d}",
+                session_id="test_session",
+                source_event_id=f"evt_{i}",
+                who=Who(type="user", id="test_user", label="Test User"),
+                what=f"Action {i}",
+                when=datetime.now(timezone.utc),
+                where=Where(type="digital", value="test"),
+                why="Testing",
+                how="Test",
+                raw_text=f"Content {i}",
+                token_count=10,
+                embed_text="test",
+                embed_model="test-model"
+            )
             memory_store.upsert_memory(record, embedding_bytes, len(sample_vector))
         
-        # Get by actor
-        memories = memory_store.get_by_actor("user:test_user", limit=5)
+        # Get by actor - who_id is stored without the type prefix
+        memories = memory_store.get_by_actor("test_user", limit=5)
         assert len(memories) == 3
     
     def test_get_by_location(self, memory_store, sample_memory_record, sample_vector):
@@ -181,14 +149,14 @@ class TestMemoryStore:
         """Test checking if actor exists."""
         embedding_bytes = sample_vector.tobytes()
         
-        # Initially actor doesn't exist
-        assert not memory_store.actor_exists("user:test")
+        # Initially actor doesn't exist - who_id is stored without type prefix
+        assert not memory_store.actor_exists("test")
         
         # Add memory with actor
         memory_store.upsert_memory(sample_memory_record, embedding_bytes, len(sample_vector))
         
         # Now actor should exist
-        assert memory_store.actor_exists("user:test")
+        assert memory_store.actor_exists("test")
     
     def test_connection_management(self, memory_store):
         """Test database connection."""
@@ -203,9 +171,9 @@ class TestMemoryStore:
         store = MemoryStore(test_db_path)
         
         expected_tables = [
-            'memories', 'mem_fts', 'embeddings', 'usage_stats',
+            'memories', 'embeddings', 'usage_stats',
             'clusters', 'cluster_membership', 'blocks', 'block_members',
-            'memory_synapses', 'embedding_drift', 'config_overrides'
+            'memory_synapses', 'embedding_drift', 'memory_importance'
         ]
         
         with store.connect() as conn:
@@ -378,6 +346,7 @@ class TestMemoryStoreAdvanced:
         block = {
             'block_id': 'test_block_001',
             'query_fingerprint': 'test_query',
+            'created_at': datetime.now(timezone.utc).isoformat(),
             'budget_tokens': 1000,
             'used_tokens': 300,
             'has_more': False,
@@ -387,9 +356,9 @@ class TestMemoryStoreAdvanced:
         
         # Retrieve block
         retrieved_block = memory_store.get_block('test_block_001')
-        assert retrieved_block['block_id'] == 'test_block_001'
-        assert retrieved_block['used_tokens'] == 300
-        assert len(retrieved_block['memory_ids']) == 3
+        assert retrieved_block.get('block', {}).get('block_id') == 'test_block_001'
+        assert retrieved_block.get('block', {}).get('used_tokens') == 300
+        assert len(retrieved_block.get('members', [])) == 3
     
     @pytest.mark.parametrize("num_memories", [10, 50, 100])
     def test_performance_batch_operations(self, memory_store, sample_vector, performance_timer, num_memories):
@@ -399,8 +368,10 @@ class TestMemoryStoreAdvanced:
         performance_timer.start()
         
         # Batch insert
+        memory_ids = []
         for i in range(num_memories):
             record = MemoryRecord(
+                memory_id=f"perf_{i:04d}",
                 session_id="perf_test",
                 source_event_id=f"evt_{i}",
                 who=Who(type="user", id="perf", label="Perf"),
@@ -415,15 +386,17 @@ class TestMemoryStoreAdvanced:
                 embed_model="test-model"
             )
             memory_store.upsert_memory(record, embedding_bytes, len(sample_vector))
+            memory_ids.append(record.memory_id)
         
         elapsed = performance_timer.stop()
         
         # Check reasonable performance (adjust threshold as needed)
         assert elapsed < num_memories * 0.02  # Less than 20ms per memory
         
-        # Test search performance
+        # Test retrieval performance (no longer testing lexical search)
         performance_timer.start()
-        results = memory_store.lexical_search("keywords", k=10)
-        search_time = performance_timer.stop()
+        memories = memory_store.fetch_memories(memory_ids[:min(10, num_memories)])
+        fetch_time = performance_timer.stop()
         
-        assert search_time < 0.5  # Search should be under 500ms
+        assert fetch_time < 0.5  # Fetch should be under 500ms
+        assert len(memories) == min(10, num_memories)

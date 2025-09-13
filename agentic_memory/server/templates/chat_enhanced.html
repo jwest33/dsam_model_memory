@@ -153,6 +153,19 @@ input:checked + .toggle-slider:before {
     max-width: 60%;
 }
 
+/* Loaded memories indicator */
+.memory-panel.has-loaded-memories {
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+}
+
+.memory-panel.has-loaded-memories .memory-panel-content {
+    border-color: var(--synth-cyan);
+    box-shadow: 0 2px 15px rgba(0, 255, 255, 0.2);
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.03) 0%,
+        var(--synth-card-bg) 100%);
+}
+
 /* Splitter for resizing */
 .splitter {
     width: 8px;
@@ -197,12 +210,13 @@ input:checked + .toggle-slider:before {
 
 .memory-panel-content {
     background: var(--synth-card-bg);
-    border: 1px solid var(--synth-cyan);
+    border: 1px solid var(--synth-border);
     border-radius: 8px;
     padding: 1rem;
     height: 100%;
     overflow-y: auto;
-    box-shadow: 0 2px 10px rgba(0, 255, 255, 0.1);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
 }
 
 .memory-panel-header {
@@ -280,6 +294,7 @@ input:checked + .toggle-slider:before {
     opacity: 0.8;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -362,15 +377,166 @@ input:checked + .toggle-slider:before {
     box-shadow: 0 2px 10px rgba(0, 255, 255, 0.4);
 }
 
-/* Filter Controls */
-.memory-filters {
-    background: var(--synth-surface);
-    border: 1px solid var(--synth-border);
-    border-radius: 4px;
-    padding: 0.5rem;
+/* Collapsible Controls Section */
+.memory-controls-section {
     margin-top: 0.5rem;
+    background: var(--synth-surface);
+    border: 1px solid var(--synth-purple);
+    border-radius: 6px;
+    overflow: hidden;
 }
 
+.controls-toggle {
+    width: 100%;
+    padding: 0.75rem;
+    background: linear-gradient(135deg,
+        rgba(168, 85, 247, 0.1) 0%,
+        rgba(0, 255, 255, 0.1) 100%);
+    border: none;
+    color: var(--synth-cyan);
+    font-size: 0.85rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.controls-toggle:hover {
+    background: linear-gradient(135deg,
+        rgba(168, 85, 247, 0.2) 0%,
+        rgba(0, 255, 255, 0.2) 100%);
+}
+
+.toggle-icon {
+    transition: transform 0.3s ease;
+    font-size: 0.7rem;
+}
+
+.toggle-icon.expanded {
+    transform: rotate(180deg);
+}
+
+.weight-status-mini {
+    margin-left: auto;
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+    background: var(--synth-green);
+    color: var(--synth-dark-bg);
+    border-radius: 12px;
+}
+
+.weight-status-mini.invalid {
+    background: var(--synth-pink);
+}
+
+.memory-controls-content {
+    padding: 1rem;
+    border-top: 1px solid var(--synth-border);
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.control-group {
+    margin-bottom: 1.5rem;
+}
+
+.control-group:last-child {
+    margin-bottom: 0;
+}
+
+.control-group-title {
+    color: var(--synth-cyan);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.weight-sum-badge {
+    background: linear-gradient(135deg, var(--synth-purple), var(--synth-cyan));
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.weights-mini-controls {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.btn-mini {
+    padding: 0.25rem 0.75rem;
+    background: var(--synth-surface);
+    border: 1px solid var(--synth-cyan);
+    color: var(--synth-cyan);
+    border-radius: 4px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-mini:hover {
+    background: var(--synth-cyan);
+    color: var(--synth-dark-bg);
+    box-shadow: 0 2px 10px rgba(0, 255, 255, 0.3);
+}
+
+/* Mini Weight Sliders */
+.weight-sliders-mini {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.weight-slider-mini {
+    display: grid;
+    grid-template-columns: 60px 1fr 40px;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.weight-slider-mini label {
+    color: var(--synth-text-muted);
+    font-size: 0.7rem;
+}
+
+.weight-slider-mini input[type="range"] {
+    appearance: none;
+    -webkit-appearance: none;
+    height: 3px;
+    background: var(--synth-border);
+    outline: none;
+    border-radius: 2px;
+}
+
+.weight-slider-mini input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: var(--synth-cyan);
+    cursor: pointer;
+    border-radius: 50%;
+    box-shadow: 0 0 6px var(--synth-cyan);
+}
+
+.weight-slider-mini span {
+    color: var(--synth-cyan);
+    font-family: monospace;
+    font-size: 0.7rem;
+    text-align: right;
+}
+
+/* Filter Controls within collapsible */
 .filter-row {
     display: flex;
     align-items: center;
@@ -403,6 +569,18 @@ input:checked + .toggle-slider:before {
     outline: none;
     border-color: var(--synth-cyan);
     box-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+}
+
+/* Hide number input spinners */
+.filter-input[type="number"]::-webkit-inner-spin-button,
+.filter-input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.filter-input[type="number"] {
+    appearance: textfield;
+    -moz-appearance: textfield;
 }
 
 .filter-clear-btn {
@@ -519,7 +697,7 @@ input:checked + .toggle-slider:before {
     flex: 1;
     padding: 0.75rem;
     background: var(--synth-surface);
-    border: 1px solid var(--synth-cyan);
+    border: 1px solid var(--synth-border);
     color: var(--synth-text);
     border-radius: 4px;
     font-family: inherit;
@@ -527,17 +705,19 @@ input:checked + .toggle-slider:before {
     resize: vertical;
     min-height: 60px;
     max-height: 200px;
+    transition: all 0.3s ease;
 }
 
 .chat-input:focus {
     outline: none;
-    border-color: var(--synth-pink);
-    box-shadow: 0 0 10px rgba(255, 16, 240, 0.3);
+    border-color: var(--synth-cyan);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
 }
 
-.chat-input.memory-active {
+.chat-input.with-loaded-memories {
     border-color: var(--synth-purple);
     box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
+    animation: pulse 3s infinite;
 }
 
 .chat-controls {
@@ -559,9 +739,6 @@ input:checked + .toggle-slider:before {
     transition: all 0.3s ease;
 }
 
-.send-button.memory-active {
-    background: linear-gradient(135deg, var(--synth-purple), var(--synth-cyan));
-}
 
 .send-button:hover {
     transform: translateY(-2px);
@@ -604,6 +781,67 @@ input:checked + .toggle-slider:before {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+}
+
+/* AI Generation Indicator */
+.ai-typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.1) 0%,
+        rgba(168, 85, 247, 0.1) 100%);
+    border-left: 3px solid var(--synth-cyan);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    animation: messageSlide 0.3s ease-out;
+}
+
+.typing-dots {
+    display: flex;
+    gap: 0.3rem;
+}
+
+.typing-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--synth-cyan);
+    border-radius: 50%;
+    animation: typingDot 1.4s infinite;
+    box-shadow: 0 0 10px var(--synth-cyan);
+}
+
+.typing-dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typingDot {
+    0%, 60%, 100% {
+        transform: translateY(0);
+        opacity: 0.4;
+    }
+    30% {
+        transform: translateY(-10px);
+        opacity: 1;
+    }
+}
+
+.typing-text {
+    color: var(--synth-cyan);
+    font-size: 0.875rem;
+    font-style: italic;
+    animation: pulse 2s infinite;
 }
 
 .memory-loading-text {
@@ -673,20 +911,45 @@ input:checked + .toggle-slider:before {
 .session-selector {
     flex: 1;
     max-width: 300px;
-    padding: 0.5rem;
-    background: var(--synth-surface);
-    border: 1px solid var(--synth-cyan);
-    color: var(--synth-text);
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg,
+        rgba(0, 0, 0, 0.8) 0%,
+        var(--synth-surface) 100%);
+    border: 1px solid var(--synth-purple);
+    color: var(--synth-cyan);
     border-radius: 4px;
-    font-family: inherit;
+    font-family: 'Courier New', monospace;
     font-size: 0.875rem;
     cursor: pointer;
     transition: all 0.3s ease;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .session-selector:hover {
     border-color: var(--synth-pink);
-    box-shadow: 0 0 10px rgba(255, 16, 240, 0.3);
+    box-shadow: 0 0 15px rgba(255, 16, 240, 0.4),
+                inset 0 1px 3px rgba(0, 0, 0, 0.3);
+    background: linear-gradient(135deg,
+        rgba(255, 16, 240, 0.1) 0%,
+        var(--synth-surface) 100%);
+}
+
+.session-selector:focus {
+    outline: none;
+    border-color: var(--synth-cyan);
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.5),
+                inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.session-selector option {
+    background: var(--synth-dark-bg);
+    color: var(--synth-text);
+    padding: 0.5rem;
+}
+
+.session-selector option:hover {
+    background: var(--synth-surface);
+    color: var(--synth-cyan);
 }
 </style>
 {% endblock %}
@@ -712,6 +975,9 @@ input:checked + .toggle-slider:before {
                 <span class="toggle-slider"></span>
             </label>
             <span class="memory-status" id="memory-status">Active</span>
+            <span id="loaded-memory-badge" style="display: none; background: linear-gradient(135deg, var(--synth-purple), var(--synth-pink)); color: white; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-left: 0.5rem; box-shadow: 0 0 10px rgba(168, 85, 247, 0.4);">
+                0 loaded
+            </span>
         </div>
     </div>
     
@@ -766,38 +1032,107 @@ input:checked + .toggle-slider:before {
                             Search
                         </button>
                     </div>
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <button id="load-memories-btn" class="memory-search-btn" onclick="loadMemoriesToContext()"
+                                style="background: linear-gradient(135deg, var(--synth-purple), var(--synth-cyan));"
+                                disabled>
+                            Load into Context
+                        </button>
+                        <button id="clear-context-btn" class="memory-search-btn" onclick="clearMemoryContext()"
+                                style="background: linear-gradient(135deg, var(--synth-pink), var(--synth-purple));"
+                                disabled>
+                            Clear Context
+                        </button>
+                    </div>
                     
-                    <!-- Filter Controls -->
-                    <div class="memory-filters">
-                        <div class="filter-row">
-                            <label class="filter-label">Min Score:</label>
-                            <input 
-                                type="number" 
-                                id="score-threshold" 
-                                class="filter-input" 
-                                min="0" 
-                                max="1" 
-                                step="0.1" 
-                                value="0.0"
-                                title="Only show memories with score above this threshold"
-                            >
-                        </div>
-                        <div class="filter-row">
-                            <label class="filter-label">Top K:</label>
-                            <input 
-                                type="number" 
-                                id="top-k-limit" 
-                                class="filter-input" 
-                                min="1" 
-                                max="100" 
-                                value="20"
-                                title="Maximum number of memories to return"
-                            >
-                        </div>
-                        <div class="filter-row">
-                            <button class="filter-clear-btn" onclick="clearFilters()">
-                                Clear Filters
-                            </button>
+                    <!-- Collapsible Filter & Weights Section -->
+                    <div class="memory-controls-section">
+                        <button class="controls-toggle" onclick="toggleMemoryControls()">
+                            <span class="toggle-icon" id="controls-toggle-icon">▼</span>
+                            <span>Filters & Scoring Weights</span>
+                            <span id="weight-status-indicator" class="weight-status-mini">✓</span>
+                        </button>
+
+                        <div class="memory-controls-content" id="memory-controls-content" style="display: none;">
+                            <!-- Filter Controls -->
+                            <div class="control-group">
+                                <h4 class="control-group-title">Display Filters</h4>
+                                <div class="filter-row">
+                                    <label class="filter-label">Min Score:</label>
+                                    <input
+                                        type="number"
+                                        id="score-threshold"
+                                        class="filter-input"
+                                        min="0"
+                                        max="1"
+                                        step="0.1"
+                                        value="0.0"
+                                        title="Only show memories with score above this threshold"
+                                        style="appearance: textfield; -moz-appearance: textfield;"
+                                    >
+                                </div>
+                                <div class="filter-row">
+                                    <label class="filter-label">Top K:</label>
+                                    <input
+                                        type="number"
+                                        id="top-k-limit"
+                                        class="filter-input"
+                                        min="1"
+                                        max="100"
+                                        value="10"
+                                        title="Maximum number of memories to return"
+                                        style="appearance: textfield; -moz-appearance: textfield;"
+                                    >
+                                </div>
+                                <div class="filter-row">
+                                    <button class="filter-clear-btn" onclick="clearFilters()">
+                                        Clear Filters
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Scoring Weights -->
+                            <div class="control-group">
+                                <h4 class="control-group-title">Scoring Weights
+                                    <span id="chat-weight-sum" class="weight-sum-badge">1.00</span>
+                                </h4>
+                                <div class="weights-mini-controls">
+                                    <button onclick="normalizeWeights()" class="btn-mini">Normalize</button>
+                                    <button onclick="resetWeights()" class="btn-mini">Reset</button>
+                                </div>
+                                <div class="weight-sliders-mini">
+                                    <div class="weight-slider-mini">
+                                        <label>Semantic</label>
+                                        <input type="range" id="chat-weight-semantic" min="0" max="100" value="68" onchange="updateWeight('semantic', this.value)">
+                                        <span id="chat-weight-semantic-val">0.68</span>
+                                    </div>
+                                    <div class="weight-slider-mini">
+                                        <label>Recency</label>
+                                        <input type="range" id="chat-weight-recency" min="0" max="100" value="2" onchange="updateWeight('recency', this.value)">
+                                        <span id="chat-weight-recency-val">0.02</span>
+                                    </div>
+                                    <div class="weight-slider-mini">
+                                        <label>Actor</label>
+                                        <input type="range" id="chat-weight-actor" min="0" max="100" value="10" onchange="updateWeight('actor', this.value)">
+                                        <span id="chat-weight-actor-val">0.10</span>
+                                    </div>
+                                    <div class="weight-slider-mini">
+                                        <label>Temporal</label>
+                                        <input type="range" id="chat-weight-temporal" min="0" max="100" value="10" onchange="updateWeight('temporal', this.value)">
+                                        <span id="chat-weight-temporal-val">0.10</span>
+                                    </div>
+                                    <div class="weight-slider-mini">
+                                        <label>Spatial</label>
+                                        <input type="range" id="chat-weight-spatial" min="0" max="100" value="5" onchange="updateWeight('spatial', this.value)">
+                                        <span id="chat-weight-spatial-val">0.05</span>
+                                    </div>
+                                    <div class="weight-slider-mini">
+                                        <label>Usage</label>
+                                        <input type="range" id="chat-weight-usage" min="0" max="100" value="5" onchange="updateWeight('usage', this.value)">
+                                        <span id="chat-weight-usage-val">0.05</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -878,7 +1213,8 @@ input:checked + .toggle-slider:before {
 let currentSessionId = null;
 let messageHistory = [];
 let isStreaming = false;
-let currentMemories = [];
+let currentMemories = [];  // Current search results
+let loadedMemories = [];   // Memories loaded into chat context
 let memorySearchEnabled = true;
 let removedMemoryIds = new Set(); // Track removed memories
 let currentWeights = null; // Store current search weights
@@ -890,6 +1226,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSettings();
     fetchModelConfig();
     fetchWeights();
+    updateLoadedMemoriesIndicator();  // Set initial visual state
+    loadChatSessions();  // Load existing sessions
 });
 
 function generateNewSession() {
@@ -897,6 +1235,7 @@ function generateNewSession() {
     currentSessionId = `chat_${now.toISOString().replace(/[:.]/g, '-')}`;
     messageHistory = [];
     currentMemories = [];
+    loadedMemories = [];  // Clear loaded memories on new session
     document.getElementById('chat-messages').innerHTML = `
         <div class="message system">
             <div class="message-content">
@@ -912,6 +1251,16 @@ function setupEventListeners() {
     const input = document.getElementById('chat-input');
     const memoryToggle = document.getElementById('memory-toggle');
     const memorySearchInput = document.getElementById('memory-search-input');
+    const sessionSelector = document.getElementById('session-selector');
+
+    // Handle session selection
+    sessionSelector.addEventListener('change', (e) => {
+        if (e.target.value === 'new') {
+            generateNewSession();
+        } else {
+            loadSession(e.target.value);
+        }
+    });
     
     // Handle Enter key
     input.addEventListener('keydown', (e) => {
@@ -938,17 +1287,13 @@ function setupEventListeners() {
             status.classList.add('active');
             panel.classList.add('active');
             splitter.classList.add('active');
-            inputEl.classList.add('memory-active');
-            sendBtn.classList.add('memory-active');
-            inputEl.placeholder = 'Type your message... (Memory search is enabled - relevant memories will augment the response)';
+            inputEl.placeholder = 'Type your message... (Memory search panel is active)';
         } else {
             status.textContent = 'Inactive';
             status.classList.remove('active');
             panel.classList.remove('active');
             splitter.classList.remove('active');
-            inputEl.classList.remove('memory-active');
-            sendBtn.classList.remove('memory-active');
-            inputEl.placeholder = 'Type your message... (Memory search is disabled)';
+            inputEl.placeholder = 'Type your message... (Memory search panel is hidden)';
         }
     });
     
@@ -1025,26 +1370,26 @@ function updateTokenCount() {
 async function sendMessage() {
     const input = document.getElementById('chat-input');
     const message = input.value.trim();
-    
+
     if (!message || isStreaming) return;
-    
+
     // Add user message to UI
     addMessage('user', message);
-    
+
     // Clear input
     input.value = '';
     updateTokenCount();
-    
+
     // Disable send button
     const sendBtn = document.getElementById('send-button');
     sendBtn.disabled = true;
     isStreaming = true;
-    
-    // Search memories if enabled
-    if (memorySearchEnabled) {
-        await performMemorySearch(message);
-    }
-    
+
+    // Show typing indicator
+    showTypingIndicator();
+
+    // No automatic memory search - use loaded memories instead
+
     try {
         // Prepare messages for API
         const messages = [...messageHistory, { role: 'user', content: message }];
@@ -1053,8 +1398,8 @@ async function sendMessage() {
         const settings = {
             temperature: parseFloat(document.getElementById('temperature').value),
             max_tokens: parseInt(document.getElementById('max-tokens').value),
-            memory_search: memorySearchEnabled,
-            memory_token_budget: memorySearchEnabled ? parseInt(document.getElementById('memory-token-budget').value) : null
+            memory_search: false,  // Disable server-side memory search
+            memory_context: loadedMemories.length > 0 ? loadedMemories : null  // Send loaded memories
         };
         
         // Send to API
@@ -1074,15 +1419,24 @@ async function sendMessage() {
         
         const data = await response.json();
         
+        // Hide typing indicator
+        hideTypingIndicator();
+
         // Add assistant message
         if (data.choices && data.choices[0]) {
             const assistantMessage = data.choices[0].message.content;
-            const isMemoryEnhanced = memorySearchEnabled && currentMemories.length > 0;
+            const isMemoryEnhanced = loadedMemories.length > 0;  // Check loaded memories instead
             addMessage('assistant', assistantMessage, data.memory_ids, false, isMemoryEnhanced);
         }
-        
+
+        // Refresh session list to include this conversation
+        await loadChatSessions();
+        // Keep current session selected
+        document.getElementById('session-selector').value = currentSessionId;
+
     } catch (error) {
         console.error('Error:', error);
+        hideTypingIndicator();
         addMessage('system', `Error: ${error.message}`, null, true);
     } finally {
         sendBtn.disabled = false;
@@ -1092,7 +1446,7 @@ async function sendMessage() {
 
 async function performMemorySearch(query, applyFilters = true) {
     const memoryItems = document.getElementById('memory-items');
-    
+
     // Show loading
     memoryItems.innerHTML = `
         <div class="memory-loading">
@@ -1100,12 +1454,11 @@ async function performMemorySearch(query, applyFilters = true) {
             <span class="memory-loading-text">Searching memories...</span>
         </div>
     `;
-    
+
     try {
         const tokenBudget = parseInt(document.getElementById('memory-token-budget').value) || window.memoryTokenBudget || 2000;
-        const scoreThreshold = applyFilters ? parseFloat(document.getElementById('score-threshold').value) || 0.0 : 0.0;
-        const topK = applyFilters ? parseInt(document.getElementById('top-k-limit').value) || 20 : 20;
-        
+
+        // Match analyzer tab behavior - don't send filters to server
         const response = await fetch('/api/memory/search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1114,24 +1467,42 @@ async function performMemorySearch(query, applyFilters = true) {
                 weights: currentWeights,
                 token_budget: tokenBudget,
                 initial_candidates: parseInt(document.getElementById('memory-candidates').value) || 10000,
-                score_threshold: scoreThreshold,
-                top_k: topK,
+                // Don't send score_threshold and top_k - let knapsack do its work
                 removed_ids: Array.from(removedMemoryIds)
             })
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
-        // Store memories (already filtered server-side)
-        currentMemories = data.memories || [];
-        
-        // Update UI with server-filtered data
+
+        // Store all memories returned by knapsack
+        let memories = data.memories || [];
+
+        // Apply client-side filtering if requested (for manual filter controls)
+        if (applyFilters) {
+            const scoreThreshold = parseFloat(document.getElementById('score-threshold').value) || 0.0;
+            const topK = parseInt(document.getElementById('top-k-limit').value) || 0;
+
+            // Filter by score threshold
+            if (scoreThreshold > 0) {
+                memories = memories.filter(m => m.total_score >= scoreThreshold);
+            }
+
+            // Limit to top K
+            if (topK > 0) {
+                memories = memories.slice(0, topK);
+            }
+        }
+
+        currentMemories = memories;
+
+        // Update UI with client-filtered data
+        data.memories = memories;
         updateMemoryPanel(data);
-        
+
     } catch (error) {
         console.error('Memory search error:', error);
         memoryItems.innerHTML = `
@@ -1146,9 +1517,95 @@ async function performManualSearch() {
     const searchQuery = document.getElementById('memory-search-input').value.trim();
     if (searchQuery) {
         await performMemorySearch(searchQuery, true);
+        // Enable load button after successful search
+        document.getElementById('load-memories-btn').disabled = currentMemories.length === 0;
     } else {
         // Clear results if search is empty
         clearMemoryPanel();
+        document.getElementById('load-memories-btn').disabled = true;
+    }
+}
+
+function loadMemoriesToContext() {
+    if (currentMemories.length === 0) {
+        addMessage('system', 'No memories to load. Please search for memories first.');
+        return;
+    }
+
+    // Load current search results into context
+    loadedMemories = [...currentMemories];
+
+    // Update UI to show loaded state
+    updateLoadedMemoriesIndicator();
+
+    // Enable clear button
+    document.getElementById('clear-context-btn').disabled = false;
+
+    // Add system message
+    addMessage('system', `Loaded ${loadedMemories.length} memories into chat context. These memories will be available to the AI for all subsequent messages.`);
+}
+
+function clearMemoryContext() {
+    loadedMemories = [];
+
+    // Update UI
+    updateLoadedMemoriesIndicator();
+
+    // Disable clear button
+    document.getElementById('clear-context-btn').disabled = true;
+
+    // Add system message
+    addMessage('system', 'Memory context cleared. The AI will respond without any pre-loaded memories.');
+}
+
+function updateLoadedMemoriesIndicator() {
+    // Update the memory panel header to show loaded state
+    const memoryPanelTitle = document.querySelector('.memory-panel-title');
+    const memoryPanel = document.getElementById('memory-panel');
+    const memoryCount = document.getElementById('memory-count');
+    const loadedBadge = document.getElementById('loaded-memory-badge');
+
+    if (loadedMemories.length > 0) {
+        // Update title with loaded count
+        memoryPanelTitle.innerHTML = `Relevant Memories <span style="color: var(--synth-purple);">(${loadedMemories.length} loaded)</span>`;
+        memoryPanelTitle.style.animation = 'pulse 2s infinite';
+
+        // Add visual indicator to panel
+        memoryPanel.classList.add('has-loaded-memories');
+
+        // Show and update loaded badge in header
+        loadedBadge.style.display = 'inline-block';
+        loadedBadge.textContent = `${loadedMemories.length} loaded`;
+        loadedBadge.style.animation = 'pulse 2s infinite';
+
+        // Update input placeholder and style
+        const chatInput = document.getElementById('chat-input');
+        chatInput.placeholder = `Type your message... (${loadedMemories.length} memories loaded in context)`;
+        chatInput.classList.add('with-loaded-memories');
+
+        // Update send button to show loaded state
+        const sendBtn = document.getElementById('send-button');
+        sendBtn.style.background = 'linear-gradient(135deg, var(--synth-purple), var(--synth-pink))';
+    } else {
+        // Reset title
+        memoryPanelTitle.innerHTML = 'Relevant Memories';
+        memoryPanelTitle.style.animation = 'none';
+
+        // Remove visual indicator from panel
+        memoryPanel.classList.remove('has-loaded-memories');
+
+        // Hide loaded badge
+        loadedBadge.style.display = 'none';
+        loadedBadge.style.animation = 'none';
+
+        // Reset input placeholder and style
+        const chatInput = document.getElementById('chat-input');
+        chatInput.placeholder = 'Type your message... (No memories loaded - use search to find and load memories)';
+        chatInput.classList.remove('with-loaded-memories');
+
+        // Reset send button
+        const sendBtn = document.getElementById('send-button');
+        sendBtn.style.background = '';
     }
 }
 
@@ -1174,8 +1631,8 @@ function removeMemory(memoryId) {
 
 function clearFilters() {
     document.getElementById('score-threshold').value = '0.0';
-    document.getElementById('top-k-limit').value = '20';
-    
+    document.getElementById('top-k-limit').value = '10';
+
     // Re-run search if there's a query
     const searchQuery = document.getElementById('memory-search-input').value.trim();
     if (searchQuery) {
@@ -1233,7 +1690,7 @@ function updateMemoryPanel(searchResult) {
                 <div class="memory-when">${formatDateTime(memory.when)}</div>
                 <div class="memory-what">${escapeHtml(memory.what || 'No description')}</div>
                 <div class="memory-context">${escapeHtml((memory.raw_text || '').substring(0, 150))}...</div>
-                <button class="memory-remove" onclick="event.stopPropagation(); removeMemory('${memory.memory_id}')" title="Remove from context">Remove from Context</button>
+                <button class="memory-remove" onclick="event.stopPropagation(); removeMemory('${memory.memory_id}')" title="Remove">Remove</button>
             `;
             memoryDiv.onclick = () => showMemoryDetails(memory);
             memoryItems.appendChild(memoryDiv);
@@ -1293,6 +1750,36 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function showTypingIndicator() {
+    const messagesDiv = document.getElementById('chat-messages');
+
+    // Remove any existing typing indicator
+    hideTypingIndicator();
+
+    // Create typing indicator element
+    const typingDiv = document.createElement('div');
+    typingDiv.id = 'ai-typing-indicator';
+    typingDiv.className = 'ai-typing-indicator';
+    typingDiv.innerHTML = `
+        <div class="typing-dots">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+        </div>
+        <span class="typing-text">Generating..</span>
+    `;
+
+    messagesDiv.appendChild(typingDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function hideTypingIndicator() {
+    const indicator = document.getElementById('ai-typing-indicator');
+    if (indicator) {
+        indicator.remove();
+    }
 }
 
 function showMemoryDetails(memory) {
@@ -1439,19 +1926,241 @@ async function fetchWeights() {
         if (response.ok) {
             currentWeights = await response.json();
             console.log('Loaded weights:', currentWeights);
+            updateChatWeightDisplay();
         }
     } catch (error) {
         console.error('Error fetching weights:', error);
         // Use default weights if fetch fails
         currentWeights = {
-            semantic: 0.45,
-            lexical: 0.25,
+            semantic: 0.68,
             recency: 0.02,
-            actor: 0.1,
-            temporal: 0.1,
-            spatial: 0.04,
-            usage: 0.04
+            actor: 0.10,
+            temporal: 0.10,
+            spatial: 0.05,
+            usage: 0.05
         };
+        updateChatWeightDisplay();
+    }
+}
+
+function toggleMemoryControls() {
+    const content = document.getElementById('memory-controls-content');
+    const icon = document.getElementById('controls-toggle-icon');
+
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.classList.add('expanded');
+    } else {
+        content.style.display = 'none';
+        icon.classList.remove('expanded');
+    }
+}
+
+function updateChatWeightDisplay() {
+    // Update all weight sliders and values in chat panel
+    for (const [dimension, value] of Object.entries(currentWeights)) {
+        const slider = document.getElementById(`chat-weight-${dimension}`);
+        const valSpan = document.getElementById(`chat-weight-${dimension}-val`);
+
+        if (slider) {
+            slider.value = value * 100;
+        }
+        if (valSpan) {
+            valSpan.textContent = value.toFixed(2);
+        }
+    }
+    updateChatWeightSum();
+}
+
+function updateChatWeightSum() {
+    const sum = Object.values(currentWeights).reduce((a, b) => a + b, 0);
+    const sumSpan = document.getElementById('chat-weight-sum');
+    const statusIndicator = document.getElementById('weight-status-indicator');
+
+    if (sumSpan) {
+        sumSpan.textContent = sum.toFixed(2);
+        const isNormalized = Math.abs(sum - 1.0) < 0.001;
+
+        if (statusIndicator) {
+            if (isNormalized) {
+                statusIndicator.textContent = '✓';
+                statusIndicator.classList.remove('invalid');
+            } else {
+                statusIndicator.textContent = '!';
+                statusIndicator.classList.add('invalid');
+            }
+        }
+    }
+}
+
+// Update weight value - shared with analyzer
+async function updateWeight(dimension, value) {
+    const floatValue = value / 100;
+    currentWeights[dimension] = floatValue;
+
+    // Update both analyzer and chat displays
+    const analyzerValSpan = document.getElementById(`weight-${dimension}-val`);
+    const analyzerSlider = document.getElementById(`weight-${dimension}`);
+    const chatValSpan = document.getElementById(`chat-weight-${dimension}-val`);
+    const chatSlider = document.getElementById(`chat-weight-${dimension}`);
+
+    if (analyzerValSpan) analyzerValSpan.textContent = floatValue.toFixed(2);
+    if (analyzerSlider) analyzerSlider.value = value;
+    if (chatValSpan) chatValSpan.textContent = floatValue.toFixed(2);
+    if (chatSlider) chatSlider.value = value;
+
+    // Update sums for both panels
+    if (typeof updateWeightSum === 'function') updateWeightSum();
+    updateChatWeightSum();
+
+    // Save weights to server
+    try {
+        await fetch('/api/weights', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(currentWeights)
+        });
+    } catch (error) {
+        console.error('Failed to save weights:', error);
+    }
+}
+
+// Normalize weights to sum to 1.0 - shared with analyzer
+async function normalizeWeights() {
+    try {
+        const response = await fetch('/api/weights', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(currentWeights)
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            currentWeights = data.weights;
+
+            // Update both panels
+            if (typeof updateWeightDisplay === 'function') updateWeightDisplay();
+            updateChatWeightDisplay();
+
+            // Re-search if there's a query in memory search
+            const searchQuery = document.getElementById('memory-search-input').value.trim();
+            if (searchQuery) {
+                performManualSearch();
+            }
+        }
+    } catch (error) {
+        console.error('Failed to normalize weights:', error);
+    }
+}
+
+// Reset weights to defaults - shared with analyzer
+async function resetWeights() {
+    try {
+        const response = await fetch('/api/weights/reset', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            currentWeights = data.weights;
+
+            // Update both panels
+            if (typeof updateWeightDisplay === 'function') updateWeightDisplay();
+            updateChatWeightDisplay();
+
+            // Re-search if there's a query
+            const searchQuery = document.getElementById('memory-search-input').value.trim();
+            if (searchQuery) {
+                performManualSearch();
+            }
+        }
+    } catch (error) {
+        console.error('Failed to reset weights:', error);
+        // Fallback to local defaults
+        currentWeights = {
+            semantic: 0.68,
+            recency: 0.02,
+            actor: 0.10,
+            temporal: 0.10,
+            spatial: 0.05,
+            usage: 0.05
+        };
+        updateChatWeightDisplay();
+    }
+}
+
+async function loadChatSessions() {
+    try {
+        const response = await fetch('/api/chat/sessions');
+        if (!response.ok) return;
+
+        const sessions = await response.json();
+        const selector = document.getElementById('session-selector');
+
+        // Clear existing options except "New Conversation"
+        selector.innerHTML = '<option value="new">New Conversation</option>';
+
+        // Add existing sessions
+        sessions.forEach(session => {
+            const option = document.createElement('option');
+            option.value = session.session_id;
+
+            // Format the session display name
+            const date = new Date(session.start_time);
+            const dateStr = date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            option.textContent = `${dateStr} (${session.message_count} messages)`;
+            selector.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading sessions:', error);
+    }
+}
+
+async function loadSession(sessionId) {
+    try {
+        const response = await fetch(`/api/chat/session/${sessionId}`);
+        if (!response.ok) {
+            throw new Error('Failed to load session');
+        }
+
+        const data = await response.json();
+
+        // Clear current chat
+        currentSessionId = sessionId;
+        messageHistory = [];
+        currentMemories = [];
+        loadedMemories = [];
+        removedMemoryIds.clear();
+
+        // Clear chat display
+        const messagesDiv = document.getElementById('chat-messages');
+        messagesDiv.innerHTML = '';
+
+        // Load messages from history
+        data.messages.forEach(msg => {
+            addMessage(msg.role, msg.content);
+        });
+
+        // Add system message about loaded session
+        const firstMessageTime = data.messages.length > 0 ? data.messages[0].timestamp : null;
+        if (firstMessageTime) {
+            addMessage('system', `Loaded conversation from ${new Date(firstMessageTime).toLocaleString()}`);
+        } else {
+            addMessage('system', 'Loaded conversation');
+        }
+
+        // Update UI
+        updateLoadedMemoriesIndicator();
+        clearMemoryPanel();
+    } catch (error) {
+        console.error('Error loading session:', error);
+        addMessage('system', `Error loading session: ${error.message}`);
     }
 }
 
@@ -1466,7 +2175,7 @@ async function exportChat() {
         })),
         timestamp: new Date().toISOString()
     };
-    
+
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

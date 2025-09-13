@@ -40,7 +40,11 @@ class FaissIndex:
 
     def search(self, qvec: np.ndarray, k: int) -> List[Tuple[str, float]]:
         qvec = qvec.astype('float32')[None, :]
-        scores, idxs = self.index.search(qvec, k)
+        # If k is very large, search for all vectors in the index
+        actual_k = min(k, self.index.ntotal)
+        if actual_k == 0:
+            return []
+        scores, idxs = self.index.search(qvec, actual_k)
         results = []
         for score, idx in zip(scores[0], idxs[0]):
             if idx < 0 or idx >= len(self.id_map):

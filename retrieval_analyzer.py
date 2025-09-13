@@ -121,13 +121,12 @@ class EnhancedRetrievalAnalyzer:
         
         # Comprehensive weights (matching retrieval.py)
         self.weights = {
-            'semantic': 0.45,
-            'lexical': 0.25,
+            'semantic': 0.68,
             'recency': 0.02,
-            'actor': 0.1,
-            'temporal': 0.1,
-            'spatial': 0.04,
-            'usage': 0.04
+            'actor': 0.10,
+            'temporal': 0.10,
+            'spatial': 0.05,
+            'usage': 0.05
         }
         
         # Store current results
@@ -347,13 +346,12 @@ class EnhancedAnalyzerGUI:
         
         # Variables - using new default weights
         self.weight_vars = {
-            'semantic': tk.DoubleVar(value=0.45),
-            'lexical': tk.DoubleVar(value=0.25),
-            'recency': tk.DoubleVar(value=0.02),
-            'actor': tk.DoubleVar(value=0.1),
-            'temporal': tk.DoubleVar(value=0.1),
-            'spatial': tk.DoubleVar(value=0.04),
-            'usage': tk.DoubleVar(value=0.04)
+            'semantic': tk.DoubleVar(value=0.68),
+            'recency': tk.DoubleVar(value=0.15),
+            'actor': tk.DoubleVar(value=0.10),
+            'temporal': tk.DoubleVar(value=0.10),
+            'spatial': tk.DoubleVar(value=0.05),
+            'usage': tk.DoubleVar(value=0.05)
         }
         
         self.setup_ui()

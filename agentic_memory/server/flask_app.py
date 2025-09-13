@@ -76,15 +76,17 @@ def search():
             token_budget = cfg.context_window - cfg.reserve_output_tokens - cfg.reserve_system_tokens - 512
         token_budget = max(512, token_budget)  # Ensure minimum budget
         
-        # For initial candidate retrieval, get more than we need
-        initial_top_k = data.get('initial_candidates', 10000)
+        # For initial candidate retrieval, get ALL memories for comprehensive search
+        # The knapsack algorithm will handle selection based on token budget
+        # Use a very large number to effectively get everything
+        initial_top_k = data.get('initial_candidates', 999999)
         
         if not query:
             return jsonify({'error': 'Query is required'}), 400
         
         # Decompose query
         decomposition = retriever.decompose_query(query)
-        
+
         # Create retrieval query
         rq = RetrievalQuery(
             session_id='analyzer',
@@ -92,9 +94,17 @@ def search():
             actor_hint=decomposition['who'].get('id') if decomposition.get('who') else None,
             temporal_hint=decomposition.get('when')
         )
-        
-        # Get query embedding
-        qvec = embedder.encode([query], normalize_embeddings=True)[0]
+
+        # Generate query embedding in the same format as stored memories
+        # Memories are embedded as: "WHAT: {what}\nWHY: {why}\nHOW: {how}\nRAW: {raw_text}"
+        # For search, we'll use the decomposed components if available
+        what_text = decomposition.get('what', query)
+        why_text = decomposition.get('why', 'search')
+        how_text = decomposition.get('how', 'query')
+
+        # Format the embedding text to match storage format
+        embed_text = f"WHAT: {what_text}\nWHY: {why_text}\nHOW: {how_text}\nRAW: {query}"
+        qvec = embedder.encode([embed_text], normalize_embeddings=True)[0]
         
         # Search with custom weights - get many candidates for knapsack
         candidates = retriever.search_with_weights(rq, qvec, weights, topk_sem=initial_top_k, topk_lex=initial_top_k)
@@ -1228,33 +1238,100 @@ def chat_basic():
 
 @app.route('/api/memory/search', methods=['POST'])
 def memory_search():
-    """Search memories using the same process as the analyzer"""
+    """Search memories using the EXACT same process as the analyzer tab"""
     try:
         data = request.json
         query = data.get('query', '')
-        weights = data.get('weights')  # Accept weights from client
+        weights = data.get('weights', current_weights)  # Use current_weights as default
         token_budget = data.get('token_budget')
-        initial_candidates = data.get('initial_candidates', 10000)
-        score_threshold = data.get('score_threshold', 0.0)
-        top_k = data.get('top_k')
         removed_ids = data.get('removed_ids', [])
-        
+
+        # If no token budget specified, use context window minus reserves
+        if token_budget is None:
+            token_budget = cfg.context_window - cfg.reserve_output_tokens - cfg.reserve_system_tokens - 512
+        token_budget = max(512, token_budget)  # Ensure minimum budget
+
+        # Get initial candidates - same as analyzer
+        initial_candidates = data.get('initial_candidates', 999999)  # Default to effectively unlimited
+
         if not query:
             return jsonify({'error': 'Query is required'}), 400
-        
-        # Use the memory_router's search_memories method
-        result = memory_router.search_memories(
-            query=query,
-            weights=weights,  # Pass weights if provided
-            token_budget=token_budget,
-            initial_candidates=initial_candidates,
-            score_threshold=score_threshold,
-            top_k=top_k,
-            excluded_ids=removed_ids
+
+        # Decompose query - exactly like analyzer
+        decomposition = retriever.decompose_query(query)
+
+        # Create retrieval query - exactly like analyzer
+        rq = RetrievalQuery(
+            session_id='memory_search',
+            text=decomposition.get('what', query),
+            actor_hint=decomposition['who'].get('id') if decomposition.get('who') else None,
+            temporal_hint=decomposition.get('when')
         )
-        
-        return jsonify(result)
-        
+
+        # Generate query embedding in the same format as analyzer
+        what_text = decomposition.get('what', query)
+        why_text = decomposition.get('why', 'search')
+        how_text = decomposition.get('how', 'query')
+
+        # Format the embedding text to match storage format - exactly like analyzer
+        embed_text = f"WHAT: {what_text}\nWHY: {why_text}\nHOW: {how_text}\nRAW: {query}"
+        qvec = embedder.encode([embed_text], normalize_embeddings=True)[0]
+
+        # Search with custom weights - get many candidates for knapsack
+        candidates = retriever.search_with_weights(rq, qvec, weights, topk_sem=initial_candidates, topk_lex=initial_candidates)
+
+        # Apply knapsack algorithm to select memories within token budget
+        selected_ids, tokens_used = greedy_knapsack(candidates, token_budget)
+
+        # Filter candidates to only selected ones
+        selected_candidates = [c for c in candidates if c.memory_id in selected_ids]
+
+        # Apply exclusion list if provided (but NOT score_threshold or top_k - let client handle those)
+        if removed_ids:
+            excluded_set = set(removed_ids)
+            selected_candidates = [c for c in selected_candidates if c.memory_id not in excluded_set]
+
+        # Get detailed scores - exactly like analyzer
+        detailed_scores = retriever.get_detailed_scores(selected_candidates)
+
+        # Build response - matching analyzer format
+        memories = []
+        # Fetch all selected memories at once for efficiency
+        if selected_candidates:
+            memory_ids = [c.memory_id for c in selected_candidates]
+            fetched_memories = store.fetch_memories(memory_ids)
+            memory_lookup = {m['memory_id']: m for m in fetched_memories}
+
+            for i, candidate in enumerate(selected_candidates):
+                mem = memory_lookup.get(candidate.memory_id)
+                if mem:
+                    # Find detailed score for this memory
+                    detail = next((d for d in detailed_scores if d['memory_id'] == candidate.memory_id), {})
+                    memories.append({
+                        'memory_id': candidate.memory_id,
+                        'rank': i + 1,
+                        'total_score': round(candidate.score, 3),
+                        'token_count': candidate.token_count,
+                        'scores': detail.get('scores', {}),
+                        'when': mem.get('when_ts', mem.get('created_at', '')),
+                        'who': f"{mem.get('who_type', '')}: {mem.get('who_id', '')}",
+                        'what': mem.get('what', ''),
+                        'where': f"{mem.get('where_type', '')}: {mem.get('where_value', '')}",
+                        'why': mem.get('why', ''),
+                        'how': mem.get('how', ''),
+                        'raw_text': mem.get('raw_text', ''),
+                        'entities': mem.get('entities', [])
+                    })
+
+        return jsonify({
+            'memories': memories,
+            'selected_count': len(memories),
+            'total_candidates': len(candidates),
+            'tokens_used': tokens_used,
+            'token_budget': token_budget,
+            'decomposition': decomposition
+        })
+
     except Exception as e:
         import traceback
         print(f"Memory search error: {e}")
@@ -1272,51 +1349,34 @@ def chat_completions():
         
         # Extract messages
         messages = data.get('messages', [])
-        
-        # Check if memory search is enabled
-        memory_search_enabled = data.get('memory_search', False)
-        memory_token_budget = data.get('memory_token_budget', 2000)
-        
-        # If memory search is enabled, search for relevant memories
-        if memory_search_enabled and messages:
-            # Extract query from recent user messages
-            query_parts = []
-            for msg in reversed(messages):
-                if msg['role'] == 'user':
-                    query_parts.append(msg['content'])
-                    if len(query_parts) >= 3:
-                        break
-            
-            if query_parts:
-                # Combine recent user messages as query
-                search_query = "\n".join(reversed(query_parts))
-                
-                # Perform memory search
-                memory_result = memory_router.search_memories(
-                    query=search_query,
-                    token_budget=memory_token_budget,
-                    initial_candidates=10000
-                )
-                
-                # If memories found, inject them as a system message
-                if memory_result.get('memories'):
-                    memory_context = "Based on your memory database, here are relevant past experiences:\n\n"
-                    for mem in memory_result['memories'][:10]:  # Limit to top 10
-                        memory_context += f"• [{mem['when']}] {mem['what']}\n"
-                        if mem.get('why'):
-                            memory_context += f"  Context: {mem['why'][:100]}...\n"
-                    
-                    # Insert memory context as a system message
-                    memory_msg = {
-                        'role': 'system',
-                        'content': memory_context
-                    }
-                    
-                    # Insert after initial system message or at beginning
-                    if messages and messages[0]['role'] == 'system':
-                        messages = [messages[0], memory_msg] + messages[1:]
-                    else:
-                        messages = [memory_msg] + messages
+
+        # Check if pre-loaded memory context is provided
+        memory_context = data.get('memory_context', None)
+
+        # If memory context is provided, inject it as a system message
+        if memory_context and len(memory_context) > 0:
+            # Build memory context message from provided memories
+            memory_content = "Based on your memory database, here are relevant past experiences:\n\n"
+
+            for mem in memory_context[:10]:  # Limit to top 10 to avoid overwhelming context
+                # Format each memory nicely
+                memory_content += f"• [{mem.get('when', 'Unknown time')}] {mem.get('what', 'No description')}\n"
+                if mem.get('why'):
+                    memory_content += f"  Context: {mem['why'][:100]}...\n"
+                if mem.get('who') and mem['who'] != 'Unknown':
+                    memory_content += f"  Actor: {mem['who']}\n"
+
+            # Create memory system message
+            memory_msg = {
+                'role': 'system',
+                'content': memory_content
+            }
+
+            # Insert after initial system message or at beginning
+            if messages and messages[0]['role'] == 'system':
+                messages = [messages[0], memory_msg] + messages[1:]
+            else:
+                messages = [memory_msg] + messages
         
         # Prepare request for llama.cpp with all parameters
         llama_request = {
@@ -1628,5 +1688,19 @@ Full conversation context for relationship extraction."""
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+def main():
+    """Main entry point for the Flask server"""
+    import sys
+    import argparse
+
+    parser = argparse.ArgumentParser(description='JAM Memory Web Server')
+    parser.add_argument('--host', default='127.0.0.1', help='Host to bind to')
+    parser.add_argument('--port', type=int, default=5001, help='Port to listen on')
+    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+
+    args = parser.parse_args()
+
+    app.run(host=args.host, port=args.port, debug=args.debug)
+
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=5001, debug=False)
+    main()

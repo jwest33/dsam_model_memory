@@ -133,21 +133,6 @@ response = await router.chat("What meetings have we had recently?")
 - **Multi-Part Extraction**: Breaks complex events into multiple memories
 - **Token Optimization**: Maximizes retrieval utility within context limits
 
-## Benchmarking
-
-Run benchmarks to evaluate memory system performance:
-
-```bash
-# Quick benchmark (for testing)
-python -m benchmarks.cli --preset quick
-
-# Standard benchmark
-python -m benchmarks.cli --preset standard
-
-# Scenario-based testing
-python -m benchmarks.cli --scenario daily_productivity
-```
-
 ## Development
 
 ### Running Tests
@@ -173,7 +158,6 @@ jam_model_memory/
 │   ├── server/              # Web interface
 │   ├── cli.py               # Command-line interface
 │   └── router.py            # Main orchestrator
-├── benchmarks/              # Performance benchmarking
 ├── tests/                   # Test suite
 ├── llama_api.py            # OpenAI-compatible API wrapper
 └── llama_server_client.py  # LLM server management

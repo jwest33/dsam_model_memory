@@ -14,13 +14,12 @@ class SettingsManager:
     
     # Default weights that never change
     DEFAULT_WEIGHTS = {
-        'semantic': 0.45,
-        'lexical': 0.25,
+        'semantic': 0.68,
         'recency': 0.02,
-        'actor': 0.1,
-        'temporal': 0.1,
-        'spatial': 0.04,
-        'usage': 0.04
+        'actor': 0.10,
+        'temporal': 0.10,
+        'spatial': 0.05,
+        'usage': 0.05
     }
     
     # Default settings

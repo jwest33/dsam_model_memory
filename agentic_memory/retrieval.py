@@ -53,22 +53,7 @@ class HybridRetriever:
         
         return normalized
 
-    def _lexical(self, query: str, topk: int) -> List[Tuple[str, float]]:
-        rows = self.store.lexical_search(query, k=topk)
-        # FTS5 bm25 returns lower is better; invert + normalize
-        if not rows:
-            return []
-        scores = [r['score'] for r in rows]
-        max_s = max(scores); min_s = min(scores)
-        out = []
-        for r in rows:
-            s = r['score']
-            if max_s == min_s:
-                norm = 1.0
-            else:
-                norm = 1.0 - (s - min_s) / (max_s - min_s)
-            out.append((r['memory_id'], float(norm)))
-        return out
+    # Lexical search removed - FTS5 was broken and not needed with good semantic search
     
     def _actor_based(self, actor_id: str, topk: int) -> List[Tuple[str, float]]:
         """Retrieve memories from specific actor with recency-based scoring."""
@@ -194,8 +179,7 @@ class HybridRetriever:
             # 1. Semantic similarity (already computed)
             semantic_score = sem_scores.get(memory_id, 0.0)
             
-            # 2. Lexical match (already computed)
-            lexical_score = lex_scores.get(memory_id, 0.0)
+            # 2. Lexical match removed (FTS5 was broken)
             
             # 3. Smart recency score (only applies as tiebreaker for related memories)
             when_list = json.loads(memory.get('when_list', '[]')) if memory.get('when_list') else []
@@ -228,17 +212,15 @@ class HybridRetriever:
             # Fixed weight combination 
             # Default weights (can be configured)
             # Note: recency is reduced since it's now a smart tiebreaker
-            w_semantic = 0.45
-            w_lexical = 0.25
-            w_recency = 0.02  # Small weight - mainly acts as tiebreaker
-            w_actor = 0.1
-            w_temporal = 0.1
-            w_spatial = 0.04
-            w_usage = 0.04
-            
+            w_semantic = 0.68
+            w_recency = 0.15  # Small weight - mainly acts as tiebreaker
+            w_actor = 0.10
+            w_temporal = 0.10
+            w_spatial = 0.05
+            w_usage = 0.05
+
             final_score = (
                 w_semantic * semantic_score +
-                w_lexical * lexical_score +
                 w_recency * recency_score +
                 w_actor * actor_score +
                 w_temporal * temporal_score +
@@ -252,7 +234,6 @@ class HybridRetriever:
                 token_count=int(memory['token_count']),
                 base_score=final_score,
                 semantic_score=semantic_score,
-                lexical_score=lexical_score,
                 recency_score=recency_score,
                 actor_score=actor_score,
                 temporal_score=temporal_score,
@@ -270,7 +251,7 @@ class HybridRetriever:
         
         Memories are considered related if they have:
         1. High semantic similarity to each other (>0.8)
-        2. Significant lexical overlap
+        2. Removed (was lexical overlap)
         3. Same actor
         4. Overlapping key entities/topics
         """
@@ -278,7 +259,7 @@ class HybridRetriever:
         memory_to_group = {}  # memory_id -> group_id
         
         # Sort memories by score to process highest scoring first
-        sorted_memories = sorted(memories, key=lambda m: sem_scores.get(m['memory_id'], 0.0) + lex_scores.get(m['memory_id'], 0.0), reverse=True)
+        sorted_memories = sorted(memories, key=lambda m: sem_scores.get(m['memory_id'], 0.0), reverse=True)
         
         for memory in sorted_memories:
             mid = memory['memory_id']
@@ -509,7 +490,6 @@ class HybridRetriever:
                 token_count=int(m['token_count']),
                 base_score=base,
                 semantic_score=sem_scores.get(mid, 0.0) if sem_scores else None,
-                lexical_score=lex_scores.get(mid, 0.0) if lex_scores else None,
                 recency_score=rec,
                 importance_score=importance if self.use_attention else None,
                 actor_score=actor_match,
@@ -525,17 +505,17 @@ class HybridRetriever:
     def search(self, rq: RetrievalQuery, qvec: np.ndarray, topk_sem: int = 50, topk_lex: int = 50) -> List[Candidate]:
         # REDESIGNED: Retrieve large candidate set and score comprehensively
         # The topk parameters now only control the FINAL output size, not initial retrieval
-        
+
         # Step 1: Get large candidate sets from each source (cast wide net)
-        initial_retrieval_size = 10000  # Retrieve top 10000 from each source
+        # Use topk_sem for retrieval size (will be 999999 from analyzer)
+        initial_retrieval_size = topk_sem
         
         # Get semantic candidates (vector similarity)
         sem = self._semantic(qvec, initial_retrieval_size)
         sem_dict = {mid: score for mid, score in sem}
         
-        # Get lexical candidates (text matching)
-        lex = self._lexical(rq.text, initial_retrieval_size)
-        lex_dict = {mid: score for mid, score in lex}
+        # Lexical search removed - using semantic only
+        lex_dict = {}  # Empty dict for backward compatibility
         
         # Get actor-specific candidates if hint provided
         actor_candidates = []
@@ -576,14 +556,14 @@ class HybridRetriever:
     
     def get_current_weights(self) -> Dict[str, float]:
         """Return current weight configuration for UI display"""
+        # Redistributed weights after removing lexical (was 0.25)
         return {
-            'semantic': 0.45,   # Fixed weights from compute_all_scores
-            'lexical': 0.25,
-            'recency': 0.02,
-            'actor': 0.1,
-            'temporal': 0.1,
-            'spatial': 0.04,
-            'usage': 0.04
+            'semantic': 0.68,   # Increased from 0.45 (+0.10)
+            'recency': 0.02,    # Increased from 0.02 (+0.13)
+            'actor': 0.10,      # Unchanged
+            'temporal': 0.10,   # Unchanged
+            'spatial': 0.05,    # Increased from 0.04 (+0.01)
+            'usage': 0.05       # Increased from 0.04 (+0.01)
         }
     
     def update_weights(self, weights: Dict[str, float]) -> Dict[str, float]:
@@ -629,11 +609,15 @@ class HybridRetriever:
             detailed.append({
                 'memory_id': c.memory_id,
                 'raw_text': memory.get('raw_text', ''),
-                'entities': entities,  # This is the 'what' list
+                'entities': entities,  # This is the 'what' list extracted/parsed
+                'what': memory.get('what', ''),  # Raw what field from database
                 'who': memory.get('who_list', '[]'),
+                'who_id': memory.get('who_id', ''),
+                'who_label': memory.get('who_label', ''),
                 'who_type': memory.get('who_type', ''),
                 'who_list': who_list,
                 'when': memory.get('when_list', '[]'),
+                'when_ts': memory.get('when_ts', ''),
                 'when_list': when_list,
                 'where': memory.get('where_value', ''),
                 'where_type': memory.get('where_type', ''),
@@ -643,7 +627,6 @@ class HybridRetriever:
                 'scores': {
                     'total': c.score,
                     'semantic': c.semantic_score if c.semantic_score is not None else 0.0,
-                    'lexical': c.lexical_score if c.lexical_score is not None else 0.0,
                     'recency': c.recency_score if c.recency_score is not None else 0.0,
                     'actor': c.actor_score if c.actor_score is not None else 0.0,
                     'temporal': c.temporal_score if c.temporal_score is not None else 0.0,
@@ -763,29 +746,30 @@ class HybridRetriever:
         
         return components
     
-    def search_with_weights(self, rq: RetrievalQuery, qvec: np.ndarray, weights: Dict[str, float], 
+    def search_with_weights(self, rq: RetrievalQuery, qvec: np.ndarray, weights: Dict[str, float],
                            topk_sem: int = 100, topk_lex: int = 100) -> List[Candidate]:
         """Search with custom weights provided by UI"""
         # Normalize weights
         weights = self.update_weights(weights)
-        
+
         # Temporarily override the fixed weights in compute_all_scores
         # We'll need to modify compute_all_scores to accept weights parameter
         # For now, use standard search and re-score
-        candidates = self.search(rq, qvec, topk_sem=10000, topk_lex=10000)
-        
+        # topk_lex is ignored now since lexical search is removed
+        # Use topk_sem for the search (should be large like 10000 for analyzer)
+        candidates = self.search(rq, qvec, topk_sem=topk_sem, topk_lex=0)
+
         # Re-score with custom weights
         for c in candidates:
             c.score = (
                 weights['semantic'] * (c.semantic_score or 0.0) +
-                weights['lexical'] * (c.lexical_score or 0.0) +
                 weights['recency'] * (c.recency_score or 0.0) +
                 weights['actor'] * (c.actor_score or 0.0) +
                 weights['temporal'] * (c.temporal_score or 0.0) +
                 weights['spatial'] * (getattr(c, 'spatial_score', 0.0) or 0.0) +
                 weights['usage'] * (c.usage_score or 0.0)
             )
-        
-        # Re-sort and return top-k
+
+        # Re-sort and return all candidates (let knapsack algorithm handle selection)
         candidates.sort(key=lambda x: x.score, reverse=True)
-        return candidates[:topk_sem]
+        return candidates

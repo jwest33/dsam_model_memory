@@ -47,18 +47,13 @@
                 <div id="weight-sliders">
                     <div class="weight-slider">
                         <label>Semantic</label>
-                        <input type="range" id="weight-semantic" min="0" max="100" value="45" onchange="updateWeight('semantic', this.value)">
-                        <span id="weight-semantic-val">0.45</span>
-                    </div>
-                    <div class="weight-slider">
-                        <label>Lexical</label>
-                        <input type="range" id="weight-lexical" min="0" max="100" value="25" onchange="updateWeight('lexical', this.value)">
-                        <span id="weight-lexical-val">0.25</span>
+                        <input type="range" id="weight-semantic" min="0" max="100" value="55" onchange="updateWeight('semantic', this.value)">
+                        <span id="weight-semantic-val">0.68</span>
                     </div>
                     <div class="weight-slider">
                         <label>Recency</label>
-                        <input type="range" id="weight-recency" min="0" max="100" value="2" onchange="updateWeight('recency', this.value)">
-                        <span id="weight-recency-val">0.02</span>
+                        <input type="range" id="weight-recency" min="0" max="100" value="15" onchange="updateWeight('recency', this.value)">
+                        <span id="weight-recency-val">0.15</span>
                     </div>
                     <div class="weight-slider">
                         <label>Actor</label>
@@ -72,13 +67,13 @@
                     </div>
                     <div class="weight-slider">
                         <label>Spatial</label>
-                        <input type="range" id="weight-spatial" min="0" max="100" value="4" onchange="updateWeight('spatial', this.value)">
-                        <span id="weight-spatial-val">0.04</span>
+                        <input type="range" id="weight-spatial" min="0" max="100" value="5" onchange="updateWeight('spatial', this.value)">
+                        <span id="weight-spatial-val">0.05</span>
                     </div>
                     <div class="weight-slider">
                         <label>Usage</label>
-                        <input type="range" id="weight-usage" min="0" max="100" value="4" onchange="updateWeight('usage', this.value)">
-                        <span id="weight-usage-val">0.04</span>
+                        <input type="range" id="weight-usage" min="0" max="100" value="5" onchange="updateWeight('usage', this.value)">
+                        <span id="weight-usage-val">0.05</span>
                     </div>
                     <!-- Sum row -->
                     <div class="weight-sum-row">
@@ -106,20 +101,19 @@
                 <table id="results-table" class="data-table">
                     <thead>
                         <tr>
-                            <th class="col-rank">Rank</th>
-                            <th class="col-memory-id">Memory ID</th>
-                            <th class="col-score">Total</th>
-                            <th class="col-score">Tokens</th>
-                            <th class="col-score">Sem</th>
-                            <th class="col-score">Lex</th>
-                            <th class="col-score">Rec</th>
-                            <th class="col-score">Act</th>
-                            <th class="col-score">Tmp</th>
-                            <th class="col-score">Spt</th>
-                            <th class="col-score">Usg</th>
-                            <th class="col-entities">What</th>
-                            <th class="col-when">When</th>
-                            <th class="col-text">Raw Text</th>
+                            <th class="col-rank sortable" onclick="sortTable('rank')">Rank</th>
+                            <th class="col-memory-id sortable" onclick="sortTable('memory_id')">Memory ID</th>
+                            <th class="col-score sortable" onclick="sortTable('total')">Total</th>
+                            <th class="col-score sortable" onclick="sortTable('tokens')">Tokens</th>
+                            <th class="col-score sortable" onclick="sortTable('semantic')">Sem</th>
+                            <th class="col-score sortable" onclick="sortTable('recency')">Rec</th>
+                            <th class="col-score sortable" onclick="sortTable('actor')">Act</th>
+                            <th class="col-score sortable" onclick="sortTable('temporal')">Tmp</th>
+                            <th class="col-score sortable" onclick="sortTable('spatial')">Spt</th>
+                            <th class="col-score sortable" onclick="sortTable('usage')">Usg</th>
+                            <th class="col-entities sortable" onclick="sortTable('entities')">What</th>
+                            <th class="col-when sortable" onclick="sortTable('when')">When</th>
+                            <th class="col-text sortable" onclick="sortTable('text')">Raw Text</th>
                             <th class="col-actions">Actions</th>
                         </tr>
                     </thead>
@@ -165,6 +159,69 @@
     max-width: 1600px;
     margin: 0 auto;
     padding: 1rem;
+}
+
+/* Query Input Synthwave Styling */
+#query {
+    background: linear-gradient(135deg,
+        rgba(0, 0, 0, 0.8) 0%,
+        var(--synth-surface) 100%);
+    border: 1px solid var(--synth-purple);
+    color: var(--synth-cyan);
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+#query:focus {
+    outline: none;
+    border-color: var(--synth-cyan);
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.4),
+                inset 0 1px 3px rgba(0, 0, 0, 0.3);
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.05) 0%,
+        var(--synth-surface) 100%);
+}
+
+#query::placeholder {
+    color: var(--synth-text-muted);
+    opacity: 0.6;
+}
+
+/* Token Budget Input Styling */
+#token-budget {
+    background: linear-gradient(135deg,
+        rgba(0, 0, 0, 0.8) 0%,
+        var(--synth-surface) 100%);
+    border: 1px solid var(--synth-border);
+    color: var(--synth-cyan);
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+#token-budget:focus {
+    outline: none;
+    border-color: var(--synth-pink);
+    box-shadow: 0 0 10px rgba(255, 16, 240, 0.3),
+                inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Hide number input spinners */
+#token-budget::-webkit-inner-spin-button,
+#token-budget::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+#token-budget {
+    -moz-appearance: textfield;
 }
 
 .decomposition-display {

@@ -60,11 +60,10 @@ body::before {
     left: 0;
     right: 0;
     bottom: 0;
-    background: 
+    background:
         repeating-linear-gradient(
-            0deg,
+            180deg,
             transparent,
-            transparent 2px,
             rgba(255, 16, 240, 0.03) 2px,
             rgba(255, 16, 240, 0.03) 4px
         );
@@ -74,7 +73,7 @@ body::before {
 
 /* Header */
 header {
-    background: linear-gradient(90deg, var(--synth-card-bg) 0%, var(--synth-surface) 50%, var(--synth-card-bg) 100%);
+    background: var(--synth-card-bg);
     border-bottom: 2px solid var(--synth-cyan);
     box-shadow: 0 2px 20px rgba(0, 255, 255, 0.2);
     padding: 0.8rem 1.5rem;
@@ -212,6 +211,7 @@ input[type="number"] {
 }
 
 #token-budget {
+    appearance: textfield;
     -moz-appearance: textfield; /* Firefox */
 }
 

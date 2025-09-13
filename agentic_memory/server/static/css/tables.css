@@ -53,6 +53,39 @@
     min-width: fit-content;
 }
 
+/* Sortable column headers */
+.data-table th.sortable {
+    cursor: pointer;
+    padding-right: 1.5rem;
+    transition: background 0.2s, color 0.2s;
+}
+
+.data-table th.sortable:hover {
+    background: linear-gradient(180deg, rgba(0, 255, 255, 0.1) 0%, var(--synth-surface) 100%);
+    color: var(--synth-highlight);
+}
+
+/* Sort indicators */
+.data-table th.sortable::before {
+    content: '⇅';
+    position: absolute;
+    right: 0.5rem;
+    opacity: 0.3;
+    font-size: 0.9rem;
+}
+
+.data-table th.sort-asc::before {
+    content: '↑';
+    opacity: 1;
+    color: var(--synth-highlight);
+}
+
+.data-table th.sort-desc::before {
+    content: '↓';
+    opacity: 1;
+    color: var(--synth-highlight);
+}
+
 /* Column resizer */
 .data-table th::after {
     content: '';

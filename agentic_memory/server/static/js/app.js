@@ -1,12 +1,11 @@
 // Global state
 let currentWeights = {
-    semantic: 0.45,
-    lexical: 0.25,
+    semantic: 0.68,
     recency: 0.02,
-    actor: 0.1,
-    temporal: 0.1,
-    spatial: 0.04,
-    usage: 0.04
+    actor: 0.10,
+    temporal: 0.10,
+    spatial: 0.05,
+    usage: 0.05
 };
 
 let currentResults = [];
@@ -268,13 +267,12 @@ async function resetWeights() {
         console.error('Failed to reset weights:', error);
         // Fallback to local defaults
         currentWeights = {
-            semantic: 0.45,
-            lexical: 0.25,
+            semantic: 0.68,
             recency: 0.02,
-            actor: 0.1,
-            temporal: 0.1,
-            spatial: 0.04,
-            usage: 0.04
+            actor: 0.10,
+            temporal: 0.10,
+            spatial: 0.05,
+            usage: 0.05
         };
         updateWeightDisplay();
     }
@@ -421,17 +419,21 @@ function displayDecomposition(decomposition) {
     }
 }
 
+// Current sort state
+let sortColumn = null;
+let sortDirection = 'asc';
+
 // Display search results
 function displayResults(results) {
     const tbody = document.getElementById('results-tbody');
-    
+
     if (!results || results.length === 0) {
         tbody.innerHTML = '<tr><td colspan="15" class="table-loading">No results found</td></tr>';
         return;
     }
-    
+
     tbody.innerHTML = '';
-    
+
     results.forEach((result, index) => {
         const row = document.createElement('tr');
         
@@ -459,7 +461,6 @@ function displayResults(results) {
                 </span>
             </td>
             <td class="col-score">${result.scores.semantic.toFixed(2)}</td>
-            <td class="col-score">${result.scores.lexical.toFixed(2)}</td>
             <td class="col-score">${result.scores.recency.toFixed(2)}</td>
             <td class="col-score">${result.scores.actor.toFixed(2)}</td>
             <td class="col-score">${result.scores.temporal.toFixed(2)}</td>
@@ -511,9 +512,19 @@ function formatDate(dateStr) {
     if (!dateStr) return 'N/A';
     try {
         const date = new Date(dateStr);
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+            // If not a valid date, try to parse it as a string
+            if (typeof dateStr === 'string') {
+                // If it looks like a date string, return it as is
+                return dateStr;
+            }
+            return 'N/A';
+        }
         return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-    } catch {
-        return dateStr;
+    } catch (error) {
+        console.error('Date formatting error:', error, 'for date:', dateStr);
+        return dateStr || 'N/A';
     }
 }
 
@@ -529,6 +540,134 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Sort results table
+function sortTable(column) {
+    if (!currentResults || currentResults.length === 0) return;
+
+    // Toggle sort direction if same column
+    if (sortColumn === column) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortColumn = column;
+        sortDirection = 'asc';
+    }
+
+    // Create a copy of results to sort
+    const sortedResults = [...currentResults];
+
+    // Sort based on column
+    sortedResults.sort((a, b) => {
+        let valA, valB;
+
+        switch(column) {
+            case 'rank':
+                // Original rank order
+                valA = currentResults.indexOf(a);
+                valB = currentResults.indexOf(b);
+                break;
+            case 'memory_id':
+                valA = a.memory_id;
+                valB = b.memory_id;
+                break;
+            case 'total':
+                valA = a.scores.total;
+                valB = b.scores.total;
+                break;
+            case 'tokens':
+                valA = a.token_count || 0;
+                valB = b.token_count || 0;
+                break;
+            case 'semantic':
+                valA = a.scores.semantic;
+                valB = b.scores.semantic;
+                break;
+            case 'recency':
+                valA = a.scores.recency;
+                valB = b.scores.recency;
+                break;
+            case 'actor':
+                valA = a.scores.actor;
+                valB = b.scores.actor;
+                break;
+            case 'temporal':
+                valA = a.scores.temporal;
+                valB = b.scores.temporal;
+                break;
+            case 'spatial':
+                valA = a.scores.spatial;
+                valB = b.scores.spatial;
+                break;
+            case 'usage':
+                valA = a.scores.usage;
+                valB = b.scores.usage;
+                break;
+            case 'entities':
+                valA = (a.entities || []).join(' ');
+                valB = (b.entities || []).join(' ');
+                break;
+            case 'when':
+                valA = a.when ? new Date(a.when).getTime() : 0;
+                valB = b.when ? new Date(b.when).getTime() : 0;
+                break;
+            case 'text':
+                valA = a.raw_text || '';
+                valB = b.raw_text || '';
+                break;
+            default:
+                return 0;
+        }
+
+        // Handle numeric vs string comparison
+        if (typeof valA === 'number' && typeof valB === 'number') {
+            return sortDirection === 'asc' ? valA - valB : valB - valA;
+        } else {
+            // String comparison
+            if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+            if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        }
+    });
+
+    // Re-display sorted results
+    displayResults(sortedResults);
+
+    // Update header indicators
+    updateSortIndicators(column, sortDirection);
+}
+
+// Update sort indicators in table headers
+function updateSortIndicators(column, direction) {
+    // Remove all existing sort indicators
+    document.querySelectorAll('th').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+    });
+
+    // Add indicator to current column
+    const columnMap = {
+        'rank': '.col-rank',
+        'memory_id': '.col-memory-id',
+        'total': '.col-score:nth-of-type(3)',
+        'tokens': '.col-score:nth-of-type(4)',
+        'semantic': '.col-score:nth-of-type(5)',
+        'recency': '.col-score:nth-of-type(6)',
+        'actor': '.col-score:nth-of-type(7)',
+        'temporal': '.col-score:nth-of-type(8)',
+        'spatial': '.col-score:nth-of-type(9)',
+        'usage': '.col-score:nth-of-type(10)',
+        'entities': '.col-entities',
+        'when': '.col-when',
+        'text': '.col-text'
+    };
+
+    const selector = columnMap[column];
+    if (selector) {
+        const th = document.querySelector(`#results-table thead th${selector}`);
+        if (th) {
+            th.classList.add(direction === 'asc' ? 'sort-asc' : 'sort-desc');
+        }
+    }
 }
 
 // Show memory details modal
@@ -679,56 +818,85 @@ function updateVisualizations(results) {
 function updateScoreChart(results) {
     const canvas = document.getElementById('score-chart');
     if (!canvas) return;
-    
+
     const ctx = canvas.getContext('2d');
     const width = canvas.width;
     const height = canvas.height;
-    
-    // Clear canvas
-    ctx.clearRect(0, 0, width, height);
-    
+
+    // Get computed styles for colors
+    const styles = getComputedStyle(document.documentElement);
+    const cyanColor = styles.getPropertyValue('--synth-cyan') || '#00ffff';
+    const purpleColor = styles.getPropertyValue('--synth-purple') || '#a855f7';
+    const pinkColor = styles.getPropertyValue('--synth-pink') || '#ff10f0';
+    const textColor = styles.getPropertyValue('--synth-text') || '#e0e0e0';
+    const borderColor = styles.getPropertyValue('--synth-border') || '#444';
+    const bgColor = styles.getPropertyValue('--synth-dark-bg') || '#0a0a0f';
+
+    // Clear canvas with background
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, width, height);
+
     // Calculate score distribution
     const buckets = new Array(10).fill(0);
     results.forEach(r => {
         const bucket = Math.min(9, Math.floor(r.scores.total * 10));
         buckets[bucket]++;
     });
-    
-    // Draw bars
+
+    // Draw bars with gradient
     const barWidth = width / 10;
     const maxCount = Math.max(...buckets, 1);
-    
-    ctx.fillStyle = 'var(--synth-cyan)';
-    ctx.strokeStyle = 'var(--synth-border)';
-    
+
     buckets.forEach((count, i) => {
         const barHeight = (count / maxCount) * (height - 40);
         const x = i * barWidth;
         const y = height - barHeight - 20;
-        
-        // Draw bar
-        ctx.fillRect(x + 5, y, barWidth - 10, barHeight);
-        ctx.strokeRect(x + 5, y, barWidth - 10, barHeight);
-        
+
+        if (barHeight > 0) {
+            // Create gradient for bar
+            const gradient = ctx.createLinearGradient(x, y, x, y + barHeight);
+            gradient.addColorStop(0, cyanColor);
+            gradient.addColorStop(0.5, purpleColor);
+            gradient.addColorStop(1, pinkColor);
+
+            // Draw bar with gradient
+            ctx.fillStyle = gradient;
+            ctx.fillRect(x + 5, y, barWidth - 10, barHeight);
+
+            // Draw bar border with glow effect
+            ctx.strokeStyle = cyanColor;
+            ctx.lineWidth = 1;
+            ctx.shadowColor = cyanColor;
+            ctx.shadowBlur = 5;
+            ctx.strokeRect(x + 5, y, barWidth - 10, barHeight);
+            ctx.shadowBlur = 0;
+        }
+
         // Draw label
-        ctx.fillStyle = 'var(--synth-text)';
+        ctx.fillStyle = textColor;
         ctx.font = '10px monospace';
         ctx.textAlign = 'center';
         ctx.fillText(`${i/10}-${(i+1)/10}`, x + barWidth/2, height - 5);
-        
+
         // Draw count
         if (count > 0) {
+            ctx.fillStyle = cyanColor;
+            ctx.font = 'bold 11px monospace';
+            ctx.shadowColor = cyanColor;
+            ctx.shadowBlur = 3;
             ctx.fillText(count.toString(), x + barWidth/2, y - 5);
+            ctx.shadowBlur = 0;
         }
-        
-        ctx.fillStyle = 'var(--synth-cyan)';
     });
-    
-    // Draw title
-    ctx.fillStyle = 'var(--synth-text)';
-    ctx.font = '12px sans-serif';
+
+    // Draw title with glow
+    ctx.fillStyle = textColor;
+    ctx.font = 'bold 14px monospace';
     ctx.textAlign = 'center';
+    ctx.shadowColor = purpleColor;
+    ctx.shadowBlur = 5;
     ctx.fillText('Score Distribution', width/2, 15);
+    ctx.shadowBlur = 0;
 }
 
 // Update entity cloud

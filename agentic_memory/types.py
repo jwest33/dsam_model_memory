@@ -78,7 +78,6 @@ class Candidate(BaseModel):
     # Optional component scores for debugging
     base_score: Optional[float] = None
     semantic_score: Optional[float] = None
-    lexical_score: Optional[float] = None
     recency_score: Optional[float] = None
     importance_score: Optional[float] = None
     actor_score: Optional[float] = None
