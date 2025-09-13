@@ -108,7 +108,7 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["agentic_memory*", "data*"]
+include = ["agentic_memory*", "data*","examples*","helpers*","import*"]
 exclude = ["tests*", "logs*", "*.egg-info", "__pycache__"]
 
 [tool.setuptools.package-data]

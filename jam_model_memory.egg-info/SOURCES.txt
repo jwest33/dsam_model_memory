@@ -44,6 +44,11 @@ agentic_memory/tools/llama_agent_websearch.py
 agentic_memory/tools/memory_evaluator.py
 agentic_memory/tools/memory_search_tool.py
 agentic_memory/tools/tool_handler.py
+helpers/analyze_imports.py
+helpers/faiss_search.py
+helpers/rebuild_index.py
+import/__init__.py
+import/import_lmsys_data.py
 jam_model_memory.egg-info/PKG-INFO
 jam_model_memory.egg-info/SOURCES.txt
 jam_model_memory.egg-info/dependency_links.txt
