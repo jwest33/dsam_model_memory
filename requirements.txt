@@ -44,7 +44,6 @@ trafilatura>=2.0.0
 
 # Utilities
 duckduckgo-search>=5.0.0  # For free web search
-matplotlib>=3.10.6
 psutil>=5.9.5
 python-dotenv>=1.0.0
 
