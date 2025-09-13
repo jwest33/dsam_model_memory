@@ -55,4 +55,3 @@ jam_model_memory.egg-info/dependency_links.txt
 jam_model_memory.egg-info/entry_points.txt
 jam_model_memory.egg-info/requires.txt
 jam_model_memory.egg-info/top_level.txt
-tests/test_memory_store.py

@@ -250,7 +250,6 @@ jam_model_memory/
 │   └── config_manager.py    # Configuration management
 ├── benchmarks/              # Performance benchmarking
 ├── data/                    # Memory databases
-├── tests/                   # Test suite
 └── llama_server_client.py   # LLM server management
 ```
 
@@ -262,6 +261,10 @@ The system uses SQLite with the following main tables:
 - `memory_locations`: Location associations
 - `memory_scores`: Retrieval scoring cache
 - `config`: Configuration persistence
+
+### In progress
+1. LLM tool calling and configuration within chat interface
+2. Liquid memory cluster manipulation and analysis
 
 ### Optimization Tips
 

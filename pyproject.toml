@@ -114,13 +114,6 @@ exclude = ["tests*", "logs*", "*.egg-info", "__pycache__"]
 [tool.setuptools.package-data]
 "agentic_memory.server" = ["templates/*.html", "static/css/*.css", "static/js/*.js"]
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-addopts = "-v"
-
 [tool.ruff]
 line-length = 100
 target-version = "py311"

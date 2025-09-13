@@ -340,7 +340,6 @@ jam_model_memory/
 │   └── config_manager.py    # Configuration management
 ├── benchmarks/              # Performance benchmarking
 ├── data/                    # Memory databases
-├── tests/                   # Test suite
 └── llama_server_client.py   # LLM server management
 ```
 
