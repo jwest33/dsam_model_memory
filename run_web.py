@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 """
-Wrapper script for running JAM Web Application.
+Wrapper script for running JAM Web Application with all servers.
+This script starts the LLM server, embedding server, and web interface.
 """
 
-from agentic_memory.server.flask_app import app
+import sys
+import subprocess
 
 if __name__ == "__main__":
-    app.run(host='127.0.0.1', port=5001, debug=False)
+    # Run the CLI command to start all servers
+    subprocess.run([sys.executable, "-m", "agentic_memory.cli", "server", "start", "--all"])

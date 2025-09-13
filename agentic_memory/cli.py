@@ -21,8 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from agentic_memory.router import MemoryRouter
 from agentic_memory.config_manager import ConfigManager
-from llama_server_manager import LLMServerManager, EmbeddingServerManager, get_server_manager
-from llama_api import create_app, APIConfig
+from llama_server_manager import LLMServerManager, EmbeddingServerManager, get_server_manager, get_embedding_manager
 
 # Configure logging
 logging.basicConfig(
@@ -167,20 +166,20 @@ def server():
 @server.command()
 @click.option('--all', 'start_all', is_flag=True, help='Start all servers')
 @click.option('--llm', is_flag=True, help='Start LLM server')
+@click.option('--embedding', is_flag=True, help='Start embedding server')
 @click.option('--api', is_flag=True, help='Start API wrapper')
 @click.option('--web', is_flag=True, help='Start web interface')
-@click.option('--daemon', '-d', is_flag=True, help='Run in background')
-def start(start_all, llm, api, web, daemon):
+def start(start_all, llm, embedding, api, web):
     """Start servers"""
     process_manager = ProcessManager()
-    
+
     if start_all:
-        llm = api = web = True
-    
-    if not (llm or api or web):
-        click.echo("Please specify which servers to start (--llm, --api, --web, or --all)")
+        llm = embedding = api = web = True
+
+    if not (llm or embedding or api or web):
+        click.echo("Please specify which servers to start (--llm, --embedding, --api, --web, or --all)")
         return
-    
+
     # Start LLM server
     if llm:
         click.echo("Starting LLM server...")
@@ -190,59 +189,43 @@ def start(start_all, llm, api, web, daemon):
         else:
             click.echo("Failed to start LLM server")
             return
-    
-    # Start API wrapper
-    if api:
-        click.echo("Starting API wrapper...")
-        if daemon:
-            # Run in background
-            command = [sys.executable, "-m", "llama_api", "start"]
-            if process_manager.start_process("jam-api", command):
-                click.echo("API wrapper started in background")
-            else:
-                click.echo("Failed to start API wrapper")
+
+    # Start embedding server
+    if embedding:
+        click.echo("Starting embedding server...")
+        emb_manager = get_embedding_manager()
+        if emb_manager.ensure_running():
+            click.echo("Embedding server started")
         else:
-            # Run in foreground
-            import uvicorn
-            from llama_api import create_app, APIConfig
-            
-            config = APIConfig()
-            app = create_app(config)
-            click.echo(f"Starting API wrapper on {config.host}:{config.port}")
-            uvicorn.run(app, host=config.host, port=config.port)
-    
+            click.echo("Failed to start embedding server")
+            return
+
     # Start web interface
     if web:
         click.echo("Starting web interface...")
-        if daemon:
-            command = [sys.executable, "-m", "agentic_memory.server.flask_app"]
-            if process_manager.start_process("jam-web", command):
-                click.echo("Web interface started in background")
-            else:
-                click.echo("Failed to start web interface")
-        else:
-            # Run in foreground
-            from agentic_memory.server.flask_app import app
-            click.echo("Starting web interface on port 5001")
-            app.run(host="0.0.0.0", port=5001)
+        # Run in foreground
+        from agentic_memory.server.flask_app import app
+        click.echo("Starting web interface on port 5001")
+        app.run(host="0.0.0.0", port=5001)
 
 
 @server.command()
 @click.option('--all', 'stop_all', is_flag=True, help='Stop all servers')
 @click.option('--llm', is_flag=True, help='Stop LLM server')
+@click.option('--embedding', is_flag=True, help='Stop embedding server')
 @click.option('--api', is_flag=True, help='Stop API wrapper')
 @click.option('--web', is_flag=True, help='Stop web interface')
-def stop(stop_all, llm, api, web):
+def stop(stop_all, llm, embedding, api, web):
     """Stop servers"""
     process_manager = ProcessManager()
-    
+
     if stop_all:
-        llm = api = web = True
-    
-    if not (llm or api or web):
-        click.echo("Please specify which servers to stop (--llm, --api, --web, or --all)")
+        llm = embedding = api = web = True
+
+    if not (llm or embedding or api or web):
+        click.echo("Please specify which servers to stop (--llm, --embedding, --api, --web, or --all)")
         return
-    
+
     # Stop web interface
     if web:
         click.echo("Stopping web interface...")
@@ -250,7 +233,7 @@ def stop(stop_all, llm, api, web):
             click.echo("Web interface stopped")
         else:
             click.echo("Web interface was not running")
-    
+
     # Stop API wrapper
     if api:
         click.echo("Stopping API wrapper...")
@@ -258,7 +241,16 @@ def stop(stop_all, llm, api, web):
             click.echo("API wrapper stopped")
         else:
             click.echo("API wrapper was not running")
-    
+
+    # Stop embedding server
+    if embedding:
+        click.echo("Stopping embedding server...")
+        emb_manager = get_embedding_manager()
+        if emb_manager.stop():
+            click.echo("Embedding server stopped")
+        else:
+            click.echo("Embedding server was not running")
+
     # Stop LLM server
     if llm:
         click.echo("Stopping LLM server...")
@@ -273,14 +265,18 @@ def stop(stop_all, llm, api, web):
 def status():
     """Check server status"""
     process_manager = ProcessManager()
-    
+
     # LLM server status
     manager = get_server_manager()
     llm_status = manager.get_status()
-    
+
+    # Embedding server status
+    emb_manager = get_embedding_manager()
+    emb_status = emb_manager.get_status()
+
     click.echo("\nServer Status:")
     click.echo("-" * 40)
-    
+
     # LLM Server
     if llm_status["running"]:
         click.echo(f"LLM Server: Running")
@@ -290,7 +286,17 @@ def status():
             click.echo(f"   PID: {llm_status['pid']}")
     else:
         click.echo("LLM Server: Stopped")
-    
+
+    # Embedding Server
+    if emb_status["running"]:
+        click.echo(f"Embedding Server: Running")
+        click.echo(f"   Port: {emb_status.get('port')}")
+        click.echo(f"   Model: {emb_status.get('model')}")
+        if 'pid' in emb_status:
+            click.echo(f"   PID: {emb_status['pid']}")
+    else:
+        click.echo("Embedding Server: Stopped")
+
     # API Wrapper
     api_status = process_manager.get_status("jam-api")
     if api_status["running"]:
@@ -300,7 +306,7 @@ def status():
         click.echo(f"   Memory: {api_status['memory_mb']:.1f} MB")
     else:
         click.echo("API Wrapper: Stopped")
-    
+
     # Web Interface
     web_status = process_manager.get_status("jam-web")
     if web_status["running"]:
@@ -310,7 +316,7 @@ def status():
         click.echo(f"   Memory: {web_status['memory_mb']:.1f} MB")
     else:
         click.echo("Web Interface: Stopped")
-    
+
     click.echo("-" * 40)
 
 
@@ -318,14 +324,14 @@ def status():
 def restart():
     """Restart all servers"""
     click.echo("Restarting servers...")
-    
+
     # Stop all
     ctx = click.get_current_context()
     ctx.invoke(stop, stop_all=True)
     time.sleep(2)
-    
+
     # Start all
-    ctx.invoke(start, start_all=True, daemon=True)
+    ctx.invoke(start, start_all=True)
 
 
 @cli.group()

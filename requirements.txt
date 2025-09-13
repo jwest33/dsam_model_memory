@@ -47,7 +47,6 @@ duckduckgo-search>=5.0.0  # For free web search
 matplotlib>=3.10.6
 psutil>=5.9.5
 python-dotenv>=1.0.0
-tqdm>=4.67.1
 
 # Development & Testing
 pytest>=7.4.0

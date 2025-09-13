@@ -9,13 +9,13 @@ description = "JAM (Journalistic Agent Memory) - Local-first memory system for L
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [
-    {name = "JAM Team"},
+    {name = "jwest33"},
 ]
 maintainers = [
-    {name = "JAM Team"},
+    {name = "jwest33"},
 ]
 requires-python = ">=3.11"
-keywords = ["llm", "memory", "agent", "5w1h", "journalistic", "faiss", "semantic-search"]
+keywords = ["llm", "memory", "agent", "5w1h", "journalistic", "faiss", "semantic-search","vector"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -102,8 +102,6 @@ Issues = "https://github.com/yourusername/jam-model-memory/issues"
 [project.scripts]
 jam = "agentic_memory.cli:main"
 jam-server = "agentic_memory.server.flask_app:main"
-jam-api = "llama_api:main"
-jam-analyze = "retrieval_analyzer:main"
 
 [tool.setuptools]
 include-package-data = true

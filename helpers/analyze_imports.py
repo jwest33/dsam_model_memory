@@ -163,7 +163,7 @@ def main():
                          'cluster', 'tools', 'server', 'embedding', 'attention',
                          'block_builder', 'config', 'config_manager', 'retrieval',
                          'settings_manager', 'tokenization', 'router', 'types',
-                         'llama_agent_websearch', 'llama_api', 'llama_embedder',
+                         'llama_agent_websearch', 'llama_embedder',
                          'llama_server_manager', 'memory_search_tool', 'ddgs'])
 
     # Filter out standard library, local modules, and false positives

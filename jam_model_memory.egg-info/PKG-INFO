@@ -2,8 +2,8 @@ Metadata-Version: 2.4
 Name: jam-model-memory
 Version: 0.0.1
 Summary: JAM (Journalistic Agent Memory) - Local-first memory system for LLM agents
-Author: JAM Team
-Maintainer: JAM Team
+Author: jwest33
+Maintainer: jwest33
 License: MIT License
         
         Copyright (c) 2025 jwest33
@@ -248,9 +248,7 @@ jam_model_memory/
 │   ├── server/              # Web interface
 │   ├── cli.py               # Command-line interface
 │   └── router.py            # Main orchestrator
-├── benchmarks/              # Performance benchmarking
 ├── tests/                   # Test suite
-├── llama_api.py            # OpenAI-compatible API wrapper
 └── llama_server_client.py  # LLM server management
 ```
 

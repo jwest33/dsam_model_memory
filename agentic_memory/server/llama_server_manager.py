@@ -413,11 +413,25 @@ class LLMServerManager(BaseLlamaServerManager):
 
 class EmbeddingServerManager(BaseLlamaServerManager):
     """Manager for embedding server."""
-    
+
     def __init__(self, config: Optional[EmbeddingServerConfig] = None):
         """Initialize embedding server manager."""
         config = config or EmbeddingServerConfig.from_env()
         super().__init__(config, server_type="Embedding")
+
+    def ensure_running(self) -> bool:
+        """Ensure server is running."""
+        if self.is_running():
+            return True
+        return self.start()
+
+    def get_status(self) -> Dict[str, Any]:
+        """Get server status."""
+        return {
+            'running': self.is_running(),
+            'port': self._config.port,
+            'model': self._config.model_path
+        }
 
 
 # Backward compatibility functions

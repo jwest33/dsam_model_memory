@@ -935,8 +935,7 @@ def main():
         print("IMPORTANT: Ensure both servers are running:")
         print("  - LLM server on port 8000 (for extraction)")
         print("  - Embedding server on port 8002 (for embeddings)")
-        print("  Run: python llama_server_manager.py both start")
-        print("  Or: python -m agentic_memory.cli server start --all --daemon")
+        print("TO START ALL: python -m agentic_memory.cli server start --all")
         
         # Check if servers are running
         import requests
@@ -948,7 +947,6 @@ def main():
                 print("LLM server is not healthy on port 8000")
         except:
             print("LLM server is not running on port 8000")
-            print("   Please start it with: python llama_server_manager.py llm start")
         
         try:
             emb_response = requests.get("http://localhost:8002/health", timeout=2)
@@ -958,7 +956,6 @@ def main():
                 print("Embedding server is not healthy on port 8002")
         except:
             print("Embedding server is not running on port 8002")
-            print("   Please start it with: python llama_server_manager.py embedding start")
     
     stats = importer.import_from_csv(limit=args.limit)
 

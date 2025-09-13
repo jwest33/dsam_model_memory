@@ -159,7 +159,6 @@ jam_model_memory/
 │   ├── cli.py               # Command-line interface
 │   └── router.py            # Main orchestrator
 ├── tests/                   # Test suite
-├── llama_api.py            # OpenAI-compatible API wrapper
 └── llama_server_client.py  # LLM server management
 ```
 
